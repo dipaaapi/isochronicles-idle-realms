@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies first for optimal layer caching
+COPY package*.json ./
+RUN npm install
+
+# Copy all source files
+COPY . .
+
+EXPOSE 5173
+
+# Ensure hot module reloading works across container boundary
+ENV CHOKIDAR_USEPOLLING=true
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

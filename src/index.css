@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #020617;
+    color: #f8fafc;
+    font-family: 'Inter', system-ui, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+}
+
+/* Custom Aetherpunk Glassmorphism */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-panel-amber {
+  background: rgba(24, 17, 8, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.15);
+}
+
+.glass-panel-emerald {
+  background: rgba(6, 28, 20, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(16, 185, 129, 0.15);
+}
+
+.glass-panel-purple {
+  background: rgba(24, 12, 38, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(168, 85, 247, 0.15);
+}
+
+/* Neon glow utility classes */
+.glow-blue {
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+}
+
+.glow-amber {
+  text-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+}
+
+.glow-emerald {
+  text-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+}
+
+.glow-box-blue {
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+}
+
+/* Custom sleek scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.6);
+}
