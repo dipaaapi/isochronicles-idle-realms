@@ -7,11 +7,11 @@ class SoundFxManager {
   private bgmOscillators: OscillatorNode[] = [];
   private bgmGain: GainNode | null = null;
   private isBgmPlaying: boolean = false;
-  private currentBgmMode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' = 'LIVELY';
+  private currentBgmMode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'TITLE';
   private bgmIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
-    const saved = localStorage.getItem('isochronicle_audio_muted');
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('isochronicle_audio_muted') : null;
     if (saved !== null) {
       this.isMuted = saved === 'true';
     }
@@ -44,7 +44,9 @@ class SoundFxManager {
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
-    localStorage.setItem('isochronicle_audio_muted', String(this.isMuted));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('isochronicle_audio_muted', String(this.isMuted));
+    }
 
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, this.ctx.currentTime);
@@ -53,7 +55,6 @@ class SoundFxManager {
     if (this.isMuted) {
       this.stopBackgroundMusic();
     } else {
-      // Re-initialize BGM if it was supposed to be playing
       this.playBackgroundMusic(this.currentBgmMode);
     }
 
@@ -66,16 +67,14 @@ class SoundFxManager {
     return () => this.listeners.delete(callback);
   }
 
-  public playBackgroundMusic(mode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' = 'LIVELY'): void {
+  public playBackgroundMusic(mode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'LIVELY'): void {
     if (this.isMuted) {
       this.currentBgmMode = mode;
       return;
     }
     
-    // If already playing the requested mode, do nothing
     if (this.isBgmPlaying && this.currentBgmMode === mode) return;
     
-    // If playing something else, stop it first
     if (this.isBgmPlaying) {
       this.stopBackgroundMusic();
     }
@@ -86,55 +85,71 @@ class SoundFxManager {
     this.isBgmPlaying = true;
     this.currentBgmMode = mode;
     this.bgmGain = ctx.createGain();
-    
-    this.bgmGain.connect(this.masterGain!);
+    this.bgmGain.connect(this.masterGain);
 
     let step = 0;
 
-    if (mode === 'LIVELY') {
-      // Gentle, upbeat pentatonic music box (C Major Pentatonic)
-      const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]; // C4, E4, G4, C5, G4, E4
+    if (mode === 'TITLE') {
+      const melody = [261.63, 311.13, 392.00, 493.88, 523.25, 392.00, 311.13, 293.66];
+      if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
+
+      const droneOsc = ctx.createOscillator();
+      const droneGain = ctx.createGain();
+      droneOsc.type = 'sawtooth';
+      droneOsc.frequency.setValueAtTime(65.41, ctx.currentTime);
+      droneGain.gain.setValueAtTime(0.04, ctx.currentTime);
+      droneOsc.connect(droneGain);
+      droneGain.connect(this.bgmGain);
+      droneOsc.start();
+      this.bgmOscillators.push(droneOsc);
+
+      this.bgmIntervalId = setInterval(() => {
+        if (!this.ctx || this.isMuted) return;
+        const note = melody[step % melody.length];
+        this.playPluck(note, 'triangle', 0.12, 0.45);
+
+        if (step % 4 === 0) {
+          this.playPluck(130.81, 'sawtooth', 0.08, 0.8);
+        }
+        step++;
+      }, 380);
+    } else if (mode === 'LIVELY') {
+      const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
         if (!this.ctx || this.isMuted) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'sine', 0.15, 0.5);
         
-        // Occasional soft bass note
         if (step % 6 === 0) {
-           this.playPluck(130.81, 'triangle', 0.2, 1.2); // Low C3
+           this.playPluck(130.81, 'triangle', 0.2, 1.2);
         }
         step++;
       }, 350);
     } else if (mode === 'BATTLE') {
-      // Tense, faster minor pentatonic (A Minor)
-      const melody = [220.00, 261.63, 293.66, 329.63, 293.66, 261.63]; // A3, C4, D4, E4, D4, C4
+      const melody = [220.00, 261.63, 293.66, 329.63, 293.66, 261.63];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
         if (!this.ctx || this.isMuted) return;
-        const note = melody[Math.floor(Math.random() * melody.length)]; // slightly chaotic
+        const note = melody[Math.floor(Math.random() * melody.length)];
         this.playPluck(note, 'triangle', 0.12, 0.3); 
         
-        // Steady marching bass
         if (step % 2 === 0) {
-           this.playPluck(110.00, 'square', 0.08, 0.4); // Low A2
+           this.playPluck(110.00, 'square', 0.08, 0.4);
         }
         step++;
       }, 220);
     } else if (mode === 'RAIN') {
-      // Melancholy D minor arpeggios with soft rain patter
-      const melody = [293.66, 349.23, 440.00, 523.25, 440.00, 349.23, 293.66, 261.63]; // D4, F4, A4, C5, A4, F4, D4, C4
+      const melody = [293.66, 349.23, 440.00, 523.25, 440.00, 349.23, 293.66, 261.63];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
         if (!this.ctx || this.isMuted) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'sine', 0.10, 0.7);
         
-        // Soft bass drone every 4 steps
         if (step % 4 === 0) {
-          this.playPluck(146.83, 'triangle', 0.12, 1.5); // D3
+          this.playPluck(146.83, 'triangle', 0.12, 1.5);
         }
-        // Rain patter: random high-pitched tiny plucks
         if (Math.random() < 0.4) {
           const patter = 1800 + Math.random() * 600;
           this.playPluck(patter, 'sine', 0.03, 0.08);
@@ -142,52 +157,44 @@ class SoundFxManager {
         step++;
       }, 450);
     } else if (mode === 'SNOW') {
-      // Ethereal Lydian bell tones — crystalline and dreamy
-      const melody = [523.25, 587.33, 659.25, 739.99, 783.99, 659.25, 523.25, 493.88]; // C5, D5, E5, F#5, G5, E5, C5, B4
+      const melody = [523.25, 587.33, 659.25, 739.99, 783.99, 659.25, 523.25, 493.88];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
         if (!this.ctx || this.isMuted) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'sine', 0.08, 1.0);
         
-        // Gentle sustained pad note
         if (step % 8 === 0) {
-          this.playPluck(261.63, 'triangle', 0.10, 2.0); // C4
+          this.playPluck(261.63, 'triangle', 0.10, 2.0);
         }
-        // Soft wind shimmer
         if (Math.random() < 0.25) {
           this.playPluck(2200 + Math.random() * 800, 'sine', 0.02, 0.15);
         }
         step++;
       }, 600);
     } else if (mode === 'HEATWAVE') {
-      // Tense Phrygian with shimmering tremolo — oppressive heat
-      const melody = [329.63, 349.23, 440.00, 415.30, 392.00, 349.23, 329.63, 311.13]; // E4, F4, A4, Ab4, G4, F4, E4, Eb4
+      const melody = [329.63, 349.23, 440.00, 415.30, 392.00, 349.23, 329.63, 311.13];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
         if (!this.ctx || this.isMuted) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'triangle', 0.11, 0.45);
         
-        // Low rumble bass
         if (step % 3 === 0) {
-          this.playPluck(164.81, 'sawtooth', 0.06, 0.6); // E3
+          this.playPluck(164.81, 'sawtooth', 0.06, 0.6);
         }
-        // Heat shimmer: rapid tremolo chirps
         if (Math.random() < 0.35) {
           this.playPluck(1500 + Math.random() * 500, 'sine', 0.025, 0.06);
         }
         step++;
       }, 300);
     } else {
-      // Soft ambient drone (C minor 9)
-      const frequencies = [130.81, 155.56, 196.00, 293.66]; // C3, Eb3, G3, D4
+      const frequencies = [130.81, 155.56, 196.00, 293.66];
       frequencies.forEach(freq => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, ctx.currentTime);
         
-        // Extremely subtle detune LFO
         const lfo = ctx.createOscillator();
         lfo.type = 'sine';
         lfo.frequency.setValueAtTime(0.05 + Math.random() * 0.05, ctx.currentTime);
@@ -201,7 +208,6 @@ class SoundFxManager {
         lfo.start();
         this.bgmOscillators.push(osc, lfo);
       });
-      // Lower volume for drones
       this.bgmGain.gain.setValueAtTime(0.1, ctx.currentTime);
     }
   }
@@ -213,10 +219,9 @@ class SoundFxManager {
     osc.type = type;
     osc.frequency.value = frequency;
     
-    // Smooth ADSR Envelope to remove harsh clicks and pops
     gain.gain.setValueAtTime(0, this.ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + 0.02); // quick attack
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration); // smooth decay
+    gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
     
     osc.connect(gain);
     gain.connect(this.bgmGain);
@@ -243,9 +248,6 @@ class SoundFxManager {
     }
   }
 
-  /**
-   * High-pitched, clean sine wave ping for button presses
-   */
   public playClick(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -269,9 +271,34 @@ class SoundFxManager {
     osc.stop(now + 0.08);
   }
 
-  /**
-   * Gentle crystalline / wooden harmonic ping when Golem finishes mining
-   */
+  public playGameStart(): void {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx || !this.masterGain) return;
+
+    const now = ctx.currentTime;
+    const notes = [261.63, 392.0, 523.25, 783.99, 1046.5];
+
+    notes.forEach((freq, idx) => {
+      const startTime = now + idx * 0.06;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = idx === notes.length - 1 ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.05, startTime + 0.2);
+
+      gain.gain.setValueAtTime(0.25, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.4);
+    });
+  }
+
   public playHarvest(nodeType: 'crystal' | 'wood' | 'stone' = 'crystal'): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -283,15 +310,13 @@ class SoundFxManager {
     const gain = ctx.createGain();
 
     if (nodeType === 'crystal') {
-      // Crystalline harmonic chime
       osc1.type = 'sine';
       osc2.type = 'triangle';
-      osc1.frequency.setValueAtTime(659.25, now); // E5
-      osc2.frequency.setValueAtTime(1318.5, now); // E6
+      osc1.frequency.setValueAtTime(659.25, now);
+      osc2.frequency.setValueAtTime(1318.5, now);
       gain.gain.setValueAtTime(0.28, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
     } else if (nodeType === 'wood') {
-      // Warm woody thud pop
       osc1.type = 'triangle';
       osc2.type = 'sine';
       osc1.frequency.setValueAtTime(320, now);
@@ -300,7 +325,6 @@ class SoundFxManager {
       gain.gain.setValueAtTime(0.22, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
     } else {
-      // Crisp stone strike
       osc1.type = 'sawtooth';
       osc2.type = 'sine';
       osc1.frequency.setValueAtTime(440, now);
@@ -319,16 +343,13 @@ class SoundFxManager {
     osc2.stop(now + 0.38);
   }
 
-  /**
-   * Soft 4-note ascending chime when resources are deposited into Nexus Prime
-   */
   public playDeposit(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
     const now = ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    const notes = [523.25, 659.25, 783.99, 1046.5];
 
     notes.forEach((freq, index) => {
       const startTime = now + index * 0.045;
@@ -349,16 +370,12 @@ class SoundFxManager {
     });
   }
 
-  /**
-   * Melodic celebratory arpeggio for rank-ups and technology unlocks
-   */
   public playFanfare(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
     const now = ctx.currentTime;
-    // D major chord: D5, F#5, A5, D6
     const chord = [587.33, 739.99, 880.0, 1174.66];
 
     chord.forEach((freq, idx) => {
@@ -381,9 +398,6 @@ class SoundFxManager {
     });
   }
 
-  /**
-   * Cute chirp / jump sound when a Golem is clicked directly
-   */
   public playGolemCheer(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -408,9 +422,6 @@ class SoundFxManager {
     osc.stop(now + 0.24);
   }
 
-  /**
-   * Crisp double-clink coin sound for trading in the store
-   */
   public playCoin(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -437,9 +448,6 @@ class SoundFxManager {
     });
   }
 
-  /**
-   * High-tech laser sweep for automated defense turrets
-   */
   public playLaser(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -463,9 +471,6 @@ class SoundFxManager {
     osc.stop(now + 0.15);
   }
 
-  /**
-   * Impact explosion burst when an invader is eliminated
-   */
   public playExplosion(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -489,9 +494,6 @@ class SoundFxManager {
     osc.stop(now + 0.3);
   }
 
-  /**
-   * Ominous metallic alarm thud when Castle / Nexus is hit
-   */
   public playCastleHit(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -515,9 +517,6 @@ class SoundFxManager {
     osc.stop(now + 0.35);
   }
 
-  /**
-   * Deep cosmic sunder rumble when Castle is breached
-   */
   public playBreach(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();
@@ -544,7 +543,7 @@ class SoundFxManager {
 
 export const soundFx = new SoundFxManager();
 
-// Vite HMR cleanup to stop overlapping music during hot-reloads
+// Vite HMR cleanup
 // @ts-ignore
 if (import.meta.hot) {
   // @ts-ignore
@@ -552,4 +551,3 @@ if (import.meta.hot) {
     soundFx.stopBackgroundMusic();
   });
 }
-

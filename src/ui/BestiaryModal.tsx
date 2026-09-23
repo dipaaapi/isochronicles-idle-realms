@@ -14,6 +14,7 @@ import {
   UnitClass,
   InvaderType,
 } from '../types/game';
+import { BEAST_PORTRAITS, INVADER_PORTRAITS } from '../game/bestiaryPortraits';
 
 interface BestiaryModalProps {
   isOpen: boolean;
@@ -31,7 +32,15 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
     onClose();
   };
 
-  const beastKeys: UnitClass[] = ['GOLEM', 'WAYFARER', 'MERMAN', 'AQUA_SLIME'];
+  const beastKeys: UnitClass[] = [
+    'GOLEM',
+    'WAYFARER',
+    'CHRONO',
+    'AQUA_SLIME',
+    'MERMAN',
+    'NECROMANCER',
+    'TREANT',
+  ];
   const invaderKeys: InvaderType[] = [
     'HUMAN_KNIGHT',
     'HUMAN_ARCHER',
@@ -52,7 +61,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none animate-fade-in">
-      <div className="relative max-w-2xl w-full max-h-[88vh] flex flex-col p-6 rounded-3xl border border-red-500/40 bg-slate-950/95 shadow-2xl shadow-red-950/80 overflow-hidden">
+      <div className="relative max-w-3xl w-full max-h-[88vh] flex flex-col p-6 rounded-3xl border border-red-500/40 bg-slate-950/95 shadow-2xl shadow-red-950/80 overflow-hidden">
         {/* Header with Demon Lord Theme */}
         <div className="flex items-center justify-between border-b border-red-500/20 pb-4 mb-4">
           <div className="flex items-center gap-3">
@@ -120,46 +129,60 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Content Body: Grid of Cards (Silhouette or Revealed) */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 space-y-3 custom-scrollbar">
           {activeTab === 'BEASTS' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {beastKeys.map((key) => {
                 const config = UNIT_CLASSES[key];
                 const isDiscovered = Boolean(discoveredBeasts && discoveredBeasts.includes(key));
+                const portraitSrc = BEAST_PORTRAITS[key];
 
                 return (
                   <div
                     key={key}
-                    className={`relative p-4 rounded-2xl border transition-all ${
+                    className={`relative p-4 rounded-2xl border transition-all flex flex-col ${
                       isDiscovered
                         ? 'bg-slate-900/80 border-red-500/30 hover:border-red-400/60 shadow-md'
                         : 'bg-slate-950/90 border-slate-800/80 opacity-75'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Avatar / Silhouette Icon */}
+                      {/* Avatar Portrait / Silhouette */}
                       <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border shadow-inner ${
+                        className={`w-16 h-16 shrink-0 rounded-2xl overflow-hidden border shadow-inner ${
                           isDiscovered
-                            ? 'bg-gradient-to-br from-red-950/80 to-slate-900 border-red-500/40 text-red-400'
-                            : 'bg-black/95 border-slate-800 text-slate-700 select-none'
+                            ? 'border-red-500/40'
+                            : 'border-slate-800'
                         }`}
-                        style={{
-                          filter: isDiscovered ? 'none' : 'brightness(0)',
-                        }}
                       >
-                        {isDiscovered ? (
-                          config.iconEmoji || '👹'
+                        {isDiscovered && portraitSrc ? (
+                          <img
+                            src={portraitSrc}
+                            alt={config.nameEn || config.name}
+                            className="w-full h-full object-cover"
+                            draggable={false}
+                          />
                         ) : (
-                          <span className="text-black text-2xl font-black opacity-30">
-                            {config.iconEmoji || '👹'}
-                          </span>
+                          <div className="w-full h-full bg-black flex items-center justify-center">
+                            {portraitSrc ? (
+                              <img
+                                src={portraitSrc}
+                                alt=""
+                                className="w-full h-full object-cover brightness-0 opacity-70"
+                                draggable={false}
+                              />
+                            ) : (
+                              <span className="text-slate-700 text-2xl font-black opacity-30">
+                                {config.iconEmoji || '👹'}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
 
                       {/* Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
                           <h3
                             className={`font-bold text-sm tracking-wide ${
                               isDiscovered ? 'text-white' : 'text-slate-500 italic'
@@ -168,11 +191,11 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                             {isDiscovered ? (language === 'TL' ? config.name : (config.nameEn || config.name)) : (language === 'TL' ? '❓ Hindi pa Natutuklasan' : '❓ Undiscovered')}
                           </h3>
                           {isDiscovered ? (
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                            <span className="shrink-0 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                               {language === 'TL' ? 'Bukas ✨' : 'Unlocked ✨'}
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="shrink-0 text-[10px] font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full flex items-center gap-1">
                               <Lock className="w-2.5 h-2.5" /> {language === 'TL' ? 'Nakatago' : 'Locked'}
                             </span>
                           )}
@@ -189,11 +212,11 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                         </p>
 
                         {isDiscovered && (
-                          <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-slate-300">
-                            <span className="flex items-center gap-1 font-bold">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-slate-300">
+                            <span className="flex items-center gap-1 font-bold whitespace-nowrap">
                               ⚡ {language === 'TL' ? 'Bilis' : 'Speed'}: <strong className="text-sky-300">{config.baseSpeed}</strong>
                             </span>
-                            <span className="flex items-center gap-1 font-bold">
+                            <span className="flex items-center gap-1 font-bold whitespace-nowrap">
                               🎒 {language === 'TL' ? 'Dala' : 'Cargo'}: <strong className="text-amber-300">{config.cargoCapacity}</strong>
                             </span>
                           </div>
@@ -211,42 +234,56 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
               {invaderKeys.map((key) => {
                 const config = INVADER_CONFIGS[key];
                 const isDiscovered = Boolean(discoveredInvaders && discoveredInvaders.includes(key));
+                const portraitSrc = INVADER_PORTRAITS[key];
 
                 return (
                   <div
                     key={key}
-                    className={`relative p-4 rounded-2xl border transition-all ${
+                    className={`relative p-4 rounded-2xl border transition-all flex flex-col ${
                       isDiscovered
                         ? 'bg-slate-900/80 border-sky-500/30 hover:border-sky-400/60 shadow-md'
                         : 'bg-slate-950/90 border-slate-800/80 opacity-75'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Avatar / Silhouette Icon */}
+                      {/* Avatar Portrait / Silhouette */}
                       <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border shadow-inner ${
+                        className={`w-16 h-16 shrink-0 rounded-2xl overflow-hidden border shadow-inner ${
                           isDiscovered
                             ? config.category === 'MECHA'
-                              ? 'bg-gradient-to-br from-yellow-950/60 to-slate-900 border-amber-500/40 text-amber-400'
-                              : 'bg-gradient-to-br from-blue-950/60 to-slate-900 border-sky-500/40 text-sky-400'
-                            : 'bg-black/95 border-slate-800 text-slate-700 select-none'
+                              ? 'border-amber-500/40'
+                              : 'border-sky-500/40'
+                            : 'border-slate-800'
                         }`}
-                        style={{
-                          filter: isDiscovered ? 'none' : 'brightness(0)',
-                        }}
                       >
-                        {isDiscovered ? (
-                          config.iconEmoji || '⚔️'
+                        {isDiscovered && portraitSrc ? (
+                          <img
+                            src={portraitSrc}
+                            alt={config.nameEn || config.name}
+                            className="w-full h-full object-cover"
+                            draggable={false}
+                          />
                         ) : (
-                          <span className="text-black text-2xl font-black opacity-30">
-                            {config.iconEmoji || '⚔️'}
-                          </span>
+                          <div className="w-full h-full bg-black flex items-center justify-center">
+                            {portraitSrc ? (
+                              <img
+                                src={portraitSrc}
+                                alt=""
+                                className="w-full h-full object-cover brightness-0 opacity-70"
+                                draggable={false}
+                              />
+                            ) : (
+                              <span className="text-slate-700 text-2xl font-black opacity-30">
+                                {config.iconEmoji || '⚔️'}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
 
                       {/* Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
                           <h3
                             className={`font-bold text-sm tracking-wide ${
                               isDiscovered ? 'text-white' : 'text-slate-500 italic'
@@ -255,11 +292,11 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                             {isDiscovered ? (language === 'TL' ? config.name : (config.nameEn || config.name)) : (language === 'TL' ? '❓ Hindi pa Nakakatapat' : '❓ Unencountered')}
                           </h3>
                           {isDiscovered ? (
-                            <span className="text-[10px] font-bold text-sky-400 bg-sky-950/60 border border-sky-500/30 px-2 py-0.5 rounded-full">
+                            <span className="shrink-0 text-[10px] font-bold text-sky-400 bg-sky-950/60 border border-sky-500/30 px-2 py-0.5 rounded-full">
                               {config.category === 'MECHA' ? (language === 'TL' ? 'Robot 🤖' : 'Mech 🤖') : (language === 'TL' ? 'Tao 👤' : 'Human 👤')}
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="shrink-0 text-[10px] font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded-full flex items-center gap-1">
                               <Lock className="w-2.5 h-2.5" /> {language === 'TL' ? 'Nakatago' : 'Locked'}
                             </span>
                           )}
@@ -276,14 +313,14 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                         </p>
 
                         {isDiscovered && (
-                          <div className="flex items-center gap-3 mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-slate-300">
-                            <span className="flex items-center gap-1 font-bold">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-slate-300">
+                            <span className="flex items-center gap-1 font-bold whitespace-nowrap">
                               ❤️ {language === 'TL' ? 'Buhay' : 'Health'}: <strong className="text-rose-400">{config.hp}</strong>
                             </span>
-                            <span className="flex items-center gap-1 font-bold">
+                            <span className="flex items-center gap-1 font-bold whitespace-nowrap">
                               💥 {language === 'TL' ? 'Pinsala' : 'Damage'}: <strong className="text-amber-400">{config.damage}</strong>
                             </span>
-                            <span className="flex items-center gap-1 font-bold">
+                            <span className="flex items-center gap-1 font-bold whitespace-nowrap">
                               🪙 {language === 'TL' ? 'Barya' : 'Bounty'}: <strong className="text-yellow-300">+{config.bountyCoins}</strong>
                             </span>
                           </div>

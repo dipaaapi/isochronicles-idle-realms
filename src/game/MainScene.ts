@@ -154,9 +154,10 @@ export class MainScene extends Phaser.Scene {
     // 8. Day/Night Lighting Overlay & Glow Layer
     this.setupDayNightLighting();
 
-    // 9. Weather Overlay (above day/night but below UI)
+    // 9. Weather Overlay (above day/night but below UI) — screen-space, fixed to camera
     this.weatherOverlay = this.add.graphics();
     this.weatherOverlay.setDepth(4500);
+    this.weatherOverlay.setScrollFactor(0);
 
     // 10. Setup Camera Controls
     this.setupCamera();
@@ -538,9 +539,10 @@ export class MainScene extends Phaser.Scene {
     this.nightGlowGraphics.setDepth(3000);
     this.islandContainer.add(this.nightGlowGraphics);
 
-    // Global ambient tint overlay
+    // Global ambient tint overlay — screen-space, always covers full viewport
     this.dayNightOverlay = this.add.graphics();
     this.dayNightOverlay.setDepth(4000);
+    this.dayNightOverlay.setScrollFactor(0);
   }
 
   /**
@@ -617,11 +619,11 @@ export class MainScene extends Phaser.Scene {
       useGameStore.getState().setDayProgress(progress);
     }
 
-    // Render smooth overlay
+    // Render smooth overlay — screen-space, always fully covers the viewport
     this.dayNightOverlay.clear();
     if (overlayAlpha > 0.005) {
       this.dayNightOverlay.fillStyle(colorHex, overlayAlpha);
-      this.dayNightOverlay.fillRect(-2500, -2500, 5000, 5000);
+      this.dayNightOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
     }
 
     // Render landmark glows at night/dusk
@@ -871,6 +873,8 @@ export class MainScene extends Phaser.Scene {
     // Early-out for clear weather — no overlay, no particles
     if (weather === 'CLEAR') {
       this.currentWeather = 'CLEAR';
+      this.weatherParticles.forEach(p => p.destroy());
+      this.weatherParticles = [];
       return;
     }
 
@@ -878,17 +882,15 @@ export class MainScene extends Phaser.Scene {
     this.currentWeather = weather;
 
     const cam = this.cameras.main;
-    const camX = cam.scrollX - cam.width / 2;
-    const camY = cam.scrollY - cam.height / 2;
-    const camW = cam.width / cam.zoom;
-    const camH = cam.height / cam.zoom;
+    // Screen-space viewport — always the full visible canvas, regardless of zoom/pan
+    const viewW = cam.width;
+    const viewH = cam.height;
 
     const scaleFactor = this.fpsController.getScaleFactor();
     const isUltra = targetFps >= 90;
     const isSaver = targetFps <= 30;
 
     if (weather === 'RAIN') {
-      // Spawn rain drops — count scales with FPS quality
       const rainThreshold = isSaver ? 60 : isUltra ? 20 : 30;
       if (this.weatherTimer > rainThreshold) {
         this.weatherTimer = 0;
@@ -896,12 +898,13 @@ export class MainScene extends Phaser.Scene {
         const spawnCount = Math.max(1, Math.round(baseCount * scaleFactor));
         for (let i = 0; i < spawnCount; i++) {
           const drop = this.add.graphics();
-          const x = camX + Math.random() * camW;
-          const y = camY - 20;
+          const x = Math.random() * viewW;
+          const y = -20;
           drop.fillStyle(0x60a5fa, 0.5);
           drop.fillRect(0, 0, 1.5, 8);
           drop.setPosition(x, y);
           drop.setDepth(4200);
+          drop.setScrollFactor(0);
           (drop as unknown as { _vy: number })._vy = 280 + Math.random() * 120;
           (drop as unknown as { _life: number })._life = 0;
           this.weatherParticles.push(drop);
@@ -909,7 +912,7 @@ export class MainScene extends Phaser.Scene {
       }
       const rainAlpha = isSaver ? 0.05 : isUltra ? 0.12 : 0.08;
       this.weatherOverlay.fillStyle(0x1e3a5f, rainAlpha);
-      this.weatherOverlay.fillRect(-2500, -2500, 5000, 5000);
+      this.weatherOverlay.fillRect(0, 0, viewW, viewH);
     } else if (weather === 'SNOW') {
       const snowThreshold = isSaver ? 120 : isUltra ? 50 : 80;
       if (this.weatherTimer > snowThreshold) {
@@ -918,12 +921,13 @@ export class MainScene extends Phaser.Scene {
         const spawnCount = Math.max(1, Math.round(baseCount * scaleFactor));
         for (let i = 0; i < spawnCount; i++) {
           const flake = this.add.graphics();
-          const x = camX + Math.random() * camW;
-          const y = camY - 10;
+          const x = Math.random() * viewW;
+          const y = -10;
           flake.fillStyle(0xe2e8f0, 0.7);
           flake.fillCircle(0, 0, 2 + Math.random() * 1.5);
           flake.setPosition(x, y);
           flake.setDepth(4200);
+          flake.setScrollFactor(0);
           (flake as unknown as { _vy: number })._vy = 40 + Math.random() * 30;
           (flake as unknown as { _vx: number })._vx = (Math.random() - 0.5) * 20;
           (flake as unknown as { _life: number })._life = 0;
@@ -932,21 +936,21 @@ export class MainScene extends Phaser.Scene {
       }
       const snowAlpha = isSaver ? 0.03 : isUltra ? 0.08 : 0.05;
       this.weatherOverlay.fillStyle(0xffffff, snowAlpha);
-      this.weatherOverlay.fillRect(-2500, -2500, 5000, 5000);
+      this.weatherOverlay.fillRect(0, 0, viewW, viewH);
     } else if (weather === 'HEATWAVE') {
       const heatAlpha = isSaver ? 0.04 : isUltra ? 0.12 : 0.08;
       this.weatherOverlay.fillStyle(0xf97316, heatAlpha);
-      this.weatherOverlay.fillRect(-2500, -2500, 5000, 5000);
+      this.weatherOverlay.fillRect(0, 0, viewW, viewH);
     }
 
-    // Update particles
+    // Update particles — screen-space, so bounds check against viewport height, not world/camera scroll
     const deltaSec = delta / 1000;
     for (let i = this.weatherParticles.length - 1; i >= 0; i--) {
       const p = this.weatherParticles[i] as unknown as Phaser.GameObjects.Graphics & { _vy: number; _vx?: number; _life: number };
       p.y += p._vy * deltaSec;
       if (p._vx) p.x += p._vx * deltaSec;
       p._life += delta;
-      if (p._life > 3000 || p.y > camY + camH + 50) {
+      if (p._life > 3000 || p.y > viewH + 50) {
         p.destroy();
         this.weatherParticles.splice(i, 1);
       }

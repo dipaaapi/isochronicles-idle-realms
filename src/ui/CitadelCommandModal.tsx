@@ -284,7 +284,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-black text-white flex items-center gap-2">
-                  <span>{language === 'TL' ? 'Pangasiwaan ng Kuta (Citadel Command)' : 'Demon Citadel Command Sanctum'}</span>
+                  <span>{language === 'TL' ? 'Sentro ng Pangasiwaan' : 'Command Center'}</span>
                 </h2>
                 <p className="text-xs text-purple-300/80">
                   {language === 'TL'

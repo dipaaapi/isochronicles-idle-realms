@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
@@ -13,6 +13,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
+const AUTO_ACCEPT_SECONDS = 10;
+
 export const CastleBreachedModal: React.FC = () => {
   const {
     isCastleBreachedModalOpen,
@@ -24,12 +26,50 @@ export const CastleBreachedModal: React.FC = () => {
     language,
   } = useGameStore();
 
-  if (!isCastleBreachedModalOpen) return null;
+  const [secondsLeft, setSecondsLeft] = useState(AUTO_ACCEPT_SECONDS);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleReconstruct = () => {
     soundFx.playFanfare();
     closeCastleBreachedModal();
   };
+
+  // Start/reset the countdown whenever the modal opens
+  useEffect(() => {
+    if (!isCastleBreachedModalOpen) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    setSecondsLeft(AUTO_ACCEPT_SECONDS);
+
+    intervalRef.current = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          handleReconstruct();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCastleBreachedModalOpen]);
+
+  if (!isCastleBreachedModalOpen) return null;
 
   const isTl = language === 'TL';
 
@@ -168,7 +208,15 @@ export const CastleBreachedModal: React.FC = () => {
           >
             <RotateCcw className="w-5 h-5" />
             <span>{isTl ? 'ITULOY ANG LABAN AT PAGBUO! 🏰' : 'CONTINUE DEFENDING & REBUILD! 🏰'}</span>
+            <span className="ml-1 inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 rounded-full bg-white/20 text-xs font-mono">
+              {secondsLeft}s
+            </span>
           </button>
+          <p className="mt-2 text-center text-[10px] text-slate-500">
+            {isTl
+              ? `Awtomatikong ituloy sa loob ng ${secondsLeft}s`
+              : `Auto-continues in ${secondsLeft}s`}
+          </p>
         </div>
       </div>
     </div>
