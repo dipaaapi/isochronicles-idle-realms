@@ -33,7 +33,9 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFAQOpen, setIsFAQOpen] = useState(false);
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
-  const [quickTradeResource, setQuickTradeResource] = useState<'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water' | null>(null);
+  const [quickTradeResource, setQuickTradeResource] = useState<
+    'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water' | null
+  >(null);
 
   useEffect(() => {
     if (screen !== 'GAME') {
@@ -67,9 +69,6 @@ export const App: React.FC = () => {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Active Isometric Game Canvas */}
-      {screen === 'GAME' && <PhaserGame key={regressionCount} />}
-
       {/* Screen 1: Title Screen */}
       {screen === 'TITLE' && (
         <TitleScreen
@@ -81,12 +80,21 @@ export const App: React.FC = () => {
 
       {/* Screen 2: Narrative Briefing Cutscene */}
       {screen === 'STORY' && (
-        <IntroNarrativeModal onBegin={handleBeginReconstruction} onCancel={() => setScreen('TITLE')} />
+        <IntroNarrativeModal
+          onBegin={handleBeginReconstruction}
+          onCancel={() => setScreen('TITLE')}
+        />
       )}
 
-      {/* Active Game HUD & Overlays */}
+      {/* Screen 3: Active Simulation (Flex layout: Canvas sa kaliwa, HUD Sidebar sa kanan) */}
       {screen === 'GAME' && (
-        <>
+        <div className="flex w-full h-full overflow-hidden">
+          {/* Main Game Screen (Phaser Canvas) */}
+          <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
+            <PhaserGame key={regressionCount} />
+          </div>
+
+          {/* Dedicated Right Sidebar HUD */}
           <GameHUD
             onOpenCitadel={(tab) => setCitadelTab(tab || 'MINIONS')}
             onOpenCodex={() => setIsCodexOpen(true)}
@@ -98,6 +106,7 @@ export const App: React.FC = () => {
             onOpenQuickTrade={(res) => setQuickTradeResource(res)}
           />
 
+          {/* Modal & Popover Layers */}
           <WelcomeBackModal />
           {isFAQOpen && <FAQModal onClose={() => setIsFAQOpen(false)} />}
           {isSkillTreeOpen && <SkillTreeModal onClose={() => setIsSkillTreeOpen(false)} />}
@@ -130,8 +139,7 @@ export const App: React.FC = () => {
             isOpen={isBestiaryOpen}
             onClose={() => setIsBestiaryOpen(false)}
           />
-
-        </>
+        </div>
       )}
 
       {/* Settings Drawer accessible from both Title and Game */}

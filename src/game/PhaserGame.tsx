@@ -8,13 +8,13 @@ export const PhaserGame: React.FC = () => {
   const gameRef = useRef<Phaser.Game | null>(null);
   const targetFps = useGameStore((state) => state.targetFps);
   const platformPhase = useGameStore((state) => state.platformPhase);
+  const timeOfDay = useGameStore((state) => state.timeOfDay);
+  const weather = useGameStore((state) => state.weather);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
 
     const initialTargetFps = useGameStore.getState().targetFps;
-    // forceSetTimeOut is only beneficial in battery-saver / 30fps mode.
-    // At 60+ fps it causes inconsistent frame-pacing compared to rAF.
     const useForcedTimeout = initialTargetFps <= 30;
 
     const config: Phaser.Types.Core.GameConfig = {
@@ -23,27 +23,27 @@ export const PhaserGame: React.FC = () => {
       width: '100%',
       height: '100%',
       transparent: true,
+      backgroundColor: 'rgba(0,0,0,0)',
       fps: {
         target: initialTargetFps,
         forceSetTimeOut: useForcedTimeout,
-        // Smooth the delta to avoid sudden spike spikes from tab-suspension
         smoothStep: true,
       },
       scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: '100%',
+        height: '100%',
       },
       scene: [MainScene],
       render: {
         antialias: true,
-        pixelArt: false,
-        roundPixels: false,
-        // Request the high-performance GPU power profile from the browser
+        pixelArt: true,
+        roundPixels: true,
         powerPreference: 'high-performance',
-        // Reduce input latency when supported (Chrome/Edge with WebGL2)
-        desynchronized: true,
+        desynchronized: false,
+        clearBeforeRender: true,
       },
-      // Disable the default Phaser banner to shave a tiny bit of init time
       banner: false,
     };
 
@@ -57,26 +57,52 @@ export const PhaserGame: React.FC = () => {
     };
   }, []);
 
-  // Propagate FPS target changes made at runtime (from Settings drawer)
   useEffect(() => {
     if (!gameRef.current) return;
-    // Update the loop target FPS — forceSetTimeOut cannot be changed at runtime
-    // (it is a read-only property on the live GameLoop); it is set correctly at init.
     gameRef.current.loop.targetFps = targetFps;
   }, [targetFps]);
 
+  // Dynamic Ambient Overlay kulay base sa Time of Day at Weather
+  const getAmbientTintStyle = () => {
+    if (weather === 'RAIN') return 'bg-blue-950/20';
+    if (weather === 'HEATWAVE') return 'bg-orange-500/10';
+    if (weather === 'SNOW') return 'bg-slate-200/10';
+
+    switch (timeOfDay) {
+      case 'DAWN':
+        return 'bg-amber-700/15 mix-blend-color-burn';
+      case 'DUSK':
+        return 'bg-purple-900/25 mix-blend-multiply';
+      case 'NIGHT':
+        return 'bg-slate-950/45 mix-blend-multiply';
+      default:
+        return 'bg-transparent';
+    }
+  };
+
   return (
-    <>
-    <div
-      aria-hidden="true"
-      className="absolute inset-0 pointer-events-none bg-cover bg-center"
-      style={{ backgroundImage: `url('${import.meta.env.BASE_URL}backgrounds/phase${platformPhase || 1}.jpg')` }}
-    />
-    <div
-      ref={containerRef}
-      id="phaser-canvas-container"
-      className="absolute inset-0 w-full h-full z-0 overflow-hidden"
-    />
-    </>
+    <div className="relative w-full h-full overflow-hidden bg-slate-950">
+      {/* 1. Base Pixel Art Wallpaper */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none bg-cover bg-center transition-all duration-700"
+        style={{
+          backgroundImage: `url('${import.meta.env.BASE_URL}backgrounds/phase${platformPhase || 1}.jpg')`,
+        }}
+      />
+
+      {/* 2. Fullscreen Ambient Day/Night & Weather Tint (Walang kanto, sasakop sa buong viewport) */}
+      <div
+        aria-hidden="true"
+        className={`absolute inset-0 pointer-events-none transition-colors duration-1000 z-1 ${getAmbientTintStyle()}`}
+      />
+
+      {/* 3. Phaser Isometric Canvas */}
+      <div
+        ref={containerRef}
+        id="phaser-canvas-container"
+        className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-transparent"
+      />
+    </div>
   );
 };

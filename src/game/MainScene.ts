@@ -107,6 +107,10 @@ export class MainScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Tiyaking laging 100% transparent ang camera clear color
+    this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+    this.cameras.main.transparent = true;
+
     // Cache initial FPS target
     const initialState = useGameStore.getState();
     this._cachedTargetFps = initialState.targetFps;
@@ -114,7 +118,7 @@ export class MainScene extends Phaser.Scene {
     // Create FPS controller
     this.fpsController = new FPSController(this._cachedTargetFps);
 
-    // 1. Atmospheric void background & drifting motes
+    // 1. Atmospheric floating motes (Inalis ang madilim na gradient rectangle)
     this.createAtmosphere();
 
     // 2. Island Root Container (bobbing motion)
@@ -154,7 +158,7 @@ export class MainScene extends Phaser.Scene {
     // 8. Day/Night Lighting Overlay & Glow Layer
     this.setupDayNightLighting();
 
-    // 9. Weather Overlay (above day/night but below UI) — screen-space, fixed to camera
+    // 9. Weather Overlay (screen-space, fixed to camera viewport)
     this.weatherOverlay = this.add.graphics();
     this.weatherOverlay.setDepth(4500);
     this.weatherOverlay.setScrollFactor(0);
@@ -162,7 +166,7 @@ export class MainScene extends Phaser.Scene {
     // 10. Setup Camera Controls
     this.setupCamera();
 
-    // 11. FPS debug overlay text (hidden by default)
+    // 11. FPS debug overlay text
     this._fpsDebugText = this.add.text(8, 8, '', {
       fontFamily: 'monospace',
       fontSize: '11px',
@@ -173,17 +177,14 @@ export class MainScene extends Phaser.Scene {
       padding: { x: 4, y: 2 },
     });
     this._fpsDebugText.setDepth(99999);
-    this._fpsDebugText.setScrollFactor(0); // fixed to camera
+    this._fpsDebugText.setScrollFactor(0);
     this._fpsDebugText.setVisible(initialState.showFpsDebug ?? false);
   }
 
   private createAtmosphere(): void {
-    const bgGraphics = this.add.graphics();
-    bgGraphics.fillGradientStyle(0x020617, 0x020617, 0x090d16, 0x0f172a, 0.25);
-    bgGraphics.fillRect(-3000, -3000, 6000, 6000);
-    bgGraphics.setDepth(-1000);
+    // TINANGGAL: bgGraphics.fillGradientStyle at fillRect na nagiging dim box kapag nag-zoom out
 
-    // Deep Aether Dust Motes — count scales with quality tier
+    // Deep Aether Dust Motes
     const moteCount = 45;
     for (let i = 0; i < moteCount; i++) {
       const px = Phaser.Math.Between(-500, 500);
@@ -243,17 +244,16 @@ export class MainScene extends Phaser.Scene {
           type = 'OCEAN_BLOCK';
           walkable = false;
         } else if (x === 5 && y === 5) {
-          type = 'NEXUS_BASE'; // Nexus Prime
+          type = 'NEXUS_BASE';
         } else if (x === 1 && y === 1) {
-          type = 'AETHER_CRYSTAL'; // Aether Shard Spire
+          type = 'AETHER_CRYSTAL';
         } else if (x === 8 && y === 2) {
-          type = 'RUNIC_PILLAR'; // Quarry Stone Node
+          type = 'RUNIC_PILLAR';
         } else if (x === 8 && y === 8) {
-          type = 'ANCIENT_GROVE'; // Grove Wood Node
+          type = 'ANCIENT_GROVE';
         } else if (x === 1 && y === 8) {
-          type = 'MYSTIC_CAVE'; // Mystic Void Cave for Essence
+          type = 'MYSTIC_CAVE';
         } else if (
-          // Stone pathways connecting nodes to Nexus (5,5)
           (x === 5 && y >= 1 && y <= 8) ||
           (y === 5 && x >= 1 && x <= 8) ||
           (x === 2 && y === 2) || (x === 3 && y === 3) || (x === 4 && y === 4) ||
@@ -291,7 +291,6 @@ export class MainScene extends Phaser.Scene {
         const screenPos = IsometricHelper.gridToScreen(x, y);
         const depth = IsometricHelper.getDepth(x, y, 0);
 
-        // Static Nexus Prime structure
         if (tile.type === 'NEXUS_BASE') {
           const structContainer = this.add.container(screenPos.x, screenPos.y);
           const structGfx = this.add.graphics();
@@ -311,7 +310,6 @@ export class MainScene extends Phaser.Scene {
             ease: 'Sine.easeInOut',
           });
 
-          // Interactive Castle Center
           const hitArea = new Phaser.Geom.Polygon([
             -32, 0,
             0, -38,
@@ -457,7 +455,6 @@ export class MainScene extends Phaser.Scene {
       return store.castleBuilt && (store.resourceBuildings?.[buildingId]?.level ?? 0) >= 1;
     });
 
-    // Remove landmarks that no longer exist after a reset or regression.
     for (const [type, container] of this.landmarkContainers) {
       if (!definitions.some(def => def.type === type)) {
         container.destroy();
@@ -476,7 +473,6 @@ export class MainScene extends Phaser.Scene {
 
       container = this.add.container(0, 0);
 
-      // If enriched by Treant (qualityMultiplier > 1), draw a soft radiant nature bloom halo
       const quality = def.point.qualityMultiplier ?? 1.0;
       if (quality > 1.0) {
         const bloomGfx = this.add.graphics();
@@ -539,21 +535,16 @@ export class MainScene extends Phaser.Scene {
     this.nightGlowGraphics.setDepth(3000);
     this.islandContainer.add(this.nightGlowGraphics);
 
-    // Global ambient tint overlay — screen-space, always covers full viewport
+    // Global ambient tint overlay
     this.dayNightOverlay = this.add.graphics();
     this.dayNightOverlay.setDepth(4000);
     this.dayNightOverlay.setScrollFactor(0);
   }
 
-  /**
-   * Smooth continuous RGB and Alpha linear interpolation across the 240s cycle.
-   * Optimised: only writes to Zustand when phase or darkness actually change.
-   */
   private updateDayNightCycle(delta: number): number {
     this.cycleTimer = (this.cycleTimer + delta) % DAY_NIGHT_CYCLE_DURATION_MS;
-    const progress = this.cycleTimer / DAY_NIGHT_CYCLE_DURATION_MS; // 0.0 to 1.0
+    const progress = this.cycleTimer / DAY_NIGHT_CYCLE_DURATION_MS;
 
-    // Find surrounding keyframes
     let k1 = DAY_NIGHT_KEYFRAMES[DAY_NIGHT_KEYFRAMES.length - 1];
     let k2 = DAY_NIGHT_KEYFRAMES[0];
 
@@ -574,26 +565,22 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    // Normalized blend factor t between k1 and k2
     let span = k2.progress - k1.progress;
     if (span <= 0) span += 1.0;
     let offset = progress - k1.progress;
     if (offset < 0) offset += 1.0;
     const t = Phaser.Math.Clamp(offset / span, 0, 1);
 
-    // Interpolate RGB
     const r = Math.round(Phaser.Math.Linear(k1.r, k2.r, t));
     const g = Math.round(Phaser.Math.Linear(k1.g, k2.g, t));
     const b = Math.round(Phaser.Math.Linear(k1.b, k2.b, t));
     const overlayAlpha = Phaser.Math.Linear(k1.alpha, k2.alpha, t);
     const ambientDarkness = Phaser.Math.Linear(k1.darkness, k2.darkness, t);
 
-    // Pack RGB
     const colorHex = (r << 16) | (g << 8) | b;
     const phase = t < 0.5 ? k1.phase : k2.phase;
 
-    // ── Dirty-check: only write phase/darkness to Zustand when they change ──
-    const darknessRounded = Math.round(ambientDarkness * 100) / 100; // 2dp
+    const darknessRounded = Math.round(ambientDarkness * 100) / 100;
     const phaseChanged = phase !== this._lastPhaseWritten;
     const darknessChanged = Math.abs(darknessRounded - this._lastDarknessWritten) >= 0.01;
 
@@ -612,21 +599,15 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    // ── Throttled dayProgress write (every 500ms) ──
     this._dayProgressWriteTimer += delta;
     if (this._dayProgressWriteTimer >= MainScene.DAY_PROGRESS_WRITE_INTERVAL_MS) {
       this._dayProgressWriteTimer = 0;
       useGameStore.getState().setDayProgress(progress);
     }
 
-    // Render smooth overlay — screen-space, always fully covers the viewport
+    // Sakupin ang buong resolution kahit mag-resize o mag-zoom
     this.dayNightOverlay.clear();
-    if (overlayAlpha > 0.005) {
-      this.dayNightOverlay.fillStyle(colorHex, overlayAlpha);
-      this.dayNightOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
-    }
 
-    // Render landmark glows at night/dusk
     this.nightGlowGraphics.clear();
     if (ambientDarkness > 0.12) {
       const dynamicNodes = useGameStore.getState().dynamicResourceNodes || {
@@ -658,7 +639,6 @@ export class MainScene extends Phaser.Scene {
     for (let y = 0; y < this.mapHeight; y++) {
       const row: number[] = [];
       for (let x = 0; x < this.mapWidth; x++) {
-        // 0 = Land, 1 = Ocean
         row.push(this.tiles[y][x].type === 'OCEAN_BLOCK' ? 1 : 0);
       }
       walkableGrid.push(row);
@@ -672,9 +652,7 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.centerOn(nexusScreen.x, nexusScreen.y);
     this.cameras.main.setZoom(1.15);
 
-    // Mouse Drag (Pan) & Canvas Tap-to-Smite
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // If an invasion incursion is active, tap anywhere on canvas to Smite nearest invader!
       if (useGameStore.getState().invasion.isActive && this.invasionManager) {
         const localX = pointer.worldX - this.islandContainer.x;
         const localY = pointer.worldY - this.islandContainer.y;
@@ -701,7 +679,6 @@ export class MainScene extends Phaser.Scene {
       this.isDragging = false;
     });
 
-    // Scroll Wheel Zoom
     this.input.on(
       'wheel',
       (
@@ -718,23 +695,17 @@ export class MainScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    // ── Tick FPS controller first (before any logic) ──────────────────────
     this.fpsController.tick(delta, this._cachedTargetFps);
 
-    // ── Cache the full store state once per frame ─────────────────────────
     const store = useGameStore.getState();
 
-    // ── Game Speed: pause or fast-forward ─────────────────────────────────
     const gameSpeed = store.gameSpeed ?? 1;
     if (gameSpeed === 0) {
-      // PAUSED — only animate the island bob, skip all game logic
       this.islandContainer.y = Math.sin(time / 2200) * 4.5;
       return;
     }
-    // Apply speed multiplier: 1× or 2×
     const effectiveDelta = delta * gameSpeed;
 
-    // 1. Floating Island Bobbing Motion
     this.islandContainer.y = Math.sin(time / 2200) * 4.5;
 
     if (this.castleContainer) {
@@ -747,27 +718,22 @@ export class MainScene extends Phaser.Scene {
       this.mineContainer.setVisible(store.castleBuilt && (store.resourceBuildings?.MINE?.level ?? 0) >= 1);
     }
 
-    // 2. Smooth Continuous Day / Night Cycle
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
-    // Dynamic Platform Phase Re-skinning (Waves 1-25: Citadel, 26-50: Magma, 51-75: Frost, 76-100: Astral)
     const storePhase = store.platformPhase || 1;
     if (storePhase !== this.currentPlatformPhase) {
       this.currentPlatformPhase = storePhase;
       this.renderPlatformTiles();
     }
 
-    // Refresh dynamic resource nodes (when Treant shifts/replenishes nodes)
     this.updateDynamicLandmarks();
 
-    // 3. Sync workers with Zustand roster — throttled (every 250ms)
     this._rosterSyncTimer += effectiveDelta;
     if (this._rosterSyncTimer >= MainScene.ROSTER_SYNC_INTERVAL_MS) {
       this._rosterSyncTimer = 0;
       this.workerManager.syncWithRoster(store.roster);
     }
 
-    // Update cached targetFps (cheap value comparison, no Zustand call)
     if (store.targetFps !== this._cachedTargetFps) {
       this._cachedTargetFps = store.targetFps;
       this.fpsController.setTargetFps(this._cachedTargetFps);
@@ -775,7 +741,6 @@ export class MainScene extends Phaser.Scene {
 
     this.workerManager.update(time, effectiveDelta, ambientDarkness);
 
-    // 4. Update Invasion Incursions & Automated Castle Turrets
     const isInvading = store.invasion.isActive;
     const weather = store.weather;
     if (isInvading) {
@@ -788,13 +753,10 @@ export class MainScene extends Phaser.Scene {
 
     this.invasionManager?.update(effectiveDelta);
 
-    // 5. Update Weather Particles
     this.updateWeatherParticles(effectiveDelta, store.targetFps, weather);
 
-    // 6. Tick EasyStar pathfinder queue — MUST be called every frame
     this.pathfinder.calculate();
 
-    // 7. Merchant + Blessing ticks — batched (every 100ms) to reduce store writes
     this._merchantTickAccum += effectiveDelta;
     this._blessingTickAccum += effectiveDelta;
     if (this._merchantTickAccum >= MainScene.TICK_ACCUMULATE_MS) {
@@ -808,7 +770,6 @@ export class MainScene extends Phaser.Scene {
       store.tickGodBlessings(seconds);
     }
 
-    // 8. FPS debug overlay update (every 200ms)
     if (this._fpsDebugText) {
       const showDebug = store.showFpsDebug ?? false;
       if (this._fpsDebugText.visible !== showDebug) {
@@ -826,23 +787,19 @@ export class MainScene extends Phaser.Scene {
             `Frame: ${stats.frameTimeMs.toFixed(1)}ms  Jank: ${stats.jankCount}\n` +
             `Quality: ${tier}${stats.performanceWarning ? '  ⚠️ PERF WARN' : ''}`
           );
-          // Report measured FPS to store (throttled, cheap)
           store.setMeasuredFps(stats.measured);
         }
       }
     }
 
-    // 9. Random Scout spawns during non-wave periods (loot drops)
     if (!isInvading) {
       this._scoutSpawnAccum += effectiveDelta;
       if (this._scoutSpawnAccum >= this._nextScoutInterval) {
         this._scoutSpawnAccum = 0;
-        // Next interval: 30–65 seconds
         this._nextScoutInterval = (30 + Math.random() * 35) * 1000;
         this.invasionManager?.spawnLootScouts();
       }
     } else {
-      // Reset accumulator when invasion starts so scouts don't pile up
       this._scoutSpawnAccum = 0;
     }
   }
@@ -857,20 +814,14 @@ export class MainScene extends Phaser.Scene {
     const pick = weathers[Math.floor(Math.random() * weathers.length)];
     this.currentWeather = pick;
     useGameStore.getState().setWeather(pick);
-    // Clear old particles
     this.weatherParticles.forEach(p => p.destroy());
     this.weatherParticles = [];
   }
 
-  /**
-   * Weather particle system — uses pre-resolved targetFps and weather passed
-   * from the update() cache to avoid per-frame getState() calls.
-   */
   private updateWeatherParticles(delta: number, targetFps: number, weather: WeatherType): void {
     this.weatherTimer += delta;
     this.weatherOverlay.clear();
 
-    // Early-out for clear weather — no overlay, no particles
     if (weather === 'CLEAR') {
       this.currentWeather = 'CLEAR';
       this.weatherParticles.forEach(p => p.destroy());
@@ -878,13 +829,11 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
-    // Sync currentWeather (changes handled by randomizeWeather, but keep in sync)
     this.currentWeather = weather;
 
     const cam = this.cameras.main;
-    // Screen-space viewport — always the full visible canvas, regardless of zoom/pan
-    const viewW = cam.width;
-    const viewH = cam.height;
+    const viewW = Math.max(cam.width, window.innerWidth * 2);
+    const viewH = Math.max(cam.height, window.innerHeight * 2);
 
     const scaleFactor = this.fpsController.getScaleFactor();
     const isUltra = targetFps >= 90;
@@ -943,7 +892,6 @@ export class MainScene extends Phaser.Scene {
       this.weatherOverlay.fillRect(0, 0, viewW, viewH);
     }
 
-    // Update particles — screen-space, so bounds check against viewport height, not world/camera scroll
     const deltaSec = delta / 1000;
     for (let i = this.weatherParticles.length - 1; i >= 0; i--) {
       const p = this.weatherParticles[i] as unknown as Phaser.GameObjects.Graphics & { _vy: number; _vx?: number; _life: number };

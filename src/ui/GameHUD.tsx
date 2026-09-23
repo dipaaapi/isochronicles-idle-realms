@@ -1,36 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { isConstructionReady } from '../state/constructionProgress';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
-  Gem,
-  Trees,
-  Hammer,
-  Sparkles,
   BookOpen,
   Sliders,
   Zap,
   Volume2,
   VolumeX,
-  Sun,
-  Moon,
   Sunrise,
+  Sun,
   Sunset,
-  Coins,
+  Moon,
   Maximize,
   Minimize,
-  Fish,
-  Droplets,
   RotateCcw,
   Play,
   FastForward,
   Pause,
-  ChevronDown,
-  ChevronUp,
+  ChevronRight,
+  ChevronLeft,
+  Sparkles,
+  HelpCircle,
+  Activity,
+  Swords,
+  Check,
+  X,
+  Gem,
+  Trees,
+  Hammer,
+  Fish,
+  Droplets,
+  Coins,
+  Shield,
+  Menu,
 } from 'lucide-react';
 import { PLATFORM_CONFIGS, SEASON_CONFIGS } from '../types/game';
 import { CitadelTab } from './CitadelCommandModal';
-import { RealmLog } from '../components/Realmlog';
+import { AutoEnhancePrompt } from '../ui/AutoEnhancePrompt';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
@@ -75,19 +82,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     language,
     gameSpeed,
     setGameSpeed,
+    day,
+    year,
+    dayProgress,
+    incrementDay,
+    startInvasion,
   } = useGameStore();
 
   const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
-  const [isFullscreen, setIsFullscreen] = React.useState(
+  const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== 'undefined' ? !!document.fullscreenElement : false
   );
-  const [isBottomBarVisible, setIsBottomBarVisible] = React.useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<'command' | 'status' | 'resources'>('command');
+  const [confirmAction, setConfirmAction] = useState<'SKIP_DAY' | 'SUMMON_WAVE' | null>(null);
 
-  React.useEffect(() => {
-    const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
@@ -96,12 +108,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     soundFx.playClick();
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch((err) => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        console.error(`Fullscreen error: ${err.message}`);
       });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
     }
   };
 
@@ -110,383 +120,332 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     toggleAudioMute();
   };
 
+  const handleConfirmAction = () => {
+    soundFx.playClick();
+    if (confirmAction === 'SKIP_DAY') incrementDay();
+    else if (confirmAction === 'SUMMON_WAVE') startInvasion();
+    setConfirmAction(null);
+  };
+
   const timeOfDayConfig = {
     DAWN: {
       label: language === 'TL' ? 'Bukang-liwayway' : 'Dawn',
       icon: <Sunrise className="w-4 h-4 text-amber-300 animate-pulse" />,
-      color: 'border-amber-500/30 text-amber-200',
+      color: 'text-amber-200',
     },
     DAY: {
       label: language === 'TL' ? 'Araw' : 'Day',
       icon: <Sun className="w-4 h-4 text-yellow-400" />,
-      color: 'border-sky-500/30 text-sky-200',
+      color: 'text-yellow-200',
     },
     DUSK: {
       label: language === 'TL' ? 'Takipsilim' : 'Dusk',
       icon: <Sunset className="w-4 h-4 text-purple-400" />,
-      color: 'border-purple-500/30 text-purple-200',
+      color: 'text-purple-200',
     },
     NIGHT: {
       label: language === 'TL' ? 'Gabi' : 'Night',
       icon: <Moon className="w-4 h-4 text-cyan-300" />,
-      color: 'border-indigo-500/30 text-cyan-200',
+      color: 'text-cyan-200',
     },
   }[timeOfDay];
 
+  const currentPlatform = PLATFORM_CONFIGS[platformPhase || 1];
+  const currentSeason = SEASON_CONFIGS[season || 'SPRING'];
+  const castleHpPct = Math.round((defense.castleHp / defense.castleMaxHp) * 100);
+  const shieldHpPct = Math.round((defense.shieldHp / defense.shieldMaxHp) * 100);
+
+  const resourceGauges = [
+    { label: language === 'TL' ? 'Kristal' : 'Gems', key: 'aetherShards' as const, value: resources.aetherShards, color: 'bg-sky-400', text: 'text-sky-300', icon: <Gem className="w-3.5 h-3.5" /> },
+    { label: language === 'TL' ? 'Kahoy' : 'Wood', key: 'wood' as const, value: resources.wood, color: 'bg-emerald-400', text: 'text-emerald-300', icon: <Trees className="w-3.5 h-3.5" /> },
+    { label: language === 'TL' ? 'Bato' : 'Stone', key: 'stone' as const, value: resources.stone, color: 'bg-amber-400', text: 'text-amber-300', icon: <Hammer className="w-3.5 h-3.5" /> },
+    { label: language === 'TL' ? 'Magic' : 'Essence', key: 'arcaneEssence' as const, value: resources.arcaneEssence, color: 'bg-purple-400', text: 'text-purple-300', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { label: language === 'TL' ? 'Isda' : 'Fish', key: 'fish' as const, value: resources.fish, color: 'bg-cyan-400', text: 'text-cyan-300', icon: <Fish className="w-3.5 h-3.5" /> },
+    { label: language === 'TL' ? 'Tubig' : 'Water', key: 'water' as const, value: resources.water, color: 'bg-blue-400', text: 'text-blue-300', icon: <Droplets className="w-3.5 h-3.5" /> },
+  ];
+
   return (
-    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between p-3 md:p-5 select-none">
-      {/* Top Header Section */}
-      <div className="flex flex-col gap-2 w-full pointer-events-none">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 w-full">
-          {/* Realm Badge & Day/Night Indicator */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {(() => {
-              const currentPlatform = PLATFORM_CONFIGS[platformPhase || 1];
-              const currentSeason = SEASON_CONFIGS[season || 'SPRING'];
-              return (
-                <div className="pointer-events-auto glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-2.5 shadow-md border-red-500/30 bg-red-950/20">
-                  <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-base shadow-sm border"
-                    style={{
-                      backgroundColor: `${currentPlatform.accentColor}25`,
-                      borderColor: currentPlatform.accentColor,
-                    }}
-                  >
-                    {platformPhase === 1 ? '🏰' : platformPhase === 2 ? '🌋' : platformPhase === 3 ? '❄️' : '✨'}
-                  </div>
-                  <div>
-                    <div
-                      className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1.5"
-                      style={{ color: currentPlatform.accentColor }}
-                    >
-                      <span>
-                        Phase {platformPhase}: {language === 'TL' ? currentPlatform.name : currentPlatform.nameEn}
-                      </span>
-                    </div>
-                    <div className="text-sm font-bold text-slate-100 flex items-center gap-2 flex-wrap">
-                      <span
-                        className="text-xs px-1.5 py-0.5 rounded font-medium border border-slate-700 bg-slate-900/60 flex items-center gap-1"
-                        style={{ color: currentSeason.color }}
-                        title={language === 'TL' ? currentSeason.description : currentSeason.descriptionEn}
-                      >
-                        <span>{currentSeason.icon}</span>
-                        <span>{language === 'TL' ? currentSeason.name : currentSeason.nameEn}</span>
-                      </span>
-
-                      <div
-                        className="px-1.5 py-0.5 rounded bg-slate-900/50 border border-slate-700 text-slate-300 text-xs font-mono"
-                        title={language === 'TL' ? 'Kasalukuyang Panahon' : 'Current Weather'}
-                      >
-                        {weather === 'CLEAR' && '☀️'}
-                        {weather === 'RAIN' && '🌧️'}
-                        {weather === 'SNOW' && '❄️'}
-                        {weather === 'HEATWAVE' && '🌡️'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div
-              className={`pointer-events-auto glass-panel px-3 py-2 rounded-2xl flex items-center gap-1.5 text-xs font-bold ${timeOfDayConfig.color}`}
-              title={`Oras sa Mundo: ${timeOfDayConfig.label}`}
-            >
-              {timeOfDayConfig.icon}
-              <span className="tracking-wide uppercase text-[11px]">{timeOfDayConfig.label}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* HIWALAY NA REALM LOG COMPONENT */}
-      <RealmLog
-        constructionReady={constructionReady}
-        timeOfDayLabel={timeOfDayConfig.label}
-        onOpenCitadel={onOpenCitadel}
-        onOpenQuickTrade={onOpenQuickTrade}
-      />
-
-      {/* Bottom Controls Bar */}
-      <div className="relative w-full pointer-events-none">
-        <button
-          onClick={() => setIsBottomBarVisible((v) => !v)}
-          className="pointer-events-auto absolute -top-7 left-1/2 z-30 -translate-x-1/2 rounded-t-xl border border-slate-700 bg-slate-900/90 px-3 py-1 text-slate-400 shadow-lg transition-colors hover:bg-slate-800 hover:text-slate-200"
-          aria-label={isBottomBarVisible ? 'Hide bottom controls' : 'Show bottom controls'}
-        >
-          {isBottomBarVisible ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-        </button>
-
-        <div
-          className={`flex flex-col md:flex-row items-end md:items-center justify-between gap-3 w-full transition-transform duration-300 ${
-            isBottomBarVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'
-          }`}
-        >
-          {/* Minions count & Auto mode */}
-          <div className="pointer-events-auto glass-panel p-2 md:p-2.5 rounded-3xl flex flex-wrap items-center gap-2 md:gap-3 shadow-xl">
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenCitadel('MINIONS');
-              }}
-              className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-slate-900/90 border border-red-500/30 hover:border-red-400 hover:scale-102 transition-all cursor-pointer group shadow-sm"
-              title={
-                language === 'TL'
-                  ? 'Pindutin para mag-utos o magdagdag ng mga Alagad na Demonyo at Halimaw'
-                  : 'Click to command or add Demon Servants and Monsters'
-              }
-            >
-              <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400 group-hover:scale-110 transition-transform text-lg">
-                👹
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-[9px] uppercase font-bold text-red-300">
-                  {language === 'TL' ? 'Mga Alagad (Minions)' : 'Servants (Minions)'}
-                </span>
-                <span className="text-sm font-black font-mono text-red-100">
-                  {workerCount} {language === 'TL' ? 'Alagad' : 'Minions'}
-                </span>
-              </div>
-            </button>
-
-            <div className="flex items-center gap-1.5 pl-1 border-l border-slate-700/60">
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  toggleAutoSetting('autoDispatch');
-                }}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  autoSettings.autoDispatch
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                    : 'bg-slate-900/80 text-slate-400 border border-slate-700/60 hover:text-slate-200'
-                }`}
-                title={
-                  language === 'TL'
-                    ? 'Kusang magtatrabaho ang mga katulong kapag bukas ito'
-                    : 'Servants will automatically work when this is on'
-                }
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>
-                  {language === 'TL' ? 'Kusa' : 'Auto'}:{' '}
-                  {autoSettings.autoDispatch
-                    ? language === 'TL'
-                      ? 'BUKAS'
-                      : 'ON'
-                    : language === 'TL'
-                    ? 'PATAY'
-                    : 'OFF'}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Action Drawers and Buttons */}
-          <div className="pointer-events-auto flex items-center flex-wrap gap-2">
-            {/* Speed Controls */}
-            <div className="glass-panel px-2 py-1.5 rounded-2xl flex items-center gap-1 border-emerald-500/30 shadow-md">
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  setGameSpeed(0);
-                }}
-                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
-                  gameSpeed === 0
-                    ? 'bg-rose-500/30 text-rose-300 scale-110 border border-rose-500/50'
-                    : 'text-slate-400 hover:text-rose-300 hover:bg-slate-800'
-                }`}
-                title="Pause"
-              >
-                <Pause className="w-4 h-4 fill-current" />
-              </button>
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  setGameSpeed(1);
-                }}
-                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
-                  gameSpeed === 1
-                    ? 'bg-emerald-500/30 text-emerald-300 scale-110 border border-emerald-500/50'
-                    : 'text-slate-400 hover:text-emerald-300 hover:bg-slate-800'
-                }`}
-                title="Play (Normal Speed)"
-              >
-                <Play className="w-4 h-4 fill-current" />
-              </button>
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  setGameSpeed(2);
-                }}
-                className={`p-1.5 rounded-xl transition-all cursor-pointer ${
-                  gameSpeed === 2
-                    ? 'bg-amber-500/30 text-amber-300 scale-110 border border-amber-500/50'
-                    : 'text-slate-400 hover:text-amber-300 hover:bg-slate-800'
-                }`}
-                title="Fast Forward (2x Speed)"
-              >
-                <FastForward className="w-4 h-4 fill-current" />
-              </button>
-            </div>
-
-            {/* COMMAND CENTER BUTTON */}
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenCitadel();
-              }}
-              className="glass-panel px-4 py-2 rounded-2xl flex items-center gap-2.5 bg-gradient-to-r from-red-950/80 via-purple-950/70 to-slate-900/90 border border-red-500/50 hover:border-amber-400 hover:scale-105 transition-all active:scale-95 cursor-pointer shadow-lg shadow-red-950/50 group"
-              title={
-                language === 'TL'
-                  ? 'Centro ng Pangasiwaan - Alagad, Tindahan, Sandata, Agham, at Kastilyo'
-                  : 'Command Center - Minions, Market, Forge, Tech Research, & Castle Fortifications'
-              }
-            >
-              <div className="w-6 h-6 rounded-lg bg-red-600/30 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
-                🏰
-              </div>
-              <div className="flex flex-col text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-black text-red-100 tracking-wide">
-                    {language === 'TL' ? 'Centro ng Pangasiwaan' : 'Command Center'}
-                  </span>
-                  <span className="text-[9px] font-mono font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-500/30">
-                    HP {defense.castleHp}
-                  </span>
-                </div>
-                <span className="text-[9px] text-slate-400 font-medium">
-                  {language === 'TL'
-                    ? 'Alagad • Tindahan • Gamit • Agham • Depensa'
-                    : 'Minions • Shop • Gears • Tech • Castle'}
-                </span>
-              </div>
-            </button>
-
-            {/* Gabay / Codex */}
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenCodex();
-              }}
-              className="glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-2 hover:border-purple-400 hover:scale-105 text-purple-200 transition-all active:scale-95 cursor-pointer shadow-md"
-              title={language === 'TL' ? 'Paano laruin ang laro' : 'How to play'}
-            >
-              <BookOpen className="w-4 h-4 text-purple-400" />
-              <span className="text-xs font-bold">{language === 'TL' ? 'Gabay' : 'Guide'}</span>
-            </button>
-
-            {/* Bestiary */}
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenBestiary();
-              }}
-              className="glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-2 hover:border-red-400 hover:scale-105 bg-red-950/30 text-red-200 transition-all active:scale-95 cursor-pointer shadow-md border-red-500/30"
-              title={
-                language === 'TL'
-                  ? 'Talaan ng mga Alagad at Kalabang Tao/Mecha (Bestiary)'
-                  : 'Compendium of Servants and Enemies (Bestiary)'
-              }
-            >
-              <span className="text-sm">📖</span>
-              <span className="text-xs font-bold text-red-300">
-                {language === 'TL' ? 'Talaan' : 'Codex'}
+    <aside
+      className={`relative h-full flex-shrink-0 flex flex-col bg-slate-950 border-l border-slate-800/80 transition-all duration-300 select-none z-10 overflow-hidden ${
+        isSidebarOpen ? 'w-[320px]' : 'w-16'
+      }`}
+    >
+      {/* 1. TOP HEADER */}
+      <div className="flex flex-col p-3 border-b border-slate-800/80 bg-slate-900/60 gap-3">
+        <div className="flex items-center justify-between">
+          {isSidebarOpen ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                {platformPhase === 1 ? '🏰' : platformPhase === 2 ? '🌋' : platformPhase === 3 ? '❄️' : '✨'}
               </span>
-            </button>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                {language === 'TL' ? currentPlatform.name : currentPlatform.nameEn}
+              </span>
+            </div>
+          ) : (
+            <div className="mx-auto text-sm">
+              {platformPhase === 1 ? '🏰' : platformPhase === 2 ? '🌋' : platformPhase === 3 ? '❄️' : '✨'}
+            </div>
+          )}
 
-            {/* Regression */}
+          <button
+            type="button"
+            onClick={() => {
+              soundFx.playClick();
+              setIsSidebarOpen((v) => !v);
+            }}
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+          >
+            {isSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {isSidebarOpen && (
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300">
+              {currentSeason.icon} <span>{language === 'TL' ? currentSeason.name : currentSeason.nameEn}</span>
+            </div>
+            <div className={`flex items-center gap-1.5 text-[11px] font-bold ${timeOfDayConfig.color}`}>
+              {timeOfDayConfig.icon} <span>{timeOfDayConfig.label}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. MINIFIED STRIP (Nakasara ang sidebar) */}
+      {!isSidebarOpen && (
+        <div className="flex flex-col items-center py-4 gap-4 flex-1 overflow-y-auto">
+          <div className="text-[10px] font-mono font-bold text-sky-400 text-center">W{invasion.waveNumber}</div>
+          <div className="text-[10px] font-mono font-bold text-emerald-400 text-center">{castleHpPct}%</div>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('command'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-red-300 cursor-pointer">🏰</button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('status'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-sky-300 cursor-pointer"><Activity className="w-4 h-4" /></button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('resources'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-300 cursor-pointer"><Coins className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* 3. EXPANDED SIDEBAR CONTENT */}
+      {isSidebarOpen && (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* TABS */}
+          <div className="grid grid-cols-3 p-2 gap-1.5 border-b border-slate-800/80 bg-slate-900/30">
             <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenRegression();
-              }}
-              className={`glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-2 hover:scale-105 transition-all active:scale-95 cursor-pointer shadow-md border ${
-                invasion.waveNumber >= 100
-                  ? 'bg-amber-500/20 border-amber-400 text-amber-200 animate-pulse'
-                  : 'bg-purple-950/30 border-purple-500/40 text-purple-200 hover:border-purple-400'
+              onClick={() => { soundFx.playClick(); setActiveTab('command'); }}
+              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition flex flex-col items-center gap-1 cursor-pointer ${
+                activeTab === 'command' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'text-slate-400 hover:bg-slate-800'
               }`}
-              title={
-                language === 'TL'
-                  ? 'Regression - Muling Pagkabuhay at Tala ng Pag-usad'
-                  : 'Regression - Timeline Rebirth & Progression Records'
-              }
             >
-              <RotateCcw className="w-4 h-4 text-purple-300" />
-              <span className="text-xs font-bold">Regression</span>
-              {regressionCount > 0 && (
-                <span className="text-[10px] font-mono font-bold text-amber-300 bg-slate-900/90 px-1.5 py-0.5 rounded border border-amber-500/30">
-                  +{regressionCount}
-                </span>
-              )}
+              <span className="text-sm">🏰</span>
+              <span>Centro</span>
             </button>
-
-            {/* Audio Toggle */}
             <button
-              onClick={handleToggleAudio}
-              className={`glass-panel p-2.5 rounded-2xl transition-all active:scale-95 cursor-pointer shadow-md ${
-                isAudioMuted
-                  ? 'border-rose-500/50 text-rose-400 hover:bg-rose-950/40'
-                  : 'border-sky-500/30 text-sky-300 hover:bg-slate-850'
+              onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
+              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition flex flex-col items-center gap-1 cursor-pointer ${
+                activeTab === 'status' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-400 hover:bg-slate-800'
               }`}
-              title={
-                isAudioMuted
-                  ? language === 'TL'
-                    ? 'Buksan ang Tunog'
-                    : 'Unmute Audio'
-                  : language === 'TL'
-                  ? 'I-mute ang Tunog'
-                  : 'Mute Audio'
-              }
             >
-              {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              <Activity className="w-4 h-4" />
+              <span>Status</span>
             </button>
-
             <button
-              onClick={onOpenSkillTree}
-              className="glass-panel rounded-2xl px-3 py-2.5 text-xs font-bold text-purple-200 hover:border-purple-400 cursor-pointer"
+              onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
+              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition flex flex-col items-center gap-1 cursor-pointer ${
+                activeTab === 'resources' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'
+              }`}
             >
-              Skills{skillPoints > 0 ? ` (${skillPoints})` : ''}
-            </button>
-
-            <button
-              onClick={onOpenFAQ}
-              className="glass-panel rounded-2xl px-3 py-2.5 text-xs font-bold text-amber-200 hover:border-amber-400 cursor-pointer"
-              title="Gameplay FAQ"
-            >
-              FAQ
-            </button>
-
-            {/* Settings */}
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onOpenSettings();
-              }}
-              className="glass-panel p-2.5 rounded-2xl hover:border-slate-500 hover:scale-105 text-slate-300 transition-all active:scale-95 cursor-pointer shadow-md"
-              title={language === 'TL' ? 'Mga Setting at Pag-save' : 'Settings & Save'}
-            >
-              <Sliders className="w-4 h-4" />
-            </button>
-
-            {/* Fullscreen */}
-            <button
-              onClick={toggleFullscreen}
-              className="glass-panel p-2.5 rounded-2xl hover:border-slate-500 hover:scale-105 text-slate-300 transition-all active:scale-95 cursor-pointer shadow-md"
-              title={
-                isFullscreen
-                  ? language === 'TL'
-                    ? 'Isara ang Buong Screen'
-                    : 'Exit Fullscreen'
-                  : language === 'TL'
-                  ? 'Buong Screen'
-                  : 'Enter Fullscreen'
-              }
-            >
-              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              <Coins className="w-4 h-4" />
+              <span>Yaman</span>
             </button>
           </div>
+
+          {/* MAIN TAB CONTENT */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            
+            {/* COMMAND TAB */}
+            {activeTab === 'command' && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 justify-between bg-slate-900/60 p-2 rounded-xl border border-red-500/20">
+                  <button
+                    onClick={() => { soundFx.playClick(); onOpenCitadel('MINIONS'); }}
+                    className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-bold cursor-pointer hover:bg-red-900/50"
+                  >
+                    <span>👹</span> <span>{workerCount} Alagad</span>
+                  </button>
+                  <button
+                    onClick={() => { soundFx.playClick(); toggleAutoSetting('autoDispatch'); }}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer ${
+                      autoSettings.autoDispatch ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <Zap className="w-3 h-3" /> {autoSettings.autoDispatch ? 'AUTO ON' : 'AUTO OFF'}
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => { soundFx.playClick(); onOpenCitadel(); }}
+                  className="w-full flex flex-col items-center justify-center gap-1 py-4 rounded-xl bg-gradient-to-br from-red-950 via-purple-950 to-slate-900 border border-red-500/40 hover:border-amber-400 cursor-pointer shadow-lg"
+                >
+                  <span className="text-2xl">🏰</span>
+                  <span className="text-xs font-bold text-red-100">Bukas Centro ng Kuta</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
+                    className="p-2.5 rounded-lg bg-purple-950/30 border border-purple-500/30 text-purple-200 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-purple-900/40"
+                  >
+                    <Sparkles className="w-4 h-4" /> <span>Skills {skillPoints > 0 && `(${skillPoints})`}</span>
+                  </button>
+                  <button
+                    onClick={() => { soundFx.playClick(); onOpenRegression(); }}
+                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800"
+                  >
+                    <RotateCcw className="w-4 h-4 text-amber-400" /> <span>Regression</span>
+                  </button>
+                  <button
+                    onClick={() => { soundFx.playClick(); onOpenCodex(); }}
+                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800"
+                  >
+                    <BookOpen className="w-4 h-4 text-purple-400" /> <span>Gabay</span>
+                  </button>
+                  <button
+                    onClick={() => { soundFx.playClick(); onOpenBestiary(); }}
+                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800"
+                  >
+                    <span>📖</span> <span>Talaan</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => { soundFx.playClick(); onOpenFAQ(); }}
+                  className="w-full mt-2 p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-amber-300 text-[11px] font-bold flex items-center justify-center gap-1.5 hover:border-amber-400/50 cursor-pointer"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" /> <span>FAQ / Mga Tanong</span>
+                </button>
+              </div>
+            )}
+
+            {/* STATUS TAB */}
+            {activeTab === 'status' && (
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
+                    <div className="flex justify-between text-[10px] mb-1">
+                      <span className="text-slate-400">Kastilyo</span>
+                      <span className="text-emerald-300 font-mono font-bold">{castleHpPct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full bg-emerald-400" style={{ width: `${castleHpPct}%` }} />
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
+                    <div className="flex justify-between text-[10px] mb-1">
+                      <span className="text-slate-400 flex items-center gap-1"><Shield className="w-2.5 h-2.5 text-sky-400" /> Kalasag</span>
+                      <span className="text-sky-300 font-mono font-bold">{shieldHpPct}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full bg-sky-400" style={{ width: `${shieldHpPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => { soundFx.playClick(); setConfirmAction('SKIP_DAY'); }}
+                  className={`w-full rounded-xl border p-3 text-left transition cursor-pointer ${
+                    confirmAction === 'SKIP_DAY' ? 'border-sky-400 bg-sky-950/70 ring-1 ring-sky-400' : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] uppercase text-slate-400">Takbo ng Panahon</span>
+                    <span className="text-[10px] font-bold text-sky-300">{timeOfDayConfig.label}</span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-200">Taon {year || 1} • Araw {day || 1}/365</div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                    <div className="h-full rounded-full bg-sky-400" style={{ width: `${dayProgress * 100}%` }} />
+                  </div>
+                </button>
+
+                <button
+                  disabled={invasion.isActive}
+                  onClick={() => {
+                    if (invasion.isActive) return;
+                    if (!constructionReady) { soundFx.playClick(); onOpenCitadel('MINIONS'); return; }
+                    soundFx.playClick(); setConfirmAction('SUMMON_WAVE');
+                  }}
+                  className={`w-full rounded-xl border p-3 text-left transition ${
+                    confirmAction === 'SUMMON_WAVE' ? 'border-red-400 bg-red-950/70 ring-1 ring-red-400' : invasion.isActive ? 'border-red-900/50 bg-red-950/30' : 'border-red-700/40 bg-red-950/30 hover:border-red-500 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] uppercase text-slate-400">Pagsalakay (Wave)</span>
+                    <span className={`text-[10px] font-bold ${invasion.isActive ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {invasion.isActive ? 'LUMALABAN' : 'HANDA'}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-200">Wave {invasion.waveNumber}/100</div>
+                  <div className="mt-1 text-[10px] text-slate-400">
+                    {invasion.isActive ? `${invasion.enemiesRemaining}/${invasion.totalEnemiesInWave} natitira` : !constructionReady ? 'Ayusin muna ang kastilyo' : `${Math.ceil(invasion.countdown)}s bago sumalakay`}
+                  </div>
+                </button>
+
+                {confirmAction && (
+                  <div className="w-full p-2.5 rounded-lg border border-amber-500/50 bg-slate-800 flex items-center justify-between gap-2 shadow-lg">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {confirmAction === 'SKIP_DAY' ? <FastForward className="w-4 h-4 text-sky-400" /> : <Swords className="w-4 h-4 text-rose-400" />}
+                      <span className="text-[10px] text-slate-200 truncate">{confirmAction === 'SKIP_DAY' ? 'Laktawan araw?' : 'Lumusob agad?'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={handleConfirmAction} className="p-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"><Check className="w-3 h-3 stroke-[3]" /></button>
+                      <button onClick={() => setConfirmAction(null)} className="p-1.5 rounded bg-slate-700 text-slate-300 hover:text-white cursor-pointer"><X className="w-3 h-3 stroke-[3]" /></button>
+                    </div>
+                  </div>
+                )}
+
+                <AutoEnhancePrompt onOpenCitadel={onOpenCitadel} embedded />
+              </div>
+            )}
+
+            {/* RESOURCES TAB */}
+            {activeTab === 'resources' && (
+              <div className="grid grid-cols-2 gap-2">
+                {resourceGauges.map((resource) => (
+                  <button
+                    key={resource.key}
+                    onClick={() => { soundFx.playClick(); onOpenQuickTrade(resource.key); }}
+                    className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 text-left hover:border-slate-600 cursor-pointer flex flex-col justify-between"
+                  >
+                    <div className={`flex items-center gap-1.5 text-[11px] font-bold mb-2 ${resource.text}`}>
+                      {resource.icon} {resource.label}
+                    </div>
+                    <div className="font-mono text-sm font-bold text-slate-200 mb-1.5">
+                      {resource.value.toLocaleString()}
+                    </div>
+                    <div className="h-1 rounded-full bg-slate-800 overflow-hidden w-full">
+                      <div className={`h-full rounded-full ${resource.color}`} style={{ width: `${Math.min(100, Math.max(8, resource.value / 10))}%` }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 4. FOOTER CONTROLS */}
+          <div className="p-3 border-t border-slate-800/80 bg-slate-900 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button onClick={() => setGameSpeed(0)} className={`p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'text-slate-400 hover:bg-slate-800'}`}><Pause className="w-3.5 h-3.5 fill-current" /></button>
+                <button onClick={() => setGameSpeed(1)} className={`p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 1 ? 'bg-emerald-500/30 text-emerald-300' : 'text-slate-400 hover:bg-slate-800'}`}><Play className="w-3.5 h-3.5 fill-current" /></button>
+                <button onClick={() => setGameSpeed(2)} className={`p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 2 ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'}`}><FastForward className="w-3.5 h-3.5 fill-current" /></button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button onClick={handleToggleAudio} className="p-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-800">{isAudioMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-sky-400" />}</button>
+                <button onClick={() => { soundFx.playClick(); onOpenSettings(); }} className="p-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-800"><Sliders className="w-4 h-4" /></button>
+                <button onClick={toggleFullscreen} className="p-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-800">{isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </aside>
   );
 };

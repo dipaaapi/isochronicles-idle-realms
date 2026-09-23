@@ -8,17 +8,18 @@ import {
   Upload,
   Trash2,
   Home,
-  Database,
   Volume2,
   VolumeX,
-  Info,
   Layers,
   Sparkles,
   Sliders,
-  Shield,
   Zap,
   Droplet,
   Grid3X3,
+  Save,
+  BookOpen,
+  Code2,
+  User,
 } from 'lucide-react';
 
 interface SettingsDrawerProps {
@@ -31,6 +32,7 @@ const loreSections = loreMarkdown
   .split(/\n(?=## )/)
   .map((section) => {
     const [heading, ...body] = section.trim().split('\n');
+
     return {
       heading: heading.replace(/^##\s*/, ''),
       body: body.join(' ').replace(/\*\*/g, ''),
@@ -44,7 +46,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onReturnToTitle,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [currentTab, setCurrentTab] = useState<'AUDIO' | 'SAVE' | 'LORE' | 'CREDITS'>('AUDIO');
+  const [currentTab, setCurrentTab] = useState<
+    'GAME' | 'SAVE' | 'LORE' | 'CREDITS'
+  >('GAME');
+
   const {
     language,
     isAudioMuted,
@@ -66,14 +71,21 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
   if (!isOpen) return null;
 
+  const isTL = language === 'TL';
+
   const handleExport = () => {
     soundFx.playClick();
+
     const jsonString = exportSave();
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+
     a.href = url;
-    a.download = `isochronicle_realm_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `isochronicle_realm_${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -82,35 +94,105 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+
     if (!file) return;
 
     const reader = new FileReader();
+
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      if (content) {
-        const success = importSave(content);
-        if (success) {
-          alert('Realm successfully restored!');
-          onClose();
-        } else {
-          alert('Failed to parse save file. Please ensure it is a valid IsoChronicle JSON export.');
-        }
+
+      if (!content) return;
+
+      const success = importSave(content);
+
+      if (success) {
+        alert(
+          isTL
+            ? 'Matagumpay na na-restore ang Realm!'
+            : 'Realm successfully restored!'
+        );
+
+        onClose();
+      } else {
+        alert(
+          isTL
+            ? 'Hindi mabasa ang save file. Siguraduhing valid na IsoChronicle JSON file ito.'
+            : 'Failed to read the save file. Please select a valid IsoChronicle JSON export.'
+        );
       }
     };
+
     reader.readAsText(file);
+
+    // Allows the same file to be selected again later.
+    e.target.value = '';
   };
 
   const handleReset = () => {
-    if (
-      window.confirm(
-        'Reset all realm progress permanently? This erases buildings, minions, resources, upgrades, achievements, and regression history, and returns to Day 1, Year 1, Wave 1, Phase 1.'
-      )
-    ) {
-      resetRealm();
-      onClose();
-      if (onReturnToTitle) onReturnToTitle();
+    const confirmed = window.confirm(
+      isTL
+        ? 'Ire-reset ang buong Realm at mabubura ang lahat ng progress, buildings, minions, resources, upgrades, achievements, days, waves, at regression history. Hindi na ito maibabalik. Ituloy?'
+        : 'This will permanently erase your entire Realm progress, including buildings, minions, resources, upgrades, achievements, days, waves, and regression history. This cannot be undone. Continue?'
+    );
+
+    if (!confirmed) return;
+
+    soundFx.playClick();
+    resetRealm();
+    onClose();
+
+    if (onReturnToTitle) {
+      onReturnToTitle();
     }
   };
+
+  const tabs = [
+    {
+      id: 'GAME' as const,
+      label: isTL ? 'Laro' : 'Game',
+      icon: Sliders,
+    },
+    {
+      id: 'SAVE' as const,
+      label: isTL ? 'Save' : 'Save',
+      icon: Save,
+    },
+    {
+      id: 'LORE' as const,
+      label: isTL ? 'Kuwento' : 'Lore',
+      icon: BookOpen,
+    },
+    {
+      id: 'CREDITS' as const,
+      label: 'Credits',
+      icon: Code2,
+    },
+  ];
+
+  const SettingRow: React.FC<{
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    children: React.ReactNode;
+  }> = ({ icon, title, description, children }) => (
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="shrink-0 rounded-xl bg-slate-800/80 p-2 text-sky-400">
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-slate-100">{title}</div>
+          <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
+            {description}
+          </div>
+        </div>
+      </div>
+
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
 
   return (
     <div
@@ -118,442 +200,633 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md h-full bg-slate-950/95 border-l border-sky-500/30 p-6 flex flex-col justify-between shadow-2xl overflow-y-auto"
+        className="relative flex h-full w-full max-w-md flex-col overflow-hidden border-l border-sky-500/30 bg-slate-950/95 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div>
-          {/* Top Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        {/* Header */}
+        <div className="shrink-0 border-b border-slate-800 px-5 pb-3 pt-5">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <Sliders className="w-5 h-5 text-sky-400" />
-              <h2 className="text-lg font-fantasy font-bold text-white tracking-wide">
-                System & Realm Settings
-              </h2>
+              <div className="rounded-xl bg-sky-500/15 p-2 text-sky-400">
+                <Sliders className="h-5 w-5" />
+              </div>
+
+              <div>
+                <h2 className="font-fantasy text-base font-bold tracking-wide text-white">
+                  {isTL ? 'Mga Setting' : 'Settings'}
+                </h2>
+                <p className="text-[10px] text-slate-500">
+                  {isTL
+                    ? 'Ayusin ang laro ayon sa gusto mo.'
+                    : 'Customize your game experience.'}
+                </p>
+              </div>
             </div>
+
             <button
+              type="button"
               onClick={() => {
                 soundFx.playClick();
                 onClose();
               }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="cursor-pointer rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              aria-label={isTL ? 'Isara' : 'Close'}
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-900 border border-slate-800 mb-5 text-[11px] font-fantasy font-bold">
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                setCurrentTab('AUDIO');
-              }}
-              className={`py-2 rounded-lg transition-all ${
-                currentTab === 'AUDIO'
-                  ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {language === 'TL' ? 'Mga Opsyon' : 'Options'}
-            </button>
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                setCurrentTab('SAVE');
-              }}
-              className={`py-2 rounded-lg transition-all ${
-                currentTab === 'SAVE'
-                  ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {language === 'TL' ? 'Save Data' : 'Save Data'}
-            </button>
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                setCurrentTab('LORE');
-              }}
-              className={`py-2 rounded-lg transition-all ${
-                currentTab === 'LORE'
-                  ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {language === 'TL' ? 'Kuwento' : 'Lore'}
-            </button>
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                setCurrentTab('CREDITS');
-              }}
-              className={`py-2 rounded-lg transition-all ${
-                currentTab === 'CREDITS'
-                  ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {language === 'TL' ? 'Teknolohiya' : 'Tech Stack'}
-            </button>
+          {/* Simple tab navigation */}
+          <div className="mt-4 grid grid-cols-4 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = currentTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    soundFx.playClick();
+                    setCurrentTab(tab.id);
+                  }}
+                  className={`flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 text-[9px] font-bold transition-all ${
+                    active
+                      ? 'border border-sky-500/40 bg-sky-500/15 text-sky-300'
+                      : 'text-slate-500 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Tab 1: Audio & Automation Controls */}
-          {currentTab === 'AUDIO' && (
-            <div className="space-y-4">
-              {/* Sound Audio Toggle */}
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400">
-                    {isAudioMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+        {/* Content */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {/* GAME */}
+          {currentTab === 'GAME' && (
+            <div className="space-y-5">
+              {/* Audio & Visuals */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <Volume2 className="h-3.5 w-3.5 text-sky-400" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    {isTL ? 'Audio at Visuals' : 'Audio & Visuals'}
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  <SettingRow
+                    icon={
+                      isAudioMuted ? (
+                        <VolumeX className="h-4 w-4" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )
+                    }
+                    title={isTL ? 'Tunog ng Laro' : 'Game Sound'}
+                    description={
+                      isTL
+                        ? 'I-on o i-mute ang procedural game sounds.'
+                        : 'Turn game sound effects on or off.'
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        toggleAudioMute();
+                      }}
+                      className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                        isAudioMuted
+                          ? 'border-rose-500/40 bg-rose-500/20 text-rose-300'
+                          : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                      }`}
+                    >
+                      {isAudioMuted
+                        ? isTL
+                          ? 'MUTE'
+                          : 'MUTED'
+                        : isTL
+                        ? 'ON'
+                        : 'ON'}
+                    </button>
+                  </SettingRow>
+
+                  <SettingRow
+                    icon={<Droplet className="h-4 w-4" />}
+                    title={isTL ? 'Dugo at Gore' : 'Blood & Gore Effects'}
+                    description={
+                      isTL
+                        ? 'Ipakita ang blood effects kapag may damage o death.'
+                        : 'Show blood effects when units take damage or die.'
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        toggleGore();
+                      }}
+                      className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                        isGoreEnabled
+                          ? 'border-red-500/40 bg-red-500/20 text-red-300'
+                          : 'border-slate-700 bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {isGoreEnabled ? 'ON' : 'OFF'}
+                    </button>
+                  </SettingRow>
+                </div>
+              </section>
+
+              {/* Performance */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    {isTL ? 'Performance' : 'Performance'}
+                  </h3>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-xl bg-purple-500/15 p-2 text-purple-400">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-slate-100">
+                        {isTL ? 'Graphics & FPS' : 'Graphics & FPS'}
+                      </div>
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
+                        {isTL
+                          ? 'Pumili ng frame rate. Mas mataas ay mas smooth pero maaaring mas mabigat sa device.'
+                          : 'Choose the frame rate. Higher FPS is smoother but may use more device power.'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs font-fantasy font-bold text-white">
-                      {language === 'TL' ? 'Tunog ng Laro' : 'Synthesized Audio'}
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {[30, 60, 90].map((fps) => {
+                      const isActive =
+                        useGameStore.getState().targetFps === fps;
+
+                      return (
+                        <button
+                          key={fps}
+                          type="button"
+                          onClick={() => {
+                            soundFx.playClick();
+                            useGameStore
+                              .getState()
+                              .setTargetFps(fps as 30 | 60 | 90);
+                          }}
+                          className={`rounded-lg py-2 text-xs font-mono font-bold transition-all ${
+                            isActive
+                              ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                          }`}
+                        >
+                          {fps} FPS
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-800/70 pt-3">
+                    <div>
+                      <div className="text-xs font-medium text-slate-200">
+                        {isTL ? 'FPS Debug' : 'FPS Debug Overlay'}
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        {showFpsDebug
+                          ? `Live: ${measuredFps} FPS · Target: ${targetFps}`
+                          : isTL
+                          ? 'Ipakita ang live FPS information sa game.'
+                          : 'Show live FPS information in-game.'}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-slate-400">
-                      {language === 'TL' ? 'Mga procedural na tunog gawa ng Web Audio API' : 'Pure Web Audio API procedural sounds'}
-                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        toggleFpsDebug();
+                      }}
+                      className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                        showFpsDebug
+                          ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                          : 'border-slate-700 bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {showFpsDebug ? 'ON' : 'OFF'}
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    soundFx.playClick();
-                    toggleAudioMute();
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
-                    isAudioMuted
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                  }`}
-                >
-                  {isAudioMuted 
-                    ? (language === 'TL' ? 'NAKA-MUTE' : 'MUTED') 
-                    : (language === 'TL' ? 'NAKA-ON' : 'ACTIVE')}
-                </button>
-              </div>
 
-              {/* Gore Effect Toggle */}
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-red-500/20 text-red-400">
-                    <Droplet className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-fantasy font-bold text-white">
-                      {language === 'TL' ? 'Dugo at Gore (Violence)' : 'Gore & Blood Effects'}
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      {language === 'TL' ? 'Ipakita ang dugo kapag nasaktan o namatay ang nilalang' : 'Show red particles when units take damage or die'}
-                    </div>
-                  </div>
+                <div className="mt-2">
+                  <SettingRow
+                    icon={<Grid3X3 className="h-4 w-4" />}
+                    title={isTL ? 'Tile Coordinates' : 'Tile Coordinates'}
+                    description={
+                      isTL
+                        ? 'Ipakita ang X,Y coordinates ng bawat tile para sa building placement.'
+                        : 'Show X,Y coordinates on tiles to help verify building placement.'
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        toggleTileCoordinates();
+                      }}
+                      className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                        showTileCoordinates
+                          ? 'border-cyan-500/40 bg-cyan-500/20 text-cyan-300'
+                          : 'border-slate-700 bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {showTileCoordinates ? 'ON' : 'OFF'}
+                    </button>
+                  </SettingRow>
                 </div>
-                <button
-                  onClick={() => {
-                    soundFx.playClick();
-                    toggleGore();
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
-                    !isGoreEnabled
-                      ? 'bg-slate-800 text-slate-400 border border-slate-700'
-                      : 'bg-red-500/20 text-red-300 border border-red-500/40'
-                  }`}
-                >
-                  {isGoreEnabled 
-                    ? (language === 'TL' ? 'NAKA-ON' : 'ON') 
-                    : (language === 'TL' ? 'NAKA-OFF' : 'OFF')}
-                </button>
-              </div>
+              </section>
 
-              {/* Graphics / FPS Limit Toggle */}
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-fantasy font-bold text-white">
-                      {language === 'TL' ? 'Grapiko at FPS Limit' : 'Graphics & FPS Limit'}
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      {language === 'TL' ? 'Mas mataas na FPS ay mas maganda pero mas mabilis maubos baterya' : 'Higher FPS scales visual effects but drains battery faster'}
-                    </div>
-                  </div>
+              {/* Automation */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <Zap className="h-3.5 w-3.5 text-cyan-400" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    {isTL ? 'Automation' : 'Automation'}
+                  </h3>
                 </div>
-                <div className="flex gap-2 w-full mt-1">
-                  {[30, 60, 90].map((fps) => {
-                    const isActive = useGameStore.getState().targetFps === fps;
-                    return (
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+                  <p className="mb-3 text-[10px] leading-relaxed text-slate-500">
+                    {isTL
+                      ? 'Kapag naka-ON, awtomatikong gagawa ng ilang routine ang iyong realm.'
+                      : 'When enabled, the game automatically handles selected routine tasks.'}
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-slate-200">
+                          {isTL ? 'Auto Task Dispatch' : 'Auto Task Dispatch'}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-slate-500">
+                          {isTL
+                            ? 'I-distribute ang idle units sa available resource nodes.'
+                            : 'Distribute idle units across available resource nodes.'}
+                        </div>
+                      </div>
+
                       <button
-                        key={fps}
+                        type="button"
                         onClick={() => {
                           soundFx.playClick();
-                          useGameStore.getState().setTargetFps(fps as 30|60|90);
+                          toggleAutoSetting('autoDispatch');
                         }}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${
-                          isActive
-                            ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                          autoSettings.autoDispatch
+                            ? 'border-sky-500/40 bg-sky-500/20 text-sky-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-400'
                         }`}
                       >
-                        {fps} FPS
+                        {autoSettings.autoDispatch
+                          ? isTL
+                            ? 'ON'
+                            : 'ON'
+                          : 'OFF'}
                       </button>
-                    );
-                  })}
-                </div>
+                    </div>
 
-                {/* FPS Debug Overlay Toggle */}
-                <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/60">
-                  <div>
-                    <div className="text-xs font-medium text-slate-300">
-                      {language === 'TL' ? 'Ipakita ang FPS Debug' : 'Show FPS Debug Overlay'}
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      {showFpsDebug
-                        ? `Live: ${measuredFps} FPS (target ${targetFps})`
-                        : (language === 'TL' ? 'In-game na panel ng frame rate at kalidad' : 'In-game frame rate & quality panel')}
-                    </div>
-                  </div>
-                  <button
-                    id="toggle-fps-debug-btn"
-                    onClick={() => { soundFx.playClick(); toggleFpsDebug(); }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all ${
-                      showFpsDebug
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_8px_rgba(52,211,153,0.25)]'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                    }`}
-                  >
-                    {showFpsDebug ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Automation / Sub-Auto Toggles */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-cyan-500/20 p-2 text-cyan-400">
-                      <Grid3X3 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-fantasy font-bold text-white">
-                        {language === 'TL' ? 'Numero ng Tile' : 'Tile Coordinates'}
+                    <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-slate-200">
+                          {isTL ? 'Auto Defend' : 'Auto Defend & Engage'}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-slate-500">
+                          {isTL
+                            ? 'Awtomatikong haharap ang armed golems sa invading shades.'
+                            : 'Armed golems automatically intercept invading shades.'}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-400">
-                        {language === 'TL' ? 'Ipakita ang X,Y number sa bawat tile para makita ang tamang building location' : 'Show X,Y numbers on every tile to verify building placement'}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundFx.playClick();
+                          toggleAutoSetting('autoDefend');
+                        }}
+                        className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                          autoSettings.autoDefend
+                            ? 'border-indigo-500/40 bg-indigo-500/20 text-indigo-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {autoSettings.autoDefend ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-slate-200">
+                          {isTL
+                            ? 'Auto Evolve'
+                            : 'Auto Evolve (Slime & Ent)'}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-slate-500">
+                          {isTL
+                            ? 'Awtomatikong mag-evolve kapag sapat ang resources.'
+                            : 'Automatically evolve Support Slime and Treant when resources allow.'}
+                        </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundFx.playClick();
+                          toggleAutoSetting('autoEvolve');
+                        }}
+                        className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                          autoSettings.autoEvolve
+                            ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {autoSettings.autoEvolve ? 'ON' : 'OFF'}
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => { soundFx.playClick(); toggleTileCoordinates(); }}
-                    className={`rounded-lg px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
-                      showTileCoordinates
-                        ? 'border border-cyan-500/40 bg-cyan-500/20 text-cyan-300'
-                        : 'border border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
-                    }`}
-                  >
-                    {showTileCoordinates ? 'ON' : 'OFF'}
-                  </button>
                 </div>
-              </div>
-
-              {/* Automation / Sub-Auto Toggles */}
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
-                <div className="text-xs font-fantasy font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-sky-400" />
-                  <span>{language === 'TL' ? 'Mga Otomatikong Pagsunod' : 'Automation Subroutines'}</span>
-                </div>
-
-                {/* Auto Dispatch */}
-                <div className="flex items-center justify-between py-1 border-b border-slate-800/80">
-                  <div>
-                    <div className="text-xs font-medium text-slate-200">
-                      {language === 'TL' ? 'Kusang Pagpapatrabaho' : 'Auto Task Dispatch'}
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      {language === 'TL' ? 'Pinapadala ang mga nakatenggang alagad sa iba\'t-ibang yaman' : 'Distributes idle units across all nodes'}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      soundFx.playClick();
-                      toggleAutoSetting('autoDispatch');
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all ${
-                      autoSettings.autoDispatch
-                        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                    }`}
-                  >
-                    {autoSettings.autoDispatch 
-                      ? (language === 'TL' ? 'NAKA-ON' : 'ACTIVE') 
-                      : (language === 'TL' ? 'NAKA-OFF' : 'INACTIVE')}
-                  </button>
-                </div>
-
-                {/* Auto Defend */}
-                <div className="flex items-center justify-between py-1 border-b border-slate-800/80">
-                  <div>
-                    <div className="text-xs font-medium text-slate-200">Auto Defend & Engage</div>
-                    <div className="text-[10px] text-slate-400">Armed golems intercept invading shades</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      soundFx.playClick();
-                      toggleAutoSetting('autoDefend');
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all ${
-                      autoSettings.autoDefend
-                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                    }`}
-                  >
-                    {autoSettings.autoDefend ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-
-                {/* Auto Evolve Slime & Ent */}
-                <div className="flex items-center justify-between py-1 border-b border-slate-800/80">
-                  <div>
-                    <div className="text-xs font-medium text-slate-200">
-                      {language === 'TL' ? 'Kusang Pag-evolve (Slime at Ent)' : 'Auto Evolve (Slime & Ent)'}
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      {language === 'TL' ? 'Kusang mag-e-evolve ang Slime at Ent kapag sapat ang yaman' : 'Automatically evolves Support Slime and Treant when resources allow'}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      soundFx.playClick();
-                      toggleAutoSetting('autoEvolve');
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all ${
-                      autoSettings.autoEvolve
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                    }`}
-                  >
-                    {autoSettings.autoEvolve 
-                      ? (language === 'TL' ? 'NAKA-ON' : 'ACTIVE') 
-                      : (language === 'TL' ? 'NAKA-OFF' : 'INACTIVE')}
-                  </button>
-                </div>
-
-
-              </div>
+              </section>
             </div>
           )}
 
-          {/* Tab 2: Save Management */}
+          {/* SAVE */}
           {currentTab === 'SAVE' && (
-            <div className="space-y-3">
-              <button
-                onClick={handleExport}
-                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-sky-500/30 bg-sky-950/20 hover:bg-sky-950/40 text-sky-200 transition-all text-xs font-semibold cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-sky-400" />
-                <div className="flex flex-col text-left">
-                  <span>Export Save (.json)</span>
-                  <span className="text-[10px] text-slate-400">Download backup to local host machine</span>
+            <div className="space-y-4">
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <Save className="h-3.5 w-3.5 text-sky-400" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    {isTL ? 'Save Management' : 'Save Management'}
+                  </h3>
                 </div>
-              </button>
 
-              <button
-                onClick={() => {
-                  soundFx.playClick();
-                  fileInputRef.current?.click();
-                }}
-                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-slate-800 text-slate-200 transition-all text-xs font-semibold cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-slate-400" />
-                <div className="flex flex-col text-left">
-                  <span>Import Save (.json)</span>
-                  <span className="text-[10px] text-slate-400">Restore existing realm JSON file</span>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    className="flex w-full items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-950/20 p-3.5 text-left transition-all hover:bg-sky-950/40"
+                  >
+                    <div className="rounded-lg bg-sky-500/15 p-2 text-sky-400">
+                      <Download className="h-4 w-4" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-sky-100">
+                        {isTL ? 'I-download ang Save' : 'Export Save'}
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        {isTL
+                          ? 'Gumawa ng .json backup file ng iyong Realm.'
+                          : 'Create a .json backup of your current Realm.'}
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800"
+                  >
+                    <div className="rounded-lg bg-slate-800 p-2 text-slate-300">
+                      <Upload className="h-4 w-4" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-slate-200">
+                        {isTL ? 'I-restore ang Save' : 'Import Save'}
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        {isTL
+                          ? 'Mag-load ng dating .json Realm backup.'
+                          : 'Load a previous .json Realm backup.'}
+                      </div>
+                    </div>
+                  </button>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportFile}
+                    className="hidden"
+                  />
                 </div>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleImportFile}
-                className="hidden"
-              />
+              </section>
 
               {onReturnToTitle && (
-                <button
-                  onClick={() => {
-                    soundFx.playClick();
-                    onClose();
-                    onReturnToTitle();
-                  }}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-slate-800 text-slate-300 transition-all text-xs font-semibold cursor-pointer"
-                >
-                  <Home className="w-4 h-4 text-slate-400" />
-                  <div className="flex flex-col text-left">
-                    <span>Return to Title Screen</span>
-                    <span className="text-[10px] text-slate-400">Realm state remains active in browser</span>
-                  </div>
-                </button>
+                <section className="border-t border-slate-800 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      onClose();
+                      onReturnToTitle();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800"
+                  >
+                    <div className="rounded-lg bg-slate-800 p-2 text-slate-400">
+                      <Home className="h-4 w-4" />
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">
+                        {isTL ? 'Bumalik sa Title Screen' : 'Return to Title Screen'}
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">
+                        {isTL
+                          ? 'Mananatili ang current Realm state sa browser.'
+                          : 'Your current Realm state remains in the browser.'}
+                      </div>
+                    </div>
+                  </button>
+                </section>
               )}
 
-              <div className="pt-4 border-t border-slate-800">
+              <section className="border-t border-slate-800 pt-4">
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-rose-400/70">
+                  {isTL ? 'Danger Zone' : 'Danger Zone'}
+                </div>
+
                 <button
+                  type="button"
                   onClick={handleReset}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-rose-500/30 bg-rose-950/20 hover:bg-rose-950/40 text-rose-300 transition-all text-xs font-semibold cursor-pointer"
+                  className="flex w-full items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-950/20 p-3.5 text-left text-rose-300 transition-all hover:bg-rose-950/40"
                 >
-                  <Trash2 className="w-4 h-4 text-rose-400" />
-                  <div className="flex flex-col text-left">
-                    <span>Reset Floating Realm</span>
-                    <span className="text-[10px] text-rose-400/80">Erase all progress, including days, waves and regressions</span>
+                  <div className="rounded-lg bg-rose-500/10 p-2 text-rose-400">
+                    <Trash2 className="h-4 w-4" />
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-semibold">
+                      {isTL ? 'I-reset ang Realm' : 'Reset Realm'}
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-rose-400/70">
+                      {isTL
+                        ? 'Permanenteng buburahin ang lahat ng progress.'
+                        : 'Permanently erase all Realm progress.'}
+                    </div>
                   </div>
                 </button>
-              </div>
+              </section>
             </div>
           )}
 
-          {/* Tab 3: Lore */}
+          {/* LORE */}
           {currentTab === 'LORE' && (
-            <div className="space-y-3.5 text-xs text-slate-300 leading-relaxed max-h-[55vh] overflow-y-auto pr-1">
-              {loreSections.map((section, index) => (
-                <div key={section.heading} className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
-                  <h3 className={`mb-1 font-fantasy text-sm font-bold ${index % 2 === 0 ? 'text-sky-300' : 'text-amber-300'}`}>
-                    {section.heading}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">{section.body}</p>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-sky-500/20 bg-sky-950/15 p-3.5">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-sky-400" />
+                  <div className="text-xs font-semibold text-sky-200">
+                    {isTL ? 'Tungkol sa Realm' : 'About the Realm'}
+                  </div>
                 </div>
-              ))}
+
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                  {isTL
+                    ? 'Basahin ang mundo, kasaysayan, at mga pangunahing konsepto ng IsoChronicle.'
+                    : 'Read the world, history, and key concepts behind IsoChronicle.'}
+                </p>
+              </div>
+
+              <div className="max-h-[58vh] space-y-2 overflow-y-auto pr-1">
+                {loreSections.map((section, index) => (
+                  <div
+                    key={section.heading}
+                    className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5"
+                  >
+                    <h3
+                      className={`mb-1 font-fantasy text-sm font-bold ${
+                        index % 2 === 0
+                          ? 'text-sky-300'
+                          : 'text-amber-300'
+                      }`}
+                    >
+                      {section.heading}
+                    </h3>
+
+                    <p className="text-[11px] leading-relaxed text-slate-400">
+                      {section.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Tab 4: Credits & Tech Stack */}
+          {/* CREDITS */}
           {currentTab === 'CREDITS' && (
-            <div className="space-y-3 text-xs text-slate-300 max-h-[55vh] overflow-y-auto pr-1">
-              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800">
-                <div className="font-fantasy font-bold text-sm text-white mb-2 flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-sky-400" />
-                  <span>Architecture & Engine</span>
-                </div>
-                <ul className="space-y-1.5 text-[11px] font-mono text-slate-400">
-                  <li>&bull; <span className="text-white">Phaser 3.80:</span> 2.5D Isometric Rendering Engine</li>
-                  <li>&bull; <span className="text-white">React 18:</span> HUD, Modals & UI Reactive Layer</li>
-                  <li>&bull; <span className="text-white">TypeScript:</span> Type-safe Simulation Models</li>
-                  <li>&bull; <span className="text-white">Tailwind CSS:</span> Glassmorphic Aetherpunk styling</li>
-                  <li>&bull; <span className="text-white">Web Audio API:</span> 100% Offline synthesized procedural SFX</li>
-                  <li>&bull; <span className="text-white">Docker Compose:</span> Zero-host install sandbox environment</li>
-                  <li>&bull; <span className="text-white">IndexedDB / LocalStorage:</span> Local-first persistence</li>
-                </ul>
-              </div>
+            <div className="space-y-4">
+              {/* Creator */}
+              <section className="rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-950/40 to-slate-900/80 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-2xl bg-sky-500/15 p-3 text-sky-300">
+                    <User className="h-6 w-6" />
+                  </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400">
-                <span className="text-sky-300 font-bold">100% Offline & Standalone:</span> No cloud, telemetry, or external asset dependencies.
-              </div>
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400">
+                      {isTL ? 'Gumawa ng Laro' : 'Created By'}
+                    </div>
+
+                    <h3 className="mt-1 font-fantasy text-xl font-bold text-white">
+                      EdMaster28
+                    </h3>
+
+                    <p className="text-xs text-slate-400">
+                      Software Engineer · Philippines
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-sky-500/10 bg-black/20 p-3">
+                  <p className="text-[11px] leading-relaxed text-slate-400">
+                    {isTL
+                      ? 'Ang codebase at game system na ito ay ginawa ni EdMaster28. Salamat sa paglalaro at pag-explore ng IsoChronicle.'
+                      : 'This codebase and game system were created by EdMaster28. Thank you for playing and exploring IsoChronicle.'}
+                  </p>
+                </div>
+              </section>
+
+              {/* Tech Stack */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <Layers className="h-3.5 w-3.5 text-sky-400" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    Tech Stack
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  {[
+                    ['Phaser 3.80', '2.5D isometric rendering and game engine'],
+                    ['React 18', 'Reactive HUD, menus, modals, and UI layer'],
+                    ['TypeScript', 'Type-safe game and simulation code'],
+                    ['Tailwind CSS', 'Responsive UI and visual styling'],
+                    ['Web Audio API', 'Procedural offline sound effects'],
+                    ['Docker Compose', 'Local development and sandbox environment'],
+                    ['IndexedDB / LocalStorage', 'Local-first game persistence'],
+                  ].map(([name, description]) => (
+                    <div
+                      key={name}
+                      className="rounded-xl border border-slate-800 bg-slate-900/70 p-3"
+                    >
+                      <div className="text-xs font-semibold text-slate-200">
+                        {name}
+                      </div>
+                      <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
+                        {description}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Architecture note */}
+              <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+                <div className="flex items-center gap-2">
+                  <Code2 className="h-4 w-4 text-cyan-400" />
+                  <div className="text-xs font-semibold text-slate-200">
+                    {isTL ? 'Architecture' : 'Architecture'}
+                  </div>
+                </div>
+
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                  {isTL
+                    ? 'Offline at local-first ang design ng game. Walang cloud, telemetry, o external asset dependency na kailangan para maglaro.'
+                    : 'The game is designed as an offline, local-first experience with no cloud, telemetry, or external asset dependency required for play.'}
+                </p>
+              </section>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-800 px-5 py-3 text-[10px] font-mono text-slate-600">
           <span>IsoChronicle v1.3.0</span>
-          <span>Offline Local-First</span>
+          <span>EdMaster28 · Offline</span>
         </div>
       </div>
     </div>
