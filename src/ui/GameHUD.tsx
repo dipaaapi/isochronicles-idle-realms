@@ -1,3 +1,4 @@
+import { isConstructionReady } from '../state/constructionProgress';
 import React from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
@@ -45,6 +46,8 @@ interface GameHUDProps {
   onOpenCodex: () => void;
   onOpenBestiary: () => void;
   onOpenSettings: () => void;
+  onOpenFAQ: () => void;
+  onOpenSkillTree: () => void;
   onOpenRegression: () => void;
   onOpenQuickTrade: (resourceKey: 'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water') => void;
 }
@@ -54,6 +57,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onOpenCodex,
   onOpenBestiary,
   onOpenSettings,
+  onOpenFAQ,
+  onOpenSkillTree,
   onOpenRegression,
   onOpenQuickTrade,
 }) => {
@@ -63,6 +68,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     roster,
     defense,
     invasion,
+    castleBuilt,
+    resourceBuildings,
     timeOfDay,
     weather,
     day,
@@ -70,6 +77,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     season,
     platformPhase,
     regressionCount,
+    skillPoints,
     dayProgress,
     isAudioMuted,
     toggleAudioMute,
@@ -81,6 +89,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     gameSpeed,
     setGameSpeed,
   } = useGameStore();
+
+  const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
   // Active task distribution count
   const aetherCount = roster.filter((u) => u.assignedTask === 'AETHER').length;
@@ -223,12 +233,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       className={`relative overflow-hidden text-xs px-2 py-0.5 rounded border border-red-700/50 font-bold transition-colors ${!invasion.isActive ? 'bg-red-900/50 text-red-200 cursor-pointer hover:bg-red-800/80' : 'bg-red-950/50 text-red-400 cursor-not-allowed'}`}
                       onClick={() => {
                         if (invasion.isActive) return;
+                        if (!constructionReady) {
+                          onOpenCitadel('MINIONS');
+                          return;
+                        }
                         soundFx.playClick();
                         if (window.confirm(language === 'TL' ? 'Sigurado ka bang gusto mong simulan agad ang pagsugod ng mga kalaban?' : 'Are you sure you want to summon the next wave early?')) {
                           startInvasion();
                         }
                       }}
-                      title={!invasion.isActive ? (language === 'TL' ? 'Pindutin para simulan ang labanan' : 'Click to summon invasion early') : ''}
+                      title={!constructionReady ? (language === 'TL' ? 'Itayo ang kastilyo para simulan ang countdown' : 'Build the castle and all four resource buildings to start waves') : !invasion.isActive ? (language === 'TL' ? 'Pindutin para simulan ang labanan' : 'Click to summon invasion early') : ''}
                     >
                       <div 
                         className="absolute left-0 top-0 bottom-0 bg-red-600/50 pointer-events-none" 
@@ -236,6 +250,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       />
                       <span className="relative z-10 pointer-events-none">
                         Wave {invasion.waveNumber}/100
+                        {!constructionReady && (language === 'TL' ? ' · Unahin ang konstruksyon' : ' · Construction first')}
                       </span>
                     </div>
                   </div>
@@ -436,16 +451,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <InvasionBanner />
           <div className="flex items-start gap-2 text-xs">
             <span className={`mt-0.5 h-2 w-2 rounded-full ${invasion.isActive ? 'bg-rose-400 animate-pulse' : 'bg-emerald-400'}`} />
-            <span className="flex-1 text-slate-300">{invasion.isActive ? `${invasion.enemiesRemaining} / ${invasion.totalEnemiesInWave} ${language === 'TL' ? 'kalaban ang natitira' : 'enemies remain'} · Wave ${invasion.waveNumber}` : `${language === 'TL' ? 'Susunod na wave' : 'Next wave'} ${Math.ceil(invasion.countdown)}s`}</span>
+            <span className="flex-1 text-slate-300">{invasion.isActive ? `${invasion.enemiesRemaining} / ${invasion.totalEnemiesInWave} ${language === 'TL' ? 'kalaban ang natitira' : 'enemies remain'} · Wave ${invasion.waveNumber}` : !constructionReady ? (language === 'TL' ? 'Hinihintay ang konstruksyon' : 'Waves pending construction') : `${language === 'TL' ? 'Susunod na wave' : 'Next wave'} ${Math.ceil(invasion.countdown)}s`}</span>
           </div>
           <div className="flex items-start gap-2 text-xs">
             <span className={`mt-0.5 h-2 w-2 rounded-full ${castleHpPct < 40 ? 'bg-rose-400' : 'bg-amber-400'}`} />
             <span className="flex-1 text-slate-300">{language === 'TL' ? 'Kastilyo' : 'Castle'} {castleHpPct}% · {workerCount} {language === 'TL' ? 'alagad ang aktibo' : 'minions active'}</span>
           </div>
-          <div className="flex items-start gap-2 text-xs text-emerald-300">
-            <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{language === 'TL' ? 'May mungkahing upgrade sa tabi' : 'Upgrade suggestions are ready beside this log'}</span>
-          </div>
+
         </div>
 
         <AutoEnhancePrompt onOpenCitadel={onOpenCitadel} embedded />
@@ -644,6 +656,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             title={isAudioMuted ? (language === 'TL' ? 'Buksan ang Tunog' : 'Unmute Audio') : (language === 'TL' ? 'I-mute ang Tunog' : 'Mute Audio')}
           >
             {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+
+          <button onClick={onOpenSkillTree} className="glass-panel rounded-2xl px-3 py-2.5 text-xs font-bold text-purple-200 hover:border-purple-400">
+            Skills{skillPoints > 0 ? ` (${skillPoints})` : ''}
+          </button>
+          <button onClick={onOpenFAQ} className="glass-panel rounded-2xl px-3 py-2.5 text-xs font-bold text-amber-200 hover:border-amber-400" title="Gameplay FAQ">
+            FAQ
           </button>
 
           {/* Settings */}

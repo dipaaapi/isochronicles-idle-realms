@@ -1,4 +1,5 @@
 import { OfflineGainsData, UpgradesState } from '../types/state';
+import { SkillId, skillBonuses } from './skillTree';
 
 const MAX_OFFLINE_SECONDS = 8 * 60 * 60; // 8 hours cap
 const MIN_OFFLINE_SECONDS_FOR_MODAL = 15; // 15 seconds threshold
@@ -6,7 +7,8 @@ const MIN_OFFLINE_SECONDS_FOR_MODAL = 15; // 15 seconds threshold
 export function calculateOfflineGains(
   lastSavedTimestamp: number,
   workerCount: number,
-  upgrades: UpgradesState
+  upgrades: UpgradesState,
+  unlockedSkills: SkillId[] = []
 ): OfflineGainsData | null {
   if (!lastSavedTimestamp || lastSavedTimestamp <= 0) return null;
 
@@ -29,9 +31,10 @@ export function calculateOfflineGains(
   const woodPerSecond = 0.2 * (1 + (upgrades.refineryLevel - 1) * 0.25);
   const stonePerSecond = 0.15 * (1 + (upgrades.quarryLevel - 1) * 0.25);
 
-  const aetherShardsEarned = Math.floor(elapsedSeconds * shardsPerSecond);
-  const woodEarned = Math.floor(elapsedSeconds * woodPerSecond);
-  const stoneEarned = Math.floor(elapsedSeconds * stonePerSecond);
+  const skills = skillBonuses(unlockedSkills);
+  const aetherShardsEarned = Math.floor(elapsedSeconds * shardsPerSecond * skills.harvest * skills.speed);
+  const woodEarned = Math.floor(elapsedSeconds * woodPerSecond * skills.harvest * skills.foundations);
+  const stoneEarned = Math.floor(elapsedSeconds * stonePerSecond * skills.harvest * skills.foundations);
 
   return {
     elapsedSeconds: Math.floor(elapsedSeconds),

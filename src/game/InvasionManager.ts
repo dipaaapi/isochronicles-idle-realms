@@ -9,6 +9,8 @@ import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
 import { WorkerInstance } from './WorkerManager';
+import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
+import { skillBonuses } from '../state/skillTree';
 
 export interface ActiveInvader {
   id: string;
@@ -29,6 +31,7 @@ export interface ActiveInvader {
   bountyCoins: number;
   attackTimer: number;
   isDead: boolean;
+  isScout?: boolean;
   isRetreating?: boolean;
   spawnGrid: GridPoint;
 }
@@ -47,6 +50,7 @@ export class InvasionManager {
   private workerProvider?: () => WorkerInstance[];
   private autoSmiteTimer: number = 0;
   private lastSmiteTime: number = 0;
+  private wasInvasionActive: boolean = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -77,10 +81,11 @@ export class InvasionManager {
     const deltaSec = delta / 1000;
     const store = useGameStore.getState();
 
-    // Once the invasion state closes, no enemy should remain on the board.
-    if (!store.invasion.isActive && this.invaders.length > 0) {
+    // Clean up when a wave closes, while allowing peacetime scouts to survive.
+    if (!store.invasion.isActive && this.wasInvasionActive) {
       this.wipeAllInvaders();
     }
+    this.wasInvasionActive = store.invasion.isActive;
 
     // 1. Tick incursion countdown when peacetime
     if (!store.invasion.isActive) {
@@ -210,6 +215,7 @@ export class InvasionManager {
       id: `scout_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       type,
       name: 'Wandering Scout',
+      isScout: true,
       container,
       shadow,
       bodyGfx,
@@ -220,7 +226,7 @@ export class InvasionManager {
       pathIndex: 0,
       hp: finalMaxHp,
       maxHp: finalMaxHp,
-      speed: 1.5,
+      speed: 65, // Movement uses pixels per second, like regular invaders.
       damage: finalDamage,
       bountyCoins: finalBounty,
       attackTimer: 0,
@@ -231,35 +237,18 @@ export class InvasionManager {
 
     // Interactive Clicking: Smite for Loot
     container.setInteractive({ useHandCursor: true });
-    container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    container.on('pointerdown', (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
       if (pointer.leftButtonDown() && !invader.isDead) {
-        invader.isDead = true;
-        invader.hp = 0;
-        soundFx.playExplosion();
-        
-        // Grant random loot bundle
-        useGameStore.getState().grantRandomLoot();
-        this.spawnFloatingPopup(container.x, container.y - 30, '✨ Random Loot Found!', '#fbbf24');
-        
-        // Death animation
-        this.scene.tweens.add({
-          targets: container,
-          alpha: 0,
-          scaleX: 1.5,
-          scaleY: 1.5,
-          duration: 300,
-          onComplete: () => {
-            container.destroy();
-            this.invaders = this.invaders.filter((i) => i.id !== invader.id);
-          },
-        });
+        event.stopPropagation();
+        this.tapInvader(invader);
       }
     });
 
     // Make them wander to a random edge to leave
-    const leaveGrid = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+    const exitPoints = spawnPoints.filter((point) => point.x !== spawnGrid.x || point.y !== spawnGrid.y);
+    const leaveGrid = exitPoints[Math.floor(Math.random() * exitPoints.length)];
     const spawnPath = this.pathfinder.findPath(spawnGrid.x, spawnGrid.y, leaveGrid.x, leaveGrid.y, [0]);
-    invader.currentPath = (spawnPath && spawnPath.length > 0) ? spawnPath : [];
+    invader.currentPath = (spawnPath && spawnPath.length > 0) ? spawnPath : [spawnGrid, leaveGrid];
     invader.pathIndex = 0;
 
     this.invaders.push(invader);
@@ -307,14 +296,15 @@ export class InvasionManager {
 
     const cfg = INVADER_CONFIGS[type];
     // Smooth difficulty multiplier from 1.0 at Wave 1 up to ~6.0 at Wave 100
-    const difficultyMultiplier = 1 + (waveNumber - 1) * 0.05;
+    const enemyMultiplier = DIFFICULTIES[normalizeDifficulty(useGameStore.getState().difficulty)].enemyMultiplier;
+    const difficultyMultiplier = (1 + (waveNumber - 1) * 0.05) * enemyMultiplier;
     const isBoss = (isBossWave || isPhaseClimaxBoss) && isLastEnemyOfWave;
     const bossHpMultiplier = isPhaseClimaxBoss ? 4.5 : isBoss ? 2.5 : 1;
     const bossDmgMultiplier = isPhaseClimaxBoss ? 2.0 : isBoss ? 1.4 : 1;
     const bossBountyMultiplier = isPhaseClimaxBoss ? 8.0 : isBoss ? 3.5 : 1;
     
     const finalMaxHp = Math.round((cfg.hp + (waveNumber - 1) * 18) * difficultyMultiplier * bossHpMultiplier);
-    const finalDamage = Math.round(cfg.damage * (1 + (waveNumber - 1) * 0.035) * bossDmgMultiplier);
+    const finalDamage = Math.round(cfg.damage * (1 + (waveNumber - 1) * 0.035) * bossDmgMultiplier * enemyMultiplier);
     const finalBounty = Math.round(cfg.bountyCoins * (1 + (waveNumber - 1) * 0.04) * bossBountyMultiplier);
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
@@ -365,9 +355,10 @@ export class InvasionManager {
 
     // Interactive Clicking: Demon Lord Lightning Smite! ⚡
     container.setInteractive({ useHandCursor: true });
-    container.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    container.on('pointerdown', (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
       if (pointer.leftButtonDown() && !invader.isDead) {
-        this.strikeInvaderWithLightning(invader);
+        event.stopPropagation();
+        this.tapInvader(invader);
       }
     });
 
@@ -602,6 +593,15 @@ export class InvasionManager {
     return true;
   }
 
+  public tapInvader(invader: ActiveInvader): void {
+    if (invader.isDead) return;
+    if (invader.isScout && !useGameStore.getState().invasion.isActive) {
+      this.eliminateInvader(invader);
+    } else {
+      this.strikeInvaderWithLightning(invader);
+    }
+  }
+
   public strikeInvaderWithLightning(invader: ActiveInvader): void {
     const smiteDmg = 35;
     this.damageInvader(invader, smiteDmg, '⚡ Smite');
@@ -648,7 +648,7 @@ export class InvasionManager {
 
       if (closest) {
         // Fire laser bolt
-        const damage = 22 + turretLevel * 10;
+        const damage = Math.round((22 + turretLevel * 10) * skillBonuses(useGameStore.getState().unlockedSkills).turret);
         this.fireTurretBeam(nexusIso.x, nexusIso.y - 20, closest.container.x, closest.container.y - 12);
         this.damageInvader(closest, damage, `-${damage}`);
         soundFx.playLaser();
@@ -698,6 +698,18 @@ export class InvasionManager {
   }
 
   private eliminateInvader(invader: ActiveInvader): void {
+    if (invader.isDead) return;
+    if (invader.isScout) {
+      invader.isDead = true;
+      invader.hp = 0;
+      soundFx.playExplosion();
+      useGameStore.getState().grantRandomLoot();
+      this.spawnFloatingPopup(invader.container.x, invader.container.y - 30,
+        'Castle supplies: +Wood, +Stone, +Shards, +Coins', '#fbbf24');
+      invader.container.destroy();
+      this.invaders = this.invaders.filter((i) => i.id !== invader.id);
+      return;
+    }
     if (!useGameStore.getState().invasion.isActive) {
       invader.isDead = true;
       if (invader.container.active) invader.container.destroy();

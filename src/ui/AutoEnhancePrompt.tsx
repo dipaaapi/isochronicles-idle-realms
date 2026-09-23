@@ -1,3 +1,4 @@
+import { isConstructionReady } from '../state/constructionProgress';
 import React from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
@@ -15,6 +16,7 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
   embedded = false,
 }) => {
   const state = useGameStore();
+  if (!isConstructionReady(state)) return null;
 
   const checkTech = (key: 'golemSpeedLevel' | 'golemCapacityLevel', title: string) => {
     const level = state.upgrades[key];

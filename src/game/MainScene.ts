@@ -178,7 +178,7 @@ export class MainScene extends Phaser.Scene {
 
   private createAtmosphere(): void {
     const bgGraphics = this.add.graphics();
-    bgGraphics.fillGradientStyle(0x020617, 0x020617, 0x090d16, 0x0f172a, 1);
+    bgGraphics.fillGradientStyle(0x020617, 0x020617, 0x090d16, 0x0f172a, 0.25);
     bgGraphics.fillRect(-3000, -3000, 6000, 6000);
     bgGraphics.setDepth(-1000);
 
@@ -387,7 +387,7 @@ export class MainScene extends Phaser.Scene {
     ProceduralRenderer.drawWaterPort(portGfx, 0, 0);
     this.portContainer.add(portGfx);
     this.portContainer.setDepth(IsometricHelper.getDepth(1, 8, 7));
-    this.portContainer.setVisible(useGameStore.getState().resourceBuildings.PORT.level >= 1);
+    this.portContainer.setVisible(useGameStore.getState().castleBuilt && useGameStore.getState().resourceBuildings.PORT.level >= 1);
     this.islandContainer.add(this.portContainer);
 
     const minePosition = IsometricHelper.gridToScreen(2, 5);
@@ -396,7 +396,7 @@ export class MainScene extends Phaser.Scene {
     ProceduralRenderer.drawMetalMine(mineGfx, 0, 0);
     this.mineContainer.add(mineGfx);
     this.mineContainer.setDepth(IsometricHelper.getDepth(2, 5, 7));
-    this.mineContainer.setVisible(useGameStore.getState().resourceBuildings.MINE.level >= 1);
+    this.mineContainer.setVisible(useGameStore.getState().castleBuilt && useGameStore.getState().resourceBuildings.MINE.level >= 1);
     this.islandContainer.add(this.mineContainer);
 
     this.updateDynamicLandmarks(true);
@@ -451,10 +451,18 @@ export class MainScene extends Phaser.Scene {
       render: (gfx: Phaser.GameObjects.Graphics, x: number, y: number) => void;
       tween?: (gfx: Phaser.GameObjects.Graphics) => void;
     }>).filter((definition) => {
-      if (definition.type === 'AETHER') return true;
+      if (definition.type === 'AETHER') return store.castleBuilt;
       const buildingId = definition.type === 'WOOD' ? 'WOOD' : 'QUARRY';
-      return (store.resourceBuildings?.[buildingId]?.level ?? 0) >= 1;
+      return store.castleBuilt && (store.resourceBuildings?.[buildingId]?.level ?? 0) >= 1;
     });
+
+    // Remove landmarks that no longer exist after a reset or regression.
+    for (const [type, container] of this.landmarkContainers) {
+      if (!definitions.some(def => def.type === type)) {
+        container.destroy();
+        this.landmarkContainers.delete(type);
+      }
+    }
 
     for (const def of definitions) {
       let container = this.landmarkContainers.get(def.type);
@@ -662,26 +670,6 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.centerOn(nexusScreen.x, nexusScreen.y);
     this.cameras.main.setZoom(1.15);
 
-    // Global viewport tap-to-smite listener
-    const onWindowSmite = (e: PointerEvent) => {
-      if (!useGameStore.getState().invasion.isActive || !this.invasionManager) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'BUTTON' ||
-          target.tagName === 'INPUT' ||
-          target.closest('button') ||
-          target.closest('.modal-container'))
-      ) {
-        return;
-      }
-      this.invasionManager.smiteClosestInvader();
-    };
-    window.addEventListener('pointerdown', onWindowSmite);
-    this.events.once('shutdown', () => {
-      window.removeEventListener('pointerdown', onWindowSmite);
-    });
-
     // Mouse Drag (Pan) & Canvas Tap-to-Smite
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       // If an invasion incursion is active, tap anywhere on canvas to Smite nearest invader!
@@ -751,10 +739,10 @@ export class MainScene extends Phaser.Scene {
       this.castleContainer.setVisible(store.castleBuilt);
     }
     if (this.portContainer) {
-      this.portContainer.setVisible((store.resourceBuildings?.PORT?.level ?? 0) >= 1);
+      this.portContainer.setVisible(store.castleBuilt && (store.resourceBuildings?.PORT?.level ?? 0) >= 1);
     }
     if (this.mineContainer) {
-      this.mineContainer.setVisible((store.resourceBuildings?.MINE?.level ?? 0) >= 1);
+      this.mineContainer.setVisible(store.castleBuilt && (store.resourceBuildings?.MINE?.level ?? 0) >= 1);
     }
 
     // 2. Smooth Continuous Day / Night Cycle

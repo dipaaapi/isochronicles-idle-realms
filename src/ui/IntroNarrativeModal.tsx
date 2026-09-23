@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { soundFx } from '../game/audio/soundFx';
-import { Sparkles, ArrowRight, FastForward } from 'lucide-react';
+import { ArrowRight, FastForward, Maximize, Minimize } from 'lucide-react';
 import { useGameStore } from '../state/useGameStore';
+import { DIFFICULTIES, Difficulty } from '../state/difficulty';
 
 interface IntroNarrativeModalProps {
   onBegin: () => void;
+  onCancel: () => void;
 }
 
 const NARRATIVE_TEXT_TL =
@@ -13,14 +15,40 @@ const NARRATIVE_TEXT_TL =
 const NARRATIVE_TEXT_EN =
   "Awaken, our Great Demon Lord! Centuries after your fall, the gate to the Nether Realm has opened and your floating Citadel of Darkness stirs once more! Command your loyal Slime to gather the beasts and demons. Overcome the relentless crusades of Humanity, conquer the four realms, and claim your vengeance!";
 
-export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegin }) => {
+export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegin, onCancel }) => {
   const language = useGameStore((state) => state.language);
   const narrativeText = language === 'TL' ? NARRATIVE_TEXT_TL : NARRATIVE_TEXT_EN;
 
   const [displayedText, setDisplayedText] = useState('');
   const [isFinished, setIsFinished] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>(useGameStore.getState().difficulty);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [fullscreenError, setFullscreenError] = useState('');
 
   useEffect(() => {
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    setFullscreenError('');
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      setFullscreenError('Fullscreen is unavailable in this browser.');
+    }
+  };
+
+  const begin = () => {
+    useGameStore.setState({ difficulty });
+    onBegin();
+  };
+
+  useEffect(() => {
+    setDisplayedText('');
+    setIsFinished(false);
     let index = 0;
     const interval = setInterval(() => {
       index++;
@@ -32,12 +60,11 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
     }, 32);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [narrativeText]);
 
   const handleSkip = () => {
     soundFx.playClick();
-    setDisplayedText(narrativeText);
-    setIsFinished(true);
+    begin();
   };
 
   return (
@@ -48,7 +75,7 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
         style={{ backgroundImage: `url('/backgrounds/phase1.jpg')` }}
       />
       
-      <div className="relative max-w-xl w-full p-8 md:p-10 rounded-3xl border border-red-500/40 bg-slate-950/90 shadow-2xl shadow-red-950/80 overflow-hidden backdrop-blur-md">
+      <div className="relative max-h-[92dvh] overflow-y-auto max-w-xl w-full p-6 md:p-10 rounded-3xl border border-red-500/40 bg-slate-950/90 shadow-2xl shadow-red-950/80 backdrop-blur-md">
         {/* Arcane corner runes decoration */}
         <div className="absolute top-3 left-3 w-3 h-3 border-t-2 border-l-2 border-red-500/60" />
         <div className="absolute top-3 right-3 w-3 h-3 border-t-2 border-r-2 border-red-500/60" />
@@ -64,7 +91,10 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
             </span>
           </div>
 
-          {!isFinished && (
+          <div className="flex flex-wrap justify-end gap-2">
+            <button onClick={toggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="rounded-xl bg-slate-800 px-2.5 py-1 text-slate-200">
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </button>
             <button
               onClick={handleSkip}
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-300 transition-colors px-2.5 py-1 rounded-xl bg-slate-800/60 cursor-pointer font-bold"
@@ -72,8 +102,9 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
               <FastForward className="w-3.5 h-3.5" />
               <span>Laktawan (Skip)</span>
             </button>
-          )}
+          </div>
         </div>
+        {fullscreenError && <p role="status" className="mb-3 text-xs text-amber-300">{fullscreenError}</p>}
 
         {/* Narrative Typewriter Body */}
         <div className="min-h-[120px] text-lg md:text-xl text-slate-100 leading-relaxed italic mb-8 drop-shadow font-medium">
@@ -82,12 +113,28 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
           &rdquo;
         </div>
 
+        <fieldset className="mb-6">
+          <legend className="mb-2 text-sm font-bold text-slate-200">{language === 'TL' ? 'Antas ng hirap' : 'Difficulty'}</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {(Object.keys(DIFFICULTIES) as Difficulty[]).map((value) => (
+              <label key={value} className={`cursor-pointer rounded-xl border p-3 text-center text-sm font-bold ${difficulty === value ? 'border-sky-400 bg-sky-900/60 text-white' : 'border-slate-700 bg-slate-900 text-slate-400'}`}>
+                <input type="radio" name="difficulty" value={value} checked={difficulty === value} onChange={() => setDifficulty(value)} className="mr-2 accent-sky-400" />
+                {DIFFICULTIES[value].label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-400" aria-live="polite">{DIFFICULTIES[difficulty].description}</p>
+        </fieldset>
+
         {/* Footer Action */}
-        <div className="flex justify-end items-center pt-2">
+        <div className="flex flex-wrap justify-between gap-3 items-center pt-2">
+          <button onClick={onCancel} className="rounded-xl border border-slate-600 px-4 py-3 font-bold text-slate-300 hover:bg-slate-800">
+            {language === 'TL' ? 'Kanselahin' : 'Cancel'}
+          </button>
           <button
             onClick={() => {
               soundFx.playFanfare();
-              onBegin();
+              begin();
             }}
             disabled={!isFinished}
             className={`group flex items-center gap-3 px-7 py-4 rounded-2xl font-bold text-base tracking-wide transition-all duration-300 ${

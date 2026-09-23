@@ -103,7 +103,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const handleReset = () => {
     if (
       window.confirm(
-        'Are you sure you want to reset this Realm? All autonomous Golems, structures, and stored Aether will be erased permanently.'
+        'Reset all realm progress permanently? This erases buildings, minions, resources, upgrades, achievements, and regression history, and returns to Day 1, Year 1, Wave 1, Phase 1.'
       )
     ) {
       resetRealm();
@@ -503,7 +503,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <Trash2 className="w-4 h-4 text-rose-400" />
                   <div className="flex flex-col text-left">
                     <span>Reset Floating Realm</span>
-                    <span className="text-[10px] text-rose-400/80">Erase all structures and progress</span>
+                    <span className="text-[10px] text-rose-400/80">Erase all progress, including days, waves and regressions</span>
                   </div>
                 </button>
               </div>

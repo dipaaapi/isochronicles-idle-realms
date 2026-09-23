@@ -7,6 +7,7 @@ export const PhaserGame: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const targetFps = useGameStore((state) => state.targetFps);
+  const platformPhase = useGameStore((state) => state.platformPhase);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
@@ -21,7 +22,7 @@ export const PhaserGame: React.FC = () => {
       parent: containerRef.current,
       width: '100%',
       height: '100%',
-      backgroundColor: '#020617',
+      transparent: true,
       fps: {
         target: initialTargetFps,
         forceSetTimeOut: useForcedTimeout,
@@ -65,10 +66,17 @@ export const PhaserGame: React.FC = () => {
   }, [targetFps]);
 
   return (
+    <>
+    <div
+      aria-hidden="true"
+      className="absolute inset-0 pointer-events-none bg-cover bg-center"
+      style={{ backgroundImage: `url('${import.meta.env.BASE_URL}backgrounds/phase${platformPhase || 1}.jpg')` }}
+    />
     <div
       ref={containerRef}
       id="phaser-canvas-container"
       className="absolute inset-0 w-full h-full z-0 overflow-hidden"
     />
+    </>
   );
 };

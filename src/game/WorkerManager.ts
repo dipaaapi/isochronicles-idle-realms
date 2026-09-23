@@ -14,7 +14,9 @@ import {
 import { UnitRosterItem } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
-import { useGameStore } from '../state/useGameStore';
+import { useGameStore, CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
+import { nextConstruction } from '../state/constructionProgress';
+import { skillBonuses } from '../state/skillTree';
 import { soundFx } from './audio/soundFx';
 import type { InvasionManager, ActiveInvader } from './InvasionManager';
 
@@ -64,6 +66,7 @@ export interface WorkerInstance {
   timeSinceLastTap: number;
   treantEvolutionLevel?: number;
   treantActionTimer?: number;
+  constructionTimer?: number;
   treantMode?: 'REPAIR' | 'REPLENISH';
   treantTargetTile?: GridPoint;
   autoSummonTimer?: number;
@@ -826,7 +829,8 @@ export class WorkerManager {
 
       // Titan Awakening: +150% combat attack power (2.5x)
       const titanAttackBonus = isTitanBlessingActive ? 2.5 : 1.0;
-      const effectiveAttack = Math.round(((worker.attackPower || 22) + equipBonusAttack) * titanAttackBonus);
+      const permanentSkills = skillBonuses(storeState.unlockedSkills);
+      const effectiveAttack = Math.round(((worker.attackPower || 22) + equipBonusAttack) * titanAttackBonus * permanentSkills.attack);
 
       // Titan Awakening: Radiant Armor Shield to all non-slime minions
       if (isTitanBlessingActive && worker.unitClass !== 'AQUA_SLIME') {
@@ -893,7 +897,7 @@ export class WorkerManager {
       const citadelMajestySpeedBonus = (castleHpRatio >= 0.90) ? (1 + (treantCfg?.castleMajestyBonus || 15) / 100) : 1.0;
 
       const effectiveSpeed =
-        (worker.speed + equipBonusSpeed) * upgradeSpeedMult * motivationMult * taskSpecialtySpeed * weatherSpeedMult * slimeMovementBonus * blessingSpeedBonus * citadelMajestySpeedBonus;
+        (worker.speed + equipBonusSpeed) * upgradeSpeedMult * motivationMult * taskSpecialtySpeed * weatherSpeedMult * slimeMovementBonus * blessingSpeedBonus * citadelMajestySpeedBonus * permanentSkills.speed;
 
       // Gentle floating bobbing effect
       const bob = Math.sin(time / 250 + worker.bobOffset) * 2.5;
@@ -1151,6 +1155,8 @@ export class WorkerManager {
 
         const treantLvl = (Math.min(5, Math.max(1, worker.treantEvolutionLevel ?? 1))) as 1 | 2 | 3 | 4 | 5;
         const treantProfile = TREANT_EVOLUTION[treantLvl];
+
+        if (this.updateConstruction(worker, storeState, deltaSec, effectiveSpeed)) continue;
 
         if (worker.treantActionTimer === undefined) {
           worker.treantActionTimer = 5.0; // Initial check countdown
@@ -1683,7 +1689,9 @@ export class WorkerManager {
               worker.assignedTask === 'ESSENCE'
             ) ? (dynamicNodes?.[worker.assignedTask]?.qualityMultiplier ?? 1.0) : 1.0;
 
-            const totalHarvestMultiplier = harvestYieldMultiplier * nodeQualityMultiplier;
+            const harvestSkills = skillBonuses(useGameStore.getState().unlockedSkills);
+            const foundationBonus = worker.assignedTask === 'WOOD' || worker.assignedTask === 'STONE' ? harvestSkills.foundations : 1;
+            const totalHarvestMultiplier = harvestYieldMultiplier * nodeQualityMultiplier * harvestSkills.harvest * foundationBonus;
             const harvested = Math.max(1, Math.round(worker.cargo * totalHarvestMultiplier));
             worker.cargo = 0;
             worker.cargoIcon.setVisible(false);
@@ -1930,6 +1938,45 @@ export class WorkerManager {
       const currentGrid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
       worker.container.setDepth(IsometricHelper.getDepth(currentGrid.x, currentGrid.y, 6));
     }
+  }
+
+  private updateConstruction(worker: WorkerInstance, storeState: ReturnType<typeof useGameStore.getState>, deltaSec: number, effectiveSpeed: number): boolean {
+    // Finish initial construction before repairs, enrichment or fortification.
+    const site = nextConstruction(storeState);
+    if (site) {
+      const target = IsometricHelper.gridToScreen(site.x, site.y);
+      const distance = Math.hypot(target.x - worker.container.x, target.y - worker.container.y);
+      worker.overrideEmote = '🔨';
+      worker.overrideEmoteTimer = 400;
+      if (distance > 20) {
+        worker.status = 'MOVING_TO_NODE';
+        const step = Math.min(distance, effectiveSpeed * 1.1 * deltaSec);
+        worker.container.x += (target.x - worker.container.x) / distance * step;
+        worker.container.y += (target.y - worker.container.y) / distance * step;
+        const grid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
+        worker.gridX = Phaser.Math.Clamp(Math.round(grid.x), 0, 9);
+        worker.gridY = Phaser.Math.Clamp(Math.round(grid.y), 0, 9);
+        worker.container.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
+        worker.constructionTimer = 0;
+      } else {
+        const cost = site.id === 'CASTLE' ? CASTLE_CONSTRUCTION_COST : RESOURCE_BUILDING_CONFIG[site.id].costs[0];
+        const affordable = Object.entries(cost).every(([key, amount]) =>
+          (storeState.resources[key as keyof typeof storeState.resources] ?? 0) >= (amount ?? 0));
+        worker.status = affordable ? 'HARVESTING' : 'IDLE';
+        worker.constructionTimer = affordable ? (worker.constructionTimer ?? 0) + deltaSec : 0;
+        if ((worker.constructionTimer ?? 0) >= 4) {
+          const built = site.id === 'CASTLE' ? storeState.buildCastle() : storeState.upgradeResourceBuilding(site.id);
+          worker.constructionTimer = 0;
+          if (built) {
+            this.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 12);
+            this.spawnFloatingPopup(target.x, target.y - 45, `Ent built ${site.label}!`, '#86efac');
+          }
+        }
+      }
+      return true;
+    }
+
+    return false;
   }
 
   public spawnFloatingPopup(x: number, y: number, text: string, color: string = '#38bdf8'): void {

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { isConstructionReady } from '../state/constructionProgress';
+import React, { useEffect, useState } from 'react';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
@@ -75,7 +76,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     upgradeTreant,
     castleBuilt,
     resourceBuildings,
-    buildCastle,
     upgradeResourceBuilding,
   } = useGameStore();
 
@@ -84,7 +84,13 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   const [selectedUnitId, setSelectedUnitId] = useState<string>(roster[0]?.id || '');
   const [slotFilter, setSlotFilter] = useState<'ALL' | EquipmentSlot>('ALL');
   const [marketMode, setMarketMode] = useState<'SELL' | 'BUY'>('SELL');
+  const [buyQuantities, setBuyQuantities] = useState<Record<string, string>>({});
   const [lastTradeMsg, setLastTradeMsg] = useState<string | null>(null);
+
+  const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
+  useEffect(() => {
+    if (isOpen) setActiveTab(!constructionReady && initialTab === 'CASTLE' ? 'MINIONS' : initialTab);
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -306,7 +312,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
           {/* Unified Navigation Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar pt-1">
             {[
-              { id: 'MINIONS' as CitadelTab, label: language === 'TL' ? 'Mga Alagad' : 'Minions', icon: <Users className="w-4 h-4" /> },
+              { id: 'MINIONS' as CitadelTab, label: !constructionReady ? (language === 'TL' ? 'Konstruksyon' : 'Construction') : (language === 'TL' ? 'Mga Alagad' : 'Minions'), icon: <Users className="w-4 h-4" /> },
               { id: 'MARKET' as CitadelTab, label: language === 'TL' ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
               {
                 id: 'FORGE' as CitadelTab,
@@ -353,8 +359,8 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     </h3>
                     <p className="mt-1 text-[11px] text-slate-400">
                       {castleBuilt
-                        ? (language === 'TL' ? 'I-upgrade ang bawat lugar para magbukas ng mas mataas na materyales.' : 'Upgrade each area to unlock better crafting and summon materials.')
-                        : (language === 'TL' ? 'Wala pang kastilyo sa Araw 1. Kailangan muna ng Ent at sapat na yaman.' : 'Day 1 begins in ruins. The Ent and enough gathered resources are required first.')}
+                        ? (language === 'TL' ? 'I-upgrade ang bawat lugar para magbukas ng mas mataas na materyales.' : 'The Ent finishes all four buildings automatically before minions unlock. Built areas can then be upgraded.')
+                        : (language === 'TL' ? 'Wala pang kastilyo sa Araw 1. Kailangan muna ng Ent at sapat na yaman.' : 'The Ent automatically builds the castle, then each resource building. Defeat scouts for missing supplies.')}
                     </p>
                   </div>
                   <span className={`rounded-xl border px-2.5 py-1 text-[10px] font-bold ${castleBuilt ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300' : 'border-rose-500/40 bg-rose-950/40 text-rose-300'}`}>
@@ -364,11 +370,10 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
                 {!castleBuilt && (
                   <button
-                    disabled={!roster.some((unit) => unit.unitClass === 'TREANT') || resources.aetherShards < 25 || resources.wood < 35 || resources.stone < 30 || resources.coins < 50}
-                    onClick={() => handleEvolution(buildCastle)}
+                    disabled
                     className="mb-3 w-full rounded-xl border border-emerald-500/40 bg-emerald-900/40 px-3 py-2 text-xs font-bold text-emerald-200 transition-colors hover:bg-emerald-800/50 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-500"
                   >
-                    🌲 {roster.some((unit) => unit.unitClass === 'TREANT') ? 'Ent: Build Castle (💎25 🌲35 🪨30 🪙50)' : 'Summon the Ent first to unlock construction'}
+                    🌲 {roster.some((unit) => unit.unitClass === 'TREANT') ? 'Ent auto-builds Castle (💎25 🌲35 🪨30 🪙50)' : 'Waiting for the starting Ent to arrive'}
                   </button>
                 )}
 
@@ -386,11 +391,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                             <div className="mt-1 text-[10px] text-slate-400">Lv.{state.level}/2 · {state.unlockedOutputs.length ? state.unlockedOutputs.join(' · ') : 'Locked'}</div>
                           </div>
                           <button
-                            disabled={!roster.some((unit) => unit.unitClass === 'TREANT') || !nextCost || !canAfford}
+                            disabled={state.level < 1 || !constructionReady || !roster.some((unit) => unit.unitClass === 'TREANT') || !nextCost || !canAfford}
                             onClick={() => handleEvolution(() => upgradeResourceBuilding(buildingId))}
                             className="rounded-lg bg-sky-700/70 px-2 py-1 text-[10px] font-bold text-sky-100 transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
                           >
-                            {!roster.some((unit) => unit.unitClass === 'TREANT') ? 'Ent required' : nextCost ? `Build Lv.${state.level + 1}` : 'MAX'}
+                            {state.level < 1 ? 'Ent auto-builds' : !constructionReady ? 'Construction first' : nextCost ? `Upgrade Lv.${state.level + 1}` : 'MAX'}
                           </button>
                         </div>
                         {nextCost && <div className="mt-2 text-[10px] font-mono text-slate-500">🌲{nextCost.wood || 0} · 🪨{nextCost.stone || 0} · 🪙{nextCost.coins || 0}</div>}
@@ -536,7 +541,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                       resources.aetherShards >= cost.aetherShards &&
                       resources.wood >= cost.wood &&
                       resources.stone >= cost.stone;
-                    const isLocked = upgrades.nexusLevel < cfg.requiredNexusLevel;
+                    const isLocked = !constructionReady || upgrades.nexusLevel < cfg.requiredNexusLevel;
 
                     return (
                       <div
@@ -629,7 +634,9 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                                   isMaxReached
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                                    : isLocked
+                                    : !constructionReady
+                                  ? 'Build castle + all 4 buildings first'
+                                  : isLocked
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                                     : canAfford
                                     ? 'bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md shadow-red-600/30 active:scale-95'
@@ -828,7 +835,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   const currentStock = resources[key];
                   const canSell10 = currentStock >= 10;
                   const canSellAll = currentStock > 0;
-                  const canBuy10 = resources.coins >= cfg.buy * 10;
+                  const quantityText = buyQuantities[key] ?? '1';
+                  const quantity = Number(quantityText);
+                  const validQuantity = /^\d+$/.test(quantityText) && Number.isSafeInteger(quantity) && quantity > 0;
+                  const totalCost = quantity * cfg.buy;
+                  const canBuy = validQuantity && Number.isSafeInteger(totalCost) && resources.coins >= totalCost;
 
                   return (
                     <div
@@ -879,17 +890,29 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                             </button>
                           </>
                         ) : (
-                          <button
-                            disabled={!canBuy10}
-                            onClick={() => handleBuy(key, 10)}
+                          <form className="w-full space-y-2" onSubmit={(event) => {
+                            event.preventDefault();
+                            if (canBuy) handleBuy(key, quantity);
+                          }}>
+                            <label className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                              {language === 'TL' ? 'Dami' : 'Quantity'}
+                              <input type="text" inputMode="numeric" pattern="[0-9]+" required
+                                aria-label={`${cfg.label} purchase quantity`}
+                                value={quantityText}
+                                onChange={(event) => setBuyQuantities((previous) => ({ ...previous, [key]: event.target.value }))}
+                                className="w-24 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-right text-white focus:border-indigo-400 focus:outline-none" />
+                            </label>
+                          <button type="submit"
+                            disabled={!canBuy}
                             className={`w-full py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              canBuy10
+                              canBuy
                                 ? 'bg-indigo-600 hover:bg-indigo-500 text-white active:scale-95 shadow-sm'
                                 : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                             }`}
                           >
-                            Buy 10 (-{10 * cfg.buy}🪙)
+                            {validQuantity ? `Buy ${quantity} (-${totalCost.toLocaleString()}🪙)` : 'Enter a whole quantity'}
                           </button>
+                          </form>
                         )}
                       </div>
                     </div>

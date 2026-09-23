@@ -123,6 +123,10 @@ export interface UnitRosterItem {
 }
 
 export interface GameStoreState {
+  skillPoints: number;
+  unlockedSkills: import('../state/skillTree').SkillId[];
+  unlockSkill: (id: import('../state/skillTree').SkillId) => boolean;
+  difficulty: import('../state/difficulty').Difficulty;
   // Navigation
   screen: ScreenState;
   hasCompletedIntro: boolean;

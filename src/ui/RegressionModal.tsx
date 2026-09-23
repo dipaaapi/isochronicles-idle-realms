@@ -37,7 +37,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
     const promptMsg =
       language === 'TL'
         ? `Gusto mo bang mag-Regress ngayon?\n\n• Itatala ang iyong narating (Wave ${invasion.waveNumber}, Phase ${platformPhase}, Day ${day}).\n• Babalik ang wave sa Wave 1 (Demon Citadel).\n• Makatatanggap ng bonus starting coins at dagdag na castle HP!`
-        : `Undergo Regression now?\n\n• Your achievement will be recorded (Wave ${invasion.waveNumber}, Phase ${platformPhase}, Day ${day}).\n• Waves will restart at Wave 1 (Demon Citadel).\n• You will receive bonus starting coins and permanent castle HP boosts!`;
+        : `Undergo Regression now?\n\n• Your achievement will be recorded (Wave ${invasion.waveNumber}, Phase ${platformPhase}, Day ${day}).\n• Days and waves restart at 1 (Demon Citadel).\n• Gain 1 skill point and +100 permanent castle HP after the Ent rebuilds, plus starting coins.`;
 
     if (window.confirm(promptMsg)) {
       performRegression();
@@ -46,7 +46,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
   };
 
   const handleResetRegressionProgress = () => {
-    if (!window.confirm(language === 'TL' ? 'Mabubura ang Regression tier at lahat ng history. Ituloy?' : 'This will erase the Regression tier and all history. Continue?')) return;
+    if (!window.confirm(language === 'TL' ? 'Mabubura ang Regression tier at lahat ng history. Ituloy?' : 'This erases regression history, skill points, unlocked skills and permanent regression HP. Continue?')) return;
     if (resetRegressionProgress(resetConfirmation)) setResetConfirmation('');
   };
 
@@ -212,7 +212,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
           <div className="rounded-2xl border border-rose-500/40 bg-rose-950/20 p-4 space-y-3">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">Reset Regression Records</h4>
-              <p className="mt-1 text-[11px] text-slate-400">Type <span className="font-mono font-bold text-rose-200">RESET REGRESSIONS</span> to erase the Regression tier and history.</p>
+              <p className="mt-1 text-[11px] text-slate-400">Type <span className="font-mono font-bold text-rose-200">RESET REGRESSIONS</span> to erase the Regression tier, history, skill points, unlocked skills and permanent regression HP.</p>
             </div>
             <div className="flex gap-2">
               <input
@@ -229,6 +229,10 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
                 Reset
               </button>
             </div>
+          </div>
+
+<div className="rounded-2xl border border-purple-500/40 bg-purple-950/20 p-4 text-sm text-purple-200">
+            Each regression resets to Day 1, Year 1 and Wave 1. Gain 1 skill point and +100 permanent castle HP when the Ent rebuilds. Learned skills and unspent points carry over. Open Skills beside FAQ to spend points.
           </div>
 
           {/* Regression History Records Table */}

@@ -1,3 +1,6 @@
+import { isConstructionReady } from './constructionProgress';
+import { normalizeDifficulty } from './difficulty';
+import { SKILLS, skillBonuses, normalizeSkillProgress } from './skillTree';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
@@ -120,7 +123,7 @@ const INITIAL_RESOURCE_BUILDINGS: ResourceBuildingsState = {
   PORT: { level: 0, unlockedOutputs: [] },
 };
 
-const CASTLE_CONSTRUCTION_COST: Partial<Resources> = {
+export const CASTLE_CONSTRUCTION_COST: Partial<Resources> = {
   aetherShards: 25,
   wood: 35,
   stone: 30,
@@ -217,6 +220,18 @@ export const useGameStore = create<GameStoreState>()(
   persist(
     (set, get) => ({
       screen: 'TITLE',
+      difficulty: 'NORMAL',
+      skillPoints: 0,
+      unlockedSkills: [],
+      unlockSkill: (id) => {
+        const state = get();
+        const skill = SKILLS[id];
+        if (!skill || state.skillPoints < 1 || state.unlockedSkills.includes(id) ||
+          (skill.prerequisite && !state.unlockedSkills.includes(skill.prerequisite))) return false;
+        set({ skillPoints: state.skillPoints - 1, unlockedSkills: [...state.unlockedSkills, id], lastSavedTimestamp: Date.now() });
+        soundFx.playFanfare();
+        return true;
+      },
       hasCompletedIntro: false,
       realmName: 'Kuta ng Kadiliman (Demon Realm)',
       language: 'EN',
@@ -491,6 +506,7 @@ export const useGameStore = create<GameStoreState>()(
         }
 
         const state = get();
+        if (unitClass !== 'TREANT' && !isConstructionReady(state)) return false;
         const countOfClass = state.roster.filter((u) => u.unitClass === unitClass).length;
         const config = UNIT_CLASSES[unitClass];
 
@@ -816,7 +832,8 @@ export const useGameStore = create<GameStoreState>()(
         const gains = calculateOfflineGains(
           state.lastSavedTimestamp,
           state.workerCount,
-          state.upgrades
+          state.upgrades,
+          state.unlockedSkills
         );
 
         if (gains && gains.elapsedSeconds > 15) {
@@ -847,6 +864,14 @@ export const useGameStore = create<GameStoreState>()(
         const state = get();
         const exportData = {
           version: '1.3.0',
+          difficulty: state.difficulty,
+          skillPoints: state.skillPoints,
+          unlockedSkills: state.unlockedSkills,
+          regressionCount: state.regressionCount,
+          regressionHistory: state.regressionHistory,
+          platformPhase: state.platformPhase,
+          year: state.year,
+          season: state.season,
           exportedAt: new Date().toISOString(),
           realmName: state.realmName,
           language: state.language,
@@ -889,6 +914,12 @@ export const useGameStore = create<GameStoreState>()(
 
           set({
             realmName: data.realmName || 'Aether Haven',
+            difficulty: normalizeDifficulty(data.difficulty),
+            ...normalizeSkillProgress(data),
+            regressionHistory: Array.isArray(data.regressionHistory) ? data.regressionHistory : [],
+            platformPhase: getPhaseFromWave(data.invasion?.waveNumber ?? 1),
+            year: data.year || 1,
+            season: data.season || 'SPRING',
             hasCompletedIntro: !!data.hasCompletedIntro,
             resources: {
               aetherShards: Number(data.resources.aetherShards) || 0,
@@ -974,10 +1005,11 @@ export const useGameStore = create<GameStoreState>()(
       },
 
       buyResource: (resourceKey, amount) => {
+        if (!Number.isSafeInteger(amount) || amount <= 0) return false;
         const state = get();
         const price = RESOURCE_PRICES[resourceKey].buy;
         const totalCost = amount * price;
-        if (state.resources.coins < totalCost || amount <= 0) return false;
+        if (!Number.isSafeInteger(totalCost) || state.resources.coins < totalCost) return false;
 
         set((prev) => ({
           resources: {
@@ -1068,7 +1100,7 @@ export const useGameStore = create<GameStoreState>()(
 
       damageCastle: (amount) => {
         const state = get();
-        let remainingDmg = amount;
+        let remainingDmg = amount * skillBonuses(state.unlockedSkills).castleDamage;
         let nextShield = state.defense.shieldHp;
         let nextHp = state.defense.castleHp;
 
@@ -1108,7 +1140,7 @@ export const useGameStore = create<GameStoreState>()(
       // Invasion Actions
       tickInvasionCountdown: (deltaSec) => {
         const state = get();
-        if (!state.castleBuilt || state.invasion.isActive) return;
+        if (!isConstructionReady(state) || state.invasion.isActive) return;
 
         const nextCountdown = state.invasion.countdown - deltaSec;
         if (nextCountdown <= 0) {
@@ -1125,7 +1157,7 @@ export const useGameStore = create<GameStoreState>()(
 
       startInvasion: () => {
         const state = get();
-        if (!state.castleBuilt) return;
+        if (!isConstructionReady(state) || state.invasion.isActive) return;
         const totalEnemies = 4 + state.invasion.waveNumber * 2;
         set((prev) => ({
           invasion: {
@@ -1450,6 +1482,22 @@ export const useGameStore = create<GameStoreState>()(
 
           return {
             platformPhase: 1,
+            day: 1,
+            year: 1,
+            season: 'SPRING',
+            dayProgress: 0,
+            timeOfDay: 'DAY',
+            weather: 'CLEAR',
+            ambientDarkness: 0,
+            gameSpeed: 1,
+            skillPoints: prev.skillPoints + 1,
+            dynamicResourceNodes: { ...INITIAL_DYNAMIC_NODES },
+            activeGodBlessings: { CELESTIAL_HARVEST: 0, AEGIS_WRATH: 0, TITAN_AWAKENING: 0 },
+            isCastleBreachedModalOpen: false,
+            lootedResources: null,
+            offlineGains: null,
+            isOfflineModalOpen: false,
+            merchantRestockTimer: 90,
             regressionCount: prev.regressionCount + 1,
             regressionHistory: [newRecord, ...prev.regressionHistory],
             isRegressionModalOpen: false,
@@ -1488,9 +1536,14 @@ export const useGameStore = create<GameStoreState>()(
 
       resetRegressionProgress: (confirmation: string): boolean => {
         if (confirmation.trim().toUpperCase() !== 'RESET REGRESSIONS') return false;
+        const state = get();
+        const castleMaxHp = Math.max(INITIAL_DEFENSE.castleMaxHp, state.defense.castleMaxHp - state.regressionCount * 100);
         set({
           regressionCount: 0,
           regressionHistory: [],
+          skillPoints: 0,
+          unlockedSkills: [],
+          defense: { ...state.defense, castleMaxHp, castleHp: Math.min(state.defense.castleHp, castleMaxHp) },
           lastSavedTimestamp: Date.now(),
         });
         soundFx.playClick();
@@ -1499,9 +1552,12 @@ export const useGameStore = create<GameStoreState>()(
 
       resetRealm: () => {
         set({
+          skillPoints: 0,
+          unlockedSkills: [],
+          difficulty: 'NORMAL',
           screen: 'TITLE',
           hasCompletedIntro: false,
-          realmName: 'Aether Haven',
+          realmName: 'Kuta ng Kadiliman (Demon Realm)',
           resources: { ...INITIAL_RESOURCES },
           workerCount: INITIAL_ROSTER.length,
           roster: [...INITIAL_ROSTER],
@@ -1514,8 +1570,30 @@ export const useGameStore = create<GameStoreState>()(
           autoSettings: { ...INITIAL_AUTO_SETTINGS },
           achievements: [],
           isCastleBreachedModalOpen: false,
+          lootedResources: null,
+          merchantRestockTimer: 90,
           timeOfDay: 'DAY',
+          weather: 'CLEAR',
           ambientDarkness: 0,
+          day: 1,
+          year: 1,
+          season: 'SPRING',
+          dayProgress: 0,
+          platformPhase: 1,
+          regressionCount: 0,
+          regressionHistory: [],
+          isRegressionModalOpen: false,
+          isWave100VictoryCelebration: false,
+          discoveredBeasts: ['GOLEM', 'WAYFARER'],
+          discoveredInvaders: [],
+          promptedUpgrades: {},
+          dynamicResourceNodes: { ...INITIAL_DYNAMIC_NODES },
+          activeGodBlessings: {
+            CELESTIAL_HARVEST: 0,
+            AEGIS_WRATH: 0,
+            TITAN_AWAKENING: 0,
+          },
+          gameSpeed: 1,
           lastSavedTimestamp: Date.now(),
           offlineGains: null,
           isOfflineModalOpen: false,
@@ -1523,6 +1601,11 @@ export const useGameStore = create<GameStoreState>()(
       },
 
       replenishResourceNode: (task, newPoint) => {
+        const state = get();
+        if (!state.castleBuilt) return;
+        if (task === 'WOOD' && state.resourceBuildings.WOOD.level < 1) return;
+        if (task === 'STONE' && state.resourceBuildings.QUARRY.level < 1) return;
+        if (task === 'ESSENCE' && state.resourceBuildings.PORT.level < 1) return;
         set((state) => ({
           dynamicResourceNodes: {
             ...state.dynamicResourceNodes,
@@ -1554,6 +1637,8 @@ export const useGameStore = create<GameStoreState>()(
         return {
           ...currentState,
           ...persisted,
+          ...normalizeSkillProgress(persisted),
+          difficulty: normalizeDifficulty(persisted.difficulty),
           roster,
           workerCount: roster.length,
           castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
@@ -1562,6 +1647,9 @@ export const useGameStore = create<GameStoreState>()(
         };
       },
       partialize: (state) => ({
+        skillPoints: state.skillPoints,
+        unlockedSkills: state.unlockedSkills,
+        difficulty: state.difficulty,
         hasCompletedIntro: state.hasCompletedIntro,
         realmName: state.realmName,
         resources: state.resources,
