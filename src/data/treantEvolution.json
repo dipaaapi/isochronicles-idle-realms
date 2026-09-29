@@ -1,0 +1,82 @@
+{
+  "1": {
+    "level": 1,
+    "label": "Sinaunang Binhi (Sprout Ent)",
+    "labelEn": "Sprout Ent",
+    "repairAmount": 25,
+    "replenishCooldownSeconds": 28,
+    "castleRepairCooldownSeconds": 2.5,
+    "enrichmentMultiplier": 1.25,
+    "castleMajestyBonus": 10,
+    "upgradeCost": {
+      "aetherShards": 35,
+      "wood": 30,
+      "stone": 25,
+      "coins": 40
+    }
+  },
+  "2": {
+    "level": 2,
+    "label": "Buhay na Troso (Timber Warden)",
+    "labelEn": "Timber Warden",
+    "repairAmount": 45,
+    "replenishCooldownSeconds": 22,
+    "castleRepairCooldownSeconds": 2,
+    "enrichmentMultiplier": 1.4,
+    "castleMajestyBonus": 15,
+    "upgradeCost": {
+      "aetherShards": 60,
+      "wood": 50,
+      "stone": 40,
+      "coins": 80
+    }
+  },
+  "3": {
+    "level": 3,
+    "label": "Bantay ng Kagubatan (Grove Sentinel)",
+    "labelEn": "Grove Sentinel",
+    "repairAmount": 70,
+    "replenishCooldownSeconds": 18,
+    "castleRepairCooldownSeconds": 1.6,
+    "enrichmentMultiplier": 1.6,
+    "castleMajestyBonus": 20,
+    "upgradeCost": {
+      "aetherShards": 95,
+      "wood": 80,
+      "stone": 65,
+      "coins": 140
+    }
+  },
+  "4": {
+    "level": 4,
+    "label": "Pundasyon ng Lupa (Ironbark Titan)",
+    "labelEn": "Ironbark Titan",
+    "repairAmount": 110,
+    "replenishCooldownSeconds": 14,
+    "castleRepairCooldownSeconds": 1.2,
+    "enrichmentMultiplier": 1.8,
+    "castleMajestyBonus": 25,
+    "upgradeCost": {
+      "aetherShards": 140,
+      "wood": 120,
+      "stone": 100,
+      "coins": 220
+    }
+  },
+  "5": {
+    "level": 5,
+    "label": "Diyos ng Kagubatan (World Tree Elder)",
+    "labelEn": "World Tree Elder",
+    "repairAmount": 180,
+    "replenishCooldownSeconds": 10,
+    "castleRepairCooldownSeconds": 0.8,
+    "enrichmentMultiplier": 2,
+    "castleMajestyBonus": 35,
+    "upgradeCost": {
+      "aetherShards": 200,
+      "wood": 180,
+      "stone": 150,
+      "coins": 350
+    }
+  }
+}

@@ -30,9 +30,10 @@ React 18 + TypeScript, Phaser 3 (world canvas), Vite 5 + vite-plugin-pwa, Tailwi
 ## Architecture
 
 - `src/App.tsx` — screen coordinator (`TITLE` → `STORY` → `GAME`) and owner of modal open/close state.
-- `src/game/` — Phaser side. `MainScene.ts` (world, tiles, buildings, camera, lighting), `WorkerManager.ts` (minion simulation / task state machine, largest file), `InvasionManager.ts` (waves, enemies), `ProceduralRenderer.ts` (procedural art), `PathfindingService.ts`, `IsometricHelper.ts` (`gridToScreen` / `screenToGrid`), `FPSController.ts`, `audio/soundFx.ts` (procedural Web Audio), `PhaserGame.tsx` (React wrapper, remounted on regression via `key={regressionCount}`).
-- `src/state/` — `useGameStore.ts` (persistent Zustand store and all game actions), `difficulty.ts`, `skillTree.ts`, `constructionProgress.ts`, `offlineProgression.ts`, `storageAdapter.ts`.
-- `src/types/` — `game.ts` (units, tasks, buildings, waves, configs), `state.ts` (store contracts, save shape).
+- `src/game/` — Phaser side. `MainScene.ts` (world, tiles, buildings, camera, lighting), `WorkerManager.ts` (minion lifecycle, visuals, movement; per-role behaviour in `workers/`: `supportSlime.ts`, `treant.ts` (construction, repairs, enrichment), `combat.ts`, `gathering.ts`, `modifiers.ts` (per-frame speed/attack/stamina), `legacyWorkerArt.ts`), `InvasionManager.ts` (waves, enemies; types, weather table and legacy art in `invaders/`), `ProceduralRenderer.ts` (procedural art), `PathfindingService.ts`, `IsometricHelper.ts` (`gridToScreen` / `screenToGrid`), `FPSController.ts`, `audio/soundFx.ts` (procedural Web Audio), `PhaserGame.tsx` (React wrapper, remounted on regression or a new layout via `key={`${regressionCount}-${layoutSeed}`}`).
+- `src/state/` — `useGameStore.ts` (composes the persistent Zustand store from slices in `store/`: `worldSlice`, `economySlice`, `rosterSlice`, `buildingsSlice`, `defenseSlice`, `progressionSlice`, `persistence` (save export/import, persist merge/partialize); new-game values in `store/initialState.ts` (`createInitialProgress`, shared by the initial state and `resetRealm`)), `economy.ts` (typed access to `src/data/economy.json`: prices, costs, formulas), `resources.ts` (`canAfford` / `subtractCost` / `addResourceDelta`), `buildingLayout.ts` (20×20 grid, seeded random establishment layout), `difficulty.ts`, `skillTree.ts`, `constructionProgress.ts`, `offlineProgression.ts`, `storageAdapter.ts`.
+- `src/types/` — `game.ts` (shared types; re-exports the lookup tables), `state.ts` (store contracts, save shape).
+- `src/data/` — lookup tables: JSON for text-heavy ones (`economy`, `seasons`, `slimeEvolution`, `treantEvolution`, `godBlessings`, `craftableItems`, `buildingLayout`, `defenseConfig`), TS modules where hex colors must stay readable (`platforms`, `tasks`, `units`, `invaders`, `establishmentSkills`).
 - `src/ui/` — React HUD (`GameHUD.tsx` right sidebar) and modals (Citadel Command, Regression, Settings, Bestiary, Codex, FAQ, Skill Tree, Merchant, Equipment, Castle Defense/Breached, etc.).
 - `src/i18n/` — FAQ translations + `useLanguage` hook.
 - `public/backgrounds/` — phase backgrounds, title/victory/defeat art, bestiary icons.
@@ -53,14 +54,14 @@ Phaser owns the world canvas; React owns the HUD and modals; they communicate th
 - Commit messages use the `ft:` prefix followed by a list of touched areas.
 - Some code comments are in Filipino/Taglish; keep them as-is.
 
-## Current state (as of 2026-09-29)
+## Current state (as of 2026-09-30)
 
-- `npm run build` and `npm test` both pass.
-- Recent work (last 3 commits): HUD redesign, settings drawer, castle breached modal, Citadel Command, difficulty, title screen, sound FX, skill tree, regression, FAQ/i18n, per-phase backgrounds. `src/components/Realmlog.tsx` was added then removed.
-- Housekeeping done 2026-09-29: `.vite` cache ignored and untracked, PWA icons (`public/pwa-*.png`, placeholder "IC" crystal design) and `robots.txt` added, `npm test` script added, README structure refreshed, Phaser/React split into vendor chunks.
+- `npm run build` and `npm test` both pass; the game runs in the browser without console errors.
+- 2026-09-30 refactor: store split into slices, `WorkerManager` / `InvasionManager` / `types/game.ts` split into modules, economy tables moved to JSON. Fixes: `require` in the store (crashed establishment skills in the browser), `resetRealm` drifting from new-game state, spending below zero on metal/charcoal/coal/minerals, bestiary/auto-buy not persisted, breach resetting the Slime's evolution, a pathfinding key that broke grids wider than 10, and a new-game soft-lock (Slime auto-evolve spent the castle supplies).
+- Design changes: single Ent (caretaker system removed, Treant cap 1); 20×20 platform with random establishment placement; only the Ent's current construction site shows a scaffold (progress bar / dust / hazard stripes when waiting for supplies).
 
 ## Next-step candidates
 
+- Early-game economy: the starting supplies don't cover the castle plus the four core establishments (~120 wood / 105 stone / 160 coins needed vs 65 / 60 / 100), and minions can't be recruited until those stand, so early progress relies on tapping scouts and selling. Consider rebalancing.
 - Replace the placeholder PWA icons with final art if desired.
-- The PWA precache is ~12.6 MB, mostly `public/backgrounds/` JPEGs; compress or convert to WebP to shrink it.
-- Large files (`WorkerManager.ts`, `useGameStore.ts`, `InvasionManager.ts`) are candidates for splitting if they keep growing.
+- The PWA precache is ~12.9 MB, mostly `public/backgrounds/` JPEGs; compress or convert to WebP to shrink it.
