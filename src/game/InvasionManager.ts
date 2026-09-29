@@ -9,72 +9,17 @@ import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
 import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
-import { WorkerInstance } from './WorkerManager';
+import type { WorkerInstance } from './WorkerManager';
 import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
 import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
-import { Navigation, NavAgent } from './Navigation';
+import { Navigation } from './Navigation';
 import type { StructureManager, StructureTarget } from './StructureManager';
 import type { PortalManager, PortalState } from './PortalManager';
 import { CASTLE_FOOTPRINT, PORTAL_SITES, rectCenter } from '../state/buildingLayout';
+import { invaderWeather, type ActiveInvader, type InvaderBlocker, type InvaderTarget } from './invaders/types';
+import { renderInvaderBody } from './invaders/legacyInvaderArt';
 
-/** Something small that blocks invaders and can be hit (Sapling Grove summons). */
-export interface InvaderBlocker {
-  container: { x: number; y: number; active: boolean };
-  hp: number;
-  dead: boolean;
-  takeHit: (damage: number) => void;
-}
-
-type InvaderTarget =
-  | { kind: 'worker'; worker: WorkerInstance }
-  | { kind: 'blocker'; blocker: InvaderBlocker }
-  | { kind: 'structure'; structure: StructureTarget };
-
-export interface ActiveInvader extends NavAgent {
-  id: string;
-  type: InvaderType;
-  name: string;
-  container: Phaser.GameObjects.Container;
-  shadow: Phaser.GameObjects.Ellipse;
-  bodyGfx: Phaser.GameObjects.Graphics;
-  /** 8-direction pixel-art sprite; absent when the sheet was still baking at spawn (bodyGfx is drawn instead). */
-  sprite?: Phaser.GameObjects.Sprite;
-  hpBarGfx: Phaser.GameObjects.Graphics;
-  gridX: number;
-  gridY: number;
-  currentPath: GridPoint[];
-  pathIndex: number;
-  hp: number;
-  maxHp: number;
-  speed: number;
-  damage: number;
-  bountyCoins: number;
-  attackTimer: number;
-  isDead: boolean;
-  isScout?: boolean;
-  isRetreating?: boolean;
-  spawnGrid: GridPoint;
-  /** Full-size scale (bosses are bigger). */
-  baseScale: number;
-  /** Portal it came out of / will leave through. */
-  portal?: PortalState;
-  exitPortal?: PortalState;
-  /** Seconds left stepping out of (emerge) or into (enter) a portal. */
-  emerge?: number;
-  enter?: number;
-  /** Seconds left under the citadel's Provoke Beacon — must attack the citadel. */
-  provokedTimer?: number;
-  slowTimer?: number;
-  slowFactor?: number;
-  burnTimer?: number;
-  burnDps?: number;
-  burnTick?: number;
-  target?: InvaderTarget;
-  retargetTimer?: number;
-  structPath?: GridPoint[];
-  structGoal?: string;
-  structTimer?: number;
-}
+export type { ActiveInvader, InvaderBlocker } from './invaders/types';
 
 const EMERGE_SECONDS = 0.7;
 const ENTER_SECONDS = 0.55;
@@ -474,113 +419,9 @@ export class InvasionManager {
     if (invader.sprite) faceEnemySprite(invader.sprite, dx, dy, moving);
   }
 
+  /** Legacy vector body, drawn until the enemy's pixel sprite sheet has baked. */
   private renderInvaderBody(graphics: Phaser.GameObjects.Graphics, type: InvaderType): void {
-    graphics.clear();
-    const cfg = INVADER_CONFIGS[type];
-
-    if (type === 'HUMAN_KNIGHT' || type === 'VOID_SHADE') {
-      // Human Crusader Knight: Shining silver armor, blue cape, iron helmet & sword
-      // Cape
-      graphics.fillStyle(0x2563eb, 0.9);
-      graphics.fillTriangle(0, -18, -9, 0, 9, 0);
-      // Silver Torso & Helmet
-      graphics.fillStyle(0x94a3b8, 1);
-      graphics.fillCircle(0, -14, 6.5);
-      // Helmet visor slit
-      graphics.fillStyle(0x0f172a, 1);
-      graphics.fillRect(-3.5, -15, 7, 2);
-      // Gold Crusader Cross
-      graphics.fillStyle(0xfbbf24, 1);
-      graphics.fillRect(-1, -12, 2, 6);
-      graphics.fillRect(-3, -10, 6, 2);
-      // Steel Broadsword in hand
-      graphics.fillStyle(0xe2e8f0, 1);
-      graphics.fillRect(8, -20, 2, 14);
-      graphics.fillStyle(0x64748b, 1);
-      graphics.fillRect(6, -10, 6, 2);
-    } else if (type === 'HUMAN_ARCHER') {
-      // Human Ranger / Archer: Green cloak, leather vest, curved wooden bow
-      graphics.fillStyle(0x166534, 1);
-      graphics.fillTriangle(0, -20, -7, -2, 7, -2);
-      graphics.fillStyle(0x15803d, 1);
-      graphics.fillCircle(0, -14, 5.5);
-      // Face & Archer Hood
-      graphics.fillStyle(0xfde047, 1);
-      graphics.fillCircle(0, -14, 3);
-      // Curved Wooden Bow
-      graphics.lineStyle(2, 0x854d0e, 1);
-      graphics.strokeCircle(8, -12, 6);
-      // Arrow
-      graphics.lineStyle(1, 0xffffff, 0.9);
-      graphics.lineBetween(4, -12, 12, -12);
-    } else if (type === 'MECHA_SCOUT' || type === 'RIFT_STALKER') {
-      // Cybernetic Mecha Walker Drone: Dual hydraulic metal legs, glowing neon scanning visor
-      // Walker Legs
-      graphics.fillStyle(0x475569, 1);
-      graphics.fillRect(-8, -4, 4, 7);
-      graphics.fillRect(4, -4, 4, 7);
-      // Cockpit Chassis
-      graphics.fillStyle(0x334155, 1);
-      graphics.fillRoundedRect(-9, -20, 18, 14, 4);
-      // Cybernetic Neon Scanning Eye (Yellow/Cyan)
-      graphics.fillStyle(cfg.color, 1);
-      graphics.fillRect(-6, -15, 12, 3);
-      graphics.fillStyle(0xffffff, 0.9);
-      graphics.fillCircle(0, -13.5, 1.5);
-      // Sensor Antenna
-      graphics.fillStyle(0x64748b, 1);
-      graphics.fillRect(4, -26, 2, 7);
-      graphics.fillStyle(0xef4444, 1);
-      graphics.fillCircle(5, -26, 2);
-    } else if (type === 'DEEP_ONE') {
-      // DEEP_ONE: Squid-like sea monster with tentacles
-      graphics.fillStyle(0x0284c7, 1); // Dark blue body
-      graphics.fillEllipse(0, -14, 12, 16);
-      graphics.fillStyle(0x0c4a6e, 1); // Darker shading
-      graphics.fillEllipse(0, -15, 10, 14);
-      // Giant glowing yellow eye
-      graphics.fillStyle(0xfacc15, 1);
-      graphics.fillCircle(0, -14, 4);
-      graphics.fillStyle(0x000000, 1);
-      graphics.fillRect(-1, -16, 2, 4); // Slit pupil
-      // Tentacles
-      graphics.lineStyle(3, 0x0284c7, 1);
-      graphics.beginPath();
-      graphics.moveTo(-4, -6);
-      graphics.lineTo(-8, 2);
-      graphics.lineTo(-12, 0);
-      graphics.strokePath();
-      graphics.beginPath();
-      graphics.moveTo(4, -6);
-      graphics.lineTo(8, 2);
-      graphics.lineTo(12, 0);
-      graphics.strokePath();
-      graphics.beginPath();
-      graphics.moveTo(0, -4);
-      graphics.lineTo(0, 4);
-      graphics.lineTo(3, 6);
-      graphics.strokePath();
-    } else {
-      // MECHA_TITAN / CORRUPTED_GOLEM: Heavy Heavy Combat Mecha
-      // Heavy Hydraulic Tread Legs
-      graphics.fillStyle(0x1e293b, 1);
-      graphics.fillRect(-12, -6, 7, 9);
-      graphics.fillRect(5, -6, 7, 9);
-      // Armored Chestplate Chassis
-      graphics.fillStyle(0x334155, 1);
-      graphics.fillRoundedRect(-14, -26, 28, 20, 5);
-      // Hazard Stripes & Power Core
-      graphics.fillStyle(0xf59e0b, 1);
-      graphics.fillRect(-8, -23, 16, 3);
-      graphics.fillStyle(0xef4444, 1);
-      graphics.fillCircle(0, -16, 5);
-      graphics.fillStyle(0xffffff, 1);
-      graphics.fillCircle(0, -16, 2);
-      // Dual Gatling Arm Cannons
-      graphics.fillStyle(0x0f172a, 1);
-      graphics.fillRect(-17, -22, 4, 15);
-      graphics.fillRect(13, -22, 4, 15);
-    }
+    renderInvaderBody(graphics, type);
   }
 
   private renderHpBar(graphics: Phaser.GameObjects.Graphics, current: number, max: number): void {
@@ -993,45 +834,11 @@ export class InvasionManager {
     const availableDefenders = workers.filter(
       (w) => w.status === 'COMBAT' && w.hp >= 35 && w.unitClass !== 'AQUA_SLIME' && w.unitClass !== 'MERMAN'
     );
-
     const currentWeather = useGameStore.getState().weather;
 
     for (const invader of [...this.invaders]) {
       if (invader.isDead) continue;
-
-      // Stepping out of a portal onto its exit tile
-      if ((invader.emerge ?? 0) > 0) {
-        invader.emerge = (invader.emerge ?? 0) - deltaSec;
-        const from = invader.portal;
-        const exit = IsometricHelper.gridToScreen(invader.spawnGrid.x, invader.spawnGrid.y);
-        const t = Phaser.Math.Clamp(1 - (invader.emerge ?? 0) / EMERGE_SECONDS, 0, 1);
-        const ease = Phaser.Math.Easing.Cubic.Out(t);
-        if (from) invader.container.setPosition(from.x + (exit.x - from.x) * ease, from.y + (exit.y - from.y) * ease);
-        invader.container.setScale(invader.baseScale * (0.3 + 0.7 * ease));
-        invader.container.setAlpha(Math.min(1, t * 1.6));
-        this.faceInvader(invader, exit.x - (from?.x ?? exit.x), exit.y - (from?.y ?? exit.y), true);
-        if ((invader.emerge ?? 0) <= 0) {
-          invader.container.setPosition(exit.x, exit.y);
-          invader.container.setScale(invader.baseScale);
-          invader.container.setAlpha(1);
-        }
-        continue;
-      }
-
-      // Slipping back into a portal (looters and scouts)
-      if ((invader.enter ?? 0) > 0) {
-        invader.enter = (invader.enter ?? 0) - deltaSec;
-        const into = invader.exitPortal;
-        if (into) {
-          const t = Phaser.Math.Clamp(1 - (invader.enter ?? 0) / ENTER_SECONDS, 0, 1);
-          invader.container.x += (into.x - invader.container.x) * Math.min(1, deltaSec * 8);
-          invader.container.y += (into.y - 20 - invader.container.y) * Math.min(1, deltaSec * 8);
-          invader.container.setScale(invader.baseScale * (1 - 0.75 * t));
-          invader.container.setAlpha(1 - t);
-        }
-        if ((invader.enter ?? 0) <= 0) this.despawnEscaped(invader);
-        continue;
-      }
+      if (this.updatePortalTransit(invader, deltaSec)) continue;
 
       this.tickStatus(invader, deltaSec);
       if (invader.isDead) continue;
@@ -1044,19 +851,8 @@ export class InvasionManager {
         continue;
       }
 
-      // Weather modifiers for invaders
-      const invaderCategory = INVADER_CONFIGS[invader.type].category;
-      let weatherSpeedMult = 1;
-      let weatherDamageMult = 1;
-      if (currentWeather === 'RAIN' && invaderCategory === 'MECHA') {
-        weatherSpeedMult = 0.85; // Rusted joints: 15% slower
-      } else if (currentWeather === 'SNOW' && invaderCategory === 'HUMAN') {
-        weatherSpeedMult = 0.85; // Freezing cold: 15% slower
-      }
-      if (currentWeather === 'HEATWAVE') {
-        weatherDamageMult = 1.10; // Agitated: +10% damage
-      }
-      const speed = invader.speed * weatherSpeedMult * slow;
+      const weather = invaderWeather(currentWeather, INVADER_CONFIGS[invader.type].category);
+      const speed = invader.speed * weather.speed * slow;
 
       // Pick (or re-pick) a target a few times per second
       invader.retargetTimer = (invader.retargetTimer ?? 0) - deltaSec;
@@ -1069,61 +865,119 @@ export class InvasionManager {
       const target = invader.target;
       if (!target) continue;
 
-      const invaderConfig = INVADER_CONFIGS[invader.type];
-      if (target.kind === 'worker' || target.kind === 'blocker') {
-        const tc = target.kind === 'worker' ? target.worker.container : target.blocker.container;
-        const dist = Math.hypot(tc.x - invader.container.x, tc.y - invader.container.y);
-        if (dist > invaderConfig.attackRange) {
-          this.chase(invader, tc.x, tc.y, speed * 1.15 * deltaSec, deltaSec);
-          continue;
-        }
-        this.faceInvader(invader, tc.x - invader.container.x, tc.y - invader.container.y, false);
-        invader.attackTimer -= deltaSec;
-        if (invader.attackTimer > 0) continue;
-        invader.attackTimer = 1.1;
-        if (invader.sprite) playEnemyAttack(invader.sprite);
-        const weatherDmg = Math.round(invader.damage * weatherDamageMult);
-        if (target.kind === 'blocker') {
-          target.blocker.takeHit(weatherDmg);
-          this.attackVisual(invader, tc.x, tc.y);
-        } else {
-          this.hitWorker(invader, target.worker, weatherDmg);
-        }
-        continue;
-      }
-
-      // Structure target: walk to a tile touching its footprint, then batter it
-      const structure = target.structure;
-      const reachTiles = invaderConfig.attackRange > 60 ? invaderConfig.attackRange / 45 : 0.8;
-      const distTiles = this.nav
-        ? this.nav.distanceToRect(invader.container.x, invader.container.y, structure.rect)
-        : Math.hypot(structure.x - invader.container.x, structure.y - invader.container.y) / 36 - 1;
-      if (distTiles > reachTiles) {
-        this.approachStructure(invader, structure, speed * deltaSec, deltaSec);
-        continue;
-      }
-
-      this.faceInvader(invader, structure.x - invader.container.x, structure.y - 20 - invader.container.y, false);
-      invader.attackTimer -= deltaSec;
-      if (invader.attackTimer > 0) continue;
-      invader.attackTimer = 1.4; // Attack every 1.4s
-      if (invader.sprite) playEnemyAttack(invader.sprite);
-      let dmg = Math.round(invader.damage * weatherDamageMult);
-      if (structure.id === 'CASTLE') {
-        const isAegisWrath = (useGameStore.getState().activeGodBlessings?.AEGIS_WRATH || 0) > 0;
-        dmg = Math.max(1, Math.round(dmg * (isAegisWrath ? 0.5 : 1)));
-      }
-      this.attackVisual(invader, structure.x, structure.y - 24);
-      if (this.structures) {
-        this.structures.damage(structure, dmg);
-      } else {
-        useGameStore.getState().damageCastle(dmg);
-      }
-      if (useGameStore.getState().defense.castleHp <= 0) {
+      if (target.kind !== 'structure') {
+        this.fightUnit(invader, target, speed, weather.damage, deltaSec);
+      } else if (this.batterStructure(invader, target.structure, speed, weather.damage, deltaSec)) {
+        // The citadel fell: every invader grabs loot and retreats
         this.triggerEnemiesRetreatWithLoot();
         break;
       }
     }
+  }
+
+  /**
+   * Stepping out of a portal onto its exit tile, or slipping back into one
+   * (looters and scouts). Returns true while the invader is in transit.
+   */
+  private updatePortalTransit(invader: ActiveInvader, deltaSec: number): boolean {
+    if ((invader.emerge ?? 0) > 0) {
+      invader.emerge = (invader.emerge ?? 0) - deltaSec;
+      const from = invader.portal;
+      const exit = IsometricHelper.gridToScreen(invader.spawnGrid.x, invader.spawnGrid.y);
+      const t = Phaser.Math.Clamp(1 - (invader.emerge ?? 0) / EMERGE_SECONDS, 0, 1);
+      const ease = Phaser.Math.Easing.Cubic.Out(t);
+      if (from) invader.container.setPosition(from.x + (exit.x - from.x) * ease, from.y + (exit.y - from.y) * ease);
+      invader.container.setScale(invader.baseScale * (0.3 + 0.7 * ease));
+      invader.container.setAlpha(Math.min(1, t * 1.6));
+      this.faceInvader(invader, exit.x - (from?.x ?? exit.x), exit.y - (from?.y ?? exit.y), true);
+      if ((invader.emerge ?? 0) <= 0) {
+        invader.container.setPosition(exit.x, exit.y);
+        invader.container.setScale(invader.baseScale);
+        invader.container.setAlpha(1);
+      }
+      return true;
+    }
+
+    if ((invader.enter ?? 0) > 0) {
+      invader.enter = (invader.enter ?? 0) - deltaSec;
+      const into = invader.exitPortal;
+      if (into) {
+        const t = Phaser.Math.Clamp(1 - (invader.enter ?? 0) / ENTER_SECONDS, 0, 1);
+        invader.container.x += (into.x - invader.container.x) * Math.min(1, deltaSec * 8);
+        invader.container.y += (into.y - 20 - invader.container.y) * Math.min(1, deltaSec * 8);
+        invader.container.setScale(invader.baseScale * (1 - 0.75 * t));
+        invader.container.setAlpha(1 - t);
+      }
+      if ((invader.enter ?? 0) <= 0) this.despawnEscaped(invader);
+      return true;
+    }
+    return false;
+  }
+
+  /** Chase a defender or sapling into range, then strike it every 1.1s. */
+  private fightUnit(
+    invader: ActiveInvader,
+    target: Exclude<InvaderTarget, { kind: 'structure' }>,
+    speed: number,
+    damageMult: number,
+    deltaSec: number
+  ): void {
+    const tc = target.kind === 'worker' ? target.worker.container : target.blocker.container;
+    const dist = Math.hypot(tc.x - invader.container.x, tc.y - invader.container.y);
+    if (dist > INVADER_CONFIGS[invader.type].attackRange) {
+      this.chase(invader, tc.x, tc.y, speed * 1.15 * deltaSec, deltaSec);
+      return;
+    }
+    this.faceInvader(invader, tc.x - invader.container.x, tc.y - invader.container.y, false);
+    invader.attackTimer -= deltaSec;
+    if (invader.attackTimer > 0) return;
+    invader.attackTimer = 1.1;
+    if (invader.sprite) playEnemyAttack(invader.sprite);
+    const damage = Math.round(invader.damage * damageMult);
+    if (target.kind === 'blocker') {
+      target.blocker.takeHit(damage);
+      this.attackVisual(invader, tc.x, tc.y);
+    } else {
+      this.hitWorker(invader, target.worker, damage);
+    }
+  }
+
+  /**
+   * Walk to a tile touching the structure's footprint, then batter it every
+   * 1.4s. Returns true when the citadel has been crushed.
+   */
+  private batterStructure(
+    invader: ActiveInvader,
+    structure: StructureTarget,
+    speed: number,
+    damageMult: number,
+    deltaSec: number
+  ): boolean {
+    const { attackRange } = INVADER_CONFIGS[invader.type];
+    const reachTiles = attackRange > 60 ? attackRange / 45 : 0.8;
+    const distTiles = this.nav
+      ? this.nav.distanceToRect(invader.container.x, invader.container.y, structure.rect)
+      : Math.hypot(structure.x - invader.container.x, structure.y - invader.container.y) / 36 - 1;
+    if (distTiles > reachTiles) {
+      this.approachStructure(invader, structure, speed * deltaSec, deltaSec);
+      return false;
+    }
+
+    this.faceInvader(invader, structure.x - invader.container.x, structure.y - 20 - invader.container.y, false);
+    invader.attackTimer -= deltaSec;
+    if (invader.attackTimer > 0) return false;
+    invader.attackTimer = 1.4;
+    if (invader.sprite) playEnemyAttack(invader.sprite);
+    let damage = Math.round(invader.damage * damageMult);
+    if (structure.id === 'CASTLE') {
+      // Wrath of Aegis halves damage to the citadel
+      const isAegisWrath = (useGameStore.getState().activeGodBlessings?.AEGIS_WRATH || 0) > 0;
+      damage = Math.max(1, Math.round(damage * (isAegisWrath ? 0.5 : 1)));
+    }
+    this.attackVisual(invader, structure.x, structure.y - 24);
+    if (this.structures) this.structures.damage(structure, damage);
+    else useGameStore.getState().damageCastle(damage);
+    return useGameStore.getState().defense.castleHp <= 0;
   }
 
   /** Follows a breadth-first path to the nearest tile touching the structure. */

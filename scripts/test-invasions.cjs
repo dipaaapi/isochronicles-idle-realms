@@ -17,6 +17,14 @@ const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts',
 vm.runInNewContext(source, {
   exports: exportsObject,
   require(name) {
+    // Pure helpers split out of InvasionManager load for real
+    if (name.startsWith('./invaders/')) {
+      const exports = {};
+      vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/game/${name.slice(2)}.ts`, 'utf8'), {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+      }).outputText, { exports, require: () => ({}) });
+      return exports;
+    }
     if (name.includes('soundFx')) return { soundFx: { playExplosion() {} } };
     if (name.includes('activityLog')) return new Proxy({}, { get: () => () => undefined });
     if (name.includes('CharacterSprites')) return new Proxy({}, {
