@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt'],
+      includeAssets: ['robots.txt'],
       manifest: {
         name: 'IsoChronicle: Idle Realms',
         short_name: 'IsoChronicle',
@@ -35,6 +35,18 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    // Phaser alone is ~1.5 MB minified; keep vendors in their own long-cached chunks
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          phaser: ['phaser'],
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

@@ -1,3 +1,5 @@
+import { CASTLE_GATE, NODE_SPOTS } from '../state/buildingLayout';
+
 export interface GridPoint {
   x: number;
   y: number;
@@ -210,16 +212,17 @@ export type WorkerStatus =
 
 export type HarvestTask = 'AETHER' | 'WOOD' | 'STONE' | 'METAL' | 'ESSENCE' | 'FISH' | 'WATER' | 'HEAL' | 'BUILD';
 
+// Work spots beside each structure's footprint (src/data/buildingLayout.json)
 export const TASK_NODE_LOCATIONS: Record<HarvestTask, GridPoint> = {
-  AETHER: { x: 1, y: 1 },  // Crystalline Spires (North)
-  STONE: { x: 8, y: 2 },   // Runic Quarry (East)
-    METAL: { x: 2, y: 5 },   // Metal Mine (West)
-  WOOD: { x: 8, y: 8 },    // Ancient Grove (South-East)
-  ESSENCE: { x: 1, y: 8 }, // Mystic Void Cave (West)
-  FISH: { x: 1, y: 8 },    // Port fishing spot
-  WATER: { x: 1, y: 8 },   // Port freshwater intake
-  HEAL: { x: 5, y: 5 },    // Healing task (roams dynamically, fallback center)
-  BUILD: { x: 5, y: 5 },   // Castle repair / Node replenishment (roams dynamically)
+  AETHER: NODE_SPOTS.AETHER,   // Crystal Spire (West)
+  STONE: NODE_SPOTS.STONE,     // Runic Quarry (East)
+  METAL: NODE_SPOTS.METAL,     // Metal Mine (East)
+  WOOD: NODE_SPOTS.WOOD,       // Ancient Grove (South-East)
+  ESSENCE: NODE_SPOTS.ESSENCE, // Mystic Cave (South)
+  FISH: NODE_SPOTS.PORT,       // Port fishing spot
+  WATER: NODE_SPOTS.PORT,      // Port freshwater intake
+  HEAL: CASTLE_GATE,           // Healing task (roams dynamically, fallback gate)
+  BUILD: CASTLE_GATE,          // Castle repair / Node replenishment (roams dynamically)
 };
 
 export const TASK_CONFIG: Record<
@@ -529,8 +532,8 @@ export const GOD_BLESSINGS: Record<GodBlessingId, GodBlessingConfig> = {
     category: 'INVASION',
     icon: '⚡🛡️',
     color: '#38bdf8',
-    description: 'Biyaya mula sa Diyos ng Digmaan: Awtomatikong pinapaputok ang kidlat sa mga lumulusob, 2x lakas ng kastilyo turrets, at 50% pinsalang bawas sa pader.',
-    descriptionEn: 'Divine Wrath: Smites invaders with continuous celestial lightning, doubles automated turret fire rate, and reduces castle damage by 50%.',
+    description: 'Biyaya mula sa Diyos ng Digmaan: Awtomatikong pinapaputok ang kidlat sa mga lumulusob, 2x bilis ng atake ng mga gusali, at 50% pinsalang bawas sa pader.',
+    descriptionEn: 'Divine Wrath: Smites invaders with continuous celestial lightning, doubles establishment attack speed, and reduces castle damage by 50%.',
     durationSeconds: 45,
     costResources: { aetherShards: 75, arcaneEssence: 15, coins: 150 },
   },

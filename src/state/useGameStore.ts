@@ -1,5 +1,16 @@
 import { isConstructionReady } from './constructionProgress';
 import { normalizeDifficulty } from './difficulty';
+import { NODE_SPOTS, BUILDING_IDS, BUILDING_SITES } from './buildingLayout';
+import {
+  DEFENSE_CONFIG,
+  beaconLevelOf,
+  buildingHpOf,
+  buildingMaxHp,
+  buildingRepairCost,
+  castleUpgradeCost,
+  towerLevelOf,
+  towerUpgradeCost,
+} from './defenseStats';
 import { SKILLS, skillBonuses, normalizeSkillProgress } from './skillTree';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -114,6 +125,13 @@ export const RESOURCE_BUILDING_CONFIG: Record<ResourceBuildingId, {
     outputs: ['water', 'fish'],
     costs: [{ wood: 25, stone: 15, coins: 30 }, { wood: 40, stone: 25, coins: 65 }],
   },
+  CAVE: {
+    label: 'Yungib ng Hiwaga',
+    labelEn: 'Mystic Cave',
+    icon: '🌋',
+    outputs: ['arcaneEssence', 'aetherShards'],
+    costs: [{ wood: 30, stone: 40, aetherShards: 30, coins: 45 }, { stone: 60, aetherShards: 50, coins: 80 }],
+  },
 };
 
 const INITIAL_RESOURCE_BUILDINGS: ResourceBuildingsState = {
@@ -121,6 +139,37 @@ const INITIAL_RESOURCE_BUILDINGS: ResourceBuildingsState = {
   MINE: { level: 0, unlockedOutputs: [] },
   QUARRY: { level: 0, unlockedOutputs: [] },
   PORT: { level: 0, unlockedOutputs: [] },
+  CAVE: { level: 0, unlockedOutputs: [] },
+};
+
+/** Fills in fields older saves lack (the Mystic Cave, tower levels, structure HP). */
+const normalizeResourceBuildings = (raw?: Partial<ResourceBuildingsState>): ResourceBuildingsState => {
+  const result = { ...INITIAL_RESOURCE_BUILDINGS };
+  for (const id of Object.keys(INITIAL_RESOURCE_BUILDINGS) as ResourceBuildingId[]) {
+    const saved = raw?.[id];
+    if (!saved || !(saved.level >= 1)) {
+      result[id] = { ...INITIAL_RESOURCE_BUILDINGS[id], ...(saved ?? {}) };
+      continue;
+    }
+    const towerLevel = Math.max(1, Math.min(DEFENSE_CONFIG.towerMaxLevel, Math.floor(saved.towerLevel ?? 1)));
+    result[id] = { ...saved, towerLevel, hp: buildingHpOf({ ...saved, towerLevel }) };
+  }
+  return result;
+};
+
+/** Wrecked establishments get back a share of their HP when a wave ends. */
+const restoreWreckedBuildings = (buildings: ResourceBuildingsState): ResourceBuildingsState => {
+  const result = { ...buildings };
+  for (const id of Object.keys(result) as ResourceBuildingId[]) {
+    const b = result[id];
+    if (b.level < 1) continue;
+    const max = buildingMaxHp(towerLevelOf(b));
+    const hp = buildingHpOf(b);
+    if (hp < max * DEFENSE_CONFIG.building.waveEndRestoreFraction) {
+      result[id] = { ...b, hp: Math.round(max * DEFENSE_CONFIG.building.waveEndRestoreFraction) };
+    }
+  }
+  return result;
 };
 
 export const CASTLE_CONSTRUCTION_COST: Partial<Resources> = {
@@ -136,7 +185,7 @@ const INITIAL_DEFENSE: CastleDefenseState = {
   shieldHp: 200,
   shieldMaxHp: 200,
   wallLevel: 1,
-  turretLevel: 1,
+  beaconLevel: 1,
   shieldLevel: 1,
 };
 
@@ -172,12 +221,38 @@ const INITIAL_ROSTER: UnitRosterItem[] = [
   { id: 'unit_slime_support_1', name: 'Support Healing Slime', unitClass: 'AQUA_SLIME', assignedTask: 'HEAL', hp: 9999, maxHp: 9999, slimeEvolutionLevel: 1, equipment: {} },
 ];
 
+// Harvest spots beside the Crystal Spire, Quarry, Grove and Mystic Cave (src/data/buildingLayout.json)
 const INITIAL_DYNAMIC_NODES = {
-  AETHER: { x: 1, y: 1, qualityMultiplier: 1.0 },
-  STONE: { x: 8, y: 2, qualityMultiplier: 1.0 },
-  WOOD: { x: 8, y: 8, qualityMultiplier: 1.0 },
-  ESSENCE: { x: 1, y: 8, qualityMultiplier: 1.0 },
+  AETHER: { ...NODE_SPOTS.AETHER, qualityMultiplier: 1.0 },
+  STONE: { ...NODE_SPOTS.STONE, qualityMultiplier: 1.0 },
+  WOOD: { ...NODE_SPOTS.WOOD, qualityMultiplier: 1.0 },
+  ESSENCE: { ...NODE_SPOTS.ESSENCE, qualityMultiplier: 1.0 },
 };
+
+const INITIAL_ENT_ASSIGNMENTS: Record<ResourceBuildingId, string | null> = {
+  WOOD: null,
+  MINE: null,
+  QUARRY: null,
+  PORT: null,
+  CAVE: null,
+};
+
+const INITIAL_SKILL_COOLDOWNS: Record<ResourceBuildingId, { skill1: number; skill2: number }> = {
+  WOOD: { skill1: 0, skill2: 0 },
+  MINE: { skill1: 0, skill2: 0 },
+  QUARRY: { skill1: 0, skill2: 0 },
+  PORT: { skill1: 0, skill2: 0 },
+  CAVE: { skill1: 0, skill2: 0 },
+};
+
+export const INITIAL_AUTO_BUY_BUILDING: Record<ResourceBuildingId, boolean> = {
+  WOOD: false,
+  MINE: false,
+  QUARRY: false,
+  PORT: false,
+  CAVE: false,
+};
+
 
 const getUnitSummonCost = (unitClass: UnitClass, countOfClass: number): Partial<Resources> => {
   let aetherShards = 0;
@@ -286,6 +361,18 @@ export const useGameStore = create<GameStoreState>()(
       showTileCoordinates: true,
       measuredFps: 60,
       gameSpeed: 1 as 0 | 1 | 2,
+
+      // Ent ↔ Establishment 1-to-1 Caretaker System
+      entAssignments: { ...INITIAL_ENT_ASSIGNMENTS },
+      establishmentSkillCooldowns: {
+        WOOD: { skill1: 0, skill2: 0 },
+        MINE: { skill1: 0, skill2: 0 },
+        QUARRY: { skill1: 0, skill2: 0 },
+        PORT: { skill1: 0, skill2: 0 },
+        CAVE: { skill1: 0, skill2: 0 },
+      },
+      selectedEstablishmentId: null,
+      autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING },
 
       setScreen: (screen: ScreenState) => {
         set({ screen, lastSavedTimestamp: Date.now() });
@@ -484,6 +571,17 @@ export const useGameStore = create<GameStoreState>()(
 
           const nextRoster = state.roster.filter((u) => u.id !== unitId);
 
+          // Clear Ent assignment when a Treant is removed (its establishment loses its caretaker)
+          let nextEntAssignments = state.entAssignments;
+          if (unitToRemove.unitClass === 'TREANT') {
+            nextEntAssignments = { ...state.entAssignments };
+            for (const id of Object.keys(nextEntAssignments) as (keyof typeof nextEntAssignments)[]) {
+              if (nextEntAssignments[id] === unitId) {
+                nextEntAssignments[id] = null;
+              }
+            }
+          }
+
           return {
             resources: refundCost
               ? {
@@ -495,10 +593,12 @@ export const useGameStore = create<GameStoreState>()(
               : state.resources,
             roster: nextRoster,
             workerCount: nextRoster.length,
+            entAssignments: nextEntAssignments,
             lastSavedTimestamp: Date.now(),
           };
         });
       },
+
 
       summonUnit: (unitClass: UnitClass, initialTask?: HarvestTask, isFreeCost?: boolean): boolean => {
         if (unitClass === 'AQUA_SLIME') {
@@ -510,8 +610,8 @@ export const useGameStore = create<GameStoreState>()(
         const countOfClass = state.roster.filter((u) => u.unitClass === unitClass).length;
         const config = UNIT_CLASSES[unitClass];
 
-        // Strict limit: Treant max 1 per platform, all other minion types max 2 per type
-        const maxAllowed = unitClass === 'TREANT' ? 1 : 2;
+        // Treant max = 5 (one per establishment), all other minion types max 2 per type
+        const maxAllowed = unitClass === 'TREANT' ? 5 : 2;
         if (countOfClass >= maxAllowed) {
           return false;
         }
@@ -548,6 +648,17 @@ export const useGameStore = create<GameStoreState>()(
 
           const nextRoster = [...state.roster, newUnit];
 
+          // Auto-assign new Treant to first unassigned establishment
+          let nextEntAssignments = state.entAssignments;
+          if (unitClass === 'TREANT') {
+            const unassignedBuilding = BUILDING_IDS.find(
+              (id) => state.resourceBuildings[id]?.level >= 1 && !state.entAssignments[id]
+            );
+            if (unassignedBuilding) {
+              nextEntAssignments = { ...state.entAssignments, [unassignedBuilding]: newUnitId };
+            }
+          }
+
           set({
             resources: {
               ...state.resources,
@@ -557,6 +668,7 @@ export const useGameStore = create<GameStoreState>()(
             },
             roster: nextRoster,
             workerCount: nextRoster.length,
+            entAssignments: nextEntAssignments,
             lastSavedTimestamp: Date.now(),
           });
 
@@ -686,18 +798,89 @@ export const useGameStore = create<GameStoreState>()(
         const cost = config.costs[nextLevel - 1];
         if (!cost || !get().spendResources(cost)) return false;
 
+        set((prev) => {
+          const previous = prev.resourceBuildings[buildingId];
+          const towerLevel = Math.max(1, previous.towerLevel ?? 1);
+          return {
+            resourceBuildings: {
+              ...prev.resourceBuildings,
+              [buildingId]: {
+                level: nextLevel,
+                unlockedOutputs: config.outputs.slice(0, nextLevel),
+                towerLevel,
+                // A new establishment starts at full health; production upgrades keep damage as-is
+                hp: nextLevel === 1 ? buildingMaxHp(towerLevel) : buildingHpOf(previous),
+              },
+            },
+            lastSavedTimestamp: Date.now(),
+          };
+        });
+        soundFx.playFanfare();
+        return true;
+      },
+
+      upgradeTower: (buildingId: ResourceBuildingId): boolean => {
+        const building = get().resourceBuildings[buildingId];
+        if (!building || building.level < 1) return false;
+        const towerLevel = towerLevelOf(building);
+        const cost = towerUpgradeCost(buildingId, towerLevel);
+        if (!cost || !get().spendResources(cost)) return false;
+        set((prev) => {
+          const current = prev.resourceBuildings[buildingId];
+          const nextTower = towerLevel + 1;
+          // Upgrades raise max HP and heal by the added amount
+          const hp = buildingHpOf(current) + (buildingMaxHp(nextTower) - buildingMaxHp(towerLevel));
+          return {
+            resourceBuildings: {
+              ...prev.resourceBuildings,
+              [buildingId]: { ...current, towerLevel: nextTower, hp },
+            },
+            lastSavedTimestamp: Date.now(),
+          };
+        });
+        soundFx.playFanfare();
+        return true;
+      },
+
+      repairBuilding: (buildingId: ResourceBuildingId): boolean => {
+        const building = get().resourceBuildings[buildingId];
+        if (!building || building.level < 1) return false;
+        const max = buildingMaxHp(towerLevelOf(building));
+        if (buildingHpOf(building) >= max) return false;
+        if (!get().spendResources(buildingRepairCost())) return false;
+        get().restoreBuildingHp(buildingId, Math.round(max * DEFENSE_CONFIG.building.repairFraction));
+        soundFx.playClick();
+        return true;
+      },
+
+      damageBuilding: (buildingId: ResourceBuildingId, amount: number): boolean => {
+        const building = get().resourceBuildings[buildingId];
+        const hp = buildingHpOf(building);
+        if (!building || building.level < 1 || hp <= 0 || !(amount > 0)) return false;
+        const nextHp = Math.max(0, Math.round(hp - amount));
         set((prev) => ({
           resourceBuildings: {
             ...prev.resourceBuildings,
-            [buildingId]: {
-              level: nextLevel,
-              unlockedOutputs: config.outputs.slice(0, nextLevel),
-            },
+            [buildingId]: { ...prev.resourceBuildings[buildingId], hp: nextHp },
+          },
+        }));
+        return nextHp <= 0;
+      },
+
+      restoreBuildingHp: (buildingId: ResourceBuildingId, amount: number): number => {
+        const building = get().resourceBuildings[buildingId];
+        if (!building || building.level < 1 || !(amount > 0)) return 0;
+        const hp = buildingHpOf(building);
+        const nextHp = Math.min(buildingMaxHp(towerLevelOf(building)), Math.round(hp + amount));
+        if (nextHp <= hp) return 0;
+        set((prev) => ({
+          resourceBuildings: {
+            ...prev.resourceBuildings,
+            [buildingId]: { ...prev.resourceBuildings[buildingId], hp: nextHp },
           },
           lastSavedTimestamp: Date.now(),
         }));
-        soundFx.playFanfare();
-        return true;
+        return nextHp - hp;
       },
 
       activateGodBlessing: (blessingId: GodBlessingId): boolean => {
@@ -935,10 +1118,7 @@ export const useGameStore = create<GameStoreState>()(
               coins: Number(data.resources.coins) || 0,
             },
             castleBuilt: data.castleBuilt ?? false,
-            resourceBuildings: {
-              ...INITIAL_RESOURCE_BUILDINGS,
-              ...(data.resourceBuildings || {}),
-            },
+            resourceBuildings: normalizeResourceBuildings(data.resourceBuildings),
             roster: importedRoster,
             workerCount: importedRoster.length,
             upgrades: {
@@ -949,6 +1129,7 @@ export const useGameStore = create<GameStoreState>()(
             defense: {
               ...INITIAL_DEFENSE,
               ...(data.defense || {}),
+              beaconLevel: beaconLevelOf(data.defense || {}),
             },
             invasion: {
               ...INITIAL_INVASION,
@@ -1036,26 +1217,21 @@ export const useGameStore = create<GameStoreState>()(
       // Castle Defense Actions
       upgradeDefense: (defenseKey) => {
         const state = get();
-        const currentLevel = state.defense[defenseKey];
-        const baseCost = defenseKey === 'wallLevel' ? 70 : defenseKey === 'turretLevel' ? 90 : 110;
-        const costCoins = Math.floor(baseCost * Math.pow(1.5, currentLevel - 1));
-
-        if (state.resources.coins < costCoins) return false;
+        const currentLevel = defenseKey === 'beaconLevel' ? beaconLevelOf(state.defense) : state.defense[defenseKey];
+        const cost = castleUpgradeCost(defenseKey, currentLevel);
+        if (!cost || !get().spendResources(cost)) return false;
 
         set((prev) => {
           const nextDef = { ...prev.defense, [defenseKey]: currentLevel + 1 };
           if (defenseKey === 'wallLevel') {
-            nextDef.castleMaxHp += 200;
-            nextDef.castleHp = Math.min(nextDef.castleMaxHp, nextDef.castleHp + 200);
+            const gain = DEFENSE_CONFIG.castle.wallLevel.hpPerLevel;
+            nextDef.castleMaxHp += gain;
+            nextDef.castleHp = Math.min(nextDef.castleMaxHp, nextDef.castleHp + gain);
           } else if (defenseKey === 'shieldLevel') {
-            nextDef.shieldMaxHp += 100;
+            nextDef.shieldMaxHp += DEFENSE_CONFIG.castle.shieldLevel.shieldPerLevel;
             nextDef.shieldHp = nextDef.shieldMaxHp;
           }
           return {
-            resources: {
-              ...prev.resources,
-              coins: prev.resources.coins - costCoins,
-            },
             defense: nextDef,
             lastSavedTimestamp: Date.now(),
           };
@@ -1208,6 +1384,7 @@ export const useGameStore = create<GameStoreState>()(
               ...prev.defense,
               shieldHp: prev.defense.shieldMaxHp, // Recharge shield
             },
+            resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
             lastSavedTimestamp: Date.now(),
           };
         });
@@ -1269,6 +1446,7 @@ export const useGameStore = create<GameStoreState>()(
             upgrades: { ...INITIAL_UPGRADES },
             roster: [...INITIAL_ROSTER],
             workerCount: INITIAL_ROSTER.length,
+            resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
             invasion: {
               ...prev.invasion,
               isActive: false,
@@ -1605,7 +1783,7 @@ export const useGameStore = create<GameStoreState>()(
         if (!state.castleBuilt) return;
         if (task === 'WOOD' && state.resourceBuildings.WOOD.level < 1) return;
         if (task === 'STONE' && state.resourceBuildings.QUARRY.level < 1) return;
-        if (task === 'ESSENCE' && state.resourceBuildings.PORT.level < 1) return;
+        if (task === 'ESSENCE' && (state.resourceBuildings.CAVE?.level ?? 0) < 1) return;
         set((state) => ({
           dynamicResourceNodes: {
             ...state.dynamicResourceNodes,
@@ -1616,6 +1794,149 @@ export const useGameStore = create<GameStoreState>()(
             },
           },
         }));
+      },
+
+      // ── Ent ↔ Establishment Caretaker Actions ──────────────────────────────
+
+      assignEntToEstablishment: (entUnitId, buildingId) => {
+        set((state) => {
+          // Clear any existing assignment for this Ent elsewhere
+          const next = { ...state.entAssignments };
+          for (const id of Object.keys(next) as ResourceBuildingId[]) {
+            if (next[id] === entUnitId) next[id] = null;
+          }
+          // Displace any other Ent currently at this building
+          next[buildingId] = entUnitId;
+          return { entAssignments: next };
+        });
+      },
+
+      clearEntAssignment: (entUnitId) => {
+        set((state) => {
+          const next = { ...state.entAssignments };
+          for (const id of Object.keys(next) as ResourceBuildingId[]) {
+            if (next[id] === entUnitId) next[id] = null;
+          }
+          return { entAssignments: next };
+        });
+      },
+
+      tickEstablishmentSkills: (deltaSeconds) => {
+        set((state) => {
+          const next = { ...state.establishmentSkillCooldowns };
+          let changed = false;
+          for (const id of Object.keys(next) as ResourceBuildingId[]) {
+            const { skill1, skill2 } = next[id];
+            const ns1 = Math.max(0, skill1 - deltaSeconds);
+            const ns2 = Math.max(0, skill2 - deltaSeconds);
+            if (ns1 !== skill1 || ns2 !== skill2) {
+              next[id] = { skill1: ns1, skill2: ns2 };
+              changed = true;
+            }
+          }
+          return changed ? { establishmentSkillCooldowns: next } : state;
+        });
+      },
+
+      triggerEstablishmentSkill: (buildingId, skillIndex) => {
+        const state = get();
+        const building = state.resourceBuildings[buildingId];
+        if (!building || building.level < 1) return false;
+        const cooldowns = state.establishmentSkillCooldowns[buildingId];
+        const currentCooldown = skillIndex === 0 ? cooldowns.skill1 : cooldowns.skill2;
+        if (currentCooldown > 0) return false;
+
+        // Import cooldown from skill definition
+        const { ESTABLISHMENT_SKILLS } = require('../data/establishmentSkills');
+        const pair = ESTABLISHMENT_SKILLS[buildingId];
+        const skill = skillIndex === 0 ? pair.skill1 : pair.skill2;
+
+        set((prev) => ({
+          establishmentSkillCooldowns: {
+            ...prev.establishmentSkillCooldowns,
+            [buildingId]: {
+              ...prev.establishmentSkillCooldowns[buildingId],
+              [skillIndex === 0 ? 'skill1' : 'skill2']: skill.cooldownSeconds,
+            },
+          },
+        }));
+        soundFx.playFanfare();
+        return true;
+      },
+
+      relocateBuilding: (buildingId) => {
+        // Castle is permanently fixed at center — cannot be relocated
+        if ((buildingId as string) === 'CASTLE') return false;
+        const state = get();
+        const building = state.resourceBuildings[buildingId];
+        if (!building || building.level < 1) return false;
+
+        // Relocation is a visual-only effect: WorkerManager picks a new position
+        // and calls replenishResourceNode. We just signal the event by a small HP bump.
+        const currentHp = buildingHpOf(building);
+        const maxHp = buildingMaxHp(towerLevelOf(building));
+        if (currentHp < maxHp) {
+          get().restoreBuildingHp(buildingId, Math.round(maxHp * 0.05));
+        }
+        soundFx.playClick();
+        return true;
+      },
+
+      // ── Establishment Modal Actions ──────────────────────────────────────────
+
+      openEstablishmentModal: (id) => {
+        set({ selectedEstablishmentId: id });
+      },
+
+      closeEstablishmentModal: () => {
+        set({ selectedEstablishmentId: null });
+      },
+
+      toggleBuildingAutoBuy: (buildingId) => {
+        set((state) => ({
+          autoBuyBuildingMaterials: {
+            ...state.autoBuyBuildingMaterials,
+            [buildingId]: !state.autoBuyBuildingMaterials[buildingId],
+          },
+        }));
+        soundFx.playClick();
+      },
+
+      autoBuyMaterialsForUpgrade: (buildingId) => {
+        const state = get();
+        const building = state.resourceBuildings[buildingId];
+        const config = RESOURCE_BUILDING_CONFIG[buildingId];
+        if (!building || !config) return;
+        const nextLevel = building.level + 1;
+        const cost = config.costs[nextLevel - 1];
+        if (!cost) return;
+
+        let totalCoinCost = 0;
+        const needed: Partial<Resources> = {};
+
+        for (const [key, amount] of Object.entries(cost) as [keyof Resources, number][]) {
+          const have = (state.resources[key] ?? 0) as number;
+          if (have < amount) {
+            const shortage = amount - have;
+            const price = RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES];
+            if (price) {
+              totalCoinCost += shortage * price.buy;
+              needed[key] = shortage;
+            }
+          }
+        }
+
+        if (totalCoinCost === 0 || state.resources.coins < totalCoinCost) return;
+
+        set((prev) => {
+          const nextResources = { ...prev.resources, coins: prev.resources.coins - totalCoinCost };
+          for (const [key, amt] of Object.entries(needed) as [keyof Resources, number][]) {
+            (nextResources[key] as number) = ((prev.resources[key] ?? 0) as number) + amt;
+          }
+          return { resources: nextResources, lastSavedTimestamp: Date.now() };
+        });
+
+        soundFx.playCoin();
       },
     }),
     {
@@ -1632,7 +1953,7 @@ export const useGameStore = create<GameStoreState>()(
           ...savedRoster.filter((unit) => unit.unitClass !== 'AQUA_SLIME'),
           permanentSlimes[0],
         ];
-        const resourceBuildings = persisted.resourceBuildings ?? { ...INITIAL_RESOURCE_BUILDINGS };
+        const resourceBuildings = normalizeResourceBuildings(persisted.resourceBuildings);
 
         return {
           ...currentState,
@@ -1643,6 +1964,9 @@ export const useGameStore = create<GameStoreState>()(
           workerCount: roster.length,
           castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
           resourceBuildings,
+          defense: persisted.defense
+            ? { ...INITIAL_DEFENSE, ...persisted.defense, beaconLevel: beaconLevelOf(persisted.defense) }
+            : currentState.defense,
           showTileCoordinates: persisted.showTileCoordinates ?? true,
         };
       },

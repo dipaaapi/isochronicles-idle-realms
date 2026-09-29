@@ -8,17 +8,37 @@ import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
+import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import { WorkerInstance } from './WorkerManager';
 import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
-import { skillBonuses } from '../state/skillTree';
+import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
+import { Navigation, NavAgent } from './Navigation';
+import type { StructureManager, StructureTarget } from './StructureManager';
+import type { PortalManager, PortalState } from './PortalManager';
+import { CASTLE_FOOTPRINT, PORTAL_SITES, rectCenter } from '../state/buildingLayout';
 
-export interface ActiveInvader {
+/** Something small that blocks invaders and can be hit (Sapling Grove summons). */
+export interface InvaderBlocker {
+  container: { x: number; y: number; active: boolean };
+  hp: number;
+  dead: boolean;
+  takeHit: (damage: number) => void;
+}
+
+type InvaderTarget =
+  | { kind: 'worker'; worker: WorkerInstance }
+  | { kind: 'blocker'; blocker: InvaderBlocker }
+  | { kind: 'structure'; structure: StructureTarget };
+
+export interface ActiveInvader extends NavAgent {
   id: string;
   type: InvaderType;
   name: string;
   container: Phaser.GameObjects.Container;
   shadow: Phaser.GameObjects.Ellipse;
   bodyGfx: Phaser.GameObjects.Graphics;
+  /** 8-direction pixel-art sprite; absent when the sheet was still baking at spawn (bodyGfx is drawn instead). */
+  sprite?: Phaser.GameObjects.Sprite;
   hpBarGfx: Phaser.GameObjects.Graphics;
   gridX: number;
   gridY: number;
@@ -34,20 +54,46 @@ export interface ActiveInvader {
   isScout?: boolean;
   isRetreating?: boolean;
   spawnGrid: GridPoint;
+  /** Full-size scale (bosses are bigger). */
+  baseScale: number;
+  /** Portal it came out of / will leave through. */
+  portal?: PortalState;
+  exitPortal?: PortalState;
+  /** Seconds left stepping out of (emerge) or into (enter) a portal. */
+  emerge?: number;
+  enter?: number;
+  /** Seconds left under the citadel's Provoke Beacon — must attack the citadel. */
+  provokedTimer?: number;
+  slowTimer?: number;
+  slowFactor?: number;
+  burnTimer?: number;
+  burnDps?: number;
+  burnTick?: number;
+  target?: InvaderTarget;
+  retargetTimer?: number;
+  structPath?: GridPoint[];
+  structGoal?: string;
+  structTimer?: number;
 }
+
+const EMERGE_SECONDS = 0.7;
+const ENTER_SECONDS = 0.55;
+/** Invaders only break off toward a defender or sapling this close (world px). */
+const AGGRO_RADIUS = 110;
 
 export class InvasionManager {
   private scene: Phaser.Scene;
   private pathfinder: PathfindingService;
   private parentContainer?: Phaser.GameObjects.Container;
   private invaders: ActiveInvader[] = [];
-  private turretGfx: Phaser.GameObjects.Graphics;
-  private turretShootTimer: number = 0;
   private spawnTimer: number = 0;
   private totalEnemiesToSpawn: number = 0;
   private enemiesSpawnedCount: number = 0;
-  private nexusGridPos: GridPoint = { x: 5, y: 5 };
   private workerProvider?: () => WorkerInstance[];
+  private blockerProvider: () => InvaderBlocker[] = () => [];
+  private nav?: Navigation;
+  private structures?: StructureManager;
+  private portals?: PortalManager;
   private autoSmiteTimer: number = 0;
   private lastSmiteTime: number = 0;
   private wasInvasionActive: boolean = false;
@@ -60,21 +106,33 @@ export class InvasionManager {
     this.scene = scene;
     this.pathfinder = pathfinder;
     this.parentContainer = parentContainer;
-
-    // Turret projectile graphics layer
-    this.turretGfx = this.scene.add.graphics();
-    this.turretGfx.setDepth(9995);
-    if (this.parentContainer) {
-      this.parentContainer.add(this.turretGfx);
-    }
   }
 
   public setWorkerProvider(provider: () => WorkerInstance[]): void {
     this.workerProvider = provider;
   }
 
+  /** Obstacles, attackable structures, portals and sapling blockers. */
+  public setWorld(world: {
+    nav: Navigation;
+    structures: StructureManager;
+    portals: PortalManager;
+    blockers: () => InvaderBlocker[];
+  }): void {
+    this.nav = world.nav;
+    this.structures = world.structures;
+    this.portals = world.portals;
+    this.blockerProvider = world.blockers;
+  }
+
   public getInvaders(): ActiveInvader[] {
     return this.invaders;
+  }
+
+  /** World position of the citadel's centre (smite fallback, victory anchor). */
+  private castleCenter(): { x: number; y: number } {
+    const c = rectCenter(CASTLE_FOOTPRINT);
+    return IsometricHelper.gridToScreen(c.x, c.y);
   }
 
   public update(delta: number): void {
@@ -84,6 +142,7 @@ export class InvasionManager {
     // Clean up when a wave closes, while allowing peacetime scouts to survive.
     if (!store.invasion.isActive && this.wasInvasionActive) {
       this.wipeAllInvaders();
+      this.portals?.close();
     }
     this.wasInvasionActive = store.invasion.isActive;
 
@@ -100,11 +159,8 @@ export class InvasionManager {
       this.triggerEnemiesRetreatWithLoot();
     }
 
-    // 3. Automated Turret Attacks (disabled if castle breached or invaders retreating)
+    // AEGIS_WRATH God Blessing: Continuous celestial lightning smiting invaders
     if (store.defense.castleHp > 0) {
-      this.handleTurretAttacks(delta);
-
-      // AEGIS_WRATH God Blessing: Continuous celestial lightning smiting invaders
       const isAegisWrath = (store.activeGodBlessings?.AEGIS_WRATH || 0) > 0;
       if (isAegisWrath && this.invaders.some((i) => !i.isDead)) {
         this.autoSmiteTimer -= delta;
@@ -115,18 +171,26 @@ export class InvasionManager {
       }
     }
 
-    // 4. Update living invaders movement and attacks
+    // 3. Update living invaders movement and attacks
     this.updateInvaders(deltaSec);
   }
 
   private handleActiveIncursion(delta: number, _deltaSec: number): void {
     const store = useGameStore.getState();
 
-    // Initialize wave spawning
+    // Initialize wave spawning: tear the portals open
     if (this.totalEnemiesToSpawn === 0 && store.invasion.totalEnemiesInWave > 0) {
       this.totalEnemiesToSpawn = store.invasion.totalEnemiesInWave;
       this.enemiesSpawnedCount = 0;
-      this.spawnTimer = 500;
+      this.spawnTimer = 900;
+      const enemyMultiplier = DIFFICULTIES[normalizeDifficulty(store.difficulty)].enemyMultiplier;
+      this.portals?.open(store.invasion.waveNumber, enemyMultiplier);
+    }
+
+    // Every portal smashed: the rest of the wave never arrives
+    if (this.portals?.allSealed() && this.enemiesSpawnedCount < this.totalEnemiesToSpawn) {
+      this.totalEnemiesToSpawn = this.enemiesSpawnedCount;
+      useGameStore.getState().setEnemiesRemaining(this.invaders.filter((i) => !i.isDead).length);
     }
 
     // Spawn staggered enemies
@@ -134,8 +198,7 @@ export class InvasionManager {
       this.spawnTimer -= delta;
       if (this.spawnTimer <= 0 && useGameStore.getState().invasion.isActive) {
         this.spawnTimer = 1800 + Math.random() * 800; // Spawn every ~2 seconds
-        this.spawnSingleInvader(store.invasion.waveNumber);
-        this.enemiesSpawnedCount++;
+        if (this.spawnSingleInvader(store.invasion.waveNumber)) this.enemiesSpawnedCount++;
       }
     }
 
@@ -150,7 +213,7 @@ export class InvasionManager {
       const victoryBounty = 80 + store.invasion.waveNumber * 45;
       store.resolveInvasionVictory(victoryBounty);
 
-      const nexusScreen = IsometricHelper.gridToScreen(5, 5);
+      const nexusScreen = this.castleCenter();
       this.spawnFloatingPopup(
         nexusScreen.x,
         nexusScreen.y - 45,
@@ -159,7 +222,7 @@ export class InvasionManager {
       );
     }
 
-  // Auto-Tap / Auto-Smite Subroutine
+    // Auto-Tap / Auto-Smite Subroutine
     if (store.autoSettings.autoTap && this.invaders.some((i) => !i.isDead)) {
       this.autoSmiteTimer -= delta;
       if (this.autoSmiteTimer <= 0) {
@@ -177,18 +240,17 @@ export class InvasionManager {
     }
   }
 
+  /** Portal exit tiles, used as spawn/leave points when no PortalManager is attached (tests). */
+  private static readonly EXITS: GridPoint[] = PORTAL_SITES.map((p) => p.exit);
+
   private spawnSingleScout(): void {
-    // Choose a random spawn edge
-    const spawnPoints: GridPoint[] = [
-      { x: 0, y: 0 },
-      { x: 9, y: 0 },
-      { x: 0, y: 9 },
-      { x: 9, y: 9 },
-    ];
-    const spawnGrid = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+    const fromPortal = this.portals?.pickAny();
+    const spawnGrid = fromPortal
+      ? fromPortal.site.exit
+      : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
 
     const type: InvaderType = 'HUMAN_ARCHER'; // re-use archer sprite for now, but weak stats
-    
+
     // Low HP, low damage so they aren't a threat
     const finalMaxHp = 10;
     const finalDamage = 0; // they don't attack
@@ -202,9 +264,7 @@ export class InvasionManager {
     const bodyGfx = this.scene.add.graphics();
     const hpBarGfx = this.scene.add.graphics(); // Hidden hp bar for scouts
 
-    this.renderInvaderBody(bodyGfx, type);
-
-    container.add([shadow, bodyGfx, hpBarGfx]);
+    const sprite = this.attachInvaderBody(container, shadow, bodyGfx, hpBarGfx, type);
     container.setDepth(IsometricHelper.getDepth(spawnGrid.x, spawnGrid.y, 7));
 
     if (this.parentContainer) {
@@ -219,6 +279,7 @@ export class InvasionManager {
       container,
       shadow,
       bodyGfx,
+      sprite,
       hpBarGfx,
       gridX: spawnGrid.x,
       gridY: spawnGrid.y,
@@ -233,6 +294,8 @@ export class InvasionManager {
       isDead: false,
       isRetreating: true, // trick it into wandering off
       spawnGrid: { x: spawnGrid.x, y: spawnGrid.y },
+      baseScale: 1,
+      portal: fromPortal,
     };
 
     // Interactive Clicking: Smite for Loot
@@ -244,34 +307,36 @@ export class InvasionManager {
       }
     });
 
-    // Make them wander to a random edge to leave
-    const exitPoints = spawnPoints.filter((point) => point.x !== spawnGrid.x || point.y !== spawnGrid.y);
-    const leaveGrid = exitPoints[Math.floor(Math.random() * exitPoints.length)];
+    // Wander across the island and slip out through a different rift
+    const exitPortal = this.portals?.pickAny(fromPortal);
+    const exitPoints = InvasionManager.EXITS.filter((point) => point.x !== spawnGrid.x || point.y !== spawnGrid.y);
+    const leaveGrid = exitPortal ? exitPortal.site.exit : exitPoints[Math.floor(Math.random() * exitPoints.length)];
+    invader.exitPortal = exitPortal;
     const spawnPath = this.pathfinder.findPath(spawnGrid.x, spawnGrid.y, leaveGrid.x, leaveGrid.y, [0]);
     invader.currentPath = (spawnPath && spawnPath.length > 0) ? spawnPath : [spawnGrid, leaveGrid];
     invader.pathIndex = 0;
 
+    if (fromPortal) this.beginEmerge(invader, fromPortal);
     this.invaders.push(invader);
   }
 
-  private spawnSingleInvader(waveNumber: number): void {
-    if (!useGameStore.getState().invasion.isActive) return;
+  /** Returns false when no portal is left to spawn from. */
+  private spawnSingleInvader(waveNumber: number): boolean {
+    if (!useGameStore.getState().invasion.isActive) return false;
 
-    // Choose spawn edge
-    const spawnPoints: GridPoint[] = [
-      { x: 0, y: 0 },
-      { x: 9, y: 0 },
-      { x: 0, y: 9 },
-      { x: 9, y: 9 },
-      { x: 1, y: 8 }, // Void Cave entrance
-    ];
-    const spawnGrid = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
-    
+    let portal: PortalState | null = null;
+    if (this.portals) {
+      portal = this.portals.pickSpawn();
+      if (!portal) return false;
+    }
+    const spawnGrid = portal
+      ? portal.site.exit
+      : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
+
     // Choose enemy type based on wave (Humans & Mechas & Deep One) AND nexusLevel
-    const nexusLevel = useGameStore.getState().upgrades.nexusLevel;
     let type: InvaderType = 'HUMAN_KNIGHT';
     const rand = Math.random();
-    
+
     // Boss waves every 5 waves, and massive Phase Climax Bosses at 25, 50, 75, 100
     const isPhaseClimaxBoss = waveNumber === 25 || waveNumber === 50 || waveNumber === 75 || waveNumber === 100;
     const isBossWave = (waveNumber % 5 === 0) || isPhaseClimaxBoss;
@@ -302,7 +367,7 @@ export class InvasionManager {
     const bossHpMultiplier = isPhaseClimaxBoss ? 4.5 : isBoss ? 2.5 : 1;
     const bossDmgMultiplier = isPhaseClimaxBoss ? 2.0 : isBoss ? 1.4 : 1;
     const bossBountyMultiplier = isPhaseClimaxBoss ? 8.0 : isBoss ? 3.5 : 1;
-    
+
     const finalMaxHp = Math.round((cfg.hp + (waveNumber - 1) * 18) * difficultyMultiplier * bossHpMultiplier);
     const finalDamage = Math.round(cfg.damage * (1 + (waveNumber - 1) * 0.035) * bossDmgMultiplier * enemyMultiplier);
     const finalBounty = Math.round(cfg.bountyCoins * (1 + (waveNumber - 1) * 0.04) * bossBountyMultiplier);
@@ -315,10 +380,8 @@ export class InvasionManager {
     const bodyGfx = this.scene.add.graphics();
     const hpBarGfx = this.scene.add.graphics();
 
-    this.renderInvaderBody(bodyGfx, type);
+    const sprite = this.attachInvaderBody(container, shadow, bodyGfx, hpBarGfx, type);
     this.renderHpBar(hpBarGfx, finalMaxHp, finalMaxHp);
-
-    container.add([shadow, bodyGfx, hpBarGfx]);
     container.setDepth(IsometricHelper.getDepth(spawnGrid.x, spawnGrid.y, 7));
 
     if (isBoss) {
@@ -337,6 +400,7 @@ export class InvasionManager {
       container,
       shadow,
       bodyGfx,
+      sprite,
       hpBarGfx,
       gridX: spawnGrid.x,
       gridY: spawnGrid.y,
@@ -351,6 +415,9 @@ export class InvasionManager {
       isDead: false,
       isRetreating: false,
       spawnGrid: { x: spawnGrid.x, y: spawnGrid.y },
+      baseScale: isBoss ? 1.5 : 1,
+      portal: portal ?? undefined,
+      retargetTimer: 0,
     };
 
     // Interactive Clicking: Demon Lord Lightning Smite! ⚡
@@ -362,16 +429,49 @@ export class InvasionManager {
       }
     });
 
-    // Pathfind to Demon Lord's Citadel (synchronous)
-    const allowedTiles = type === 'DEEP_ONE' ? [0, 1] : [0];
-    const spawnPath = this.pathfinder.findPath(spawnGrid.x, spawnGrid.y, this.nexusGridPos.x, this.nexusGridPos.y, allowedTiles);
-    invader.currentPath = (spawnPath && spawnPath.length > 0)
-      ? spawnPath
-      : [{ x: spawnGrid.x, y: spawnGrid.y }, { x: this.nexusGridPos.x, y: this.nexusGridPos.y }];
-    invader.pathIndex = 0;
-
+    if (portal) this.beginEmerge(invader, portal);
     this.invaders.push(invader);
     soundFx.playCastleHit();
+    if (isBoss) logMessage('bossArrives', { name: invader.name });
+    return true;
+  }
+
+  /** Starts an invader small and faded at the portal's heart; it grows as it steps onto the exit tile. */
+  private beginEmerge(invader: ActiveInvader, portal: PortalState): void {
+    invader.emerge = EMERGE_SECONDS;
+    invader.container.setPosition(portal.x, portal.y);
+    invader.container.setScale(invader.baseScale * 0.3);
+    invader.container.setAlpha(0);
+    this.portals?.playSpawn(portal);
+  }
+
+  /**
+   * Adds the invader's visuals to its container: the 8-direction pixel sprite
+   * when its sheet is baked, otherwise the legacy vector drawing.
+   */
+  private attachInvaderBody(
+    container: Phaser.GameObjects.Container,
+    shadow: Phaser.GameObjects.Ellipse,
+    bodyGfx: Phaser.GameObjects.Graphics,
+    hpBarGfx: Phaser.GameObjects.Graphics,
+    type: InvaderType
+  ): Phaser.GameObjects.Sprite | undefined {
+    const sprite = createEnemySprite(this.scene, type);
+    if (!sprite) {
+      this.renderInvaderBody(bodyGfx, type);
+      container.add([shadow, bodyGfx, hpBarGfx]);
+      return undefined;
+    }
+    container.add([shadow, bodyGfx, sprite, hpBarGfx]);
+    // renderHpBar draws at y = -26; lift it just above the sprite's head
+    const headroom = enemySpriteHeadroom(type) ?? 26;
+    hpBarGfx.setY(26 - headroom - 4);
+    return sprite;
+  }
+
+  /** Points the invader's sprite along a screen-space vector (walk cycle while moving). */
+  private faceInvader(invader: ActiveInvader, dx: number, dy: number, moving: boolean): void {
+    if (invader.sprite) faceEnemySprite(invader.sprite, dx, dy, moving);
   }
 
   private renderInvaderBody(graphics: Phaser.GameObjects.Graphics, type: InvaderType): void {
@@ -528,9 +628,9 @@ export class InvasionManager {
       }
     }
 
-    // If no invader near specific coordinate or general tap, target the most threatening (closest to Nexus)
+    // If no invader near specific coordinate or general tap, target the most threatening (closest to the citadel)
     if (!closest) {
-      const nexusIso = IsometricHelper.gridToScreen(this.nexusGridPos.x, this.nexusGridPos.y);
+      const nexusIso = this.castleCenter();
       minDistance = 999999;
       for (const invader of aliveInvaders) {
         const dist = Math.hypot(invader.container.x - nexusIso.x, invader.container.y - nexusIso.y);
@@ -608,8 +708,13 @@ export class InvasionManager {
     soundFx.playLaser();
 
     // Visual electric flash
+    if (invader.sprite) {
+      const sprite = invader.sprite;
+      sprite.setTintFill(0xffffff);
+      this.scene.time.delayedCall(90, () => sprite.active && sprite.clearTint());
+    }
     this.scene.tweens.add({
-      targets: invader.bodyGfx,
+      targets: invader.sprite ?? invader.bodyGfx,
       alpha: 0.2,
       yoyo: true,
       duration: 60,
@@ -617,60 +722,11 @@ export class InvasionManager {
     });
   }
 
-  private handleTurretAttacks(delta: number): void {
-    const storeState = useGameStore.getState();
-    const turretLevel = storeState.defense.turretLevel;
-    if (turretLevel <= 0 || this.invaders.length === 0) return;
-
-    const isAegisWrath = (storeState.activeGodBlessings?.AEGIS_WRATH || 0) > 0;
-    // Turret fires twice as fast during Aegis Wrath
-    this.turretShootTimer -= isAegisWrath ? delta * 2 : delta;
-    const interval = Math.max(500, 1300 - turretLevel * 90);
-
-    if (this.turretShootTimer <= 0) {
-      this.turretShootTimer = interval;
-
-      // Find closest alive invader
-      const nexusIso = IsometricHelper.gridToScreen(this.nexusGridPos.x, this.nexusGridPos.y);
-      let closest: ActiveInvader | null = null;
-      let minDistance = 9999;
-
-      for (const invader of this.invaders) {
-        if (invader.isDead) continue;
-        const dx = invader.container.x - nexusIso.x;
-        const dy = invader.container.y - nexusIso.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < minDistance && dist < 320) {
-          minDistance = dist;
-          closest = invader;
-        }
-      }
-
-      if (closest) {
-        // Fire laser bolt
-        const damage = Math.round((22 + turretLevel * 10) * skillBonuses(useGameStore.getState().unlockedSkills).turret);
-        this.fireTurretBeam(nexusIso.x, nexusIso.y - 20, closest.container.x, closest.container.y - 12);
-        this.damageInvader(closest, damage, `-${damage}`);
-        soundFx.playLaser();
-      }
-    }
-  }
-
-  private fireTurretBeam(startX: number, startY: number, endX: number, endY: number): void {
-    this.turretGfx.clear();
-    // Core beam
-    this.turretGfx.lineStyle(3, 0x38bdf8, 0.9);
-    this.turretGfx.lineBetween(startX, startY, endX, endY);
-    // Outer glow
-    this.turretGfx.lineStyle(6, 0x0284c7, 0.4);
-    this.turretGfx.lineBetween(startX, startY, endX, endY);
-
-    this.scene.time.delayedCall(120, () => {
-      this.turretGfx.clear();
-    });
-  }
-
-  public damageInvader(invader: ActiveInvader, damage: number, popupText?: string): void {
+  /**
+   * Deals damage to an invader. `quiet` skips the hit burst (for rapid ticks
+   * like flamethrower and burn damage).
+   */
+  public damageInvader(invader: ActiveInvader, damage: number, popupText?: string, quiet: boolean = false): void {
     if (invader.isDead) return;
 
     invader.hp -= damage;
@@ -684,8 +740,8 @@ export class InvasionManager {
         '#f43f5e'
       );
     }
-    
-    if (invader.container && invader.container.active) {
+
+    if (!quiet && invader.container && invader.container.active) {
       const isGore = useGameStore.getState().isGoreEnabled;
       const isBio = INVADER_CONFIGS[invader.type].category === 'HUMAN';
       const hitColor = (isGore && isBio) ? 0x991b1b : 0x38bdf8;
@@ -695,6 +751,50 @@ export class InvasionManager {
     if (invader.hp <= 0) {
       this.eliminateInvader(invader);
     }
+  }
+
+  /** Ice storms slow invaders (the strongest active slow wins). */
+  public applySlow(invader: ActiveInvader, factor: number, seconds: number): void {
+    if (invader.isDead) return;
+    if ((invader.slowTimer ?? 0) <= 0 || factor < (invader.slowFactor ?? 1)) invader.slowFactor = factor;
+    invader.slowTimer = Math.max(invader.slowTimer ?? 0, seconds);
+    if (invader.sprite?.active) invader.sprite.setTint(0xa5f3fc);
+  }
+
+  /** Hellfire sets invaders burning (refreshes, keeps the hotter burn). */
+  public applyBurn(invader: ActiveInvader, dps: number, seconds: number): void {
+    if (invader.isDead) return;
+    invader.burnDps = Math.max(invader.burnDps ?? 0, dps);
+    invader.burnTimer = Math.max(invader.burnTimer ?? 0, seconds);
+    invader.burnTick = invader.burnTick ?? 0;
+  }
+
+  private tickStatus(invader: ActiveInvader, deltaSec: number): void {
+    if ((invader.slowTimer ?? 0) > 0) {
+      invader.slowTimer = (invader.slowTimer ?? 0) - deltaSec;
+      if ((invader.slowTimer ?? 0) <= 0) {
+        invader.slowFactor = 1;
+        if (invader.sprite?.active && !((invader.provokedTimer ?? 0) > 0)) invader.sprite.clearTint();
+      }
+    }
+    if ((invader.burnTimer ?? 0) > 0) {
+      invader.burnTimer = (invader.burnTimer ?? 0) - deltaSec;
+      invader.burnTick = (invader.burnTick ?? 0) + deltaSec;
+      while ((invader.burnTick ?? 0) >= 0.5 && !invader.isDead) {
+        invader.burnTick = (invader.burnTick ?? 0) - 0.5;
+        this.emberPuff(invader);
+        this.damageInvader(invader, Math.max(1, Math.round((invader.burnDps ?? 0) * 0.5)), undefined, true);
+      }
+      if ((invader.burnTimer ?? 0) <= 0) invader.burnDps = 0;
+    }
+  }
+
+  private emberPuff(invader: ActiveInvader): void {
+    if (!invader.container.active) return;
+    const ember = this.scene.add.circle(invader.container.x + Phaser.Math.Between(-6, 6), invader.container.y - 14, 3, 0xf97316, 0.9);
+    ember.setDepth(9990);
+    this.parentContainer?.add(ember);
+    this.scene.tweens.add({ targets: ember, y: ember.y - 18, alpha: 0, scale: 0.3, duration: 500, onComplete: () => ember.destroy() });
   }
 
   private eliminateInvader(invader: ActiveInvader): void {
@@ -720,6 +820,7 @@ export class InvasionManager {
 
     invader.isDead = true;
     soundFx.playExplosion();
+    logMessage(invader.name.startsWith('BOSS') ? 'bossSlain' : 'invaderSlain', { name: invader.name }, { mergeKey: `kill:${invader.name}` });
 
     // Reward bounty
     useGameStore.getState().addResources({ coins: invader.bountyCoins });
@@ -760,7 +861,7 @@ export class InvasionManager {
     const isGore = useGameStore.getState().isGoreEnabled;
     const isBiological = INVADER_CONFIGS[invader.type].category === 'HUMAN';
     const effectColor = (isGore && isBiological) ? 0x991b1b : INVADER_CONFIGS[invader.type].color;
-    
+
     this.spawnDeathBurst(invader.container.x, invader.container.y - 10, effectColor, isGore && isBiological);
 
     // Clean up container
@@ -770,12 +871,125 @@ export class InvasionManager {
     useGameStore.getState().setEnemiesRemaining(this.invaders.length);
   }
 
+  // ── Movement helpers ────────────────────────────────────────────────────────
+
+  /** Moves toward a world point, sliding around solid footprints. */
+  private stepToward(invader: ActiveInvader, tx: number, ty: number, step: number): void {
+    const c = invader.container;
+    const dx = tx - c.x;
+    const dy = ty - c.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 0.001) return;
+    const move = Math.min(step, dist);
+    let nx = c.x + (dx / dist) * move;
+    let ny = c.y + (dy / dist) * move;
+    if (this.nav) ({ x: nx, y: ny } = this.nav.pushOut(nx, ny));
+    this.faceInvader(invader, nx - c.x, ny - c.y, true);
+    c.x = nx;
+    c.y = ny;
+    const grid = Navigation.tileOf(c.x, c.y);
+    invader.gridX = grid.x;
+    invader.gridY = grid.y;
+    c.setDepth(IsometricHelper.getDepth(grid.x, grid.y, 7));
+  }
+
+  /** Chases a moving world point, detouring around buildings when the line is blocked. */
+  private chase(invader: ActiveInvader, tx: number, ty: number, step: number, deltaSec: number): void {
+    const next = this.nav ? this.nav.steer(invader, invader.container.x, invader.container.y, tx, ty, deltaSec) : { x: tx, y: ty };
+    this.stepToward(invader, next.x, next.y, step);
+  }
+
+  /** Follows `currentPath` (grid waypoints); returns true once the path is finished. */
+  private followPath(invader: ActiveInvader, step: number): boolean {
+    if (invader.pathIndex >= invader.currentPath.length) return true;
+    const targetGrid = invader.currentPath[invader.pathIndex];
+    const targetIso = IsometricHelper.gridToScreen(targetGrid.x, targetGrid.y);
+    const dist = Math.hypot(targetIso.x - invader.container.x, targetIso.y - invader.container.y);
+    if (dist <= step) {
+      this.faceInvader(invader, targetIso.x - invader.container.x, targetIso.y - invader.container.y, true);
+      invader.container.x = targetIso.x;
+      invader.container.y = targetIso.y;
+      invader.gridX = targetGrid.x;
+      invader.gridY = targetGrid.y;
+      invader.pathIndex++;
+      invader.container.setDepth(IsometricHelper.getDepth(invader.gridX, invader.gridY, 7));
+    } else {
+      this.stepToward(invader, targetIso.x, targetIso.y, step);
+    }
+    return invader.pathIndex >= invader.currentPath.length;
+  }
+
+  // ── Targeting ───────────────────────────────────────────────────────────────
+
+  /** Fallback citadel target when no StructureManager is attached. */
+  private fallbackCastle(): StructureTarget | undefined {
+    const store = useGameStore.getState();
+    if (!store.castleBuilt && store.defense.castleHp <= 0) return undefined;
+    const c = this.castleCenter();
+    return { id: 'CASTLE', rect: CASTLE_FOOTPRINT, x: c.x, y: c.y };
+  }
+
+  private isTargetValid(target: InvaderTarget | undefined): boolean {
+    if (!target) return false;
+    if (target.kind === 'worker') {
+      const w = target.worker;
+      return w.hp > 0 && w.status === 'COMBAT' && !!w.container?.active;
+    }
+    if (target.kind === 'blocker') return !target.blocker.dead && target.blocker.container.active;
+    const id = target.structure.id;
+    const alive = this.structures ? this.structures.getTargets() : [this.fallbackCastle()].filter(Boolean) as StructureTarget[];
+    return alive.some((s) => s.id === id);
+  }
+
+  /**
+   * Provoked invaders go for the citadel. Otherwise they fight whatever is
+   * nearest: a defending minion or sapling that gets close, else the closest
+   * standing structure (establishment or citadel).
+   */
+  private chooseTarget(invader: ActiveInvader, defenders: WorkerInstance[]): InvaderTarget | undefined {
+    const structures = this.structures ? this.structures.getTargets() : [this.fallbackCastle()].filter(Boolean) as StructureTarget[];
+    const castle = structures.find((s) => s.id === 'CASTLE');
+    if ((invader.provokedTimer ?? 0) > 0 && castle) return { kind: 'structure', structure: castle };
+
+    const x = invader.container.x;
+    const y = invader.container.y;
+    let best: InvaderTarget | undefined;
+    let bestDist = AGGRO_RADIUS;
+    for (const worker of defenders) {
+      if (!worker.container?.active) continue;
+      const d = Math.hypot(worker.container.x - x, worker.container.y - y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = { kind: 'worker', worker };
+      }
+    }
+    for (const blocker of this.blockerProvider()) {
+      if (blocker.dead || !blocker.container.active) continue;
+      const d = Math.hypot(blocker.container.x - x, blocker.container.y - y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = { kind: 'blocker', blocker };
+      }
+    }
+    if (best) return best;
+
+    let bestTiles = Infinity;
+    let structure: StructureTarget | undefined;
+    for (const s of structures) {
+      const tiles = this.nav ? this.nav.distanceToRect(x, y, s.rect) : Math.hypot(s.x - x, s.y - y) / 40;
+      // Slight bias toward the citadel so ties go to the main keep
+      const score = tiles - (s.id === 'CASTLE' ? 0.5 : 0);
+      if (score < bestTiles) {
+        bestTiles = score;
+        structure = s;
+      }
+    }
+    return structure ? { kind: 'structure', structure } : undefined;
+  }
+
   private updateInvaders(deltaSec: number): void {
-    const nexusIso = IsometricHelper.gridToScreen(this.nexusGridPos.x, this.nexusGridPos.y);
     const workers = this.workerProvider ? this.workerProvider() : [];
     // Active defenders: only workers that have actively rallied to COMBAT
-    // (IDLE/harvesting workers near the nexus would otherwise instantly lock invaders
-    //  into melee from frame 1, preventing any visible movement)
     const availableDefenders = workers.filter(
       (w) => w.status === 'COMBAT' && w.hp >= 35 && w.unitClass !== 'AQUA_SLIME' && w.unitClass !== 'MERMAN'
     );
@@ -785,44 +999,48 @@ export class InvasionManager {
     for (const invader of [...this.invaders]) {
       if (invader.isDead) continue;
 
+      // Stepping out of a portal onto its exit tile
+      if ((invader.emerge ?? 0) > 0) {
+        invader.emerge = (invader.emerge ?? 0) - deltaSec;
+        const from = invader.portal;
+        const exit = IsometricHelper.gridToScreen(invader.spawnGrid.x, invader.spawnGrid.y);
+        const t = Phaser.Math.Clamp(1 - (invader.emerge ?? 0) / EMERGE_SECONDS, 0, 1);
+        const ease = Phaser.Math.Easing.Cubic.Out(t);
+        if (from) invader.container.setPosition(from.x + (exit.x - from.x) * ease, from.y + (exit.y - from.y) * ease);
+        invader.container.setScale(invader.baseScale * (0.3 + 0.7 * ease));
+        invader.container.setAlpha(Math.min(1, t * 1.6));
+        this.faceInvader(invader, exit.x - (from?.x ?? exit.x), exit.y - (from?.y ?? exit.y), true);
+        if ((invader.emerge ?? 0) <= 0) {
+          invader.container.setPosition(exit.x, exit.y);
+          invader.container.setScale(invader.baseScale);
+          invader.container.setAlpha(1);
+        }
+        continue;
+      }
+
+      // Slipping back into a portal (looters and scouts)
+      if ((invader.enter ?? 0) > 0) {
+        invader.enter = (invader.enter ?? 0) - deltaSec;
+        const into = invader.exitPortal;
+        if (into) {
+          const t = Phaser.Math.Clamp(1 - (invader.enter ?? 0) / ENTER_SECONDS, 0, 1);
+          invader.container.x += (into.x - invader.container.x) * Math.min(1, deltaSec * 8);
+          invader.container.y += (into.y - 20 - invader.container.y) * Math.min(1, deltaSec * 8);
+          invader.container.setScale(invader.baseScale * (1 - 0.75 * t));
+          invader.container.setAlpha(1 - t);
+        }
+        if ((invader.enter ?? 0) <= 0) this.despawnEscaped(invader);
+        continue;
+      }
+
+      this.tickStatus(invader, deltaSec);
+      if (invader.isDead) continue;
+      const slow = (invader.slowTimer ?? 0) > 0 ? invader.slowFactor ?? 1 : 1;
+
       // When castle is crushed (HP = 0) or invader is in retreat mode, they march off the platform with their loot
       if (invader.isRetreating) {
-        if (invader.pathIndex < invader.currentPath.length) {
-          const targetGrid = invader.currentPath[invader.pathIndex];
-          const targetIso = IsometricHelper.gridToScreen(targetGrid.x, targetGrid.y);
-
-          const dx = targetIso.x - invader.container.x;
-          const dy = targetIso.y - invader.container.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const step = invader.speed * 1.5 * deltaSec; // Hurry away with 50% loot!
-
-          const safeDist = Math.max(0.001, dist);
-          if (dist <= step) {
-            invader.container.x = targetIso.x;
-            invader.container.y = targetIso.y;
-            invader.gridX = targetGrid.x;
-            invader.gridY = targetGrid.y;
-            invader.pathIndex++;
-            invader.container.setDepth(IsometricHelper.getDepth(invader.gridX, invader.gridY, 7));
-          } else {
-            invader.container.x += (dx / safeDist) * step;
-            invader.container.y += (dy / safeDist) * step;
-            const curGrid = IsometricHelper.screenToGrid(invader.container.x, invader.container.y);
-            invader.container.setDepth(IsometricHelper.getDepth(curGrid.x, curGrid.y, 7));
-          }
-        } else {
-          // Reached edge of platform: despawn cleanly!
-          this.spawnFloatingPopup(
-            invader.container.x,
-            invader.container.y - 20,
-            '🏃 Left Platform with Loot! (-50%)',
-            '#ef4444'
-          );
-          invader.isDead = true;
-          invader.container.destroy();
-          this.invaders = this.invaders.filter((i) => i.id !== invader.id);
-          useGameStore.getState().setEnemiesRemaining(this.invaders.length);
-        }
+        const done = this.followPath(invader, invader.speed * (invader.isScout ? 1 : 1.5) * slow * deltaSec);
+        if (done) this.leavePlatform(invader);
         continue;
       }
 
@@ -838,195 +1056,208 @@ export class InvasionManager {
       if (currentWeather === 'HEATWAVE') {
         weatherDamageMult = 1.10; // Agitated: +10% damage
       }
+      const speed = invader.speed * weatherSpeedMult * slow;
 
-      // 1. Invaders FIGHT DEFENDING GOLEMS FIRST before proceeding to the Castle!
-      if (availableDefenders.length > 0) {
-        let closestDefender: WorkerInstance | null = null;
-        let minDefenderDist = 99999;
+      // Pick (or re-pick) a target a few times per second
+      invader.retargetTimer = (invader.retargetTimer ?? 0) - deltaSec;
+      const provoked = (invader.provokedTimer ?? 0) > 0;
+      const lockedOnCastle = invader.target?.kind === 'structure' && invader.target.structure.id === 'CASTLE';
+      if (invader.retargetTimer <= 0 || !this.isTargetValid(invader.target) || (provoked && !lockedOnCastle)) {
+        invader.retargetTimer = 0.45 + Math.random() * 0.2;
+        invader.target = this.chooseTarget(invader, availableDefenders);
+      }
+      const target = invader.target;
+      if (!target) continue;
 
-        for (const def of availableDefenders) {
-          if (!def.container || !def.container.active || !invader.container || !invader.container.active) {
-            continue;
-          }
-          const dist = Math.hypot(
-            invader.container.x - def.container.x,
-            invader.container.y - def.container.y
-          );
-          if (dist < minDefenderDist) {
-            minDefenderDist = dist;
-            closestDefender = def;
-          }
-        }
-
-        if (closestDefender && closestDefender.container && closestDefender.container.active && invader.container && invader.container.active) {
-          const defenderX = closestDefender.container.x;
-          const defenderY = closestDefender.container.y;
-
-          const invaderConfig = INVADER_CONFIGS[invader.type];
-          if (minDefenderDist > invaderConfig.attackRange) {
-            // Invader charges directly at defending golem!
-            const safeDist = Math.max(1, minDefenderDist);
-            const dx = defenderX - invader.container.x;
-            const dy = defenderY - invader.container.y;
-            const step = invader.speed * 1.15 * weatherSpeedMult * deltaSec;
-            invader.container.x += (dx / safeDist) * step;
-            invader.container.y += (dy / safeDist) * step;
-            const curGrid = IsometricHelper.screenToGrid(invader.container.x, invader.container.y);
-            invader.container.setDepth(IsometricHelper.getDepth(curGrid.x, curGrid.y, 7));
-          } else {
-            // Invader attacks defending golem!
-            invader.attackTimer -= deltaSec;
-            if (invader.attackTimer <= 0) {
-              invader.attackTimer = 1.1;
-              const weatherDmg = Math.round(invader.damage * weatherDamageMult);
-
-              // Calculate armor damage mitigation from equipped armor/relic
-              const armorBonusHp = closestDefender.equipment?.armor?.stats.bonusHp || 0;
-              const armorMitigationPercent = closestDefender.equipment?.armor?.id === 'ironstone_plating' ? 0.15 : 0;
-              const mitigatedDamage = Math.max(1, Math.round(weatherDmg * (1 - armorMitigationPercent)));
-
-              let armorAbsorb = 0;
-              if (closestDefender.armorShield > 0) {
-                armorAbsorb = Math.min(closestDefender.armorShield, mitigatedDamage);
-                closestDefender.armorShield = Math.max(0, closestDefender.armorShield - armorAbsorb);
-              }
-
-              const actualDamage = Math.max(1, mitigatedDamage - armorAbsorb);
-              closestDefender.hp = Math.max(0, closestDefender.hp - actualDamage);
-              this.spawnFloatingPopup(
-                defenderX,
-                defenderY - 25,
-                `-${actualDamage} HP ${armorMitigationPercent > 0 ? '🛡️(-15%)' : ''} ${armorAbsorb > 0 ? '(shielded)' : '💔'}`,
-                '#ef4444'
-              );
-
-              // Visual projectile / slash from Invader
-              if (invaderConfig.attackRange > 60) {
-                // Ranged attack visual
-                this.spawnDeathBurst(invader.container.x, invader.container.y - 15, invaderConfig.color, true);
-                this.spawnDeathBurst(defenderX, defenderY - 15, invaderConfig.color, true);
-                soundFx.playLaser();
-              } else {
-                // Melee slash visual
-                soundFx.playHarvest('stone'); // Or sword slice sound
-              }
-              
-              if (useGameStore.getState().isGoreEnabled) {
-                // Determine worker "blood" color based on their class
-                let bloodColor = 0x991b1b; // default red
-                if (closestDefender.unitClass === 'GOLEM' || closestDefender.unitClass === 'CHRONO') bloodColor = 0x38bdf8; // sparks/blue
-                else if (closestDefender.unitClass === 'AQUA_SLIME') bloodColor = 0x0ea5e9; // blue liquid
-                
-                this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
-              }
-
-              // If HP reaches 0, the servant DIES!
-              if (closestDefender.hp <= 0) {
-                const isTl = useGameStore.getState().language === 'TL';
-                this.spawnFloatingPopup(
-                  defenderX,
-                  defenderY - 35,
-                  isTl ? 'Namatay ang Alagad! ☠️' : 'Servant Died! ☠️',
-                  '#991b1b'
-                );
-                
-                if (useGameStore.getState().isGoreEnabled) {
-                  let bloodColor = 0x991b1b;
-                  if (closestDefender.unitClass === 'GOLEM' || closestDefender.unitClass === 'CHRONO') bloodColor = 0x38bdf8;
-                  else if (closestDefender.unitClass === 'AQUA_SLIME') bloodColor = 0x0ea5e9;
-                  // Extra big burst for death
-                  this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
-                  this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
-                }
-                
-                soundFx.playExplosion();
-                useGameStore.getState().removeUnit(closestDefender.id, true);
-                closestDefender.status = 'IDLE'; // Prevents further interaction this frame
-              } else if (closestDefender.hp < 35 && closestDefender.status !== 'IDLE') {
-                // If low HP but not dead, golem disengages
-                closestDefender.overrideEmote = '🩹';
-                closestDefender.overrideEmoteTimer = 2500;
-                const isTl = useGameStore.getState().language === 'TL';
-                this.spawnFloatingPopup(
-                  defenderX,
-                  defenderY - 35,
-                  isTl ? 'Malubhang Sugatan! 🛡️' : 'Critically Wounded! 🛡️',
-                  '#f59e0b'
-                );
-                closestDefender.status = 'IDLE';
-                closestDefender.stateTimer = 1000;
-              }
-            }
-          }
-
-          // Invader does NOT advance to the Castle while engaging the golem!
+      const invaderConfig = INVADER_CONFIGS[invader.type];
+      if (target.kind === 'worker' || target.kind === 'blocker') {
+        const tc = target.kind === 'worker' ? target.worker.container : target.blocker.container;
+        const dist = Math.hypot(tc.x - invader.container.x, tc.y - invader.container.y);
+        if (dist > invaderConfig.attackRange) {
+          this.chase(invader, tc.x, tc.y, speed * 1.15 * deltaSec, deltaSec);
           continue;
         }
-      }
-
-      // 2. Only if ALL golems are down/resting at Barracks, proceed to Nexus Castle!
-      if (invader.pathIndex < invader.currentPath.length) {
-        const targetGrid = invader.currentPath[invader.pathIndex];
-        const targetIso = IsometricHelper.gridToScreen(targetGrid.x, targetGrid.y);
-
-        const dx = targetIso.x - invader.container.x;
-        const dy = targetIso.y - invader.container.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const step = invader.speed * weatherSpeedMult * deltaSec;
-
-        const safeDist = Math.max(0.001, dist);
-        if (dist <= step) {
-          invader.container.x = targetIso.x;
-          invader.container.y = targetIso.y;
-          invader.gridX = targetGrid.x;
-          invader.gridY = targetGrid.y;
-          invader.pathIndex++;
-          invader.container.setDepth(IsometricHelper.getDepth(invader.gridX, invader.gridY, 7));
-        } else {
-          invader.container.x += (dx / safeDist) * step;
-          invader.container.y += (dy / safeDist) * step;
-          const curGrid = IsometricHelper.screenToGrid(invader.container.x, invader.container.y);
-          invader.container.setDepth(IsometricHelper.getDepth(curGrid.x, curGrid.y, 7));
-        }
-      }
-
-      // Check distance to Nexus Castle
-      const distToNexus = Math.sqrt(
-        Math.pow(invader.container.x - nexusIso.x, 2) + Math.pow(invader.container.y - nexusIso.y, 2)
-      );
-
-      if (distToNexus <= 36) {
-        // Attack Nexus Castle!
+        this.faceInvader(invader, tc.x - invader.container.x, tc.y - invader.container.y, false);
         invader.attackTimer -= deltaSec;
-        if (invader.attackTimer <= 0) {
-          invader.attackTimer = 1.4; // Attack every 1.4s
-          const isAegisWrath = (useGameStore.getState().activeGodBlessings?.AEGIS_WRATH || 0) > 0;
-          const aegisMitigation = isAegisWrath ? 0.5 : 1.0;
-          const rawDmg = Math.round(invader.damage * weatherDamageMult);
-          const weatherDmg = Math.max(1, Math.round(rawDmg * aegisMitigation));
-
-          useGameStore.getState().damageCastle(weatherDmg);
-          this.scene.cameras.main.shake(180, 0.007);
-
-          this.spawnFloatingPopup(
-            nexusIso.x + Phaser.Math.Between(-10, 10),
-            nexusIso.y - 30,
-            `-${weatherDmg} Castle HP ${isAegisWrath ? '🛡️(Aegis -50%)' : ''}`,
-            '#ef4444'
-          );
-          
-          if (useGameStore.getState().isGoreEnabled) {
-            this.spawnDeathBurst(nexusIso.x, nexusIso.y - 20, 0xf59e0b, false); // sparks
-          }
-
-          // Check if this attack crushed the castle!
-          if (useGameStore.getState().defense.castleHp <= 0) {
-            this.triggerEnemiesRetreatWithLoot();
-            break;
-          }
+        if (invader.attackTimer > 0) continue;
+        invader.attackTimer = 1.1;
+        if (invader.sprite) playEnemyAttack(invader.sprite);
+        const weatherDmg = Math.round(invader.damage * weatherDamageMult);
+        if (target.kind === 'blocker') {
+          target.blocker.takeHit(weatherDmg);
+          this.attackVisual(invader, tc.x, tc.y);
+        } else {
+          this.hitWorker(invader, target.worker, weatherDmg);
         }
+        continue;
+      }
+
+      // Structure target: walk to a tile touching its footprint, then batter it
+      const structure = target.structure;
+      const reachTiles = invaderConfig.attackRange > 60 ? invaderConfig.attackRange / 45 : 0.8;
+      const distTiles = this.nav
+        ? this.nav.distanceToRect(invader.container.x, invader.container.y, structure.rect)
+        : Math.hypot(structure.x - invader.container.x, structure.y - invader.container.y) / 36 - 1;
+      if (distTiles > reachTiles) {
+        this.approachStructure(invader, structure, speed * deltaSec, deltaSec);
+        continue;
+      }
+
+      this.faceInvader(invader, structure.x - invader.container.x, structure.y - 20 - invader.container.y, false);
+      invader.attackTimer -= deltaSec;
+      if (invader.attackTimer > 0) continue;
+      invader.attackTimer = 1.4; // Attack every 1.4s
+      if (invader.sprite) playEnemyAttack(invader.sprite);
+      let dmg = Math.round(invader.damage * weatherDamageMult);
+      if (structure.id === 'CASTLE') {
+        const isAegisWrath = (useGameStore.getState().activeGodBlessings?.AEGIS_WRATH || 0) > 0;
+        dmg = Math.max(1, Math.round(dmg * (isAegisWrath ? 0.5 : 1)));
+      }
+      this.attackVisual(invader, structure.x, structure.y - 24);
+      if (this.structures) {
+        this.structures.damage(structure, dmg);
+      } else {
+        useGameStore.getState().damageCastle(dmg);
+      }
+      if (useGameStore.getState().defense.castleHp <= 0) {
+        this.triggerEnemiesRetreatWithLoot();
+        break;
       }
     }
+  }
+
+  /** Follows a breadth-first path to the nearest tile touching the structure. */
+  private approachStructure(invader: ActiveInvader, structure: StructureTarget, step: number, deltaSec: number): void {
+    const allowed = invader.type === 'DEEP_ONE' ? [0, 1] : [0];
+    invader.structTimer = (invader.structTimer ?? 0) - deltaSec;
+    const here = Navigation.tileOf(invader.container.x, invader.container.y);
+    if (!invader.structPath || invader.structGoal !== structure.id || invader.structTimer <= 0) {
+      invader.structGoal = structure.id;
+      invader.structTimer = 1.5;
+      invader.structPath = (this.nav?.pathToRect(here, structure.rect, allowed) ?? undefined) || undefined;
+      if (invader.structPath && invader.structPath.length > 1) invader.structPath.shift(); // drop the start tile
+    }
+    const path = invader.structPath;
+    if (path && path.length > 0) {
+      const wp = IsometricHelper.gridToScreen(path[0].x, path[0].y);
+      if (Math.hypot(wp.x - invader.container.x, wp.y - invader.container.y) <= Math.max(3, step)) {
+        path.shift();
+        if (path.length === 0) {
+          // Standing beside the footprint — close the last gap toward its centre (pushOut keeps us outside)
+          this.chase(invader, structure.x, structure.y, step, deltaSec);
+          return;
+        }
+      }
+      const next = IsometricHelper.gridToScreen(path[0].x, path[0].y);
+      this.stepToward(invader, next.x, next.y, step);
+      return;
+    }
+    this.chase(invader, structure.x, structure.y, step, deltaSec);
+  }
+
+  private attackVisual(invader: ActiveInvader, tx: number, ty: number): void {
+    const invaderConfig = INVADER_CONFIGS[invader.type];
+    if (invaderConfig.attackRange > 60) {
+      // Ranged attack visual: a quick bolt from the invader to the target
+      const bolt = this.scene.add.graphics();
+      bolt.setDepth(9990);
+      this.parentContainer?.add(bolt);
+      bolt.lineStyle(2, invaderConfig.color, 0.9);
+      bolt.lineBetween(invader.container.x, invader.container.y - 16, tx, ty);
+      this.scene.tweens.add({ targets: bolt, alpha: 0, duration: 180, onComplete: () => bolt.destroy() });
+      this.spawnDeathBurst(tx, ty, invaderConfig.color, true);
+      soundFx.playLaser();
+    } else {
+      // Melee slash visual
+      this.spawnDeathBurst(tx, ty, 0xf59e0b, false);
+      soundFx.playHarvest('stone');
+    }
+  }
+
+  /** Invader strike on a defending minion (armor, shields, gore, death / retreat). */
+  private hitWorker(invader: ActiveInvader, closestDefender: WorkerInstance, weatherDmg: number): void {
+    const invaderConfig = INVADER_CONFIGS[invader.type];
+    const defenderX = closestDefender.container.x;
+    const defenderY = closestDefender.container.y;
+
+    // Calculate armor damage mitigation from equipped armor/relic
+    const armorMitigationPercent = closestDefender.equipment?.armor?.id === 'ironstone_plating' ? 0.15 : 0;
+    const mitigatedDamage = Math.max(1, Math.round(weatherDmg * (1 - armorMitigationPercent)));
+
+    let armorAbsorb = 0;
+    if (closestDefender.armorShield > 0) {
+      armorAbsorb = Math.min(closestDefender.armorShield, mitigatedDamage);
+      closestDefender.armorShield = Math.max(0, closestDefender.armorShield - armorAbsorb);
+    }
+
+    const actualDamage = Math.max(1, mitigatedDamage - armorAbsorb);
+    closestDefender.hp = Math.max(0, closestDefender.hp - actualDamage);
+    this.spawnFloatingPopup(
+      defenderX,
+      defenderY - 25,
+      `-${actualDamage} HP ${armorMitigationPercent > 0 ? '🛡️(-15%)' : ''} ${armorAbsorb > 0 ? '(shielded)' : '💔'}`,
+      '#ef4444'
+    );
+
+    // Visual projectile / slash from Invader
+    if (invaderConfig.attackRange > 60) {
+      this.spawnDeathBurst(invader.container.x, invader.container.y - 15, invaderConfig.color, true);
+      this.spawnDeathBurst(defenderX, defenderY - 15, invaderConfig.color, true);
+      soundFx.playLaser();
+    } else {
+      soundFx.playHarvest('stone');
+    }
+
+    const bloodColor = closestDefender.unitClass === 'GOLEM' || closestDefender.unitClass === 'CHRONO'
+      ? 0x38bdf8
+      : closestDefender.unitClass === 'AQUA_SLIME' ? 0x0ea5e9 : 0x991b1b;
+    if (useGameStore.getState().isGoreEnabled) this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
+
+    // If HP reaches 0, the servant DIES!
+    if (closestDefender.hp <= 0) {
+      const isTl = useGameStore.getState().language === 'TL';
+      this.spawnFloatingPopup(defenderX, defenderY - 35, isTl ? 'Namatay ang Alagad! ☠️' : 'Servant Died! ☠️', '#991b1b');
+      if (useGameStore.getState().isGoreEnabled) {
+        this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
+        this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
+      }
+      soundFx.playExplosion();
+      useGameStore.getState().removeUnit(closestDefender.id, true);
+      closestDefender.status = 'IDLE'; // Prevents further interaction this frame
+    } else if (closestDefender.hp < 35 && closestDefender.status !== 'IDLE') {
+      // If low HP but not dead, the minion disengages
+      closestDefender.overrideEmote = '🩹';
+      closestDefender.overrideEmoteTimer = 2500;
+      const isTl = useGameStore.getState().language === 'TL';
+      this.spawnFloatingPopup(defenderX, defenderY - 35, isTl ? 'Malubhang Sugatan! 🛡️' : 'Critically Wounded! 🛡️', '#f59e0b');
+      closestDefender.status = 'IDLE';
+      closestDefender.stateTimer = 1000;
+    }
+  }
+
+  /** Reached the exit tile: dive into the portal (or simply vanish when there is none). */
+  private leavePlatform(invader: ActiveInvader): void {
+    if (invader.exitPortal && invader.exitPortal.mode !== 'destroyed') {
+      invader.enter = ENTER_SECONDS;
+      this.portals?.playAbsorb(invader.exitPortal);
+      return;
+    }
+    this.despawnEscaped(invader);
+  }
+
+  private despawnEscaped(invader: ActiveInvader): void {
+    if (!invader.isScout) {
+      this.spawnFloatingPopup(
+        invader.container.x,
+        invader.container.y - 20,
+        '🏃 Left Platform with Loot! (-50%)',
+        '#ef4444'
+      );
+    }
+    invader.isDead = true;
+    invader.container.destroy();
+    this.invaders = this.invaders.filter((i) => i.id !== invader.id);
+    useGameStore.getState().setEnemiesRemaining(this.invaders.length);
   }
 
   private spawnDeathBurst(x: number, y: number, color: number, isGore: boolean = false): void {
@@ -1061,55 +1292,35 @@ export class InvasionManager {
     }
   }
 
+  /**
+   * Former floating text above units — now narrated in the activity log tray.
+   * The nearest minion or invader to the popup's anchor names the entry.
+   */
   private spawnFloatingPopup(x: number, y: number, text: string, color: string = '#f59e0b'): void {
-    const label = this.scene.add.text(x, y, text, {
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontSize: '13px',
-      fontStyle: 'bold',
-      color,
-      stroke: '#020617',
-      strokeThickness: 3,
-    });
-    label.setOrigin(0.5);
-    label.setDepth(9999);
-
-    if (this.parentContainer) {
-      this.parentContainer.add(label);
-    }
-
-    this.scene.tweens.add({
-      targets: label,
-      y: y - 28,
-      alpha: 0,
-      scale: 1.1,
-      duration: 1000,
-      ease: 'Cubic.easeOut',
-      onComplete: () => label.destroy(),
-    });
+    const workers = this.workerProvider ? this.workerProvider() : [];
+    logFloatingText(text, color, nearestName([...workers, ...this.invaders], x, y));
   }
 
   public triggerEnemiesRetreatWithLoot(): void {
-    // Reverse all living invaders to leave the platform towards their spawn edge
+    // Every living invader runs back to a rift with its loot
     for (const invader of this.invaders) {
-      if (invader.isDead) continue;
+      if (invader.isDead || invader.isRetreating) continue;
       invader.isRetreating = true;
       invader.attackTimer = 9999; // Stop attacking
+      invader.emerge = 0;
 
-      // Find path from current position back to spawn boundary/edge
-      const exitEdge: GridPoint = invader.spawnGrid || { x: 0, y: 0 };
-      const curGrid = IsometricHelper.screenToGrid(invader.container.x, invader.container.y);
+      const curGrid = Navigation.tileOf(invader.container.x, invader.container.y);
+      const portal = invader.portal && invader.portal.mode !== 'destroyed'
+        ? invader.portal
+        : this.portals?.nearest(invader.container.x, invader.container.y) ?? undefined;
+      invader.exitPortal = portal;
+      const exitEdge: GridPoint = portal ? portal.site.exit : invader.spawnGrid || { x: 1, y: 1 };
       const allowedTiles = invader.type === 'DEEP_ONE' ? [0, 1] : [0];
-      const returnPath = this.pathfinder.findPath(
-        Math.round(curGrid.x),
-        Math.round(curGrid.y),
-        exitEdge.x,
-        exitEdge.y,
-        allowedTiles
-      );
+      const returnPath = this.pathfinder.findPath(curGrid.x, curGrid.y, exitEdge.x, exitEdge.y, allowedTiles);
 
       invader.currentPath = (returnPath && returnPath.length > 0)
         ? returnPath
-        : [{ x: Math.round(curGrid.x), y: Math.round(curGrid.y) }, { x: exitEdge.x, y: exitEdge.y }];
+        : [{ x: curGrid.x, y: curGrid.y }, { x: exitEdge.x, y: exitEdge.y }];
       invader.pathIndex = 0;
 
       this.spawnFloatingPopup(
@@ -1139,6 +1350,5 @@ export class InvasionManager {
       invader.container.destroy();
     }
     this.invaders = [];
-    this.turretGfx.destroy();
   }
 }

@@ -18,9 +18,17 @@ import { useGameStore, CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG } from
 import { nextConstruction } from '../state/constructionProgress';
 import { skillBonuses } from '../state/skillTree';
 import { soundFx } from './audio/soundFx';
+import { logFloatingText, nearestName } from '../state/activityLog';
 import type { InvasionManager, ActiveInvader } from './InvasionManager';
+import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
+import { Navigation, NavAgent } from './Navigation';
+import type { PortalManager, PortalState } from './PortalManager';
+import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE } from '../state/buildingLayout';
+import { buildingHpOf, buildingMaxHp, isBuildingOperational, towerLevelOf } from '../state/defenseStats';
+import type { ResourceBuildingId } from '../types/state';
+import { logMessage } from '../state/activityLog';
 
-export interface WorkerInstance {
+export interface WorkerInstance extends NavAgent {
   id: string;
   name: string;
   unitClass: UnitClass;
@@ -29,6 +37,13 @@ export interface WorkerInstance {
   lanternGfx: Phaser.GameObjects.Graphics;
   shadow: Phaser.GameObjects.Ellipse;
   body: Phaser.GameObjects.Graphics;
+  /** 8-direction pixel-art sprite; attached once its sheet is baked (body is cleared then). */
+  sprite?: Phaser.GameObjects.Sprite;
+  /** Emote bubble height above the feet (raised to clear taller sprites). */
+  emoteBaseY: number;
+  _prevX?: number;
+  _prevY?: number;
+  _workTimer?: number;
   cargoIcon: Phaser.GameObjects.Graphics;
   gaugeGfx: Phaser.GameObjects.Graphics; // Dual HP + Stamina floating gauge
   emoteBubble: Phaser.GameObjects.Container;
@@ -69,6 +84,8 @@ export interface WorkerInstance {
   constructionTimer?: number;
   treantMode?: 'REPAIR' | 'REPLENISH';
   treantTargetTile?: GridPoint;
+  /** Establishment the Ent is currently patching up. */
+  treantRepairId?: ResourceBuildingId;
   autoSummonTimer?: number;
   // Dirty-check caches — skip redraw when values haven't changed
   _gaugeHp: number;
@@ -78,18 +95,30 @@ export interface WorkerInstance {
   _lanternDarkness: number;
 }
 
+/** Establishment each harvest job depends on (AETHER comes from the ever-standing Crystal Spire). */
+const TASK_BUILDING: Partial<Record<HarvestTask, ResourceBuildingId>> = {
+  WOOD: 'WOOD',
+  STONE: 'QUARRY',
+  METAL: 'MINE',
+  ESSENCE: 'CAVE',
+  FISH: 'PORT',
+  WATER: 'PORT',
+};
+
 export class WorkerManager {
   private scene: Phaser.Scene;
   private pathfinder: PathfindingService;
   private workers: WorkerInstance[] = [];
   private parentContainer?: Phaser.GameObjects.Container;
-  private nexusGridPos: GridPoint = { x: 5, y: 5 };
+  private nexusGridPos: GridPoint = CASTLE_GATE;
   private invasionManager?: InvasionManager;
+  private nav?: Navigation;
+  private portals?: PortalManager;
 
   constructor(
     scene: Phaser.Scene,
     pathfinder: PathfindingService,
-    nexusGridPos: GridPoint = { x: 5, y: 5 },
+    nexusGridPos: GridPoint = CASTLE_GATE,
     parentContainer?: Phaser.GameObjects.Container
   ) {
     this.scene = scene;
@@ -104,6 +133,38 @@ export class WorkerManager {
 
   public setInvasionManager(manager: InvasionManager): void {
     this.invasionManager = manager;
+  }
+
+  /** Obstacles (building footprints) and the invader portals minions can assault. */
+  public setWorld(world: { nav: Navigation; portals: PortalManager }): void {
+    this.nav = world.nav;
+    this.portals = world.portals;
+  }
+
+  /**
+   * Straight-line movement for free-roaming minions (chasing, following,
+   * walking to a site) that detours around solid footprints and never ends
+   * up inside one. Returns the remaining distance to the target.
+   */
+  private moveToward(worker: WorkerInstance, tx: number, ty: number, step: number, deltaSec: number): number {
+    const c = worker.container;
+    const dist = Math.hypot(tx - c.x, ty - c.y);
+    if (dist < 0.001) return 0;
+    const next = this.nav ? this.nav.steer(worker, c.x, c.y, tx, ty, deltaSec) : { x: tx, y: ty };
+    const dx = next.x - c.x;
+    const dy = next.y - c.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const move = Math.min(step, d);
+    let nx = c.x + (dx / d) * move;
+    let ny = c.y + (dy / d) * move;
+    if (this.nav) ({ x: nx, y: ny } = this.nav.pushOut(nx, ny));
+    c.x = nx;
+    c.y = ny;
+    const grid = Navigation.tileOf(c.x, c.y);
+    worker.gridX = Phaser.Math.Clamp(grid.x, 0, 9);
+    worker.gridY = Phaser.Math.Clamp(grid.y, 0, 9);
+    c.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
+    return Math.hypot(tx - c.x, ty - c.y);
   }
 
   public syncWithRoster(roster: UnitRosterItem[]): void {
@@ -141,7 +202,7 @@ export class WorkerManager {
         }
 
         if (needsVisualRefresh) {
-          this.renderWorkerGraphics(existing.body, existing.unitClass, existing.assignedTask, existing.equipment);
+          this.redrawBody(existing);
           this.renderCargoGraphics(existing.cargoIcon, existing.assignedTask);
           existing.emoteText.setText(TASK_CONFIG[existing.assignedTask].icon);
         }
@@ -223,6 +284,7 @@ export class WorkerManager {
       emoteBubble,
       emoteBg,
       emoteText,
+      emoteBaseY: -36,
       gridX: this.nexusGridPos.x,
       gridY: this.nexusGridPos.y,
       currentPath: [],
@@ -446,6 +508,63 @@ export class WorkerManager {
     const stamColor = stamPct > 0.3 ? 0x38bdf8 : 0xf59e0b;
     worker.gaugeGfx.fillStyle(stamColor, 1);
     worker.gaugeGfx.fillRect(x, -24, barW * stamPct, 2);
+  }
+
+  /** Redraws the legacy vector body — skipped once the pixel sprite has taken over. */
+  private redrawBody(worker: WorkerInstance): void {
+    if (worker.sprite) {
+      worker.body.clear();
+      return;
+    }
+    this.renderWorkerGraphics(worker.body, worker.unitClass, worker.assignedTask, worker.equipment);
+  }
+
+  /**
+   * Keeps a minion's 8-direction sprite in step with the simulation: attaches
+   * it once the sheet is baked, faces the direction of travel (walk while
+   * moving, idle loop while standing) and swings tools while harvesting.
+   */
+  private syncMinionSprite(worker: WorkerInstance, delta: number): void {
+    if (!worker.container.active) return;
+
+    if (!worker.sprite) {
+      const created = createMinionSprite(this.scene, worker.unitClass);
+      if (!created) return;
+      worker.container.addAt(created, worker.container.getIndex(worker.body) + 1);
+      worker.sprite = created;
+      worker.body.clear();
+      const headroom = minionSpriteHeadroom(worker.unitClass) ?? 24;
+      worker.emoteBaseY = -(headroom + 12);
+      worker._prevX = worker.container.x;
+      worker._prevY = worker.container.y;
+    }
+    const sprite = worker.sprite;
+
+    // Follow the body's tweens (cheer squash, melee lunge)
+    sprite.setPosition(worker.body.x, worker.body.y);
+    sprite.setScale(worker.body.scaleX, worker.body.scaleY);
+
+    const dx = worker.container.x - (worker._prevX ?? worker.container.x);
+    const dy = worker.container.y - (worker._prevY ?? worker.container.y);
+    worker._prevX = worker.container.x;
+    worker._prevY = worker.container.y;
+    const moving = Math.hypot(dx, dy) > 0.02;
+    faceCharacterSprite(sprite, dx, dy, moving);
+
+    if (!moving && worker.status === 'HARVESTING') {
+      worker._workTimer = (worker._workTimer ?? 0) - delta;
+      if (worker._workTimer <= 0) {
+        worker._workTimer = 1100 + Math.random() * 400;
+        playCharacterWork(sprite);
+      }
+    }
+  }
+
+  /** Turns a minion toward a target and plays its attack / cast. */
+  private playMinionAttack(worker: WorkerInstance, targetX: number, targetY: number): void {
+    if (!worker.sprite) return;
+    faceCharacterSprite(worker.sprite, targetX - worker.container.x, targetY - worker.container.y, false);
+    playCharacterAttack(worker.sprite);
   }
 
   private renderWorkerGraphics(
@@ -731,6 +850,7 @@ export class WorkerManager {
   }
 
   public update(time: number, delta: number, ambientDarkness: number = 0): void {
+    for (const worker of this.workers) this.syncMinionSprite(worker, delta);
     const deltaSec = delta / 1000;
     const storeState = useGameStore.getState();
     const upgradeCapacity = storeState.upgrades.golemCapacityLevel - 1;
@@ -900,11 +1020,13 @@ export class WorkerManager {
         (worker.speed + equipBonusSpeed) * upgradeSpeedMult * motivationMult * taskSpecialtySpeed * weatherSpeedMult * slimeMovementBonus * blessingSpeedBonus * citadelMajestySpeedBonus * permanentSkills.speed;
 
       // Gentle floating bobbing effect
-      const bob = Math.sin(time / 250 + worker.bobOffset) * 2.5;
+      // Sprites animate their own bounce/hover; only legacy vector bodies bob here
+      const bob = worker.sprite ? 0 : Math.sin(time / 250 + worker.bobOffset) * 2.5;
       worker.body.y = bob;
       worker.cargoIcon.y = bob;
-      worker.gaugeGfx.y = bob;
-      worker.emoteBubble.y = -36 + bob;
+      // Gauges sit above the head: emoteBaseY is -36 for vector bodies, lower for taller sprites
+      worker.gaugeGfx.y = bob + worker.emoteBaseY + 36;
+      worker.emoteBubble.y = worker.emoteBaseY + bob;
 
       // Re-render Dual HP & Fatigue Gauges — only when values actually changed
       const hpFloor = Math.floor(worker.hp);
@@ -955,7 +1077,8 @@ export class WorkerManager {
         worker.cargoIcon.setVisible(false);
       }
 
-      if (isInvasionActive && aliveInvaders.length > 0) {
+      const portalsOpen = (this.portals?.getOpen().length ?? 0) > 0;
+      if (isInvasionActive && (aliveInvaders.length > 0 || portalsOpen)) {
         // Use a non-narrowed alias so TS doesn't flag impossible checks
         const workerStatus: string = worker.status;
         if (worker.hp < 35 && !isHealer && !isNonCombatant) {
@@ -1031,16 +1154,7 @@ export class WorkerManager {
           if (dist > followRadius) {
             // Move smoothly towards lowest HP / highest fatigue ally
             worker.status = 'MOVING_TO_NODE';
-            const dx = bestTarget.container.x - worker.container.x;
-            const dy = bestTarget.container.y - worker.container.y;
-            const step = effectiveSpeed * 1.35 * deltaSec;
-            worker.container.x += (dx / dist) * step;
-            worker.container.y += (dy / dist) * step;
-
-            const curGrid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
-            worker.gridX = Phaser.Math.Clamp(Math.round(curGrid.x), 0, 9);
-            worker.gridY = Phaser.Math.Clamp(Math.round(curGrid.y), 0, 9);
-            worker.container.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
+            this.moveToward(worker, bestTarget.container.x, bestTarget.container.y, effectiveSpeed * 1.35 * deltaSec, deltaSec);
 
             worker.overrideEmote = '💚';
             worker.overrideEmoteTimer = 400;
@@ -1123,7 +1237,8 @@ export class WorkerManager {
 
           for (const candClass of summonOrder) {
             const curCount = currentStore.roster.filter((u) => u.unitClass === candClass).length;
-            const maxCap = candClass === 'TREANT' ? 1 : 2;
+            // TREANT cap = 5 (one per establishment); others = 2
+            const maxCap = candClass === 'TREANT' ? 5 : 2;
             if (curCount < maxCap) {
               const isFree = candClass === 'TREANT';
               const success = currentStore.summonUnit(candClass, undefined, isFree);
@@ -1175,7 +1290,8 @@ export class WorkerManager {
         // repair the hull first, then restore its protective shield.
         if (invasionNeedsEnt) {
           worker.treantMode = 'REPAIR';
-          worker.treantTargetTile = { x: 5, y: 5 };
+          worker.treantRepairId = undefined;
+          worker.treantTargetTile = { ...this.nexusGridPos };
           worker.treantActionTimer = Math.min(worker.treantActionTimer, 0.25);
           worker.supportCooldown = Math.min(worker.supportCooldown, 0.25);
         }
@@ -1183,16 +1299,51 @@ export class WorkerManager {
         // Determine mode if timer expired or castle is completely crushed
         if (invasionNeedsEnt) {
           // Priority mode above intentionally stays in control during the wave.
-        } else if (isCastleCrushed && worker.treantMode !== 'REPAIR') {
+        } else if (isCastleCrushed && (worker.treantMode !== 'REPAIR' || worker.treantRepairId)) {
           worker.treantMode = 'REPAIR';
+          worker.treantRepairId = undefined;
           worker.treantActionTimer = 4.0;
-          worker.treantTargetTile = { x: 5, y: 5 };
+          worker.treantTargetTile = { ...this.nexusGridPos };
         } else if (worker.treantActionTimer <= 0) {
+          // Find assigned building first (caretaker obligation), then most damaged overall
+          const assignedBid2 = (() => {
+            const s = useGameStore.getState();
+            const a = s.entAssignments || {};
+            for (const [bid, uid] of Object.entries(a)) {
+              if (uid === worker.id) return bid as ResourceBuildingId;
+            }
+            return null;
+          })();
+
+          // Check if assigned building needs repair first
+          let damagedBuilding = null;
+          if (assignedBid2) {
+            const ab = storeState.resourceBuildings[assignedBid2];
+            if (ab && ab.level >= 1 && buildingHpOf(ab) < buildingMaxHp(towerLevelOf(ab))) {
+              damagedBuilding = { id: assignedBid2, b: ab };
+            }
+          }
+
+          // Fallback to any other damaged building
+          if (!damagedBuilding) {
+            damagedBuilding = BUILDING_IDS
+              .map((id) => ({ id, b: storeState.resourceBuildings[id] }))
+              .filter(({ b }) => b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b)))
+              .sort((a, b) => buildingHpOf(a.b) / buildingMaxHp(towerLevelOf(a.b)) - buildingHpOf(b.b) / buildingMaxHp(towerLevelOf(b.b)))[0];
+          }
+
           if (castleNeedsRepair || castleNeedsFortification) {
             worker.treantMode = 'REPAIR';
+            worker.treantRepairId = undefined;
             worker.treantActionTimer = isCastleCrushed ? 4.0 : 8.0;
-            worker.treantTargetTile = { x: 5, y: 5 };
+            worker.treantTargetTile = { ...this.nexusGridPos };
+          } else if (damagedBuilding) {
+            worker.treantMode = 'REPAIR';
+            worker.treantRepairId = damagedBuilding.id;
+            worker.treantActionTimer = 8.0;
+            worker.treantTargetTile = { ...BUILDING_SITES[damagedBuilding.id].workSpot };
           } else {
+            worker.treantRepairId = undefined;
             // Intelligently select resource node with lowest stockpile to replenish & enrich
             worker.treantMode = 'REPLENISH';
             worker.treantActionTimer = treantProfile.replenishCooldownSeconds + Math.random() * 4.0;
@@ -1241,23 +1392,41 @@ export class WorkerManager {
         }
 
         // Treant movement towards target
-        const dest = worker.treantTargetTile || { x: 5, y: 5 };
+        const dest = worker.treantTargetTile || this.nexusGridPos;
         const destIso = IsometricHelper.gridToScreen(dest.x, dest.y);
+
+        // ── Ent Tethering: constrain movement to assigned establishment ────────
+        const currentStore2 = useGameStore.getState();
+        const assignments = currentStore2.entAssignments || {};
+        let assignedBuildingId: ResourceBuildingId | null = null;
+        for (const [bid, uid] of Object.entries(assignments)) {
+          if (uid === worker.id) {
+            assignedBuildingId = bid as ResourceBuildingId;
+            break;
+          }
+        }
+
+        const TETHER_RADIUS = 5; // tiles
+        if (assignedBuildingId && worker.treantMode !== 'REPAIR') {
+          const site = BUILDING_SITES[assignedBuildingId];
+          const center = { x: site.footprint.x + (site.footprint.w - 1) / 2, y: site.footprint.y + (site.footprint.h - 1) / 2 };
+          const tDist = Math.hypot(dest.x - center.x, dest.y - center.y);
+          if (tDist > TETHER_RADIUS) {
+            // Clamp destination back into tether radius
+            const angle = Math.atan2(dest.y - center.y, dest.x - center.x);
+            const clampedX = center.x + Math.cos(angle) * TETHER_RADIUS;
+            const clampedY = center.y + Math.sin(angle) * TETHER_RADIUS;
+            worker.treantTargetTile = { x: Math.round(clampedX), y: Math.round(clampedY) };
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const dist = Math.hypot(destIso.x - worker.container.x, destIso.y - worker.container.y);
 
         if (dist > 35) {
           // Walk towards target
           worker.status = 'MOVING_TO_NODE';
-          const dx = destIso.x - worker.container.x;
-          const dy = destIso.y - worker.container.y;
-          const step = effectiveSpeed * 1.1 * deltaSec;
-          worker.container.x += (dx / dist) * step;
-          worker.container.y += (dy / dist) * step;
-
-          const curGrid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
-          worker.gridX = Phaser.Math.Clamp(Math.round(curGrid.x), 0, 9);
-          worker.gridY = Phaser.Math.Clamp(Math.round(curGrid.y), 0, 9);
-          worker.container.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
+          this.moveToward(worker, destIso.x, destIso.y, effectiveSpeed * 1.1 * deltaSec, deltaSec);
 
           worker.overrideEmote = worker.treantMode === 'REPAIR' ? '🔨' : '🌱';
           worker.overrideEmoteTimer = 400;
@@ -1270,7 +1439,19 @@ export class WorkerManager {
           worker.supportCooldown -= deltaSec;
           if (worker.supportCooldown <= 0) {
             worker.supportCooldown = treantProfile.castleRepairCooldownSeconds;
-            if (worker.treantMode === 'REPAIR') {
+            const repairId = worker.treantRepairId;
+            if (worker.treantMode === 'REPAIR' && repairId) {
+              // Patch up a damaged or wrecked establishment
+              const restored = useGameStore.getState().restoreBuildingHp(repairId, treantProfile.repairAmount);
+              if (restored > 0) {
+                this.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0x15803d, 6);
+                soundFx.playHarvest('wood');
+                const cfg = RESOURCE_BUILDING_CONFIG[repairId];
+                logMessage('buildingRepaired', { building: useGameStore.getState().language === 'TL' ? cfg.label : cfg.labelEn }, { mergeKey: `repair:${repairId}`, amount: restored, icon: cfg.icon });
+              } else {
+                worker.treantActionTimer = 0; // fully repaired: pick the next job
+              }
+            } else if (worker.treantMode === 'REPAIR') {
               if (castleNeedsRepair) {
                 const repairAmount = treantProfile.repairAmount;
                 const nextHp = Math.min(defenseState.castleMaxHp, defenseState.castleHp + repairAmount);
@@ -1342,16 +1523,7 @@ export class WorkerManager {
           if (dist > 60 && target !== worker) {
             // Move towards ally
             worker.status = 'MOVING_TO_NODE'; 
-            const dx = target.container.x - worker.container.x;
-            const dy = target.container.y - worker.container.y;
-            const step = effectiveSpeed * 1.35 * deltaSec;
-            worker.container.x += (dx / dist) * step;
-            worker.container.y += (dy / dist) * step;
-            
-            const curGrid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
-            worker.gridX = Phaser.Math.Clamp(Math.round(curGrid.x), 0, 9);
-            worker.gridY = Phaser.Math.Clamp(Math.round(curGrid.y), 0, 9);
-            worker.container.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
+            this.moveToward(worker, target.container.x, target.container.y, effectiveSpeed * 1.35 * deltaSec, deltaSec);
             
             worker.overrideEmote = '💚';
             worker.overrideEmoteTimer = 500;
@@ -1366,6 +1538,7 @@ export class WorkerManager {
             worker.combatCooldown -= deltaSec;
             if (worker.combatCooldown <= 0) {
               worker.combatCooldown = 1.0; // 1 heal per second
+              this.playMinionAttack(worker, target.container.x, target.container.y);
               const healAmt = effectiveAttack * 1.5; 
               target.hp = Math.min(target.maxHp, target.hp + healAmt);
               
@@ -1386,23 +1559,15 @@ export class WorkerManager {
       }
       // ---------------------------------
 
-      const requiredBuilding = worker.assignedTask === 'WOOD'
-        ? 'WOOD'
-        : worker.assignedTask === 'STONE'
-        ? 'QUARRY'
-        : worker.assignedTask === 'METAL'
-        ? 'MINE'
-        : worker.assignedTask === 'FISH' || worker.assignedTask === 'WATER'
-        ? 'PORT'
-        : null;
-      if (worker.assignedTask === 'ESSENCE') {
-        worker.assignedTask = storeState.castleBuilt && (storeState.resourceBuildings?.MINE?.level ?? 0) >= 1 ? 'METAL' : 'AETHER';
-      }
-      if (requiredBuilding && (!storeState.castleBuilt || (storeState.resourceBuildings?.[requiredBuilding]?.level ?? 0) < 1)) {
-        worker.status = 'IDLE';
-        worker.overrideEmote = '🔒';
-        worker.overrideEmoteTimer = 1200;
-        continue;
+      // Unbuilt or wrecked establishment: abandon the trip and pick another job from IDLE
+      const requiredBuilding = TASK_BUILDING[worker.assignedTask];
+      if (requiredBuilding && (!storeState.castleBuilt || !isBuildingOperational(storeState.resourceBuildings?.[requiredBuilding]))) {
+        if (worker.status === 'MOVING_TO_NODE' || worker.status === 'HARVESTING') {
+          worker.status = 'IDLE';
+          worker.stateTimer = 800;
+          worker.overrideEmote = '🔒';
+          worker.overrideEmoteTimer = 1200;
+        }
       }
 
       // Emote icon updates
@@ -1435,8 +1600,9 @@ export class WorkerManager {
 
       // FSM States
       switch (worker.status) {
-        case 'COMBAT':
-          if (!isInvasionActive || aliveInvaders.length === 0) {
+        case 'COMBAT': {
+          const openPortals = this.portals?.getOpen() ?? [];
+          if (!isInvasionActive || (aliveInvaders.length === 0 && openPortals.length === 0)) {
             // Threat eliminated: celebrate and return to peaceful routine
             worker.status = 'IDLE';
             worker.stateTimer = 400;
@@ -1466,93 +1632,87 @@ export class WorkerManager {
             break;
           }
 
-          // Golem actively hunts and charges at closest invading shade
+          // Hunt the closest invader (ignoring ones still stepping out of a rift)
           let targetInvader: ActiveInvader | null = null;
-          let minDistanceToInvader = 999999;
-
+          let minDistanceToInvader = Infinity;
           for (const inv of aliveInvaders) {
-            const dist = Math.hypot(
-              inv.container.x - worker.container.x,
-              inv.container.y - worker.container.y
-            );
+            if ((inv.emerge ?? 0) > 0 || !inv.container?.active) continue;
+            const dist = Math.hypot(inv.container.x - worker.container.x, inv.container.y - worker.container.y);
             if (dist < minDistanceToInvader) {
               minDistanceToInvader = dist;
               targetInvader = inv;
             }
           }
 
-          if (targetInvader) {
-            // Check containers still exist before accessing coordinates
-            if (
-              targetInvader.container &&
-              targetInvader.container.active &&
-              worker.container &&
-              worker.container.active &&
-              !targetInvader.isDead
-            ) {
-              const targetX = targetInvader.container.x;
-                const targetY = targetInvader.container.y;
-                const workerX = worker.container.x;
-                const workerY = worker.container.y;
-
-                if (minDistanceToInvader > config.attackRange) {
-                  // Golem charges forward into combat!
-                  const safeDist = Math.max(1, minDistanceToInvader);
-                  const dx = targetX - workerX;
-                  const dy = targetY - workerY;
-                  const step = effectiveSpeed * 1.35 * deltaSec;
-                  worker.container.x += (dx / safeDist) * step;
-                  worker.container.y += (dy / safeDist) * step;
-
-                  const curGrid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
-                  worker.gridX = Phaser.Math.Clamp(Math.round(curGrid.x), 0, 9);
-                  worker.gridY = Phaser.Math.Clamp(Math.round(curGrid.y), 0, 9);
-                  worker.container.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
-                } else {
-                  // Within attack range: clash and strike!
-                  worker.combatCooldown -= deltaSec;
-                  if (worker.combatCooldown <= 0) {
-                    worker.combatCooldown = 0.85;
-                    worker.overrideEmote = '⚔️';
-                    worker.overrideEmoteTimer = 900;
-
-                    const attackDmg = effectiveAttack;
-                    this.invasionManager?.damageInvader(targetInvader, attackDmg, `-${attackDmg} ⚔️`);
-                    
-                    // Display projectile or slash depending on range
-                    if (config.attackRange > 60) {
-                      // Projectile logic
-                      soundFx.playLaser(); // Use hover sound for magic/ranged attack
-                      this.spawnHarvestBurst(workerX, workerY - 10, config.lanternColor, 3);
-                      this.spawnHarvestBurst(targetX, targetY - 10, config.lanternColor, 6);
-                    } else {
-                      // Melee logic
-                      this.spawnHarvestBurst(targetX, targetY - 10, 0x38bdf8, 6);
-                      soundFx.playHarvest('stone');
-                    }
-                    // Visual punch lunge animation with safe completion (only if melee)
-                    if (config.attackRange <= 60) {
-                      const lungeX = (targetX - workerX) * 0.25;
-                      const lungeY = (targetY - workerY) * 0.25;
-                      this.scene.tweens.add({
-                        targets: worker.body,
-                        x: lungeX,
-                        y: lungeY,
-                        yoyo: true,
-                        duration: 80,
-                        onComplete: () => {
-                          if (worker.body && worker.body.active) {
-                            worker.body.x = 0;
-                            worker.body.y = 0;
-                          }
-                        },
-                      });
-                    }
-                  }
-                }
+          // Nothing close by: storm the nearest open portal to cut the wave off at its source
+          let targetPortal: PortalState | null = null;
+          if (openPortals.length > 0 && (!targetInvader || minDistanceToInvader > 150)) {
+            let best = minDistanceToInvader;
+            for (const portal of openPortals) {
+              const d = Math.hypot(portal.x - worker.container.x, portal.y - worker.container.y);
+              if (d < best) {
+                best = d;
+                targetPortal = portal;
               }
             }
+          }
+          if (!targetPortal && !targetInvader) {
+            worker.overrideEmote = '🛡️';
+            worker.overrideEmoteTimer = 600;
+            break;
+          }
+
+          const targetX = targetPortal ? targetPortal.x : targetInvader!.container.x;
+          const targetY = targetPortal ? targetPortal.y - 20 : targetInvader!.container.y;
+          const workerX = worker.container.x;
+          const workerY = worker.container.y;
+          const reach = targetPortal ? config.attackRange + 24 : config.attackRange;
+          if (Math.hypot(targetX - workerX, targetY - workerY) > reach) {
+            // Charge forward into combat, around any buildings in the way
+            this.moveToward(worker, targetX, targetY, effectiveSpeed * 1.35 * deltaSec, deltaSec);
+            break;
+          }
+
+          // Within attack range: clash and strike!
+          worker.combatCooldown -= deltaSec;
+          if (worker.combatCooldown > 0) break;
+          worker.combatCooldown = 0.85;
+          this.playMinionAttack(worker, targetX, targetY);
+          worker.overrideEmote = '⚔️';
+          worker.overrideEmoteTimer = 900;
+
+          const attackDmg = effectiveAttack;
+          if (targetPortal) {
+            this.portals?.damage(targetPortal, attackDmg);
+          } else {
+            this.invasionManager?.damageInvader(targetInvader!, attackDmg, `-${attackDmg} ⚔️`);
+          }
+
+          // Display projectile or slash depending on range
+          if (config.attackRange > 60) {
+            soundFx.playLaser(); // Use hover sound for magic/ranged attack
+            this.spawnHarvestBurst(workerX, workerY - 10, config.lanternColor, 3);
+            this.spawnHarvestBurst(targetX, targetY - 10, config.lanternColor, 6);
+          } else {
+            this.spawnHarvestBurst(targetX, targetY - 10, targetPortal ? 0xfde047 : 0x38bdf8, 6);
+            soundFx.playHarvest('stone');
+            // Visual punch lunge animation with safe completion
+            this.scene.tweens.add({
+              targets: worker.body,
+              x: (targetX - workerX) * 0.25,
+              y: (targetY - workerY) * 0.25,
+              yoyo: true,
+              duration: 80,
+              onComplete: () => {
+                if (worker.body && worker.body.active) {
+                  worker.body.x = 0;
+                  worker.body.y = 0;
+                }
+              },
+            });
+          }
           break;
+        }
         case 'IDLE':
           // If the Castle is ruined, workers pause production until the Ent repairs it
           if (storeState.defense.castleHp <= 0) {
@@ -1729,6 +1889,9 @@ export class WorkerManager {
             if (worker.assignedTask === 'METAL' && (buildings?.MINE?.level ?? 0) >= 2) {
               depositDelta.coal = harvested;
             }
+            if (worker.assignedTask === 'ESSENCE' && (buildings?.CAVE?.level ?? 0) >= 2) {
+              depositDelta.aetherShards = (depositDelta.aetherShards ?? 0) + harvested;
+            }
             if (worker.assignedTask === 'FISH' && (buildings?.PORT?.level ?? 0) >= 2) {
               depositDelta.water = harvested;
             }
@@ -1823,8 +1986,12 @@ export class WorkerManager {
       worker.unitClass === 'NECROMANCER';
 
     if (isGathererUnit) {
-      const gatherTasks: HarvestTask[] = ['AETHER', 'WOOD', 'STONE', 'METAL', 'FISH', 'WATER'];
       const storeState = useGameStore.getState();
+      // Only jobs whose establishment is standing (the Crystal Spire always is)
+      const gatherTasks = (['AETHER', 'WOOD', 'STONE', 'METAL', 'ESSENCE', 'FISH', 'WATER'] as HarvestTask[]).filter((task) => {
+        const building = TASK_BUILDING[task];
+        return !building || (storeState.castleBuilt && isBuildingOperational(storeState.resourceBuildings?.[building]));
+      });
 
       // Check which resource has the lowest count to balance the realm's inventory
       const resCountMap: Record<HarvestTask, number> = {
@@ -1832,7 +1999,7 @@ export class WorkerManager {
         WOOD: storeState.resources.wood,
         STONE: storeState.resources.stone,
         METAL: storeState.resources.metal || 0,
-        ESSENCE: 999999,
+        ESSENCE: storeState.resources.arcaneEssence,
         FISH: storeState.resources.fish,
         WATER: storeState.resources.water,
         HEAL: 999999,
@@ -1857,7 +2024,7 @@ export class WorkerManager {
 
       if (worker.assignedTask !== chosenTask) {
         worker.assignedTask = chosenTask;
-        this.renderWorkerGraphics(worker.body, worker.unitClass, chosenTask, worker.equipment);
+        this.redrawBody(worker);
         this.renderCargoGraphics(worker.cargoIcon, chosenTask);
         worker.emoteText.setText(TASK_CONFIG[chosenTask].icon);
       }
@@ -1950,13 +2117,7 @@ export class WorkerManager {
       worker.overrideEmoteTimer = 400;
       if (distance > 20) {
         worker.status = 'MOVING_TO_NODE';
-        const step = Math.min(distance, effectiveSpeed * 1.1 * deltaSec);
-        worker.container.x += (target.x - worker.container.x) / distance * step;
-        worker.container.y += (target.y - worker.container.y) / distance * step;
-        const grid = IsometricHelper.screenToGrid(worker.container.x, worker.container.y);
-        worker.gridX = Phaser.Math.Clamp(Math.round(grid.x), 0, 9);
-        worker.gridY = Phaser.Math.Clamp(Math.round(grid.y), 0, 9);
-        worker.container.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
+        this.moveToward(worker, target.x, target.y, effectiveSpeed * 1.1 * deltaSec, deltaSec);
         worker.constructionTimer = 0;
       } else {
         const cost = site.id === 'CASTLE' ? CASTLE_CONSTRUCTION_COST : RESOURCE_BUILDING_CONFIG[site.id].costs[0];
@@ -1979,32 +2140,13 @@ export class WorkerManager {
     return false;
   }
 
+  /**
+   * Former floating text above units and buildings — now narrated in the
+   * activity log tray instead of being drawn on the map. The minion nearest
+   * the popup's anchor names the entry.
+   */
   public spawnFloatingPopup(x: number, y: number, text: string, color: string = '#38bdf8'): void {
-    const label = this.scene.add.text(x, y, text, {
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontSize: '13px',
-      fontStyle: 'bold',
-      color,
-      stroke: '#020617',
-      strokeThickness: 3,
-    });
-    label.setOrigin(0.5);
-    label.setDepth(9999);
-
-    if (this.parentContainer) {
-      this.parentContainer.add(label);
-    }
-
-    this.scene.tweens.add({
-      targets: label,
-      y: y - 30,
-      scaleX: 1.1,
-      scaleY: 1.1,
-      alpha: 0,
-      duration: 1100,
-      ease: 'Cubic.easeOut',
-      onComplete: () => label.destroy(),
-    });
+    logFloatingText(text, color, nearestName(this.workers, x, y));
   }
 
   public spawnHarvestBurst(

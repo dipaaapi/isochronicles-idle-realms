@@ -2,13 +2,40 @@ import Phaser from 'phaser';
 import { TileInfo, TileType } from '../types/game';
 import { TimeOfDayPhase, WeatherType } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
-import { ProceduralRenderer } from './ProceduralRenderer';
+import { ProceduralRenderer, getTileColors } from './ProceduralRenderer';
+import {
+  paintTile,
+  ART_PIXEL,
+  TILE_ART_W,
+  TILE_ART_H,
+  TILE_FRAME_OFFSET_X,
+  TILE_FRAME_OFFSET_Y,
+  WATER_DROP_WORLD,
+} from './PixelTileArt';
 import { PathfindingService } from './PathfindingService';
 import { WorkerManager } from './WorkerManager';
 import { InvasionManager } from './InvasionManager';
 import { FPSController } from './FPSController';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
+import { prepareCharacterSprites } from './sprites/CharacterSprites';
+import { prepareStructureSprites } from './sprites/StructureSprites';
+import { WorldEffects } from './WorldEffects';
+import { Navigation } from './Navigation';
+import { StructureManager } from './StructureManager';
+import { PortalManager } from './PortalManager';
+import { TowerSystem } from './TowerSystem';
+import {
+  BUILDING_IDS,
+  BUILDING_SITES,
+  CASTLE_FOOTPRINT,
+  CASTLE_GATE,
+  ROAD_TILES,
+  SPIRE_FOOTPRINT,
+  TileRect,
+  rectCenter,
+  rectContainsTile,
+} from '../state/buildingLayout';
 
 const DAY_NIGHT_CYCLE_DURATION_MS = 240000; // 4 minutes full cycle
 
@@ -45,11 +72,23 @@ export class MainScene extends Phaser.Scene {
 
   // Island Root Container for gentle floating bobbing
   private islandContainer!: Phaser.GameObjects.Container;
-  private tileGraphics!: Phaser.GameObjects.Graphics;
-  private castleContainer?: Phaser.GameObjects.Container;
-  private portContainer?: Phaser.GameObjects.Container;
-  private mineContainer?: Phaser.GameObjects.Container;
+  private tileAtlas?: Phaser.Textures.CanvasTexture;
+  private tileImages: Phaser.GameObjects.Image[] = [];
+  // Living-world effects: ground layer sits right above the tiles, air layer above every unit
+  private skyFxLayer!: Phaser.GameObjects.Container;
+  private groundFxLayer!: Phaser.GameObjects.Container;
+  private airFxLayer!: Phaser.GameObjects.Container;
+  private worldEffects?: WorldEffects;
+  /** Buildings, portals, units and combat effects — depth-sorted by feet position every frame. */
+  private entityLayer!: Phaser.GameObjects.Container;
+  private nav!: Navigation;
+  private structures!: StructureManager;
+  private portals!: PortalManager;
+  private towers!: TowerSystem;
+  private bloomGfx?: Phaser.GameObjects.Graphics;
+  private lastBloomKey: string = '';
   private tileCoordinateLabels: Phaser.GameObjects.Text[] = [];
+  private static readonly TILE_ATLAS_KEY = 'iso-pixel-tiles';
   private currentPlatformPhase: 1 | 2 | 3 | 4 = 1;
 
   // Continuous Day / Night System
@@ -63,10 +102,6 @@ export class MainScene extends Phaser.Scene {
   private _lastDarknessWritten: number = -1;
   private _dayProgressWriteTimer: number = 0;
   private static readonly DAY_PROGRESS_WRITE_INTERVAL_MS = 500; // write every 500ms
-
-  // Dynamic Resource Landmarks
-  private landmarkContainers: Map<'AETHER' | 'STONE' | 'WOOD' | 'ESSENCE', Phaser.GameObjects.Container> = new Map();
-  private lastDynamicNodesKey: string = '';
 
   // Camera Drag State
   private isDragging: boolean = false;
@@ -102,6 +137,10 @@ export class MainScene extends Phaser.Scene {
   private _scoutSpawnAccum: number = 0;
   private _nextScoutInterval: number = 35000; // ms until next scout wave
 
+  // High-DPI: the canvas renders at devicePixelRatio, so camera zoom = userZoom * dpr
+  private dpr: number = 1;
+  private userZoom: number = 1.15;
+
   constructor() {
     super({ key: 'MainScene' });
   }
@@ -111,9 +150,32 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
     this.cameras.main.transparent = true;
 
+    // High-DPI: PhaserGame publishes devicePixelRatio; every Text renders at matching resolution
+    this.dpr = (this.registry.get('dpr') as number | undefined) ?? 1;
+    this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, (obj: Phaser.GameObjects.GameObject) => {
+      if (obj instanceof Phaser.GameObjects.Text) {
+        obj.setResolution(this.getTextResolution());
+      }
+    });
+    const onDprChange = (_parent: unknown, value: number) => {
+      this.dpr = value;
+      this.applyZoom();
+    };
+    this.registry.events.on('changedata-dpr', onDprChange);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.registry.events.off('changedata-dpr', onDprChange);
+    });
+
     // Cache initial FPS target
     const initialState = useGameStore.getState();
     this._cachedTargetFps = initialState.targetFps;
+
+    // Bake building/portal strips and 8-direction minion + enemy sheets off-thread (cached for the page lifetime)
+    prepareStructureSprites(this, () => {
+      this.structures?.onStripReady();
+      this.portals?.onStripReady();
+    });
+    prepareCharacterSprites(this);
 
     // Create FPS controller
     this.fpsController = new FPSController(this._cachedTargetFps);
@@ -127,20 +189,22 @@ export class MainScene extends Phaser.Scene {
     // 3. Generate Map Data with all 4 work nodes + Nexus
     this.generateIslandData();
 
-    // 4. Render Procedural Island into islandContainer
-    this.renderIsland();
-    this.createTileCoordinateLabels(initialState.showTileCoordinates);
+    // 4. Render Procedural Island into islandContainer (tiles, labels, then the entity layer)
+    this.renderIsland(initialState.showTileCoordinates);
 
-    // 5. Initialize Pathfinding
+    // 5. Initialize Pathfinding + solid footprints, structures and portals
     this.initPathfinding();
+    this.structures = new StructureManager(this, this.entityLayer, this.groundFxLayer, this.nav);
+    this.portals = new PortalManager(this, this.entityLayer);
 
-    // 6. Initialize Worker Automaton Manager inside islandContainer
+    // 6. Initialize Worker Automaton Manager (minions live in the entity layer)
     this.workerManager = new WorkerManager(
       this,
       this.pathfinder,
-      { x: 5, y: 5 }, // Nexus Prime base location
-      this.islandContainer
+      CASTLE_GATE, // Deposits and spawns happen at the citadel gate
+      this.entityLayer
     );
+    this.workerManager.setWorld({ nav: this.nav, portals: this.portals });
 
     // Sync workers with the Zustand roster (initial, forced)
     const initialRoster = initialState.roster;
@@ -150,9 +214,32 @@ export class MainScene extends Phaser.Scene {
     this.invasionManager = new InvasionManager(
       this,
       this.pathfinder,
-      this.islandContainer
+      this.entityLayer
     );
     this.invasionManager.setWorkerProvider(() => this.workerManager.getWorkers());
+    this.towers = new TowerSystem(this, this.entityLayer, this.groundFxLayer, this.structures, this.invasionManager, this.nav);
+    this.invasionManager.setWorld({
+      nav: this.nav,
+      structures: this.structures,
+      portals: this.portals,
+      blockers: () => this.towers.getBlockers(),
+    });
+    this.structures.setInvaderProvider(() => this.invasionManager.getInvaders());
+
+    this.airFxLayer = this.add.container(0, 0);
+    this.islandContainer.add(this.airFxLayer);
+    this.worldEffects = new WorldEffects(
+      this,
+      this.skyFxLayer,
+      this.groundFxLayer,
+      this.airFxLayer,
+      this.tiles,
+      () => [
+        ...this.workerManager.getWorkers().map((w) => w.container),
+        ...this.invasionManager.getInvaders().map((i) => i.container),
+      ],
+      this.getIslandBounds()
+    );
     this.workerManager.setInvasionManager(this.invasionManager);
 
     // 8. Day/Night Lighting Overlay & Glow Layer
@@ -208,29 +295,71 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  /** Text resolution high enough to stay sharp at max zoom on this display. */
+  private getTextResolution(): number {
+    return Math.min(4, Math.ceil(this.dpr * 2));
+  }
+
+  /**
+   * Chess-style tile names: letters A–J run along X, numbers 1–10 along Y.
+   * Each tile shows its name at the centre of its top face, and the island's
+   * front edges carry large rank/file markers like a chessboard border.
+   */
   private createTileCoordinateLabels(visible: boolean): void {
+    const tileStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontFamily: '"Fira Code", monospace',
+      fontSize: '10px',
+      fontStyle: 'bold',
+      color: '#f8fafc',
+      stroke: '#0f0a1e',
+      strokeThickness: 3,
+    };
+    const edgeStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontFamily: 'Cinzel, serif',
+      fontSize: '15px',
+      fontStyle: 'bold',
+      color: '#fbbf24',
+      stroke: '#1c0a14',
+      strokeThickness: 4,
+    };
+
     for (let y = 0; y < this.mapHeight; y++) {
       for (let x = 0; x < this.mapWidth; x++) {
         const position = IsometricHelper.gridToScreen(x, y);
-        const label = this.add.text(position.x, position.y + 12, `${x},${y}`, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#e0f2fe',
-          backgroundColor: '#020617aa',
-          padding: { x: 2, y: 1 },
-        });
+        const surfaceY = position.y + (this.tiles[y][x].type === 'OCEAN_BLOCK' ? WATER_DROP_WORLD : 0);
+        const label = this.add.text(position.x, surfaceY, IsometricHelper.tileName(x, y), tileStyle);
         label.setOrigin(0.5);
-        label.setDepth(10001);
-        label.setAlpha(0.75);
-        label.setVisible(visible);
-        this.islandContainer.add(label);
-        this.tileCoordinateLabels.push(label);
+        label.setAlpha(0.8);
+        this.addCoordinateLabel(label, visible);
       }
     }
+
+    // File letters along the front-left edge (X axis), rank numbers along the front-right edge (Y axis)
+    for (let x = 0; x < this.mapWidth; x++) {
+      const position = IsometricHelper.gridToScreen(x, this.mapHeight);
+      const label = this.add.text(position.x - 10, position.y + 4, IsometricHelper.fileLetter(x), edgeStyle);
+      label.setOrigin(0.5);
+      this.addCoordinateLabel(label, visible);
+    }
+    for (let y = 0; y < this.mapHeight; y++) {
+      const position = IsometricHelper.gridToScreen(this.mapWidth, y);
+      const label = this.add.text(position.x + 10, position.y + 4, `${y + 1}`, edgeStyle);
+      label.setOrigin(0.5);
+      this.addCoordinateLabel(label, visible);
+    }
+  }
+
+  private addCoordinateLabel(label: Phaser.GameObjects.Text, visible: boolean): void {
+    label.setDepth(10001);
+    label.setVisible(visible);
+    this.islandContainer.add(label);
+    this.tileCoordinateLabels.push(label);
   }
 
   private generateIslandData(): void {
     const matrix: TileInfo[][] = [];
+    const footprints: TileRect[] = [CASTLE_FOOTPRINT, ...BUILDING_IDS.map((id) => BUILDING_SITES[id].footprint)];
+    const roads = new Set(ROAD_TILES.map((t) => `${t.x},${t.y}`));
 
     for (let y = 0; y < this.mapHeight; y++) {
       const row: TileInfo[] = [];
@@ -239,29 +368,16 @@ export class MainScene extends Phaser.Scene {
         let walkable = true;
 
         if ((x === 0 && y === 0) || (x === 9 && y === 0) || (x === 0 && y === 9) || (x === 9 && y === 9)) {
-          type = 'SPAWN_BLOCK';
+          type = 'SPAWN_BLOCK'; // invader portals stand here
         } else if (x === 0 || y === 0 || x === this.mapWidth - 1 || y === this.mapHeight - 1) {
           type = 'OCEAN_BLOCK';
           walkable = false;
-        } else if (x === 5 && y === 5) {
+        } else if (rectContainsTile(CASTLE_FOOTPRINT, x, y)) {
           type = 'NEXUS_BASE';
-        } else if (x === 1 && y === 1) {
-          type = 'AETHER_CRYSTAL';
-        } else if (x === 8 && y === 2) {
-          type = 'RUNIC_PILLAR';
-        } else if (x === 8 && y === 8) {
-          type = 'ANCIENT_GROVE';
-        } else if (x === 1 && y === 8) {
-          type = 'MYSTIC_CAVE';
-        } else if (
-          (x === 5 && y >= 1 && y <= 8) ||
-          (y === 5 && x >= 1 && x <= 8) ||
-          (x === 2 && y === 2) || (x === 3 && y === 3) || (x === 4 && y === 4) ||
-          (x === 7 && y === 3) || (x === 6 && y === 4) ||
-          (x === 7 && y === 7) || (x === 6 && y === 6) ||
-          (x === 2 && y === 7) || (x === 3 && y === 6) || (x === 4 && y === 5)
-        ) {
-          type = 'ANCIENT_STONE';
+        } else if (rectContainsTile(SPIRE_FOOTPRINT, x, y)) {
+          type = 'AETHER_GRASS';
+        } else if (footprints.some((f) => rectContainsTile(f, x, y)) || roads.has(`${x},${y}`)) {
+          type = 'ANCIENT_STONE'; // paved foundations and roads
         }
 
         row.push({
@@ -278,255 +394,144 @@ export class MainScene extends Phaser.Scene {
     this.tiles = matrix;
   }
 
-  private renderIsland(): void {
-    this.tileGraphics = this.add.graphics();
-    this.islandContainer.add(this.tileGraphics);
+  private renderIsland(showTileCoordinates: boolean): void {
     this.currentPlatformPhase = useGameStore.getState().platformPhase || 1;
 
-    this.renderPlatformTiles();
+    // Sun, moon and stars sit behind the tiles so the island hides them at the horizon
+    this.skyFxLayer = this.add.container(0, 0);
+    this.islandContainer.add(this.skyFxLayer);
+    this.createTileSprites();
+    this.groundFxLayer = this.add.container(0, 0);
+    this.islandContainer.add(this.groundFxLayer);
 
     for (let y = 0; y < this.mapHeight; y++) {
       for (let x = 0; x < this.mapWidth; x++) {
         const tile = this.tiles[y][x];
+        if (tile.type !== 'OCEAN_BLOCK' || Math.random() >= 0.35) continue;
         const screenPos = IsometricHelper.gridToScreen(x, y);
-        const depth = IsometricHelper.getDepth(x, y, 0);
-
-        if (tile.type === 'NEXUS_BASE') {
-          const structContainer = this.add.container(screenPos.x, screenPos.y);
-          const structGfx = this.add.graphics();
-          ProceduralRenderer.drawNexusStructure(structGfx, 0, 0);
-          structContainer.add(structGfx);
-          structContainer.setDepth(depth + 8);
-          structContainer.setVisible(useGameStore.getState().castleBuilt);
-          this.castleContainer = structContainer;
-          this.islandContainer.add(structContainer);
-
-          this.tweens.add({
-            targets: structGfx,
-            alpha: 0.85,
-            duration: 1600,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut',
-          });
-
-          const hitArea = new Phaser.Geom.Polygon([
-            -32, 0,
-            0, -38,
-            32, 0,
-            0, 32,
-          ]);
-          structContainer.setInteractive(hitArea, Phaser.Geom.Polygon.Contains);
-          structContainer.input?.cursor && (structContainer.input.cursor = 'pointer');
-
-          structContainer.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-            if (pointer.leftButtonDown()) {
-              const def = useGameStore.getState().defense;
-              const isFull = def.castleHp >= def.castleMaxHp;
-              soundFx.playGolemCheer();
-              this.workerManager.spawnHarvestBurst(screenPos.x, screenPos.y - 15, isFull ? 0xfbbf24 : 0x38bdf8, 8);
-              this.workerManager.spawnFloatingPopup(
-                screenPos.x,
-                screenPos.y - 50,
-                isFull ? '👑 Citadel Majesty Active!' : `🏰 Castle HP: ${def.castleHp}/${def.castleMaxHp}`,
-                isFull ? '#fbbf24' : '#38bdf8'
-              );
-
-              this.tweens.add({
-                targets: structContainer,
-                scaleX: 1.08,
-                scaleY: 1.08,
-                duration: 120,
-                yoyo: true,
-                ease: 'Back.easeOut',
-              });
-            }
-          });
-        } else if (tile.type === 'OCEAN_BLOCK') {
-          if (Math.random() < 0.35) {
-            const waveGfx = this.add.graphics();
-            ProceduralRenderer.drawOceanWaves(waveGfx, screenPos.x, screenPos.y - 4);
-            waveGfx.setDepth(depth + 1);
-            this.islandContainer.add(waveGfx);
-
-            this.tweens.add({
-              targets: waveGfx,
-              y: waveGfx.y - 3,
-              alpha: 0.5,
-              duration: 2000 + Math.random() * 1000,
-              yoyo: true,
-              repeat: -1,
-              ease: 'Sine.easeInOut',
-            });
-          }
-        } else if (tile.type === 'AETHER_GRASS') {
-          if (Math.random() < 0.4) {
-            const grassGfx = this.add.graphics();
-            ProceduralRenderer.drawGrassTuft(grassGfx, screenPos.x + (Math.random() * 10 - 5), screenPos.y - 8 + (Math.random() * 6 - 3));
-            grassGfx.setDepth(depth + 1);
-            this.islandContainer.add(grassGfx);
-
-            this.tweens.add({
-              targets: grassGfx,
-              scaleX: 1.1,
-              skewX: 0.05,
-              duration: 1500 + Math.random() * 800,
-              yoyo: true,
-              repeat: -1,
-              ease: 'Sine.easeInOut',
-            });
-          }
-        }
-      }
-    }
-
-    const portPosition = IsometricHelper.gridToScreen(1, 8);
-    this.portContainer = this.add.container(portPosition.x, portPosition.y);
-    const portGfx = this.add.graphics();
-    ProceduralRenderer.drawWaterPort(portGfx, 0, 0);
-    this.portContainer.add(portGfx);
-    this.portContainer.setDepth(IsometricHelper.getDepth(1, 8, 7));
-    this.portContainer.setVisible(useGameStore.getState().castleBuilt && useGameStore.getState().resourceBuildings.PORT.level >= 1);
-    this.islandContainer.add(this.portContainer);
-
-    const minePosition = IsometricHelper.gridToScreen(2, 5);
-    this.mineContainer = this.add.container(minePosition.x, minePosition.y);
-    const mineGfx = this.add.graphics();
-    ProceduralRenderer.drawMetalMine(mineGfx, 0, 0);
-    this.mineContainer.add(mineGfx);
-    this.mineContainer.setDepth(IsometricHelper.getDepth(2, 5, 7));
-    this.mineContainer.setVisible(useGameStore.getState().castleBuilt && useGameStore.getState().resourceBuildings.MINE.level >= 1);
-    this.islandContainer.add(this.mineContainer);
-
-    this.updateDynamicLandmarks(true);
-  }
-
-  private updateDynamicLandmarks(force: boolean = false): void {
-    const dynamicNodes = useGameStore.getState().dynamicResourceNodes || {
-      AETHER: { x: 1, y: 1 },
-      STONE: { x: 8, y: 2 },
-      WOOD: { x: 8, y: 8 },
-      ESSENCE: { x: 1, y: 8 },
-    };
-    const store = useGameStore.getState();
-
-    for (const label of this.tileCoordinateLabels) {
-      label.setVisible(store.showTileCoordinates);
-    }
-
-    const key = `${store.castleBuilt}|${JSON.stringify(store.resourceBuildings)}|${dynamicNodes.AETHER.x},${dynamicNodes.AETHER.y},${dynamicNodes.AETHER.qualityMultiplier ?? 1}|${dynamicNodes.STONE.x},${dynamicNodes.STONE.y},${dynamicNodes.STONE.qualityMultiplier ?? 1}|${dynamicNodes.WOOD.x},${dynamicNodes.WOOD.y},${dynamicNodes.WOOD.qualityMultiplier ?? 1}|${dynamicNodes.ESSENCE.x},${dynamicNodes.ESSENCE.y},${dynamicNodes.ESSENCE.qualityMultiplier ?? 1}`;
-    if (!force && key === this.lastDynamicNodesKey) return;
-    this.lastDynamicNodesKey = key;
-
-    const definitions = ([
-      {
-        type: 'AETHER',
-        point: dynamicNodes.AETHER,
-        render: (gfx, x, y) => ProceduralRenderer.drawAetherCrystalCluster(gfx, x, y),
-        tween: (gfx) => {
-          this.tweens.add({
-            targets: gfx,
-            scaleY: 1.06,
-            duration: 2200,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut',
-          });
-        },
-      },
-      {
-        type: 'STONE',
-        point: dynamicNodes.STONE,
-        render: (gfx, x, y) => ProceduralRenderer.drawRunicPillar(gfx, x, y),
-      },
-      {
-        type: 'WOOD',
-        point: dynamicNodes.WOOD,
-        render: (gfx, x, y) => ProceduralRenderer.drawGroveTree(gfx, x, y),
-      },
-    ] as Array<{
-      type: 'AETHER' | 'STONE' | 'WOOD';
-      point: { x: number; y: number; qualityMultiplier?: number };
-      render: (gfx: Phaser.GameObjects.Graphics, x: number, y: number) => void;
-      tween?: (gfx: Phaser.GameObjects.Graphics) => void;
-    }>).filter((definition) => {
-      if (definition.type === 'AETHER') return store.castleBuilt;
-      const buildingId = definition.type === 'WOOD' ? 'WOOD' : 'QUARRY';
-      return store.castleBuilt && (store.resourceBuildings?.[buildingId]?.level ?? 0) >= 1;
-    });
-
-    for (const [type, container] of this.landmarkContainers) {
-      if (!definitions.some(def => def.type === type)) {
-        container.destroy();
-        this.landmarkContainers.delete(type);
-      }
-    }
-
-    for (const def of definitions) {
-      let container = this.landmarkContainers.get(def.type);
-      if (container) {
-        container.destroy();
-      }
-
-      const screenPos = IsometricHelper.gridToScreen(def.point.x, def.point.y);
-      const depth = IsometricHelper.getDepth(def.point.x, def.point.y, 0);
-
-      container = this.add.container(0, 0);
-
-      const quality = def.point.qualityMultiplier ?? 1.0;
-      if (quality > 1.0) {
-        const bloomGfx = this.add.graphics();
-        bloomGfx.fillStyle(0x10b981, 0.22);
-        bloomGfx.fillEllipse(screenPos.x, screenPos.y, 44, 22);
-        bloomGfx.lineStyle(1.5, 0x34d399, 0.7);
-        bloomGfx.strokeEllipse(screenPos.x, screenPos.y, 44, 22);
-        container.add(bloomGfx);
+        const waveGfx = this.add.graphics();
+        ProceduralRenderer.drawOceanWaves(waveGfx, screenPos.x, screenPos.y - 4 + WATER_DROP_WORLD);
+        this.islandContainer.add(waveGfx);
 
         this.tweens.add({
-          targets: bloomGfx,
-          alpha: 0.45,
-          scaleX: 1.15,
-          scaleY: 1.15,
-          duration: 1500,
+          targets: waveGfx,
+          y: waveGfx.y - 3,
+          alpha: 0.5,
+          duration: 2000 + Math.random() * 1000,
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut',
         });
       }
+    }
 
-      const gfx = this.add.graphics();
-      def.render(gfx, screenPos.x, screenPos.y);
-      container.add(gfx);
-      container.setDepth(depth + 7);
+    // Enriched-node blooms lie on the ground; tile names above them
+    this.bloomGfx = this.add.graphics();
+    this.groundFxLayer.add(this.bloomGfx);
+    this.createTileCoordinateLabels(showTileCoordinates);
 
-      this.islandContainer.add(container);
-      this.landmarkContainers.set(def.type, container);
+    // Everything that stands on the island is y-sorted in this layer
+    this.entityLayer = this.add.container(0, 0);
+    this.islandContainer.add(this.entityLayer);
+  }
 
-      if (def.tween) {
-        def.tween(gfx);
-      }
+  /** Label visibility + green blooms under nodes the Ent has enriched. */
+  private updateDynamicLandmarks(): void {
+    const store = useGameStore.getState();
+    for (const label of this.tileCoordinateLabels) {
+      if (label.visible !== store.showTileCoordinates) label.setVisible(store.showTileCoordinates);
+    }
+
+    const nodes = store.dynamicResourceNodes;
+    const spots: Array<[TileRect, number | undefined]> = [
+      [SPIRE_FOOTPRINT, nodes?.AETHER?.qualityMultiplier],
+      [BUILDING_SITES.QUARRY.footprint, nodes?.STONE?.qualityMultiplier],
+      [BUILDING_SITES.WOOD.footprint, nodes?.WOOD?.qualityMultiplier],
+      [BUILDING_SITES.CAVE.footprint, nodes?.ESSENCE?.qualityMultiplier],
+    ];
+    const key = spots.map(([, q]) => (q ?? 1).toFixed(2)).join('|');
+    if (key === this.lastBloomKey || !this.bloomGfx) return;
+    this.lastBloomKey = key;
+    const g = this.bloomGfx;
+    g.clear();
+    for (const [rect, quality] of spots) {
+      if ((quality ?? 1) <= 1) continue;
+      const c = rectCenter(rect);
+      const p = IsometricHelper.gridToScreen(c.x, c.y);
+      g.fillStyle(0x10b981, 0.2);
+      g.fillEllipse(p.x, p.y, rect.w * 66, rect.h * 33);
+      g.lineStyle(1.5, 0x34d399, 0.7);
+      g.strokeEllipse(p.x, p.y, rect.w * 66, rect.h * 33);
     }
   }
 
+  /**
+   * Creates one pixel-art Image per tile, all sharing a single atlas texture
+   * (one GPU batch). Container children draw in insertion order, so tiles are
+   * added back-to-front before any structures or units.
+   */
+  private createTileSprites(): void {
+    const key = MainScene.TILE_ATLAS_KEY;
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const atlas = this.textures.createCanvas(key, TILE_ART_W * this.mapWidth, TILE_ART_H * this.mapHeight);
+    if (!atlas) return;
+    atlas.setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.tileAtlas = atlas;
+
+    for (let y = 0; y < this.mapHeight; y++) {
+      for (let x = 0; x < this.mapWidth; x++) {
+        atlas.add(`${x},${y}`, 0, x * TILE_ART_W, y * TILE_ART_H, TILE_ART_W, TILE_ART_H);
+      }
+    }
+    this.renderPlatformTiles();
+
+    const drawOrder: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < this.mapHeight; y++) {
+      for (let x = 0; x < this.mapWidth; x++) drawOrder.push({ x, y });
+    }
+    drawOrder.sort((a, b) => a.x + a.y - (b.x + b.y) || a.x - b.x);
+
+    for (const { x, y } of drawOrder) {
+      const screenPos = IsometricHelper.gridToScreen(x, y);
+      const image = this.add.image(
+        screenPos.x + TILE_FRAME_OFFSET_X,
+        screenPos.y + TILE_FRAME_OFFSET_Y,
+        key,
+        `${x},${y}`
+      );
+      image.setOrigin(0, 0);
+      image.setScale(ART_PIXEL);
+      this.islandContainer.add(image);
+      this.tileImages.push(image);
+    }
+  }
+
+  /** Repaints every tile into the atlas (on creation and whenever the realm phase changes). */
   private renderPlatformTiles(): void {
-    if (!this.tileGraphics) return;
-    this.tileGraphics.clear();
+    const atlas = this.tileAtlas;
+    if (!atlas) return;
+    const imageData = atlas.context.createImageData(atlas.width, atlas.height);
+    const buffer = { data: imageData.data, width: atlas.width };
+
     for (let y = 0; y < this.mapHeight; y++) {
       for (let x = 0; x < this.mapWidth; x++) {
         const tile = this.tiles[y][x];
-        const screenPos = IsometricHelper.gridToScreen(x, y);
-        const isAlternate = (x + y) % 2 === 0;
-        ProceduralRenderer.drawIsoBlock(
-          this.tileGraphics,
-          screenPos.x,
-          screenPos.y,
-          tile.type,
-          24,
-          isAlternate,
-          this.currentPlatformPhase
-        );
+        const colors = getTileColors(tile.type, (x + y) % 2 === 0, this.currentPlatformPhase);
+        if (!colors) continue;
+        paintTile(buffer, x * TILE_ART_W, y * TILE_ART_H, {
+          type: tile.type,
+          colors,
+          gridX: x,
+          gridY: y,
+          cliffLeft: y === this.mapHeight - 1,
+          cliffRight: x === this.mapWidth - 1,
+          platformPhase: this.currentPlatformPhase,
+        });
       }
     }
+
+    atlas.context.putImageData(imageData, 0, 0);
+    atlas.refresh();
   }
 
   private setupDayNightLighting(): void {
@@ -610,17 +615,15 @@ export class MainScene extends Phaser.Scene {
 
     this.nightGlowGraphics.clear();
     if (ambientDarkness > 0.12) {
-      const dynamicNodes = useGameStore.getState().dynamicResourceNodes || {
-        AETHER: { x: 1, y: 1 },
-        STONE: { x: 8, y: 2 },
-        WOOD: { x: 8, y: 8 },
-        ESSENCE: { x: 1, y: 8 },
+      const at = (rect: TileRect) => {
+        const c = rectCenter(rect);
+        return IsometricHelper.gridToScreen(c.x, c.y);
       };
-      const nexusPos = IsometricHelper.gridToScreen(5, 5);
-      const crystalPos = IsometricHelper.gridToScreen(dynamicNodes.AETHER.x, dynamicNodes.AETHER.y);
-      const quarryPos = IsometricHelper.gridToScreen(dynamicNodes.STONE.x, dynamicNodes.STONE.y);
-      const grovePos = IsometricHelper.gridToScreen(dynamicNodes.WOOD.x, dynamicNodes.WOOD.y);
-      const cavePos = IsometricHelper.gridToScreen(dynamicNodes.ESSENCE.x, dynamicNodes.ESSENCE.y);
+      const nexusPos = at(CASTLE_FOOTPRINT);
+      const crystalPos = at(SPIRE_FOOTPRINT);
+      const quarryPos = at(BUILDING_SITES.QUARRY.footprint);
+      const grovePos = at(BUILDING_SITES.WOOD.footprint);
+      const cavePos = at(BUILDING_SITES.CAVE.footprint);
 
       ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, nexusPos.x, nexusPos.y - 12, 44, 0x38bdf8, ambientDarkness * 0.4);
       ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, crystalPos.x, crystalPos.y - 8, 38, 0x06b6d4, ambientDarkness * 0.5);
@@ -644,13 +647,77 @@ export class MainScene extends Phaser.Scene {
       walkableGrid.push(row);
     }
 
-    this.pathfinder.initGrid(walkableGrid);
+    // Navigation stamps solid footprints (citadel, establishments, spire, portals) over this grid
+    this.nav = new Navigation(this.pathfinder, walkableGrid);
+  }
+
+  /**
+   * Draw order inside the entity layer follows each object's feet (y), so a
+   * minion walking behind the citadel is hidden by it and one in front is not.
+   * Effects with depth >= 9000 (bursts, projectiles) always stay on top.
+   */
+  private sortEntities(): void {
+    const key = (obj: Phaser.GameObjects.GameObject) => {
+      const o = obj as unknown as { depth: number; y: number };
+      return o.depth >= 9000 ? 100000 + o.depth : o.y;
+    };
+    this.entityLayer.sort('y', (a: Phaser.GameObjects.GameObject, b: Phaser.GameObjects.GameObject) => key(a) - key(b));
+  }
+
+  /** World-space rectangle the camera must keep in view: tiles, cliffs, edge labels, units on the back row and the sky arc. */
+  private getIslandBounds(): Phaser.Geom.Rectangle {
+    const left = IsometricHelper.gridToScreen(0, this.mapHeight - 1).x + TILE_FRAME_OFFSET_X;
+    const right = IsometricHelper.gridToScreen(this.mapWidth - 1, 0).x - TILE_FRAME_OFFSET_X;
+    const top = IsometricHelper.gridToScreen(0, 0).y + TILE_FRAME_OFFSET_Y - 95; // room for the sun/moon at noon
+    const bottom = IsometricHelper.gridToScreen(this.mapWidth - 1, this.mapHeight - 1).y + TILE_FRAME_OFFSET_Y + TILE_ART_H * ART_PIXEL + 12;
+    const margin = 16;
+    return new Phaser.Geom.Rectangle(left - margin, top - margin, right - left + margin * 2, bottom - top + margin * 2);
+  }
+
+  /** userZoom at which the whole island exactly fits the viewport. */
+  private getFitZoom(): number {
+    const cam = this.cameras.main;
+    const bounds = this.getIslandBounds();
+    return Math.min(cam.width / this.dpr / bounds.width, cam.height / this.dpr / bounds.height);
+  }
+
+  private applyZoom(): void {
+    const minZoom = Math.min(0.65, this.getFitZoom());
+    this.userZoom = Phaser.Math.Clamp(this.userZoom, minZoom, 2.2);
+    this.cameras.main.setZoom(this.userZoom * this.dpr);
+    this.clampCamera();
+  }
+
+  /**
+   * Keeps the island inside the frame: while it fits, it can't be dragged past
+   * any viewport edge; when zoomed in past the frame, panning stops at the island's edges.
+   */
+  private clampCamera(): void {
+    const cam = this.cameras.main;
+    const bounds = this.getIslandBounds();
+    const viewW = cam.width / cam.zoom;
+    const viewH = cam.height / cam.zoom;
+    const clampAxis = (center: number, min: number, max: number, view: number) => {
+      const a = min + view / 2;
+      const b = max - view / 2;
+      return Phaser.Math.Clamp(center, Math.min(a, b), Math.max(a, b));
+    };
+    const centerX = cam.scrollX + cam.width / 2;
+    const centerY = cam.scrollY + cam.height / 2;
+    cam.centerOn(
+      clampAxis(centerX, bounds.left, bounds.right, viewW),
+      clampAxis(centerY, bounds.top, bounds.bottom, viewH)
+    );
   }
 
   private setupCamera(): void {
-    const nexusScreen = IsometricHelper.gridToScreen(5, 5);
-    this.cameras.main.centerOn(nexusScreen.x, nexusScreen.y);
-    this.cameras.main.setZoom(1.15);
+    const bounds = this.getIslandBounds();
+    this.cameras.main.centerOn(bounds.centerX, bounds.centerY);
+    this.userZoom = Math.min(this.userZoom, this.getFitZoom() * 0.96);
+    this.applyZoom();
+    const onResize = () => this.applyZoom();
+    this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (useGameStore.getState().invasion.isActive && this.invasionManager) {
@@ -672,11 +739,23 @@ export class MainScene extends Phaser.Scene {
         const dy = (pointer.y - this.dragStartY) / this.cameras.main.zoom;
         this.cameras.main.scrollX = this.cameraStartX - dx;
         this.cameras.main.scrollY = this.cameraStartY - dy;
+        this.clampCamera();
       }
     });
 
-    this.input.on('pointerup', () => {
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      const dragDist = Math.hypot(pointer.x - this.dragStartX, pointer.y - this.dragStartY);
       this.isDragging = false;
+
+      // Short tap (< 10 px) = click on a structure → open establishment modal
+      if (dragDist < 10 && this.structures) {
+        const localX = pointer.worldX - this.islandContainer.x;
+        const localY = pointer.worldY - this.islandContainer.y;
+        const structureId = this.structures.getStructureAt(localX, localY);
+        if (structureId) {
+          useGameStore.getState().openEstablishmentModal(structureId);
+        }
+      }
     });
 
     this.input.on(
@@ -687,9 +766,8 @@ export class MainScene extends Phaser.Scene {
         _deltaX: number,
         deltaY: number
       ) => {
-        const currentZoom = this.cameras.main.zoom;
-        const targetZoom = Phaser.Math.Clamp(currentZoom - deltaY * 0.001, 0.65, 2.2);
-        this.cameras.main.setZoom(targetZoom);
+        this.userZoom -= deltaY * 0.001;
+        this.applyZoom();
       }
     );
   }
@@ -706,17 +784,19 @@ export class MainScene extends Phaser.Scene {
     }
     const effectiveDelta = delta * gameSpeed;
 
+    this.worldEffects?.update(
+      effectiveDelta,
+      store.weather,
+      this.cycleTimer / DAY_NIGHT_CYCLE_DURATION_MS,
+      Math.max(0, this._lastDarknessWritten)
+    );
+    // Units spawned after create() are appended to the container; keep clouds/fish/lightning on top
+    if (this.airFxLayer) this.islandContainer.bringToTop(this.airFxLayer);
+
     this.islandContainer.y = Math.sin(time / 2200) * 4.5;
 
-    if (this.castleContainer) {
-      this.castleContainer.setVisible(store.castleBuilt);
-    }
-    if (this.portContainer) {
-      this.portContainer.setVisible(store.castleBuilt && (store.resourceBuildings?.PORT?.level ?? 0) >= 1);
-    }
-    if (this.mineContainer) {
-      this.mineContainer.setVisible(store.castleBuilt && (store.resourceBuildings?.MINE?.level ?? 0) >= 1);
-    }
+    this.structures.update(effectiveDelta);
+    this.portals.update(effectiveDelta);
 
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
@@ -752,10 +832,11 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.invasionManager?.update(effectiveDelta);
+    this.towers.update(effectiveDelta);
+    this.sortEntities();
 
     this.updateWeatherParticles(effectiveDelta, store.targetFps, weather);
 
-    this.pathfinder.calculate();
 
     this._merchantTickAccum += effectiveDelta;
     this._blessingTickAccum += effectiveDelta;
@@ -807,6 +888,10 @@ export class MainScene extends Phaser.Scene {
   destroy(): void {
     this.workerManager?.destroy();
     this.invasionManager?.destroy();
+    this.towers?.destroy();
+    this.portals?.destroy();
+    this.structures?.destroy();
+    this.worldEffects?.destroy();
   }
 
   private randomizeWeather(): void {
@@ -835,54 +920,14 @@ export class MainScene extends Phaser.Scene {
     const viewW = Math.max(cam.width, window.innerWidth * 2);
     const viewH = Math.max(cam.height, window.innerHeight * 2);
 
-    const scaleFactor = this.fpsController.getScaleFactor();
     const isUltra = targetFps >= 90;
     const isSaver = targetFps <= 30;
 
     if (weather === 'RAIN') {
-      const rainThreshold = isSaver ? 60 : isUltra ? 20 : 30;
-      if (this.weatherTimer > rainThreshold) {
-        this.weatherTimer = 0;
-        const baseCount = isSaver ? 2 : isUltra ? 6 : 4;
-        const spawnCount = Math.max(1, Math.round(baseCount * scaleFactor));
-        for (let i = 0; i < spawnCount; i++) {
-          const drop = this.add.graphics();
-          const x = Math.random() * viewW;
-          const y = -20;
-          drop.fillStyle(0x60a5fa, 0.5);
-          drop.fillRect(0, 0, 1.5, 8);
-          drop.setPosition(x, y);
-          drop.setDepth(4200);
-          drop.setScrollFactor(0);
-          (drop as unknown as { _vy: number })._vy = 280 + Math.random() * 120;
-          (drop as unknown as { _life: number })._life = 0;
-          this.weatherParticles.push(drop);
-        }
-      }
       const rainAlpha = isSaver ? 0.05 : isUltra ? 0.12 : 0.08;
       this.weatherOverlay.fillStyle(0x1e3a5f, rainAlpha);
       this.weatherOverlay.fillRect(0, 0, viewW, viewH);
     } else if (weather === 'SNOW') {
-      const snowThreshold = isSaver ? 120 : isUltra ? 50 : 80;
-      if (this.weatherTimer > snowThreshold) {
-        this.weatherTimer = 0;
-        const baseCount = isSaver ? 1 : isUltra ? 3 : 2;
-        const spawnCount = Math.max(1, Math.round(baseCount * scaleFactor));
-        for (let i = 0; i < spawnCount; i++) {
-          const flake = this.add.graphics();
-          const x = Math.random() * viewW;
-          const y = -10;
-          flake.fillStyle(0xe2e8f0, 0.7);
-          flake.fillCircle(0, 0, 2 + Math.random() * 1.5);
-          flake.setPosition(x, y);
-          flake.setDepth(4200);
-          flake.setScrollFactor(0);
-          (flake as unknown as { _vy: number })._vy = 40 + Math.random() * 30;
-          (flake as unknown as { _vx: number })._vx = (Math.random() - 0.5) * 20;
-          (flake as unknown as { _life: number })._life = 0;
-          this.weatherParticles.push(flake);
-        }
-      }
       const snowAlpha = isSaver ? 0.03 : isUltra ? 0.08 : 0.05;
       this.weatherOverlay.fillStyle(0xffffff, snowAlpha);
       this.weatherOverlay.fillRect(0, 0, viewW, viewH);

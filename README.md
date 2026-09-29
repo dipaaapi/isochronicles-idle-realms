@@ -26,12 +26,14 @@ Resource buildings begin at level 0 and are constructed through Citadel Command.
 | Stone Quarry | Stone | Minerals |
 | Water Port | Water | Fish |
 
-The Water Port and Metal Mine use explicit isometric grid coordinates. Enable **Tile Coordinates** in Settings to see `(x,y)` labels on every tile and verify structure placement.
+The Water Port and Metal Mine use explicit isometric grid coordinates. Enable **Tile Coordinates** in Settings to see chessboard-style tile names on every tile: letters **A–J** run along the grid X axis and numbers **1–10** along the Y axis, so grid `(4,5)` is **E6**. Large rank and file markers line the island's front edges.
 
 ## Features
 
-- Procedural Phaser isometric 10x10 floating island.
+- Procedural Phaser isometric 10x10 floating island, painted per tile as 2.5D pixel art (raised land, sunken water, rocky underside) and rendered at the display's native pixel density.
 - Autonomous minions with movement, gathering, combat, healing, and task states.
+- Invaders drawn as 8-direction animated pixel-art sprites (walk and attack cycles) rendered from voxel models in a background Web Worker.
+- Living tiles: grass sways and water wakes follow whoever walks through, fish leap from the water, pixel clouds drift overhead, and lightning strikes at random during rain.
 - EasyStar.js grid pathfinding.
 - Day 1 reconstruction phase with Slime-led Ent and building progression.
 - Four resource areas with upgradeable output chains.
@@ -70,7 +72,7 @@ RESET REGRESSIONS
 
 ### World
 
-- **Left-click and drag:** Pan the island camera.
+- **Left-click and drag:** Pan the island camera (the island always stays inside the frame).
 - **Mouse wheel:** Zoom the island between 0.65x and 2.2x.
 - **Click an active invader:** Strike it with the Demon Lord's lightning.
 - **Click a resource badge:** Open quick trade for that resource.
@@ -145,32 +147,65 @@ docker compose down
 ## Project Structure
 
 ```text
+public/
+├── backgrounds/                    Phase, title, victory/defeat art and bestiary icons
+├── pwa-192x192.png, pwa-512x512.png  PWA app icons
+└── robots.txt
+scripts/
+├── test-construction.cjs           Construction, purchasing, reset, difficulty, regression checks
+└── test-invasions.cjs              Invasion and regression wave checks
 src/
-├── App.tsx                         Screen coordinator
+├── App.tsx                         Screen coordinator (Title → Story → Game) and modal state
+├── main.tsx                        React entry point
 ├── index.css                       Global styles and visual effects
 ├── game/
 │   ├── MainScene.ts                Phaser world, tiles, buildings, camera, lighting
 │   ├── PhaserGame.tsx              React-to-Phaser wrapper
-│   ├── ProceduralRenderer.ts       Isometric tiles and structure artwork
+│   ├── PixelTileArt.ts             Per-tile 2.5D pixel-art painter
+│   ├── ProceduralRenderer.ts       Tile palettes and structure artwork
 │   ├── WorkerManager.ts            Minion simulation and task state machine
 │   ├── InvasionManager.ts          Invasion waves and enemy behavior
+│   ├── WorldEffects.ts             Tile reactions, fish, clouds, lightning
+│   ├── sprites/                    Voxel models, 8-direction sprite baker (Web Worker), Phaser glue
 │   ├── PathfindingService.ts       EasyStar pathfinding adapter
 │   ├── IsometricHelper.ts          Grid and screen coordinate conversion
+│   ├── FPSController.ts            FPS tracking and quality tiers
+│   ├── bestiaryPortraits.ts        Embedded bestiary portrait images
 │   └── audio/soundFx.ts            Procedural Web Audio effects
+├── i18n/
+│   ├── faqTranslations.ts          FAQ text per language
+│   └── useLanguage.ts              Language selection hook
 ├── state/
 │   ├── useGameStore.ts             Persistent Zustand store and game actions
+│   ├── constructionProgress.ts     Reconstruction order (castle, then resource areas)
+│   ├── difficulty.ts               Easy / Normal / Hard configuration
+│   ├── skillTree.ts                Skill tree definitions
 │   ├── offlineProgression.ts       Return-from-away progression calculation
-│   └── storageAdapter.ts            LocalForage storage adapter
+│   └── storageAdapter.ts           LocalForage storage adapter
 ├── types/
 │   ├── game.ts                     Tasks, units, buildings, waves, and configs
 │   └── state.ts                    Store contracts and save state types
 └── ui/
-    ├── GameHUD.tsx                 In-game HUD and controls
+    ├── TitleScreen.tsx             Title screen
+    ├── IntroNarrativeModal.tsx     New realm story and game creation
+    ├── GameHUD.tsx                 In-game sidebar HUD and controls
     ├── CitadelCommandModal.tsx     Reconstruction and command center
-    ├── RegressionModal.tsx         Prestige and typed reset controls
-    ├── SettingsDrawer.tsx          Settings, saves, lore, and tile overlay
+    ├── UnitRosterModal.tsx         Minion roster
+    ├── EquipmentWorkshopModal.tsx  Equipment crafting (Forge)
+    ├── MerchantModal.tsx           Market
+    ├── QuickTradePopover.tsx       Quick resource trade
+    ├── UpgradesModal.tsx           Research upgrades
+    ├── CastleDefenseModal.tsx      Castle, shield, turret, and wall upgrades
+    ├── CastleBreachedModal.tsx     Victory / defeat screen
     ├── InvasionBanner.tsx          Active wave status
-    └── ...                         Codex, market, forge, and defense modals
+    ├── SkillTreeModal.tsx          Skill tree
+    ├── RegressionModal.tsx         Prestige and typed reset controls
+    ├── BestiaryModal.tsx           Discovered minions and invaders
+    ├── CodexModal.tsx              World information
+    ├── FAQModal.tsx                Gameplay FAQ
+    ├── AutoEnhancePrompt.tsx       Construction / enhancement prompt
+    ├── WelcomeBackModal.tsx        Offline progress summary
+    └── SettingsDrawer.tsx          Settings, saves, lore, and tile overlay
 ```
 
 ## Development Notes
@@ -179,7 +214,7 @@ src/
 - Phaser owns the world canvas; React owns HUD and modal interfaces.
 - Grid positions use `IsometricHelper.gridToScreen()` and `screenToGrid()`.
 - Verify structure placement with Tile Coordinates before changing coordinates.
-- The main validation command is `npm run build`.
+- The main validation commands are `npm run build` and `npm test`.
 
 ## Lore
 

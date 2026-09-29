@@ -39,7 +39,7 @@ export const SKILLS = {
     direction: 'north',
     tier: 2,
     name: 'Arcane Artillery',
-    description: '+25% automated turret damage.',
+    description: '+25% establishment tower damage.',
     prerequisite: 'CASTLE_ARMOR',
   },
   CASTLE_BASTION: {
@@ -96,6 +96,7 @@ export const skillBonuses = (unlocked: readonly SkillId[] = []) => ({
     (unlocked.includes('MINION_FEROCITY') ? 1.125 : 1),
   speed: unlocked.includes('MINION_HASTE') ? 1.15 : 1,
   castleDamage: unlocked.includes('CASTLE_ARMOR') ? 0.9 : 1,
+  /** Establishment tower damage (the skill kept its old turret id for saves). */
   turret: unlocked.includes('CASTLE_TURRETS') ? 1.25 : 1,
   shieldRegen: unlocked.includes('CASTLE_BASTION') ? 1.5 : 1,
   foundations: unlocked.includes('RESOURCE_GROVES') ? 1.25 : 1,

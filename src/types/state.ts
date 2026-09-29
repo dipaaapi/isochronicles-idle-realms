@@ -14,11 +14,15 @@ export interface Resources {
   coins: number;
 }
 
-export type ResourceBuildingId = 'WOOD' | 'MINE' | 'QUARRY' | 'PORT';
+export type ResourceBuildingId = 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE';
 
 export interface ResourceBuildingState {
   level: number;
   unlockedOutputs: string[];
+  /** Defense tower level (1–5) once built. */
+  towerLevel?: number;
+  /** Current structure HP; 0 = wrecked (no production or attacks until repaired). */
+  hp?: number;
 }
 
 export type ResourceBuildingsState = Record<ResourceBuildingId, ResourceBuildingState>;
@@ -44,7 +48,8 @@ export interface CastleDefenseState {
   shieldHp: number;
   shieldMaxHp: number;
   wallLevel: number;
-  turretLevel: number;
+  /** Provoke Beacon level (replaced the old castle turret). */
+  beaconLevel: number;
   shieldLevel: number;
 }
 
@@ -225,9 +230,15 @@ export interface GameStoreState {
   tickMerchantTimer: (deltaSeconds: number) => void;
 
   // Castle Defense Actions
-  upgradeDefense: (defenseKey: 'wallLevel' | 'turretLevel' | 'shieldLevel') => boolean;
+  upgradeDefense: (defenseKey: 'wallLevel' | 'beaconLevel' | 'shieldLevel') => boolean;
   repairCastle: () => boolean;
   damageCastle: (amount: number) => void;
+  upgradeTower: (buildingId: ResourceBuildingId) => boolean;
+  repairBuilding: (buildingId: ResourceBuildingId) => boolean;
+  /** Invader damage to an establishment; returns true when this hit wrecked it. */
+  damageBuilding: (buildingId: ResourceBuildingId, amount: number) => boolean;
+  /** Free HP restore (Ent repairs); returns the HP actually restored. */
+  restoreBuildingHp: (buildingId: ResourceBuildingId, amount: number) => number;
 
   // Invasion Actions
   tickInvasionCountdown: (deltaSeconds: number) => void;
@@ -276,4 +287,38 @@ export interface GameStoreState {
   performRegression: () => void;
   resetRegressionProgress: (confirmation: string) => boolean;
   dismissWave100Celebration: () => void;
+
+  // ── Ent ↔ Establishment 1-to-1 Caretaker System ────────────────────────────
+  /**
+   * Maps each ResourceBuildingId to the unit ID of its assigned Ent caretaker,
+   * or null if the establishment has no caretaker (its Ent is dead or unassigned).
+   */
+  entAssignments: Record<ResourceBuildingId, string | null>;
+  /** Skill cooldowns in seconds for each establishment's 2 skills. */
+  establishmentSkillCooldowns: Record<ResourceBuildingId, { skill1: number; skill2: number }>;
+
+  /** The establishment currently open in the modal, or null if closed. */
+  selectedEstablishmentId: 'CASTLE' | ResourceBuildingId | null;
+
+  /** Auto-buy toggle per building — whether to auto-purchase missing upgrade materials. */
+  autoBuyBuildingMaterials: Record<ResourceBuildingId, boolean>;
+
+  // Ent/Establishment Actions
+  /** Assign an Ent unit to caretake an establishment. Clears any previous assignment for both. */
+  assignEntToEstablishment: (entUnitId: string, buildingId: ResourceBuildingId) => void;
+  /** Clear the Ent caretaker for a building (called on Ent death). */
+  clearEntAssignment: (entUnitId: string) => void;
+  /** Tick skill cooldowns down by delta seconds. */
+  tickEstablishmentSkills: (deltaSeconds: number) => void;
+  /** Trigger a skill (index 0 or 1) on a building. Returns true if activated. */
+  triggerEstablishmentSkill: (buildingId: ResourceBuildingId, skillIndex: 0 | 1) => boolean;
+  /** Relocate a building to a new random position. Castle cannot be relocated. */
+  relocateBuilding: (buildingId: ResourceBuildingId) => boolean;
+
+  // Establishment Modal Actions
+  openEstablishmentModal: (id: 'CASTLE' | ResourceBuildingId) => void;
+  closeEstablishmentModal: () => void;
+  toggleBuildingAutoBuy: (buildingId: ResourceBuildingId) => void;
+  autoBuyMaterialsForUpgrade: (buildingId: ResourceBuildingId) => void;
 }
+

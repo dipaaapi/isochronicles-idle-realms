@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { isConstructionReady } from '../state/constructionProgress';
+import { FortificationsPanel } from './FortificationsPanel';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
@@ -62,8 +62,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     equipItem,
     unequipItem,
     upgradeTech,
-    upgradeDefense,
-    repairCastle,
     activeGodBlessings,
     activateGodBlessing,
     upgradeTreant,
@@ -79,13 +77,12 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   const [marketMode, setMarketMode] = useState<'SELL' | 'BUY'>('BUY');
   const [lastTradeMsg, setLastTradeMsg] = useState<string | null>(null);
 
-  const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(!constructionReady && initialTab === 'CASTLE' ? 'MINIONS' : initialTab);
+      setActiveTab(!castleBuilt && initialTab === 'CASTLE' ? 'MINIONS' : initialTab);
     }
-  }, [isOpen, initialTab, constructionReady]);
+  }, [isOpen, initialTab, castleBuilt]);
 
   if (!isOpen) return null;
 
@@ -235,15 +232,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     },
   ];
 
-  const getDefenseCost = (key: 'wallLevel' | 'turretLevel' | 'shieldLevel') => {
-    const lvl = defense[key];
-    const base = key === 'wallLevel' ? 70 : key === 'turretLevel' ? 90 : 110;
-    return Math.floor(base * Math.pow(1.5, lvl - 1));
-  };
-  const wallCost = getDefenseCost('wallLevel');
-  const turretCost = getDefenseCost('turretLevel');
-  const shieldCost = getDefenseCost('shieldLevel');
-  const canRepair = resources.coins >= 40 && defense.castleHp < defense.castleMaxHp;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
@@ -760,78 +748,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             )}
 
             {/* ================= TAB 5: CASTLE FORTIFICATIONS ================= */}
-            {activeTab === 'CASTLE' && (
-              <div className="space-y-4">
-                <div className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-white">Kumpunihin ang Kastilyo</div>
-                    <div className="text-[10px] text-slate-400">+150 HP sa halagang 40 Barya</div>
-                  </div>
-                  <button
-                    disabled={!canRepair}
-                    onClick={() => repairCastle()}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      canRepair ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Kumpunihin (40🪙)
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Walls */}
-                  <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2.5">
-                    <div>
-                      <div className="text-xs font-bold text-white mb-1">🧱 Pader (Lv.{defense.wallLevel})</div>
-                      <p className="text-[10px] text-slate-400">+200 Max HP at bawas pinsala.</p>
-                    </div>
-                    <button
-                      disabled={resources.coins < wallCost}
-                      onClick={() => upgradeDefense('wallLevel')}
-                      className={`w-full py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                        resources.coins >= wallCost ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                      }`}
-                    >
-                      {wallCost}🪙
-                    </button>
-                  </div>
-
-                  {/* Turret */}
-                  <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2.5">
-                    <div>
-                      <div className="text-xs font-bold text-white mb-1">🎯 Turret (Lv.{defense.turretLevel})</div>
-                      <p className="text-[10px] text-slate-400">Awtomatikong umaatake sa lumalapit.</p>
-                    </div>
-                    <button
-                      disabled={resources.coins < turretCost}
-                      onClick={() => upgradeDefense('turretLevel')}
-                      className={`w-full py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                        resources.coins >= turretCost ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                      }`}
-                    >
-                      {turretCost}🪙
-                    </button>
-                  </div>
-
-                  {/* Shield */}
-                  <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2.5">
-                    <div>
-                      <div className="text-xs font-bold text-white mb-1">💠 Kalasag (Lv.{defense.shieldLevel})</div>
-                      <p className="text-[10px] text-slate-400">+100 Shield Capacity.</p>
-                    </div>
-                    <button
-                      disabled={resources.coins < shieldCost}
-                      onClick={() => upgradeDefense('shieldLevel')}
-                      className={`w-full py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                        resources.coins >= shieldCost ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                      }`}
-                    >
-                      {shieldCost}🪙
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {activeTab === 'CASTLE' && <FortificationsPanel />}
           </div>
         </div>
       </div>

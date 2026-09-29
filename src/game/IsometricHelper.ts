@@ -26,6 +26,16 @@ export class IsometricHelper {
     return { x: gridX, y: gridY };
   }
 
+  /** Chess-style column letter for a grid X (0 → "A", 9 → "J"). */
+  static fileLetter(gridX: number): string {
+    return String.fromCharCode(65 + gridX);
+  }
+
+  /** Chess-style tile name: column letter from X, 1-based row number from Y (e.g. (4,5) → "E6"). */
+  static tileName(gridX: number, gridY: number): string {
+    return `${IsometricHelper.fileLetter(gridX)}${gridY + 1}`;
+  }
+
   /**
    * Calculates z-depth for Phaser game objects so foreground tiles and units
    * properly occlude background tiles.

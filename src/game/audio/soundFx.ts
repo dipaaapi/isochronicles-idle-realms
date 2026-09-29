@@ -494,6 +494,44 @@ class SoundFxManager {
     osc.stop(now + 0.3);
   }
 
+  /** Filtered white-noise burst — shared by thunder and splashes. */
+  private playNoise(duration: number, filterFreq: number, volume: number, attack: number = 0.005): void {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx || !this.masterGain) return;
+
+    const now = ctx.currentTime;
+    const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(filterFreq, now);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(40, filterFreq * 0.15), now + duration);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + attack);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    source.start(now);
+  }
+
+  /** Crack followed by a long low rumble; `intensity` < 1 for distant thunder. */
+  public playThunder(intensity: number = 1): void {
+    if (intensity > 0.6) this.playNoise(0.35, 4000, 0.35 * intensity);
+    this.playNoise(2.4, 420, 0.4 * intensity, 0.12);
+  }
+
+  public playSplash(): void {
+    this.playNoise(0.22, 2600, 0.08);
+  }
+
   public playCastleHit(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();

@@ -18,6 +18,14 @@ function load(file) {
       if (name === 'zustand/middleware') return { persist: (fn) => fn, createJSONStorage() {} };
       if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
       if (name.includes('storageAdapter')) return {};
+      if (name.includes('activityLog')) return new Proxy({}, { get: () => () => undefined });
+      if (name.includes('CharacterSprites')) return new Proxy({}, {
+        get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),
+      });
+      if (name.startsWith('.') && name.endsWith('.json')) {
+        const json = JSON.parse(fs.readFileSync(path.resolve(path.dirname(file), name), 'utf8'));
+        return { ...json, default: json };
+      }
       return name.startsWith('.') ? load(path.resolve(path.dirname(file), name + '.ts')) : require(name);
     },
   });
@@ -56,7 +64,9 @@ state().summonUnit('TREANT', 'BUILD', true);
 const manager = Object.create(WorkerManager.prototype);
 manager.spawnHarvestBurst = () => {};
 manager.spawnFloatingPopup = () => {};
-const worker = { container: { ...IsometricHelper.gridToScreen(5, 5), setDepth() {} } };
+const castleSite = nextConstruction(state());
+assert.equal(castleSite.id, 'CASTLE');
+const worker = { container: { ...IsometricHelper.gridToScreen(castleSite.x, castleSite.y), setDepth() {} } };
 manager.updateConstruction(worker, state(), 3, 65);
 assert.equal(state().castleBuilt, false, 'construction takes time');
 manager.updateConstruction(worker, state(), 1, 65);
@@ -67,7 +77,7 @@ Object.assign(worker.container, IsometricHelper.gridToScreen(8, 8));
 manager.updateConstruction(worker, state(), 20, 65);
 assert.equal(state().resourceBuildings.WOOD.level, 0, 'Ent waits for supplies');
 store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
-for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT']) {
+for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE']) {
   const site = nextConstruction(state());
   assert.equal(site.id, id);
   Object.assign(worker.container, IsometricHelper.gridToScreen(site.x, site.y));
@@ -141,7 +151,7 @@ assert.equal(state().defense.castleHp, 0);
 assert.equal(state().defense.castleMaxHp, 600);
 assert.equal(state().regressionHistory[0].dayReached, 87);
 state().summonUnit('TREANT', 'BUILD', true);
-Object.assign(worker.container, IsometricHelper.gridToScreen(5, 5));
+Object.assign(worker.container, IsometricHelper.gridToScreen(nextConstruction(state()).x, nextConstruction(state()).y));
 manager.updateConstruction(worker, state(), 4, 65);
 assert.equal(state().defense.castleHp, 600, 'Ent rebuild applies permanent regression HP');
 assert.equal(state().unlockSkill('MINION_HASTE'), false, 'prerequisites must be enforced');
@@ -163,13 +173,8 @@ state().damageCastle(100);
 assert.equal(state().defense.castleHp, 710, 'armor reduces incoming castle damage by 10%');
 state().performRegression();
 assert.equal(state().unlockSkill('CASTLE_TURRETS'), true);
-const turretManager = new InvasionManager({ add: { graphics: display } }, { findPath: () => null });
-turretManager.invaders = [{ isDead: false, container: IsometricHelper.gridToScreen(5, 5) }];
-turretManager.fireTurretBeam = () => {};
-let turretDamage = 0;
-turretManager.damageInvader = (_, damage) => { turretDamage = damage; };
-turretManager.handleTurretAttacks(1000);
-assert.equal(turretDamage, 40, 'first turret level gains 25% damage');
+const { towerStats } = load('src/state/defenseStats.ts');
+assert.equal(towerStats('QUARRY', 1, skillBonuses(state().unlockedSkills).turret).damage, 43, 'the old turret skill now boosts establishment towers by 25%');
 state().performRegression();
 assert.equal(state().unlockSkill('RESOURCE_GROVES'), true);
 state().performRegression();
@@ -189,3 +194,123 @@ state().resetRegressionProgress('RESET REGRESSIONS');
 assert.equal(state().unlockedSkills.length, 0);
 assert.equal(state().defense.castleMaxHp, 500);
 console.log('Regression rewards, rebuilding, skill tree, combat and save checks passed.');
+
+// ── Establishment towers, citadel beacon, portals and obstacles ─────────────
+{
+  const defense = load('src/state/defenseStats.ts');
+  const layout = load('src/state/buildingLayout.ts');
+  const { Navigation } = load('src/game/Navigation.ts');
+  const { PathfindingService } = load('src/game/PathfindingService.ts');
+  const rich = () => store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 100000])) });
+
+  state().resetRealm();
+  rich();
+  state().summonUnit('TREANT', 'BUILD', true);
+  assert.equal(state().buildCastle(), true);
+  for (const id of layout.BUILDING_IDS) assert.equal(state().upgradeResourceBuilding(id), true);
+  for (const id of layout.BUILDING_IDS) {
+    const b = state().resourceBuildings[id];
+    assert.equal(b.towerLevel, 1, `${id} starts at tower level 1`);
+    assert.equal(b.hp, defense.buildingMaxHp(1), `${id} starts at full HP`);
+  }
+
+  // Each establishment has a distinct weapon
+  assert.deepEqual(layout.BUILDING_IDS.map((id) => defense.towerStats(id, 1).attack).sort(),
+    ['catapult', 'flamethrower', 'iceStorm', 'saplings', 'spikes']);
+  assert.equal(defense.towerStats('WOOD', 1).charges, 5, 'the grove summons five times per wave');
+  assert.ok(defense.towerStats('MINE', 5).volley > defense.towerStats('MINE', 1).volley, 'higher towers fire more spikes');
+  assert.ok(defense.towerStats('QUARRY', 3).cooldown < defense.towerStats('QUARRY', 1).cooldown);
+
+  // Tower upgrades spend secondary resources and raise max HP
+  const coalBefore = state().resources.coal;
+  assert.equal(state().upgradeTower('MINE'), true);
+  assert.equal(state().upgradeTower('MINE'), true);
+  assert.equal(state().resourceBuildings.MINE.towerLevel, 3);
+  assert.ok(state().resources.coal < coalBefore, 'mine tower level 3 costs coal');
+  assert.equal(state().resourceBuildings.MINE.hp, defense.buildingMaxHp(3));
+  for (let i = 0; i < 5; i++) state().upgradeTower('MINE');
+  assert.equal(state().resourceBuildings.MINE.towerLevel, defense.TOWER_MAX_LEVEL, 'tower levels cap');
+  assert.equal(state().upgradeTower('MINE'), false);
+
+  // Wrecking, repairing and wave-end recovery
+  assert.equal(state().damageBuilding('QUARRY', 50), false);
+  assert.equal(state().resourceBuildings.QUARRY.hp, defense.buildingMaxHp(1) - 50);
+  assert.equal(state().damageBuilding('QUARRY', 99999), true, 'the killing blow reports a wreck');
+  assert.equal(defense.isBuildingOperational(state().resourceBuildings.QUARRY), false, 'wrecked establishments stop working');
+  assert.equal(state().damageBuilding('QUARRY', 10), false, 'a wreck cannot be hit again');
+  state().resolveInvasionVictory(0);
+  assert.equal(state().resourceBuildings.QUARRY.hp, Math.round(defense.buildingMaxHp(1) * 0.25), 'wrecks recover 25% when a wave ends');
+  assert.equal(state().repairBuilding('QUARRY'), true);
+  assert.equal(state().resourceBuildings.QUARRY.hp, Math.round(defense.buildingMaxHp(1) * 0.75));
+  assert.equal(state().restoreBuildingHp('QUARRY', 99999), defense.buildingMaxHp(1) - Math.round(defense.buildingMaxHp(1) * 0.75));
+  assert.equal(state().repairBuilding('QUARRY'), false, 'nothing to repair at full HP');
+
+  // Citadel: no turret any more — the Provoke Beacon grows instead
+  const beacon1 = defense.beaconStats(1);
+  assert.equal(state().upgradeDefense('beaconLevel'), true);
+  assert.equal(state().defense.beaconLevel, 2);
+  const beacon2 = defense.beaconStats(2);
+  assert.ok(beacon2.radiusTiles > beacon1.radiusTiles && beacon2.interval < beacon1.interval && beacon2.duration > beacon1.duration);
+  assert.equal('turretLevel' in state().defense, false);
+  assert.ok(defense.castleUpgradeCost('wallLevel', 3).metal > 0, 'later wall levels need metal');
+  assert.equal(defense.castleUpgradeCost('wallLevel', 1).metal, undefined);
+
+  // Old saves: turret level becomes the beacon level, the Mystic Cave slot is added
+  const oldSave = JSON.parse(state().exportSave());
+  oldSave.defense = { ...oldSave.defense, turretLevel: 4 };
+  delete oldSave.defense.beaconLevel;
+  oldSave.resourceBuildings = { WOOD: { level: 1, unlockedOutputs: ['wood'] }, MINE: { level: 2, unlockedOutputs: ['metal', 'coal'] }, QUARRY: { level: 1, unlockedOutputs: ['stone'] }, PORT: { level: 1, unlockedOutputs: ['water'] } };
+  assert.equal(state().importSave(JSON.stringify(oldSave)), true);
+  assert.equal(state().defense.beaconLevel, 4);
+  assert.equal(state().resourceBuildings.CAVE.level, 0);
+  assert.equal(state().resourceBuildings.MINE.towerLevel, 1);
+  assert.equal(state().resourceBuildings.MINE.hp, defense.buildingMaxHp(1));
+
+  // Portals scale with the wave and pay a bounty
+  assert.ok(defense.portalMaxHp(20) > defense.portalMaxHp(1));
+  assert.ok(defense.portalBounty(10).coins > defense.portalBounty(1).coins);
+
+  // Layout: every footprint is on land, none overlap, work spots are free
+  const rects = [layout.CASTLE_FOOTPRINT, layout.SPIRE_FOOTPRINT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].footprint)];
+  const taken = new Set();
+  for (const r of rects) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+    assert.ok(x >= 1 && y >= 1 && x <= 8 && y <= 8, 'footprints stay on land');
+    assert.ok(!taken.has(`${x},${y}`), `footprints overlap at ${x},${y}`);
+    taken.add(`${x},${y}`);
+  }
+  assert.equal(layout.CASTLE_FOOTPRINT.w * layout.CASTLE_FOOTPRINT.h, 9, 'the citadel covers 9 tiles');
+  for (const id of layout.BUILDING_IDS) assert.equal(layout.BUILDING_SITES[id].footprint.w * layout.BUILDING_SITES[id].footprint.h, 4);
+  const spots = [layout.CASTLE_GATE, layout.SPIRE_WORK_SPOT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].workSpot), ...layout.PORTAL_SITES.map((p) => p.exit)];
+  for (const s of spots) assert.ok(!taken.has(`${s.x},${s.y}`), `work spot ${s.x},${s.y} is walkable`);
+
+  // Navigation: solids block paths and push walkers out; every spot stays reachable
+  const pf = new PathfindingService();
+  const base = Array.from({ length: 10 }, (_, y) => Array.from({ length: 10 }, (_, x) => (x === 0 || y === 0 || x === 9 || y === 9 ? 1 : 0)));
+  for (const p of layout.PORTAL_SITES) base[p.tile.y][p.tile.x] = 0;
+  const nav = new Navigation(pf, base);
+  nav.setSolids([
+    { id: 'CASTLE', rect: layout.CASTLE_FOOTPRINT }, { id: 'SPIRE', rect: layout.SPIRE_FOOTPRINT },
+    ...layout.BUILDING_IDS.map((id) => ({ id, rect: layout.BUILDING_SITES[id].footprint })),
+    ...layout.PORTAL_SITES.map((p) => ({ id: p.id, rect: { ...p.tile, w: 1, h: 1 } })),
+  ]);
+  const gate = layout.CASTLE_GATE;
+  for (const s of spots) {
+    const route = pf.findPath(gate.x, gate.y, s.x, s.y, [0]);
+    assert.ok(route, `${s.x},${s.y} is reachable from the gate`);
+    assert.ok(route.every((t) => !taken.has(`${t.x},${t.y}`)), 'paths never cross a footprint');
+  }
+  const center = IsometricHelper.gridToScreen(4, 4);
+  const pushed = nav.pushOut(center.x, center.y);
+  const g = Navigation.toGrid(pushed.x, pushed.y);
+  assert.ok(!nav.solidAt(g.x, g.y), 'units inside the citadel are pushed out');
+  const inside = Navigation.toGrid(center.x, center.y);
+  assert.ok(Math.abs(inside.x - 4) < 1e-9 && Math.abs(inside.y - 4) < 1e-9, 'toGrid inverts gridToScreen');
+  for (const p of layout.PORTAL_SITES) {
+    const route = nav.pathToRect(p.exit, layout.CASTLE_FOOTPRINT, [0]);
+    assert.ok(route && route.length > 1, `invaders from ${p.id} can reach the citadel walls`);
+  }
+  const a = IsometricHelper.gridToScreen(2, 4);
+  const b = IsometricHelper.gridToScreen(6, 4);
+  assert.equal(nav.hasLineOfSight(a.x, a.y, b.x, b.y), false, 'the citadel blocks line of sight');
+  console.log('Tower, beacon, portal, save-migration and obstacle checks passed.');
+}

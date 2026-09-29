@@ -84,3 +84,12 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(56, 189, 248, 0.6);
 }
+
+/* Activity log tray: newest entry slides into the collapsed ticker */
+@keyframes tray-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-tray-in {
+  animation: tray-in 220ms ease-out;
+}

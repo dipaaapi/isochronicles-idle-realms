@@ -1,0 +1,30 @@
+{
+  "gridSize": 10,
+  "castle": {
+    "footprint": { "x": 3, "y": 3, "w": 3, "h": 3 },
+    "gate": { "x": 4, "y": 6 }
+  },
+  "spire": {
+    "footprint": { "x": 1, "y": 4, "w": 2, "h": 2 },
+    "workSpot": { "x": 2, "y": 3 }
+  },
+  "buildings": {
+    "QUARRY": { "footprint": { "x": 7, "y": 2, "w": 2, "h": 2 }, "workSpot": { "x": 6, "y": 3 } },
+    "MINE": { "footprint": { "x": 7, "y": 4, "w": 2, "h": 2 }, "workSpot": { "x": 6, "y": 4 } },
+    "WOOD": { "footprint": { "x": 7, "y": 6, "w": 2, "h": 2 }, "workSpot": { "x": 6, "y": 7 } },
+    "PORT": { "footprint": { "x": 2, "y": 7, "w": 2, "h": 2 }, "workSpot": { "x": 3, "y": 6 } },
+    "CAVE": { "footprint": { "x": 4, "y": 7, "w": 2, "h": 2 }, "workSpot": { "x": 6, "y": 8 } }
+  },
+  "constructionOrder": ["WOOD", "QUARRY", "MINE", "PORT", "CAVE"],
+  "portals": [
+    { "id": "NORTH", "name": { "en": "North Rift", "tl": "Hilagang Lagusan" }, "tile": { "x": 0, "y": 0 }, "exit": { "x": 1, "y": 1 } },
+    { "id": "EAST", "name": { "en": "East Rift", "tl": "Silangang Lagusan" }, "tile": { "x": 9, "y": 0 }, "exit": { "x": 8, "y": 1 } },
+    { "id": "WEST", "name": { "en": "West Rift", "tl": "Kanlurang Lagusan" }, "tile": { "x": 0, "y": 9 }, "exit": { "x": 1, "y": 8 } },
+    { "id": "SOUTH", "name": { "en": "South Rift", "tl": "Timog na Lagusan" }, "tile": { "x": 9, "y": 9 }, "exit": { "x": 8, "y": 8 } }
+  ],
+  "roads": [
+    [1, 6], [2, 6], [3, 6], [4, 6], [5, 6], [6, 6],
+    [6, 2], [6, 3], [6, 4], [6, 5], [6, 7], [6, 8],
+    [2, 2], [3, 2], [4, 2], [5, 2]
+  ]
+}

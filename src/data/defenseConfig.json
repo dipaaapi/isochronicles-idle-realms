@@ -1,0 +1,181 @@
+{
+  "zoneMarginTiles": 1,
+  "towerMaxLevel": 5,
+
+  "building": {
+    "hpBase": 260,
+    "hpPerLevel": 150,
+    "repairFraction": 0.5,
+    "repairCost": { "coins": 30, "stone": 20, "wood": 15 },
+    "waveEndRestoreFraction": 0.25
+  },
+
+  "towers": {
+    "QUARRY": {
+      "attack": "catapult",
+      "icon": "🪨",
+      "name": { "en": "Boulder Catapult", "tl": "Tirador ng Malaking Bato" },
+      "desc": { "en": "Lobs a boulder that crushes every invader in the splash.", "tl": "Naghahagis ng malaking bato na dumudurog sa lahat ng kalaban sa tatamaan." },
+      "damage": 34, "damagePerLevel": 14,
+      "cooldown": 3.4, "cooldownPerLevel": -0.25,
+      "splashTiles": 0.8,
+      "costs": [
+        { "coins": 60, "stone": 40, "wood": 20 },
+        { "coins": 120, "stone": 80, "minerals": 12 },
+        { "coins": 220, "stone": 140, "minerals": 30, "metal": 10 },
+        { "coins": 380, "stone": 220, "minerals": 60, "metal": 25 }
+      ]
+    },
+    "PORT": {
+      "attack": "iceStorm",
+      "icon": "❄️",
+      "name": { "en": "Frost Tide Obelisk", "tl": "Obelisko ng Yelong Alon" },
+      "desc": { "en": "Rains a storm of ice shards that wounds and slows invaders.", "tl": "Nagpapaulan ng matutulis na yelo na sumusugat at nagpapabagal sa kalaban." },
+      "damage": 6, "damagePerLevel": 3,
+      "shards": 10, "shardsPerLevel": 2,
+      "cooldown": 6.5, "cooldownPerLevel": -0.4,
+      "stormSeconds": 2.2,
+      "radiusTiles": 1.1,
+      "slowFactor": 0.45,
+      "slowSeconds": 2.5,
+      "costs": [
+        { "coins": 60, "water": 25, "wood": 30 },
+        { "coins": 120, "water": 50, "aetherShards": 40, "fish": 15 },
+        { "coins": 220, "water": 90, "aetherShards": 80, "minerals": 20 },
+        { "coins": 380, "water": 150, "aetherShards": 140, "minerals": 45 }
+      ]
+    },
+    "WOOD": {
+      "attack": "saplings",
+      "icon": "🌱",
+      "name": { "en": "Sapling Grove", "tl": "Kakahuyan ng mga Supling" },
+      "desc": { "en": "Summons mini sapling minions to fight inside its zone — 5 summons per wave.", "tl": "Nagpapatawag ng maliliit na supling na lumalaban sa loob ng sona — 5 beses bawat alon." },
+      "damage": 9, "damagePerLevel": 4,
+      "cooldown": 7, "cooldownPerLevel": -0.5,
+      "charges": 5,
+      "saplingHp": 55, "saplingHpPerLevel": 20,
+      "saplingLifetime": 18,
+      "costs": [
+        { "coins": 55, "wood": 50, "stone": 15 },
+        { "coins": 110, "wood": 90, "charcoal": 15 },
+        { "coins": 210, "wood": 150, "charcoal": 35, "arcaneEssence": 10 },
+        { "coins": 360, "wood": 240, "charcoal": 70, "arcaneEssence": 25 }
+      ]
+    },
+    "MINE": {
+      "attack": "spikes",
+      "icon": "🔩",
+      "name": { "en": "Iron Spike Launcher", "tl": "Pambaril ng Bakal na Tinik" },
+      "desc": { "en": "Fires a volley of metal spikes, each at a different invader.", "tl": "Nagpapaputok ng sunod-sunod na bakal na tinik, bawat isa sa ibang kalaban." },
+      "damage": 15, "damagePerLevel": 7,
+      "cooldown": 2.4, "cooldownPerLevel": -0.15,
+      "volley": 3,
+      "costs": [
+        { "coins": 65, "stone": 30, "metal": 10 },
+        { "coins": 130, "metal": 30, "coal": 12 },
+        { "coins": 240, "metal": 60, "coal": 30, "minerals": 12 },
+        { "coins": 400, "metal": 110, "coal": 60, "minerals": 30 }
+      ]
+    },
+    "CAVE": {
+      "attack": "flamethrower",
+      "icon": "🔥",
+      "name": { "en": "Hellfire Maw", "tl": "Bunganga ng Apoy ng Impiyerno" },
+      "desc": { "en": "Breathes a cone of hellfire that scorches and burns invaders.", "tl": "Bumubuga ng apoy ng impiyerno na sumusunog sa mga kalaban." },
+      "damage": 26, "damagePerLevel": 11,
+      "cooldown": 4.2, "cooldownPerLevel": -0.3,
+      "flameSeconds": 1.6,
+      "coneDegrees": 50,
+      "burnDps": 6, "burnDpsPerLevel": 3,
+      "burnSeconds": 3,
+      "costs": [
+        { "coins": 70, "arcaneEssence": 15, "stone": 30 },
+        { "coins": 140, "arcaneEssence": 35, "coal": 15 },
+        { "coins": 250, "arcaneEssence": 60, "coal": 35, "charcoal": 25 },
+        { "coins": 420, "arcaneEssence": 100, "coal": 70, "charcoal": 50 }
+      ]
+    }
+  },
+
+  "castle": {
+    "wallLevel": {
+      "icon": "🧱",
+      "name": { "en": "Citadel Walls", "tl": "Pader ng Kuta" },
+      "desc": { "en": "+200 max HP and 4% less damage per level.", "tl": "+200 Max HP at 4% bawas pinsala bawat antas." },
+      "hpPerLevel": 200,
+      "costs": {
+        "coins": { "base": 70, "growth": 1.5 },
+        "stone": { "base": 30, "growth": 1.35 },
+        "metal": { "base": 6, "growth": 1.45, "fromLevel": 3 }
+      }
+    },
+    "shieldLevel": {
+      "icon": "💠",
+      "name": { "en": "Aegis Shield", "tl": "Kalasag ng Aegis" },
+      "desc": { "en": "+100 shield that absorbs hits before the walls.", "tl": "+100 kalasag na sumasalo muna bago ang pader." },
+      "shieldPerLevel": 100,
+      "costs": {
+        "coins": { "base": 110, "growth": 1.5 },
+        "aetherShards": { "base": 30, "growth": 1.35 },
+        "minerals": { "base": 5, "growth": 1.45, "fromLevel": 3 }
+      }
+    },
+    "beaconLevel": {
+      "icon": "🚨",
+      "name": { "en": "Provoke Beacon", "tl": "Liwanag ng Panunukso" },
+      "desc": { "en": "The citadel no longer fights. It pulses a provoking light that forces nearby invaders to attack it instead of your establishments.", "tl": "Hindi na umaatake ang kuta. Naglalabas ito ng liwanag na pumipilit sa kalapit na kalaban na ito ang atakihin sa halip na ang mga gusali." },
+      "maxLevel": 8,
+      "radiusTiles": 2.5, "radiusPerLevel": 0.4,
+      "interval": 12, "intervalPerLevel": -1, "minInterval": 5,
+      "duration": 4, "durationPerLevel": 0.6,
+      "costs": {
+        "coins": { "base": 90, "growth": 1.5 },
+        "aetherShards": { "base": 25, "growth": 1.35 },
+        "coal": { "base": 4, "growth": 1.45, "fromLevel": 3 }
+      }
+    }
+  },
+
+  "portal": {
+    "hp": 150, "hpPerWave": 25,
+    "coins": 35, "coinsPerWave": 4,
+    "shards": 5
+  },
+
+  "production": {
+    "desc": { "en": "Unlocks the second output", "tl": "Binubuksan ang ikalawang produkto" }
+  },
+
+  "text": {
+    "castleTitle": { "en": "Demon Citadel", "tl": "Kuta ng Demon Lord" },
+    "castleNote": { "en": "The citadel no longer attacks — your establishments do. Keep its Provoke Beacon strong so invaders hit the walls instead.", "tl": "Hindi na umaatake ang kuta — ang mga gusali na ang lumalaban. Palakasin ang Liwanag ng Panunukso para ang pader ang atakihin ng kalaban." },
+    "castleHp": { "en": "Citadel HP", "tl": "Buhay ng Kuta" },
+    "shield": { "en": "Shield", "tl": "Kalasag" },
+    "repairCastle": { "en": "Repair citadel (+120 HP)", "tl": "Ayusin ang kuta (+120 HP)" },
+    "establishments": { "en": "Establishments", "tl": "Mga Gusali" },
+    "establishmentsNote": { "en": "Each establishment defends a 4×4-tile zone around itself. Invaders can wreck them — a wrecked establishment stops producing and fighting until repaired.", "tl": "Bawat gusali ay nagtatanggol ng 4×4 na tile sa paligid nito. Maaari itong wasakin ng kalaban — hihinto ang produksyon at depensa hanggang maayos." },
+    "notBuilt": { "en": "Not built yet — the Ent will raise it once supplies are ready.", "tl": "Hindi pa naitatayo — itatayo ito ng Ent kapag sapat na ang suplay." },
+    "wrecked": { "en": "Wrecked", "tl": "Wasak" },
+    "tower": { "en": "Defense", "tl": "Depensa" },
+    "production": { "en": "Production", "tl": "Produksyon" },
+    "upgrade": { "en": "Upgrade", "tl": "I-upgrade" },
+    "repair": { "en": "Repair", "tl": "Ayusin" },
+    "max": { "en": "MAX", "tl": "MAX" },
+    "level": { "en": "Lv.", "tl": "Lv." },
+    "damage": { "en": "Damage", "tl": "Pinsala" },
+    "cooldown": { "en": "Every", "tl": "Bawat" },
+    "hp": { "en": "HP", "tl": "HP" },
+    "shards": { "en": "Shards", "tl": "Yelo" },
+    "slow": { "en": "Slow", "tl": "Bagal" },
+    "charges": { "en": "Summons/wave", "tl": "Tawag/alon" },
+    "perSummon": { "en": "Saplings each", "tl": "Supling bawat tawag" },
+    "volley": { "en": "Spikes", "tl": "Tinik" },
+    "burn": { "en": "Burn", "tl": "Paso" },
+    "splash": { "en": "Splash", "tl": "Saklaw" },
+    "radius": { "en": "Radius", "tl": "Abot" },
+    "pulse": { "en": "Pulse", "tl": "Pulso" },
+    "provoke": { "en": "Provoke", "tl": "Tukso" },
+    "tiles": { "en": "tiles", "tl": "tile" },
+    "outputs": { "en": "Outputs", "tl": "Produkto" }
+  }
+}
