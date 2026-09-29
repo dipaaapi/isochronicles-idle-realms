@@ -4,7 +4,7 @@ import { Navigation, NavAgent } from './Navigation';
 import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionManager';
 import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
-import { skillBonuses } from '../state/skillTree';
+import { teamBonuses } from '../state/skillTree';
 import { TileRect, isLandTile } from '../state/buildingLayout';
 import { towerStats, TowerStats } from '../state/defenseStats';
 import type { ResourceBuildingId } from '../types/state';
@@ -91,7 +91,8 @@ export class TowerSystem {
     if (!active) return;
 
     const aegis = (store.activeGodBlessings?.AEGIS_WRATH || 0) > 0;
-    const damageMultiplier = skillBonuses(store.unlockedSkills).turret;
+    const team = teamBonuses(store);
+    const damageMultiplier = team.turret;
     const invaders = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isScout && !i.isRetreating && !(i.emerge && i.emerge > 0));
 
     for (const tower of this.structures.getTowers()) {
@@ -102,7 +103,7 @@ export class TowerSystem {
       const inRange = invaders.filter((i) => inZone(tower.zone, i.container.x, i.container.y));
       if (inRange.length === 0) continue;
       const fired = this.fire(tower, stats, inRange);
-      this.cooldowns.set(tower.id, fired ? stats.cooldown : 0.3);
+      this.cooldowns.set(tower.id, fired ? stats.cooldown * team.towerCooldown : 0.3);
     }
   }
 

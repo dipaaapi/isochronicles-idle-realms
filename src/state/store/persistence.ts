@@ -57,7 +57,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       version: SAVE_VERSION,
       difficulty: state.difficulty,
       skillPoints: state.skillPoints,
-      unlockedSkills: state.unlockedSkills,
+      skillRanks: state.skillRanks,
       regressionCount: state.regressionCount,
       regressionHistory: state.regressionHistory,
       layoutSeed: state.layoutSeed,
@@ -151,7 +151,7 @@ type PersistedState = ReturnType<typeof partialize>;
 /** The subset of the store written to IndexedDB. */
 const partialize = (state: GameStoreState) => ({
   skillPoints: state.skillPoints,
-  unlockedSkills: state.unlockedSkills,
+  skillRanks: state.skillRanks,
   difficulty: state.difficulty,
   hasCompletedIntro: state.hasCompletedIntro,
   realmName: state.realmName,
@@ -163,6 +163,7 @@ const partialize = (state: GameStoreState) => ({
   resourceBuildings: state.resourceBuildings,
   autoBuyBuildingMaterials: state.autoBuyBuildingMaterials,
   showTileCoordinates: state.showTileCoordinates,
+  isGoreEnabled: state.isGoreEnabled,
   defense: state.defense,
   invasion: state.invasion,
   achievements: state.achievements,

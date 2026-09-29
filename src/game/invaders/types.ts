@@ -53,6 +53,8 @@ export interface ActiveInvader extends NavAgent {
   enter?: number;
   /** Seconds left under the citadel's Provoke Beacon — must attack the citadel. */
   provokedTimer?: number;
+  /** Rushers ignore defenders and establishments and charge straight at the citadel. */
+  isRusher?: boolean;
   slowTimer?: number;
   slowFactor?: number;
   burnTimer?: number;

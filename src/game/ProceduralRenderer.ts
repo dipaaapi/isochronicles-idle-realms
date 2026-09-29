@@ -155,21 +155,4 @@ export class ProceduralRenderer {
 
     graphics.strokePath();
   }
-
-  /**
-   * Draws soft radial luminescence aura for landmarks during night/dusk.
-   */
-  static drawNightGlow(
-    graphics: Phaser.GameObjects.Graphics,
-    x: number,
-    y: number,
-    radius: number = 32,
-    color: number = 0x38bdf8,
-    alpha: number = 0.35
-  ): void {
-    graphics.fillStyle(color, alpha * 0.4);
-    graphics.fillCircle(x, y, radius * 1.6);
-    graphics.fillStyle(color, alpha);
-    graphics.fillCircle(x, y, radius);
-  }
 }

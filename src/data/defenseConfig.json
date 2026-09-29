@@ -136,6 +136,12 @@
     }
   },
 
+  "rushers": {
+    "chance": 0.2,
+    "fromWave": 1,
+    "speedMultiplier": 1.3
+  },
+
   "portal": {
     "hp": 150, "hpPerWave": 25,
     "coins": 35, "coinsPerWave": 4,

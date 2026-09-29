@@ -20,7 +20,7 @@ import {
   towerStats,
   towerUpgradeCost,
 } from '../state/defenseStats';
-import { skillBonuses } from '../state/skillTree';
+import { teamBonuses } from '../state/skillTree';
 import { soundFx } from '../game/audio/soundFx';
 import type { ResourceBuildingId, Resources } from '../types/state';
 import { resourceIcon } from './costDisplay';
@@ -65,7 +65,8 @@ export const FortificationsPanel: React.FC = () => {
     defense,
     castleBuilt,
     resourceBuildings,
-    unlockedSkills,
+    skillRanks,
+    regressionCount,
     upgradeDefense,
     repairCastle,
     upgradeTower,
@@ -73,7 +74,7 @@ export const FortificationsPanel: React.FC = () => {
     upgradeResourceBuilding,
   } = useGameStore();
   const t = (text: Text) => (language === 'TL' ? text.tl : text.en);
-  const damageMultiplier = skillBonuses(unlockedSkills).turret;
+  const damageMultiplier = teamBonuses({ skillRanks, regressionCount }).turret;
 
   const click = (action: () => boolean) => {
     soundFx.playClick();

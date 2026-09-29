@@ -29,7 +29,8 @@
     "lightning": { "category": "world", "tone": "neutral", "icon": "⚡", "en": "Lightning struck {tile}", "tl": "Tinamaan ng kidlat ang {tile}" },
     "goldenFish": { "category": "world", "tone": "epic", "icon": "🐟", "en": "A golden fish leapt at {tile}", "tl": "Tumalon ang gintong isda sa {tile}" },
     "achievement": { "category": "world", "tone": "epic", "icon": "🏅", "en": "Achievement: {title}", "tl": "Tagumpay: {title}" },
-    "skillLearned": { "category": "world", "tone": "epic", "icon": "🔮", "en": "Skill learned: {skill}", "tl": "Natutunan: {skill}" },
+    "skillLearned": { "category": "world", "tone": "epic", "icon": "🔮", "en": "Skill learned: {skill} (rank {rank}/{max})", "tl": "Natutunan: {skill} (antas {rank}/{max})" },
+    "skillPointsEarned": { "category": "world", "tone": "epic", "icon": "⭐", "en": "Wave set cleared — +{count} skill points ({total} to spend)", "tl": "Natapos ang set ng wave — +{count} puntos ng kasanayan ({total} magagamit)" },
     "regression": { "category": "world", "tone": "epic", "icon": "♻️", "en": "Regression performed — Tier {tier}", "tl": "Isinagawa ang Regression — Antas {tier}" },
 
     "waveAttack": { "category": "combat", "tone": "bad", "icon": "⚔️", "en": "Wave {wave} is attacking!", "tl": "Umaatake ang Alon {wave}!" },
@@ -38,6 +39,7 @@
     "invaderSlain": { "category": "combat", "tone": "good", "icon": "☠️", "en": "{name} slain", "tl": "Napatay ang {name}" },
     "bossSlain": { "category": "combat", "tone": "epic", "icon": "👑", "en": "{name} slain", "tl": "Napatay ang {name}" },
     "bossArrives": { "category": "combat", "tone": "epic", "icon": "👹", "en": "{name} has entered the realm!", "tl": "Dumating ang {name}!" },
+    "rusherCharges": { "category": "combat", "tone": "bad", "icon": "🏃", "en": "{name} is rushing the citadel!", "tl": "Sumusugod sa kuta ang {name}!" },
     "castleDamage": { "category": "combat", "tone": "bad", "icon": "🏰", "en": "Citadel took {total} damage", "tl": "Tinamaan ang kuta ng {total} pinsala" },
     "unitHurt": { "category": "combat", "tone": "bad", "icon": "💔", "en": "{name} took {total} damage", "tl": "{name} ay nasaktan ng {total}" },
     "portalsOpen": { "category": "combat", "tone": "bad", "icon": "🌀", "en": "{count} rifts tear open at the island's corners", "tl": "Bumukas ang {count} lagusan sa mga sulok ng isla" },

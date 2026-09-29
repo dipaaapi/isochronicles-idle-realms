@@ -1,0 +1,133 @@
+{
+  "wavesPerSet": 5,
+  "pointsPerSet": 2,
+
+  "branches": {
+    "MINIONS": { "icon": "⚔️", "color": "#f87171", "name": { "en": "Minions", "tl": "Mga Alagad" } },
+    "CASTLE": { "icon": "🏰", "color": "#60a5fa", "name": { "en": "Citadel", "tl": "Kuta" } },
+    "RESOURCES": { "icon": "🌾", "color": "#4ade80", "name": { "en": "Resources", "tl": "Yaman" } },
+    "MYSTIC": { "icon": "✨", "color": "#c084fc", "name": { "en": "Mystic", "tl": "Mahika" } }
+  },
+
+  "skills": {
+    "MINION_MIGHT": {
+      "branch": "MINIONS", "icon": "🗡️", "maxRank": 3, "stat": "minionAttack", "perRank": 0.08, "requires": null,
+      "name": { "en": "Demon Might", "tl": "Lakas ng Demonyo" },
+      "desc": { "en": "Minion attack damage", "tl": "Pinsala ng atake ng alagad" }
+    },
+    "MINION_HASTE": {
+      "branch": "MINIONS", "icon": "👟", "maxRank": 3, "stat": "minionSpeed", "perRank": 0.05, "requires": "MINION_MIGHT",
+      "name": { "en": "Swift Servants", "tl": "Mabibilis na Alipin" },
+      "desc": { "en": "Minion movement speed", "tl": "Bilis ng paglakad ng alagad" }
+    },
+    "MINION_BULWARK": {
+      "branch": "MINIONS", "icon": "🛡️", "maxRank": 3, "stat": "minionDefense", "perRank": 0.06, "requires": "MINION_HASTE",
+      "name": { "en": "Hardened Hides", "tl": "Matitibay na Balat" },
+      "desc": { "en": "Less damage taken by minions", "tl": "Bawas pinsala sa mga alagad" }
+    },
+    "MINION_FEROCITY": {
+      "branch": "MINIONS", "icon": "🔥", "maxRank": 1, "stat": "minionAttack", "perRank": 0.15, "requires": "MINION_BULWARK",
+      "name": { "en": "Overwhelming Force", "tl": "Napakalakas na Puwersa" },
+      "desc": { "en": "Extra minion attack damage", "tl": "Dagdag na pinsala ng alagad" }
+    },
+
+    "CASTLE_ARMOR": {
+      "branch": "CASTLE", "icon": "🧱", "maxRank": 3, "stat": "castleArmor", "perRank": 0.05, "requires": null,
+      "name": { "en": "Obsidian Walls", "tl": "Pader na Obsidian" },
+      "desc": { "en": "Less damage taken by the citadel", "tl": "Bawas pinsala sa kuta" }
+    },
+    "CASTLE_TURRETS": {
+      "branch": "CASTLE", "icon": "🎯", "maxRank": 3, "stat": "towerDamage", "perRank": 0.1, "requires": "CASTLE_ARMOR",
+      "name": { "en": "Arcane Artillery", "tl": "Mahiwagang Artilerya" },
+      "desc": { "en": "Establishment tower damage", "tl": "Pinsala ng depensa ng mga gusali" }
+    },
+    "CASTLE_SIEGECRAFT": {
+      "branch": "CASTLE", "icon": "⏱️", "maxRank": 3, "stat": "towerRate", "perRank": 0.06, "requires": "CASTLE_TURRETS",
+      "name": { "en": "Rapid Siegecraft", "tl": "Mabilis na Pagkarga" },
+      "desc": { "en": "Shorter tower cooldowns", "tl": "Mas maikling pahinga ng depensa" }
+    },
+    "CASTLE_BASTION": {
+      "branch": "CASTLE", "icon": "💖", "maxRank": 2, "stat": "waveRepair", "perRank": 0.1, "requires": "CASTLE_SIEGECRAFT",
+      "name": { "en": "Mending Stones", "tl": "Nagpapagaling na Bato" },
+      "desc": { "en": "Citadel heals this share of max HP after each cleared wave", "tl": "Gumagaling ang kuta pagkatapos ng bawat wave" }
+    },
+
+    "RESOURCE_GROVES": {
+      "branch": "RESOURCES", "icon": "🪵", "maxRank": 3, "stat": "foundations", "perRank": 0.1, "requires": null,
+      "name": { "en": "Rich Foundations", "tl": "Masaganang Pundasyon" },
+      "desc": { "en": "Wood and stone harvested", "tl": "Kahoy at batong naaani" }
+    },
+    "RESOURCE_ABUNDANCE": {
+      "branch": "RESOURCES", "icon": "🌾", "maxRank": 3, "stat": "harvest", "perRank": 0.08, "requires": "RESOURCE_GROVES",
+      "name": { "en": "Realm Abundance", "tl": "Kasaganaan ng Kaharian" },
+      "desc": { "en": "All harvested resources", "tl": "Lahat ng naaaning yaman" }
+    },
+    "RESOURCE_PLUNDER": {
+      "branch": "RESOURCES", "icon": "🪙", "maxRank": 3, "stat": "bounty", "perRank": 0.1, "requires": "RESOURCE_ABUNDANCE",
+      "name": { "en": "Plunder Tax", "tl": "Buwis ng Samsam" },
+      "desc": { "en": "Coins from slain invaders", "tl": "Barya mula sa napatay na kalaban" }
+    },
+
+    "MYSTIC_FOCUS": {
+      "branch": "MYSTIC", "icon": "⌛", "maxRank": 3, "stat": "blessingDuration", "perRank": 0.1, "requires": null,
+      "name": { "en": "Arcane Attunement", "tl": "Mahiwagang Pagkakaisa" },
+      "desc": { "en": "God Blessing duration", "tl": "Tagal ng Basbas ng Diyos" }
+    },
+    "MYSTIC_SURGE": {
+      "branch": "MYSTIC", "icon": "💠", "maxRank": 3, "stat": "blessingCost", "perRank": 0.08, "requires": "MYSTIC_FOCUS",
+      "name": { "en": "Ley Line Surge", "tl": "Daloy ng Ley Line" },
+      "desc": { "en": "Cheaper God Blessings", "tl": "Mas murang Basbas ng Diyos" }
+    }
+  },
+
+  "stats": {
+    "minionAttack": { "sign": "+", "name": { "en": "Minion attack", "tl": "Atake ng alagad" } },
+    "minionSpeed": { "sign": "+", "name": { "en": "Minion speed", "tl": "Bilis ng alagad" } },
+    "minionDefense": { "sign": "-", "cap": 0.6, "name": { "en": "Minion damage taken", "tl": "Pinsala sa alagad" } },
+    "castleArmor": { "sign": "-", "cap": 0.6, "name": { "en": "Citadel damage taken", "tl": "Pinsala sa kuta" } },
+    "towerDamage": { "sign": "+", "name": { "en": "Tower damage", "tl": "Pinsala ng depensa" } },
+    "towerRate": { "sign": "-", "cap": 0.5, "name": { "en": "Tower cooldown", "tl": "Pahinga ng depensa" } },
+    "waveRepair": { "sign": "+", "cap": 1, "name": { "en": "Citadel heal per wave", "tl": "Galing ng kuta bawat wave" } },
+    "foundations": { "sign": "+", "name": { "en": "Wood & stone", "tl": "Kahoy at bato" } },
+    "harvest": { "sign": "+", "name": { "en": "All harvests", "tl": "Lahat ng ani" } },
+    "bounty": { "sign": "+", "name": { "en": "Invader bounty", "tl": "Gantimpala sa kalaban" } },
+    "blessingDuration": { "sign": "+", "name": { "en": "Blessing duration", "tl": "Tagal ng basbas" } },
+    "blessingCost": { "sign": "-", "cap": 0.6, "name": { "en": "Blessing cost", "tl": "Halaga ng basbas" } }
+  },
+
+  "regressionBoostPerTier": {
+    "minionAttack": 0.05,
+    "minionSpeed": 0.03,
+    "minionDefense": 0.03,
+    "towerDamage": 0.05,
+    "harvest": 0.05
+  },
+
+  "text": {
+    "title": { "en": "Skill Tree", "tl": "Puno ng Kasanayan" },
+    "points": { "en": "skill points", "tl": "puntos ng kasanayan" },
+    "howTo": { "en": "Clear every {waves} waves to earn {points} skill points. Click a skill to add a rank — it works immediately. Reset any time for free.", "tl": "Tapusin ang bawat {waves} wave para makakuha ng {points} puntos. I-click ang kasanayan para magdagdag ng antas — agad itong gagana. Libreng i-reset kahit kailan." },
+    "nextPoints": { "en": "Next +{points} at wave {wave} ({left} to go)", "tl": "Susunod na +{points} sa wave {wave} ({left} pa)" },
+    "allEarned": { "en": "All wave rewards earned in this realm", "tl": "Nakuha na ang lahat ng gantimpala sa kahariang ito" },
+    "reset": { "en": "Reset skills (free)", "tl": "I-reset (libre)" },
+    "resetConfirm": { "en": "Refund every spent skill point?", "tl": "Ibalik lahat ng nagastos na puntos?" },
+    "requires": { "en": "Needs {skill}", "tl": "Kailangan ang {skill}" },
+    "maxed": { "en": "MAX", "tl": "MAX" },
+    "learn": { "en": "Learn", "tl": "Matuto" },
+    "noPoints": { "en": "No points", "tl": "Walang puntos" },
+    "now": { "en": "Now", "tl": "Ngayon" },
+    "next": { "en": "Next", "tl": "Susunod" },
+    "teamBonuses": { "en": "Team bonuses (skills + regression)", "tl": "Bonus ng koponan (kasanayan + regression)" },
+    "noBonuses": { "en": "No bonuses yet — clear waves to earn points.", "tl": "Wala pang bonus — tapusin ang mga wave para sa puntos." },
+    "perRealm": { "en": "Skills belong to this realm: Regression refunds them and you earn points again from wave 1. Regression tiers give permanent team boosts — enemies never get stronger from them.", "tl": "Pang-kahariang ito ang kasanayan: ibinabalik ito ng Regression at muling kikitain mula wave 1. Ang Regression ay nagbibigay ng permanenteng lakas sa koponan — hindi lumalakas ang kalaban dahil dito." },
+    "close": { "en": "Close", "tl": "Isara" }
+  },
+
+  "regressionText": {
+    "teamBoost": { "en": "Permanent team boost (tier {from} → {to}) — your side only, enemies stay the same:", "tl": "Permanenteng lakas ng koponan (antas {from} → {to}) — sa panig mo lang, hindi lumalakas ang kalaban:" },
+    "confirm": { "en": "Undergo Regression now?\n\n• Your achievement is recorded (Wave {wave}, Phase {phase}, Day {day}).\n• Days and waves restart at 1 and the Ent rebuilds the citadel.\n• Skills are refunded — earn points again by clearing waves.\n• Your team gets permanent stat boosts and +{hp} castle HP. Enemies do not get stronger.", "tl": "Mag-Regress na ba?\n\n• Itatala ang narating mo (Wave {wave}, Phase {phase}, Day {day}).\n• Babalik sa 1 ang araw at wave at muling itatayo ng Ent ang kuta.\n• Ibabalik ang mga kasanayan — kitain muli ang puntos sa pagtapos ng mga wave.\n• Permanenteng lalakas ang koponan at +{hp} HP ng kuta. Hindi lumalakas ang kalaban." },
+    "note": { "en": "Each regression resets to Day 1, Year 1 and Wave 1. Your team keeps every regression boost forever; the skill tree is refunded and refills as you clear waves again.", "tl": "Bawat regression ay babalik sa Day 1, Year 1 at Wave 1. Mananatili magpakailanman ang lakas mula sa regression; ibabalik ang puno ng kasanayan at mapupuno muli habang tinatapos ang mga wave." },
+    "resetInfo": { "en": "erase the Regression tier, history, permanent team boosts and permanent regression HP.", "tl": "burahin ang antas ng Regression, kasaysayan, permanenteng lakas ng koponan at dagdag na HP." },
+    "resetConfirm": { "en": "This erases regression history, permanent team boosts and permanent regression HP. Continue?", "tl": "Mabubura ang Regression tier, kasaysayan at permanenteng lakas. Ituloy?" }
+  }
+}

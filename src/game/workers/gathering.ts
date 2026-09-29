@@ -1,7 +1,7 @@
 import type { HarvestTask, UnitClass } from '../../types/game';
 import type { GameStoreState, Resources } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
-import { skillBonuses } from '../../state/skillTree';
+import { teamBonuses } from '../../state/skillTree';
 import { isBuildingOperational } from '../../state/defenseStats';
 import { soundFx } from '../audio/soundFx';
 import { renderCargoGraphics } from './legacyWorkerArt';
@@ -171,7 +171,7 @@ function depositCargo(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerF
   const nodeQuality = isEnrichableTask(worker.assignedTask)
     ? (store.dynamicResourceNodes?.[worker.assignedTask]?.qualityMultiplier ?? 1.0)
     : 1.0;
-  const skills = skillBonuses(store.unlockedSkills);
+  const skills = teamBonuses(store);
   const foundationBonus = worker.assignedTask === 'WOOD' || worker.assignedTask === 'STONE' ? skills.foundations : 1;
   const totalMultiplier = (isHarvestBlessing ? 3 : 1) * nodeQuality * skills.harvest * foundationBonus;
   const harvested = Math.max(1, Math.round(worker.cargo * totalMultiplier));

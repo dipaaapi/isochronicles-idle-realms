@@ -1,10 +1,11 @@
 import { NODE_SPOTS, applyLayoutSeed, newLayoutSeed } from '../buildingLayout';
 import { ECONOMY_CONFIG } from '../economy';
 import type { Difficulty } from '../difficulty';
-import type { SkillId } from '../skillTree';
+import type { SkillRanks } from '../skillTree';
 import type {
   AutoSettings,
   CastleDefenseState,
+  GameSpeed,
   GameStoreState,
   InvasionState,
   ResourceBuildingId,
@@ -117,7 +118,7 @@ export const createInitialWorldClock = () => ({
   timeOfDay: 'DAY' as const,
   weather: 'CLEAR' as const,
   ambientDarkness: 0,
-  gameSpeed: 1 as 0 | 1 | 2,
+  gameSpeed: 1 as GameSpeed,
 });
 
 /** Rolls and applies a fresh random establishment layout; returns its seed. */
@@ -139,7 +140,7 @@ export const createInitialProgress = () => {
     screen: 'TITLE' as const,
     difficulty: 'NORMAL' as Difficulty,
     skillPoints: 0,
-    unlockedSkills: [] as SkillId[],
+    skillRanks: {} as SkillRanks,
     hasCompletedIntro: false,
     realmName: 'Kuta ng Kadiliman (Demon Realm)',
     resources: { ...INITIAL_RESOURCES },

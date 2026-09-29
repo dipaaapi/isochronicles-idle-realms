@@ -171,7 +171,10 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   }
 
   ctx.spawnHarvestBurst(targetX, targetY - 10, targetPortal ? 0xfde047 : 0x38bdf8, 6);
-  soundFx.playHarvest('stone');
+  // Blows on armoured knights and mecha ring out; everything else is a heavy bash
+  if (targetPortal) soundFx.playWallBang();
+  else if (targetInvader!.type === 'DEEP_ONE') soundFx.playMonsterBash();
+  else soundFx.playSwordClang();
   // Visual punch lunge animation with safe completion
   ctx.scene.tweens.add({
     targets: worker.body,

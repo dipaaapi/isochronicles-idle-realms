@@ -3,7 +3,7 @@ import { isConstructionReady } from '../constructionProgress';
 import { DEFENSE_CONFIG, beaconLevelOf, castleUpgradeCost } from '../defenseStats';
 import { ECONOMY_CONFIG, enemiesInWave } from '../economy';
 import { lootResources } from '../resources';
-import { skillBonuses } from '../skillTree';
+import { availableSkillPoints, teamBonuses } from '../skillTree';
 import { restoreWreckedBuildings } from './buildingsSlice';
 import { INITIAL_UPGRADES, createSupportSlime } from './initialState';
 import type { GameStoreState, PlatformPhase } from '../../types/state';
@@ -67,7 +67,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
 
   damageCastle: (amount: number) => {
     const state = get();
-    let remainingDmg = amount * skillBonuses(state.unlockedSkills).castleDamage;
+    let remainingDmg = amount * teamBonuses(state).castleDamage;
 
     // Damage reduction from wall level (4% per level)
     const dmgReduction = Math.min(0.4, (state.defense.wallLevel - 1) * 0.04);
@@ -123,6 +123,12 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
       const currentWave = prev.invasion.waveNumber;
       const nextWave = Math.min(INVASION.maxWave, currentWave + 1);
       const completedWave100 = currentWave >= INVASION.maxWave;
+      const wavesCleared = prev.invasion.invasionsRepelled + 1;
+      // Mending Stones: the citadel recovers part of its max HP after each wave
+      const repair = Math.round(prev.defense.castleMaxHp * teamBonuses(prev).waveRepair);
+      const castleHp = prev.castleBuilt && prev.defense.castleHp > 0
+        ? Math.min(prev.defense.castleMaxHp, prev.defense.castleHp + repair)
+        : prev.defense.castleHp;
 
       return {
         resources: { ...prev.resources, coins: prev.resources.coins + bountyCoins },
@@ -133,11 +139,13 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
           ...prev.invasion,
           isActive: false,
           waveNumber: nextWave,
-          invasionsRepelled: prev.invasion.invasionsRepelled + 1,
+          invasionsRepelled: wavesCleared,
           countdown: INVASION.countdownSeconds,
           maxCountdown: INVASION.countdownSeconds,
         },
-        defense: { ...prev.defense, shieldHp: prev.defense.shieldMaxHp }, // Recharge shield
+        defense: { ...prev.defense, castleHp, shieldHp: prev.defense.shieldMaxHp }, // Recharge shield
+        // Every cleared wave set (see skillTree.json) grants skill points
+        skillPoints: availableSkillPoints(wavesCleared, prev.skillRanks),
         resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
         lastSavedTimestamp: Date.now(),
       };

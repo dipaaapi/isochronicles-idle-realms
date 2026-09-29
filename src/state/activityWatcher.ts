@@ -1,7 +1,7 @@
 import { GOD_BLESSINGS, GodBlessingId, PLATFORM_CONFIGS, UNIT_CLASSES } from '../types/game';
 import { GameStoreState } from '../types/state';
 import { useGameStore, RESOURCE_BUILDING_CONFIG } from './useGameStore';
-import { SKILLS } from './skillTree';
+import { SKILLS, SKILL_IDS, rankOf } from './skillTree';
 import { logMessage, logWeather } from './activityLog';
 import { DEFENSE_CONFIG, TOWERS } from './defenseStats';
 
@@ -72,8 +72,14 @@ function diff(state: GameStoreState, prev: GameStoreState): void {
   for (const a of state.achievements.slice(prev.achievements.length)) {
     logMessage('achievement', { title: a.title }, { icon: a.icon || undefined });
   }
-  for (const id of state.unlockedSkills.filter((s) => !prev.unlockedSkills.includes(s))) {
-    logMessage('skillLearned', { skill: SKILLS[id].name });
+  for (const id of SKILL_IDS) {
+    const rank = rankOf(state.skillRanks, id);
+    if (rank > rankOf(prev.skillRanks, id)) {
+      logMessage('skillLearned', { skill: tl ? SKILLS[id].name.tl : SKILLS[id].name.en, rank, max: SKILLS[id].maxRank });
+    }
+  }
+  if (state.invasion.invasionsRepelled > prev.invasion.invasionsRepelled && state.skillPoints > prev.skillPoints) {
+    logMessage('skillPointsEarned', { count: state.skillPoints - prev.skillPoints, total: state.skillPoints });
   }
   if (state.regressionCount > prev.regressionCount) logMessage('regression', { tier: state.regressionCount });
   for (const id of Object.keys(state.activeGodBlessings ?? {}) as GodBlessingId[]) {

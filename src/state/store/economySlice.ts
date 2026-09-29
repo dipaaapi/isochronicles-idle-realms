@@ -2,6 +2,7 @@ import { soundFx } from '../../game/audio/soundFx';
 import { calculateOfflineGains } from '../offlineProgression';
 import { ECONOMY_CONFIG, RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES, type TradeableResource } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
+import { teamBonuses } from '../skillTree';
 import type { GameStoreState, Resources } from '../../types/state';
 import type { SliceArgs } from './types';
 
@@ -119,7 +120,7 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
       state.lastSavedTimestamp,
       state.workerCount,
       state.upgrades,
-      state.unlockedSkills
+      teamBonuses(state)
     );
 
     if (gains && gains.elapsedSeconds > 15) {

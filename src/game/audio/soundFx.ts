@@ -532,6 +532,73 @@ class SoundFxManager {
     this.playNoise(0.22, 2600, 0.08);
   }
 
+  // ── Battle sounds ──────────────────────────────────────────────────────────
+  // Throttled per kind so a big melee doesn't stack dozens of voices at once.
+  private lastBattleSound: Record<string, number> = {};
+
+  private battleReady(kind: string, gapMs: number): AudioContext | null {
+    if (this.isMuted) return null;
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (nowMs - (this.lastBattleSound[kind] ?? -Infinity) < gapMs) return null;
+    this.lastBattleSound[kind] = nowMs;
+    const ctx = this.initContext();
+    return ctx && this.masterGain ? ctx : null;
+  }
+
+  /** Short decaying partial, used to build metallic ringing tones. */
+  private ring(ctx: AudioContext, freq: number, volume: number, decay: number, type: OscillatorType = 'sine'): void {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq * (0.97 + Math.random() * 0.06), now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
+    osc.connect(gain);
+    gain.connect(this.masterGain!);
+    osc.start(now);
+    osc.stop(now + decay + 0.02);
+  }
+
+  /** Steel on steel: a bright noise transient plus inharmonic ringing partials. */
+  public playSwordClang(): void {
+    const ctx = this.battleReady('clang', 70);
+    if (!ctx) return;
+    this.playNoise(0.06, 7000, 0.22, 0.002);
+    const base = 900 + Math.random() * 500;
+    this.ring(ctx, base, 0.12, 0.35);
+    this.ring(ctx, base * 2.76, 0.07, 0.25);
+    this.ring(ctx, base * 5.4, 0.04, 0.15, 'triangle');
+  }
+
+  /** Heavy monster blow: low thump with a crunchy body. */
+  public playMonsterBash(): void {
+    const ctx = this.battleReady('bash', 80);
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140 + Math.random() * 30, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc.connect(gain);
+    gain.connect(this.masterGain!);
+    osc.start(now);
+    osc.stop(now + 0.24);
+    this.playNoise(0.12, 900, 0.25, 0.003);
+  }
+
+  /** Battering a wall or building: wooden/stone bang with a short rattle. */
+  public playWallBang(): void {
+    const ctx = this.battleReady('bang', 110);
+    if (!ctx) return;
+    this.playNoise(0.18, 1600, 0.3, 0.002);
+    this.ring(ctx, 180 + Math.random() * 40, 0.22, 0.2, 'triangle');
+    this.ring(ctx, 420, 0.06, 0.12, 'square');
+  }
+
   public playCastleHit(): void {
     if (this.isMuted) return;
     const ctx = this.initContext();

@@ -97,7 +97,6 @@ export class MainScene extends Phaser.Scene {
   private cycleTimer: number = 120000; // Start at Day (0.5 progress)
   private currentPhase: TimeOfDayPhase = 'DAY';
   private dayNightOverlay!: Phaser.GameObjects.Graphics;
-  private nightGlowGraphics!: Phaser.GameObjects.Graphics;
 
   // Dirty-check caches for day/night store writes (avoid every-frame React re-renders)
   private _lastPhaseWritten: TimeOfDayPhase = 'DAY';
@@ -538,11 +537,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   private setupDayNightLighting(): void {
-    // Night glow layer for landmarks
-    this.nightGlowGraphics = this.add.graphics();
-    this.nightGlowGraphics.setDepth(3000);
-    this.islandContainer.add(this.nightGlowGraphics);
-
     // Global ambient tint overlay
     this.dayNightOverlay = this.add.graphics();
     this.dayNightOverlay.setDepth(4000);
@@ -615,25 +609,6 @@ export class MainScene extends Phaser.Scene {
 
     // Sakupin ang buong resolution kahit mag-resize o mag-zoom
     this.dayNightOverlay.clear();
-
-    this.nightGlowGraphics.clear();
-    if (ambientDarkness > 0.12) {
-      const at = (rect: TileRect) => {
-        const c = rectCenter(rect);
-        return IsometricHelper.gridToScreen(c.x, c.y);
-      };
-      const nexusPos = at(CASTLE_FOOTPRINT);
-      const crystalPos = at(SPIRE_FOOTPRINT);
-      const quarryPos = at(BUILDING_SITES.QUARRY.footprint);
-      const grovePos = at(BUILDING_SITES.WOOD.footprint);
-      const cavePos = at(BUILDING_SITES.CAVE.footprint);
-
-      ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, nexusPos.x, nexusPos.y - 12, 44, 0x38bdf8, ambientDarkness * 0.4);
-      ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, crystalPos.x, crystalPos.y - 8, 38, 0x06b6d4, ambientDarkness * 0.5);
-      ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, quarryPos.x, quarryPos.y - 8, 34, 0xf59e0b, ambientDarkness * 0.35);
-      ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, grovePos.x, grovePos.y - 8, 36, 0x10b981, ambientDarkness * 0.35);
-      ProceduralRenderer.drawNightGlow(this.nightGlowGraphics, cavePos.x, cavePos.y - 8, 36, 0xa855f7, ambientDarkness * 0.55);
-    }
 
     return ambientDarkness;
   }

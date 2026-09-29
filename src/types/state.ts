@@ -127,10 +127,17 @@ export interface UnitRosterItem {
   equipment?: WorkerEquipment;
 }
 
+/** 0 = paused, 1 = normal, 2 = 2×, 3 = 3×. */
+export type GameSpeed = 0 | 1 | 2 | 3;
+
 export interface GameStoreState {
+  /** Unspent points: earned by clearing wave sets in this realm, minus ranks bought. */
   skillPoints: number;
-  unlockedSkills: import('../state/skillTree').SkillId[];
-  unlockSkill: (id: import('../state/skillTree').SkillId) => boolean;
+  skillRanks: import('../state/skillTree').SkillRanks;
+  /** Adds one rank to a skill. */
+  learnSkill: (id: import('../state/skillTree').SkillId) => boolean;
+  /** Refunds every rank for free. */
+  resetSkills: () => void;
   difficulty: import('../state/difficulty').Difficulty;
   // Navigation
   screen: ScreenState;
@@ -188,7 +195,7 @@ export interface GameStoreState {
   measuredFps: number;
 
   // Game Speed (0=paused, 1=normal, 2=fast-forward)
-  gameSpeed: 0 | 1 | 2;
+  gameSpeed: GameSpeed;
 
   // Offline & Timestamps
   lastSavedTimestamp: number;
@@ -278,7 +285,11 @@ export interface GameStoreState {
   toggleTileCoordinates: () => void;
 
   // Game Speed
-  setGameSpeed: (speed: 0 | 1 | 2) => void;
+  setGameSpeed: (speed: GameSpeed) => void;
+  /** One play/pause button: pauses, or resumes at normal speed. */
+  togglePause: () => void;
+  /** Switches to `speed`, or back to 1× when already running at it. */
+  toggleFastSpeed: (speed: 2 | 3) => void;
 
   // Random loot from scouts
   grantRandomLoot: () => void;

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SUPPORT_SLIME_EVOLUTION, TASK_CONFIG, TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { WeatherType, GameStoreState } from '../../types/state';
-import { skillBonuses } from '../../state/skillTree';
+import { teamBonuses } from '../../state/skillTree';
 import type { WorkerFrame, WorkerInstance } from './types';
 
 type EvolutionLevel = 1 | 2 | 3 | 4 | 5;
@@ -35,7 +35,7 @@ export function computeWorkerFrame(
   const deltaSec = delta / 1000;
   const config = UNIT_CLASSES[worker.unitClass];
   const taskCfg = TASK_CONFIG[worker.assignedTask];
-  const skills = skillBonuses(store.unlockedSkills);
+  const skills = teamBonuses(store);
 
   // Class-specific cargo bonuses
   let classCapacityBonus = 0;

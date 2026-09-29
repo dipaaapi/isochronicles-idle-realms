@@ -1,9 +1,11 @@
 import { soundFx } from '../../game/audio/soundFx';
 import { canAfford, subtractCost } from '../resources';
+import { teamBonuses } from '../skillTree';
 import { GOD_BLESSINGS } from '../../types/game';
 import type { GodBlessingId } from '../../types/game';
 import type {
   AutoSettings,
+  GameSpeed,
   GameStoreState,
   Language,
   ScreenState,
@@ -81,11 +83,17 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
 
   activateGodBlessing: (blessingId: GodBlessingId): boolean => {
     const cfg = GOD_BLESSINGS[blessingId];
-    if (!cfg || !canAfford(get().resources, cfg.costResources)) return false;
+    if (!cfg) return false;
+    const skills = teamBonuses(get());
+    // Mystic skills: cheaper and longer blessings
+    const cost = Object.fromEntries(
+      Object.entries(cfg.costResources).map(([key, amount]) => [key, Math.ceil(Number(amount) * skills.blessingCost)])
+    ) as typeof cfg.costResources;
+    if (!canAfford(get().resources, cost)) return false;
 
     set((prev) => ({
-      resources: subtractCost(prev.resources, cfg.costResources),
-      activeGodBlessings: { ...prev.activeGodBlessings, [blessingId]: cfg.durationSeconds },
+      resources: subtractCost(prev.resources, cost),
+      activeGodBlessings: { ...prev.activeGodBlessings, [blessingId]: cfg.durationSeconds * skills.blessingDuration },
       lastSavedTimestamp: Date.now(),
     }));
     soundFx.playFanfare();
@@ -148,7 +156,15 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
     set((state) => ({ showTileCoordinates: !state.showTileCoordinates }));
   },
 
-  setGameSpeed: (speed: 0 | 1 | 2) => {
+  setGameSpeed: (speed: GameSpeed) => {
     set({ gameSpeed: speed });
+  },
+
+  togglePause: () => {
+    set((state) => ({ gameSpeed: state.gameSpeed === 0 ? 1 : 0 }));
+  },
+
+  toggleFastSpeed: (speed: 2 | 3) => {
+    set((state) => ({ gameSpeed: state.gameSpeed === speed ? 1 : speed }));
   },
 }) satisfies Partial<GameStoreState>;

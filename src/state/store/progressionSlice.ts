@@ -1,7 +1,7 @@
 import { soundFx } from '../../game/audio/soundFx';
 import { ECONOMY_CONFIG, techUpgradeCost } from '../economy';
 import { canAfford, subtractCost } from '../resources';
-import { SKILLS, type SkillId } from '../skillTree';
+import { availableSkillPoints, canLearn, rankOf, type SkillId } from '../skillTree';
 import {
   INITIAL_DEFENSE,
   INITIAL_INVASION,
@@ -21,14 +21,27 @@ const REGRESSION = ECONOMY_CONFIG.regression;
 
 /** Skill tree, tech upgrades, achievements, Regression (prestige) and full resets. */
 export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
-  unlockSkill: (id: SkillId) => {
+  learnSkill: (id: SkillId) => {
     const state = get();
-    const skill = SKILLS[id];
-    if (!skill || state.skillPoints < 1 || state.unlockedSkills.includes(id) ||
-      (skill.prerequisite && !state.unlockedSkills.includes(skill.prerequisite))) return false;
-    set({ skillPoints: state.skillPoints - 1, unlockedSkills: [...state.unlockedSkills, id], lastSavedTimestamp: Date.now() });
+    if (!canLearn(id, state.skillRanks, state.skillPoints)) return false;
+    const skillRanks = { ...state.skillRanks, [id]: rankOf(state.skillRanks, id) + 1 };
+    set({
+      skillRanks,
+      skillPoints: availableSkillPoints(state.invasion.invasionsRepelled, skillRanks),
+      lastSavedTimestamp: Date.now(),
+    });
     soundFx.playFanfare();
     return true;
+  },
+
+  resetSkills: () => {
+    const state = get();
+    set({
+      skillRanks: {},
+      skillPoints: availableSkillPoints(state.invasion.invasionsRepelled, {}),
+      lastSavedTimestamp: Date.now(),
+    });
+    soundFx.playClick();
   },
 
   upgradeTech: (techKey: keyof UpgradesState): boolean => {
@@ -93,7 +106,10 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
         ...createInitialWorldClock(),
         layoutSeed,
         platformPhase: 1,
-        skillPoints: prev.skillPoints + 1,
+        // Skills belong to a realm: refunded here and earned again from wave 1.
+        // The new tier's permanent team boosts come from regressionCount.
+        skillPoints: 0,
+        skillRanks: {},
         dynamicResourceNodes: createInitialResourceNodes(),
         activeGodBlessings: createInitialBlessings(),
         isCastleBreachedModalOpen: false,
@@ -142,8 +158,6 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
     set({
       regressionCount: 0,
       regressionHistory: [],
-      skillPoints: 0,
-      unlockedSkills: [],
       defense: { ...state.defense, castleMaxHp, castleHp: Math.min(state.defense.castleHp, castleMaxHp) },
       lastSavedTimestamp: Date.now(),
     });

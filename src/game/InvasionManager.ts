@@ -11,6 +11,8 @@ import { soundFx } from './audio/soundFx';
 import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import type { WorkerInstance } from './WorkerManager';
 import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
+import { DEFENSE_CONFIG } from '../state/defenseStats';
+import { teamBonuses } from '../state/skillTree';
 import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
 import { Navigation } from './Navigation';
 import type { StructureManager, StructureTarget } from './StructureManager';
@@ -316,6 +318,9 @@ export class InvasionManager {
     const finalMaxHp = Math.round((cfg.hp + (waveNumber - 1) * 18) * difficultyMultiplier * bossHpMultiplier);
     const finalDamage = Math.round(cfg.damage * (1 + (waveNumber - 1) * 0.035) * bossDmgMultiplier * enemyMultiplier);
     const finalBounty = Math.round(cfg.bountyCoins * (1 + (waveNumber - 1) * 0.04) * bossBountyMultiplier);
+    // A random few ignore everything else and charge the citadel
+    const rush = DEFENSE_CONFIG?.rushers;
+    const isRusher = !!rush && !isBoss && waveNumber >= rush.fromWave && Math.random() < rush.chance;
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
     const container = this.scene.add.container(startIso.x, startIso.y);
@@ -353,7 +358,7 @@ export class InvasionManager {
       pathIndex: 0,
       hp: finalMaxHp,
       maxHp: finalMaxHp,
-      speed: cfg.speed,
+      speed: isRusher ? cfg.speed * rush.speedMultiplier : cfg.speed,
       damage: finalDamage,
       bountyCoins: finalBounty,
       attackTimer: 0,
@@ -363,6 +368,7 @@ export class InvasionManager {
       baseScale: isBoss ? 1.5 : 1,
       portal: portal ?? undefined,
       retargetTimer: 0,
+      isRusher,
     };
 
     // Interactive Clicking: Demon Lord Lightning Smite! ⚡
@@ -378,6 +384,7 @@ export class InvasionManager {
     this.invaders.push(invader);
     soundFx.playCastleHit();
     if (isBoss) logMessage('bossArrives', { name: invader.name });
+    if (isRusher) logMessage('rusherCharges', { name: invader.name });
     return true;
   }
 
@@ -663,8 +670,9 @@ export class InvasionManager {
     soundFx.playExplosion();
     logMessage(invader.name.startsWith('BOSS') ? 'bossSlain' : 'invaderSlain', { name: invader.name }, { mergeKey: `kill:${invader.name}` });
 
-    // Reward bounty
-    useGameStore.getState().addResources({ coins: invader.bountyCoins });
+    // Reward bounty (Plunder Tax skill)
+    const bounty = Math.round(invader.bountyCoins * teamBonuses(useGameStore.getState()).bounty);
+    useGameStore.getState().addResources({ coins: bounty });
     useGameStore.setState((state) => ({
       invasion: {
         ...state.invasion,
@@ -674,7 +682,7 @@ export class InvasionManager {
     this.spawnFloatingPopup(
       invader.container.x,
       invader.container.y - 28,
-      `+${invader.bountyCoins} 🪙`,
+      `+${bounty} 🪙`,
       '#fbbf24'
     );
 
@@ -783,14 +791,14 @@ export class InvasionManager {
   }
 
   /**
-   * Provoked invaders go for the citadel. Otherwise they fight whatever is
+   * Provoked invaders and rushers go for the citadel. Otherwise they fight whatever is
    * nearest: a defending minion or sapling that gets close, else the closest
    * standing structure (establishment or citadel).
    */
   private chooseTarget(invader: ActiveInvader, defenders: WorkerInstance[]): InvaderTarget | undefined {
     const structures = this.structures ? this.structures.getTargets() : [this.fallbackCastle()].filter(Boolean) as StructureTarget[];
     const castle = structures.find((s) => s.id === 'CASTLE');
-    if ((invader.provokedTimer ?? 0) > 0 && castle) return { kind: 'structure', structure: castle };
+    if (((invader.provokedTimer ?? 0) > 0 || invader.isRusher) && castle) return { kind: 'structure', structure: castle };
 
     const x = invader.container.x;
     const y = invader.container.y;
@@ -856,7 +864,7 @@ export class InvasionManager {
 
       // Pick (or re-pick) a target a few times per second
       invader.retargetTimer = (invader.retargetTimer ?? 0) - deltaSec;
-      const provoked = (invader.provokedTimer ?? 0) > 0;
+      const provoked = (invader.provokedTimer ?? 0) > 0 || !!invader.isRusher;
       const lockedOnCastle = invader.target?.kind === 'structure' && invader.target.structure.id === 'CASTLE';
       if (invader.retargetTimer <= 0 || !this.isTargetValid(invader.target) || (provoked && !lockedOnCastle)) {
         invader.retargetTimer = 0.45 + Math.random() * 0.2;
@@ -974,7 +982,7 @@ export class InvasionManager {
       const isAegisWrath = (useGameStore.getState().activeGodBlessings?.AEGIS_WRATH || 0) > 0;
       damage = Math.max(1, Math.round(damage * (isAegisWrath ? 0.5 : 1)));
     }
-    this.attackVisual(invader, structure.x, structure.y - 24);
+    this.attackVisual(invader, structure.x, structure.y - 24, true);
     if (this.structures) this.structures.damage(structure, damage);
     else useGameStore.getState().damageCastle(damage);
     return useGameStore.getState().defense.castleHp <= 0;
@@ -1009,7 +1017,13 @@ export class InvasionManager {
     this.chase(invader, structure.x, structure.y, step, deltaSec);
   }
 
-  private attackVisual(invader: ActiveInvader, tx: number, ty: number): void {
+  /** Knights and mecha clang their blades; the Deep One bashes. */
+  private meleeSound(invader: ActiveInvader): void {
+    if (invader.type === 'DEEP_ONE') soundFx.playMonsterBash();
+    else soundFx.playSwordClang();
+  }
+
+  private attackVisual(invader: ActiveInvader, tx: number, ty: number, onStructure = false): void {
     const invaderConfig = INVADER_CONFIGS[invader.type];
     if (invaderConfig.attackRange > 60) {
       // Ranged attack visual: a quick bolt from the invader to the target
@@ -1024,7 +1038,8 @@ export class InvasionManager {
     } else {
       // Melee slash visual
       this.spawnDeathBurst(tx, ty, 0xf59e0b, false);
-      soundFx.playHarvest('stone');
+      if (onStructure) soundFx.playWallBang();
+      else this.meleeSound(invader);
     }
   }
 
@@ -1036,7 +1051,9 @@ export class InvasionManager {
 
     // Calculate armor damage mitigation from equipped armor/relic
     const armorMitigationPercent = closestDefender.equipment?.armor?.id === 'ironstone_plating' ? 0.15 : 0;
-    const mitigatedDamage = Math.max(1, Math.round(weatherDmg * (1 - armorMitigationPercent)));
+    // Hardened Hides skill + regression tiers
+    const teamMitigation = teamBonuses(useGameStore.getState()).minionDamageTaken;
+    const mitigatedDamage = Math.max(1, Math.round(weatherDmg * (1 - armorMitigationPercent) * teamMitigation));
 
     let armorAbsorb = 0;
     if (closestDefender.armorShield > 0) {
@@ -1059,7 +1076,7 @@ export class InvasionManager {
       this.spawnDeathBurst(defenderX, defenderY - 15, invaderConfig.color, true);
       soundFx.playLaser();
     } else {
-      soundFx.playHarvest('stone');
+      this.meleeSound(invader);
     }
 
     const bloodColor = closestDefender.unitClass === 'GOLEM' || closestDefender.unitClass === 'CHRONO'
