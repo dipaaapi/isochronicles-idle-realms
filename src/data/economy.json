@@ -1,0 +1,94 @@
+{
+  "resourcePrices": {
+    "aetherShards": { "sell": 10, "buy": 25, "label": "Kristal (Gems)", "icon": "💎" },
+    "wood": { "sell": 6, "buy": 15, "label": "Kahoy (Wood)", "icon": "🌲" },
+    "stone": { "sell": 8, "buy": 20, "label": "Bato (Stone)", "icon": "🪨" },
+    "arcaneEssence": { "sell": 25, "buy": 60, "label": "Magic (Potion)", "icon": "🔮" },
+    "fish": { "sell": 4, "buy": 10, "label": "Isda (Fish)", "icon": "🐟" },
+    "water": { "sell": 2, "buy": 5, "label": "Tubig (Water)", "icon": "💧" },
+    "metal": { "sell": 12, "buy": 30, "label": "Metal", "icon": "🔩" },
+    "charcoal": { "sell": 10, "buy": 24, "label": "Charcoal", "icon": "🪵" },
+    "coal": { "sell": 14, "buy": 32, "label": "Coal", "icon": "⚫" },
+    "minerals": { "sell": 18, "buy": 40, "label": "Minerals", "icon": "💠" }
+  },
+  "resourceBuildings": {
+    "WOOD": {
+      "label": "Kagubatan",
+      "labelEn": "Wood Grove",
+      "icon": "🌲",
+      "outputs": ["wood", "charcoal"],
+      "costs": [{ "wood": 20, "stone": 15, "coins": 25 }, { "wood": 35, "stone": 25, "coins": 50 }]
+    },
+    "MINE": {
+      "label": "Minahan",
+      "labelEn": "Metal Mine",
+      "icon": "⛏️",
+      "outputs": ["metal", "coal"],
+      "costs": [{ "wood": 25, "stone": 20, "coins": 30 }, { "wood": 40, "stone": 35, "coins": 60 }]
+    },
+    "QUARRY": {
+      "label": "Kwartel",
+      "labelEn": "Stone Quarry",
+      "icon": "🪨",
+      "outputs": ["stone", "minerals"],
+      "costs": [{ "wood": 15, "stone": 25, "coins": 25 }, { "wood": 30, "stone": 45, "coins": 55 }]
+    },
+    "PORT": {
+      "label": "Pantalan",
+      "labelEn": "Water Port",
+      "icon": "⚓",
+      "outputs": ["water", "fish"],
+      "costs": [{ "wood": 25, "stone": 15, "coins": 30 }, { "wood": 40, "stone": 25, "coins": 65 }]
+    },
+    "CAVE": {
+      "label": "Yungib ng Hiwaga",
+      "labelEn": "Mystic Cave",
+      "icon": "🌋",
+      "outputs": ["arcaneEssence", "aetherShards"],
+      "costs": [{ "wood": 30, "stone": 40, "aetherShards": 30, "coins": 45 }, { "stone": 60, "aetherShards": 50, "coins": 80 }]
+    }
+  },
+  "castleConstructionCost": { "aetherShards": 25, "wood": 35, "stone": 30, "coins": 50 },
+  "unitSummon": {
+    "maxPerClass": 2,
+    "maxTreants": 5,
+    "costs": {
+      "GOLEM": { "base": { "aetherShards": 30, "stone": 20 }, "perUnit": { "aetherShards": 20, "stone": 15 } },
+      "WAYFARER": { "base": { "aetherShards": 40, "wood": 30 }, "perUnit": { "aetherShards": 25, "wood": 20 } },
+      "CHRONO": { "base": { "aetherShards": 70, "stone": 45, "wood": 35 }, "perUnit": { "aetherShards": 40, "stone": 25, "wood": 20 } },
+      "MERMAN": { "base": { "aetherShards": 35, "wood": 25 }, "perUnit": { "aetherShards": 20, "wood": 15 } },
+      "NECROMANCER": { "base": { "aetherShards": 60, "stone": 30 }, "perUnit": { "aetherShards": 30, "stone": 20 } },
+      "TREANT": { "base": { "aetherShards": 45, "wood": 40, "stone": 30 }, "perUnit": {} }
+    }
+  },
+  "slimeEvolution": {
+    "maxLevel": 5,
+    "killsPerLevel": 12,
+    "cost": {
+      "base": { "aetherShards": 30, "wood": 20, "stone": 15, "coins": 40 },
+      "perLevel": { "aetherShards": 25, "wood": 18, "stone": 12, "coins": 35 }
+    }
+  },
+  "techUpgrade": {
+    "aetherShards": { "base": 40, "growth": 1.6 },
+    "wood": { "base": 30, "growth": 1.5 },
+    "stone": { "base": 25, "growth": 1.5 }
+  },
+  "castleRepair": { "coins": 40, "amount": 120 },
+  "merchantRestockSeconds": 90,
+  "breachLootFraction": 0.5,
+  "invasion": {
+    "countdownSeconds": 150,
+    "breachCountdownSeconds": 180,
+    "maxWave": 100,
+    "baseEnemies": 4,
+    "enemiesPerWave": 2
+  },
+  "regression": {
+    "coinsBase": 100,
+    "coinsPerRegression": 75,
+    "shardsBase": 50,
+    "shardsPerRegression": 25,
+    "castleHpPerRegression": 100
+  }
+}

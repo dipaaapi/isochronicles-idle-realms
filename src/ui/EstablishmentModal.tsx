@@ -174,7 +174,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
             </div>
             <span className="text-[10px] font-mono text-slate-300 w-20 text-right">{fmtNum(Math.round(hp))} / {fmtNum(Math.round(maxHp))}</span>
             {/* +Level indicator */}
-            {!isCastle && buildingState?.level >= 1 && (
+            {!isCastle && (buildingState?.level ?? 0) >= 1 && (
               <span className="text-[10px] font-bold text-amber-400 ml-1 shrink-0">+{tLevel}</span>
             )}
             {/* Skill dots */}

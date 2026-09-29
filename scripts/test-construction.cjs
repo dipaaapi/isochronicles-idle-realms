@@ -116,6 +116,34 @@ assert.equal(state().targetFps, 30);
 assert.ok(state().lastSavedTimestamp > 0, 'reset must not award old offline progress');
 console.log('Full realm reset checks passed.');
 
+// Store refactor regressions: late-game resources, Ent links, breach roster, skill trigger.
+state().resetRealm();
+store.setState({ resources: { ...state().resources, metal: 5 } });
+assert.equal(state().spendResources({ metal: 6 }), false, 'metal cannot go negative');
+assert.equal(state().spendResources({ metal: 5 }), true);
+assert.equal(state().resources.metal, 0);
+store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
+state().summonUnit('TREANT', 'BUILD', true);
+state().buildCastle();
+state().upgradeResourceBuilding('WOOD');
+const entId = state().roster.find(u => u.unitClass === 'TREANT').id;
+state().assignEntToEstablishment(entId, 'WOOD');
+const saved = state().exportSave();
+state().clearEntAssignment(entId);
+assert.equal(state().entAssignments.WOOD, null);
+assert.equal(state().importSave(saved), true);
+assert.equal(state().entAssignments.WOOD, entId, 'Ent caretakers survive export/import');
+assert.equal(state().triggerEstablishmentSkill('WOOD', 0), true, 'establishment skills trigger in-browser (no require)');
+assert.ok(state().establishmentSkillCooldowns.WOOD.skill1 > 0);
+store.setState({ roster: state().roster.map(u => u.unitClass === 'AQUA_SLIME' ? { ...u, slimeEvolutionLevel: 3 } : u) });
+state().resolveCastleBreach();
+assert.equal(state().roster.length, 1);
+assert.equal(state().roster[0].slimeEvolutionLevel, 3, 'breach keeps the Support Slime evolution');
+assert.equal(state().entAssignments.WOOD, null, 'fallen Ents no longer tend establishments');
+assert.equal(state().lootedResources.metal, 5000, 'breach loot report covers every resource');
+state().resetRealm();
+console.log('Store slice regression checks passed.');
+
 const { InvasionManager } = load('src/game/InvasionManager.ts');
 const { INVADER_CONFIGS } = load('src/types/game.ts');
 const { normalizeDifficulty } = load('src/state/difficulty.ts');
