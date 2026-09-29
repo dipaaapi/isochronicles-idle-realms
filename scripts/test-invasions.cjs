@@ -17,8 +17,26 @@ const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts',
 vm.runInNewContext(source, {
   exports: exportsObject,
   require(name) {
+    // Pure helpers split out of InvasionManager load for real
+    if (name.startsWith('./invaders/')) {
+      const exports = {};
+      vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/game/${name.slice(2)}.ts`, 'utf8'), {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+      }).outputText, { exports, require: () => ({}) });
+      return exports;
+    }
     if (name.includes('soundFx')) return { soundFx: { playExplosion() {} } };
+    if (name.includes('activityLog')) return new Proxy({}, { get: () => () => undefined });
+    if (name.includes('CharacterSprites')) return new Proxy({}, {
+      get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),
+    });
     if (name.includes('useGameStore')) return { useGameStore: { getState: () => state } };
+    if (name.includes('Navigation')) return { Navigation: { tileOf: (x, y) => ({ x: Math.round(x / 32), y: Math.round(y / 16) }) } };
+    if (name.includes('buildingLayout')) return {
+      CASTLE_FOOTPRINT: { x: 3, y: 3, w: 3, h: 3 },
+      PORTAL_SITES: [{ exit: { x: 1, y: 1 } }, { exit: { x: 8, y: 1 } }, { exit: { x: 1, y: 8 } }, { exit: { x: 8, y: 8 } }],
+      rectCenter: (r) => ({ x: r.x + (r.w - 1) / 2, y: r.y + (r.h - 1) / 2 }),
+    };
     if (name.includes('IsometricHelper')) return { IsometricHelper: {
       gridToScreen: (x, y) => ({ x: x * 32, y: y * 16 }),
       screenToGrid: (x, y) => ({ x: x / 32, y: y / 16 }), getDepth: () => 0,
@@ -35,7 +53,6 @@ const manager = new InvasionManager({ add: {
   graphics: () => display(), container: display, ellipse: () => display(),
 } }, { findPath: () => null });
 manager.renderInvaderBody = () => {};
-manager.handleTurretAttacks = () => {};
 manager.spawnSingleScout();
 const scout = manager.getInvaders()[0];
 assert.equal(scout.currentPath.length, 2, 'unreachable scout routes must have a fallback');

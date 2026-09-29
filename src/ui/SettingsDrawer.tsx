@@ -434,8 +434,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     title={isTL ? 'Tile Coordinates' : 'Tile Coordinates'}
                     description={
                       isTL
-                        ? 'Ipakita ang X,Y coordinates ng bawat tile para sa building placement.'
-                        : 'Show X,Y coordinates on tiles to help verify building placement.'
+                        ? 'Ipakita ang pangalan ng bawat tile na parang chessboard (A1–J10) para sa building placement.'
+                        : 'Show chessboard-style tile names (A1–J10) to help verify building placement.'
                     }
                   >
                     <button

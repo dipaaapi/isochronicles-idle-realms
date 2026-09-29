@@ -1,0 +1,87 @@
+{
+  "1": {
+    "level": 1,
+    "healTargets": 1,
+    "healPercent": 8,
+    "fatigueRestorePercent": 6,
+    "speedBonusPercent": 0,
+    "armorPercent": 0,
+    "armorDurationSeconds": 0,
+    "resurrectionCooldownSeconds": 60,
+    "resurrectionCost": {
+      "aetherShards": 50,
+      "arcaneEssence": 10,
+      "wood": 35,
+      "stone": 35
+    },
+    "label": "Support Slime"
+  },
+  "2": {
+    "level": 2,
+    "healTargets": 2,
+    "healPercent": 12,
+    "fatigueRestorePercent": 10,
+    "speedBonusPercent": 5,
+    "armorPercent": 0,
+    "armorDurationSeconds": 0,
+    "resurrectionCooldownSeconds": 45,
+    "resurrectionCost": {
+      "aetherShards": 40,
+      "arcaneEssence": 8,
+      "wood": 25,
+      "stone": 25
+    },
+    "label": "Whisp"
+  },
+  "3": {
+    "level": 3,
+    "healTargets": 3,
+    "healPercent": 16,
+    "fatigueRestorePercent": 15,
+    "speedBonusPercent": 10,
+    "armorPercent": 0,
+    "armorDurationSeconds": 0,
+    "resurrectionCooldownSeconds": 30,
+    "resurrectionCost": {
+      "aetherShards": 30,
+      "arcaneEssence": 6,
+      "wood": 18,
+      "stone": 18
+    },
+    "label": "Eather"
+  },
+  "4": {
+    "level": 4,
+    "healTargets": 4,
+    "healPercent": 22,
+    "fatigueRestorePercent": 20,
+    "speedBonusPercent": 15,
+    "armorPercent": 15,
+    "armorDurationSeconds": 6,
+    "resurrectionCooldownSeconds": 20,
+    "resurrectionCost": {
+      "aetherShards": 20,
+      "arcaneEssence": 4,
+      "wood": 12,
+      "stone": 12
+    },
+    "label": "Gelatinous Blob"
+  },
+  "5": {
+    "level": 5,
+    "healTargets": null,
+    "healPercent": 30,
+    "fatigueRestorePercent": 30,
+    "speedBonusPercent": 25,
+    "armorPercent": 30,
+    "armorDurationSeconds": 12,
+    "resurrectionCooldownSeconds": 10,
+    "resurrectionCost": {
+      "aetherShards": 10,
+      "arcaneEssence": 2,
+      "wood": 5,
+      "stone": 5
+    },
+    "label": "Ichor Slime"
+  }
+}

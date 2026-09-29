@@ -1,0 +1,81 @@
+{
+  "ui": {
+    "title": { "en": "Activity Log", "tl": "Talaan ng Kaganapan" },
+    "empty": { "en": "Nothing has happened yet…", "tl": "Wala pang nangyayari…" },
+    "clear": { "en": "Clear", "tl": "Burahin" },
+    "day": { "en": "Day", "tl": "Araw" },
+    "filters": {
+      "all": { "en": "All", "tl": "Lahat" },
+      "combat": { "en": "Combat", "tl": "Labanan" },
+      "economy": { "en": "Economy", "tl": "Ekonomiya" },
+      "minions": { "en": "Minions", "tl": "Alagad" },
+      "world": { "en": "World", "tl": "Mundo" }
+    }
+  },
+
+  "categoryIcons": { "combat": "⚔️", "economy": "📦", "minions": "👾", "world": "🌍" },
+
+  "weather": {
+    "CLEAR": { "icon": "☀️", "en": "The skies clear", "tl": "Lumiwanag ang kalangitan" },
+    "RAIN": { "icon": "🌧️", "en": "Rain begins to fall", "tl": "Nagsimulang umulan" },
+    "SNOW": { "icon": "❄️", "en": "Snow drifts over the island", "tl": "Umuulan ng niyebe" },
+    "HEATWAVE": { "icon": "🔥", "en": "A heatwave scorches the realm", "tl": "Matinding init ang dumating" }
+  },
+
+  "messages": {
+    "dayDawns": { "category": "world", "tone": "neutral", "icon": "🌅", "en": "Day {day} dawns", "tl": "Umaga ng Araw {day}" },
+    "realmShift": { "category": "world", "tone": "epic", "icon": "🌍", "en": "The realm shifts: {realm}", "tl": "Nagbago ang kaharian: {realm}" },
+    "thunderstorm": { "category": "world", "tone": "bad", "icon": "⛈️", "en": "A thunderstorm rolls over the realm", "tl": "Dumating ang bagyong may kidlat" },
+    "lightning": { "category": "world", "tone": "neutral", "icon": "⚡", "en": "Lightning struck {tile}", "tl": "Tinamaan ng kidlat ang {tile}" },
+    "goldenFish": { "category": "world", "tone": "epic", "icon": "🐟", "en": "A golden fish leapt at {tile}", "tl": "Tumalon ang gintong isda sa {tile}" },
+    "achievement": { "category": "world", "tone": "epic", "icon": "🏅", "en": "Achievement: {title}", "tl": "Tagumpay: {title}" },
+    "skillLearned": { "category": "world", "tone": "epic", "icon": "🔮", "en": "Skill learned: {skill} (rank {rank}/{max})", "tl": "Natutunan: {skill} (antas {rank}/{max})" },
+    "skillPointsEarned": { "category": "world", "tone": "epic", "icon": "⭐", "en": "Wave set cleared — +{count} skill points ({total} to spend)", "tl": "Natapos ang set ng wave — +{count} puntos ng kasanayan ({total} magagamit)" },
+    "regression": { "category": "world", "tone": "epic", "icon": "♻️", "en": "Regression performed — Tier {tier}", "tl": "Isinagawa ang Regression — Antas {tier}" },
+
+    "waveAttack": { "category": "combat", "tone": "bad", "icon": "⚔️", "en": "Wave {wave} is attacking!", "tl": "Umaatake ang Alon {wave}!" },
+    "waveRepelled": { "category": "combat", "tone": "epic", "icon": "🏆", "en": "Wave {wave} repelled!", "tl": "Natalo ang Alon {wave}!" },
+    "citadelBreached": { "category": "combat", "tone": "bad", "icon": "💥", "en": "The citadel was breached — invaders looted the stores", "tl": "Nasira ang kuta — ninakawan ng mga kalaban" },
+    "invaderSlain": { "category": "combat", "tone": "good", "icon": "☠️", "en": "{name} slain", "tl": "Napatay ang {name}" },
+    "bossSlain": { "category": "combat", "tone": "epic", "icon": "👑", "en": "{name} slain", "tl": "Napatay ang {name}" },
+    "bossArrives": { "category": "combat", "tone": "epic", "icon": "👹", "en": "{name} has entered the realm!", "tl": "Dumating ang {name}!" },
+    "rusherCharges": { "category": "combat", "tone": "bad", "icon": "🏃", "en": "{name} is rushing the citadel!", "tl": "Sumusugod sa kuta ang {name}!" },
+    "castleDamage": { "category": "combat", "tone": "bad", "icon": "🏰", "en": "Citadel took {total} damage", "tl": "Tinamaan ang kuta ng {total} pinsala" },
+    "unitHurt": { "category": "combat", "tone": "bad", "icon": "💔", "en": "{name} took {total} damage", "tl": "{name} ay nasaktan ng {total}" },
+    "portalsOpen": { "category": "combat", "tone": "bad", "icon": "🌀", "en": "{count} rifts tear open at the island's corners", "tl": "Bumukas ang {count} lagusan sa mga sulok ng isla" },
+    "portalDestroyed": { "category": "combat", "tone": "epic", "icon": "💥", "en": "{portal} shattered by your minions (+{coins} coins)", "tl": "Winasak ng mga alagad ang {portal} (+{coins} barya)" },
+    "portalsSealed": { "category": "combat", "tone": "epic", "icon": "🔒", "en": "Every rift is sealed — no more invaders this wave", "tl": "Sarado na ang lahat ng lagusan — wala nang darating na kalaban" },
+    "buildingHit": { "category": "combat", "tone": "bad", "icon": "🏚️", "en": "{building} took {total} damage", "tl": "Tinamaan ang {building} ng {total} pinsala" },
+    "buildingWrecked": { "category": "combat", "tone": "bad", "icon": "💥", "en": "{building} was wrecked — it stops producing and fighting until repaired", "tl": "Nawasak ang {building} — hihinto ito hanggang maayos" },
+    "buildingRepaired": { "category": "economy", "tone": "good", "icon": "🛠️", "en": "The Ent repaired {building} (+{total} HP)", "tl": "Inayos ng Ent ang {building} (+{total} HP)" },
+    "buildingRestored": { "category": "economy", "tone": "good", "icon": "🛠️", "en": "{building} is back in action", "tl": "Gumagana na muli ang {building}" },
+    "provokePulse": { "category": "combat", "tone": "neutral", "icon": "🚨", "en": "Provoke Beacon flared — {total} invaders turned on the citadel", "tl": "Nagliyab ang Liwanag ng Panunukso — {total} kalaban ang humarap sa kuta" },
+    "towerStrike": { "category": "combat", "tone": "good", "icon": "🏹", "en": "{building} dealt {total} damage", "tl": "{building}: {total} pinsala sa kalaban" },
+    "saplingsSummoned": { "category": "combat", "tone": "good", "icon": "🌱", "en": "Sapling Grove summoned {total} saplings ({left} summons left)", "tl": "Nagpatawag ang Kakahuyan ng {total} supling ({left} tawag pa)" },
+    "towerUpgraded": { "category": "economy", "tone": "good", "icon": "⬆️", "en": "{tower} defense upgraded to Lv.{level}", "tl": "Na-upgrade ang depensa ng {tower} sa Lv.{level}" },
+    "castleUpgraded": { "category": "economy", "tone": "good", "icon": "🏰", "en": "{upgrade} upgraded to Lv.{level}", "tl": "Na-upgrade ang {upgrade} sa Lv.{level}" },
+
+    "citadelRebuilt": { "category": "economy", "tone": "epic", "icon": "🏰", "en": "The citadel stands once more", "tl": "Muling nakatayo ang kuta" },
+    "buildingBuilt": { "category": "economy", "tone": "good", "icon": "🏗️", "en": "{building} constructed", "tl": "Naitayo ang {building}" },
+    "buildingUpgraded": { "category": "economy", "tone": "good", "icon": "🏗️", "en": "{building} upgraded to Lv.{level}", "tl": "Na-upgrade ang {building} sa Lv.{level}" },
+    "delivered": { "category": "economy", "tone": "good", "icon": "📦", "en": "+{total} {resource} delivered to the citadel", "tl": "+{total} {resource} naihatid sa kuta" },
+    "gathered": { "category": "economy", "tone": "neutral", "icon": "⛏️", "en": "+{total} {resource} gathered", "tl": "+{total} {resource} naipon" },
+    "bounty": { "category": "economy", "tone": "epic", "icon": "🪙", "en": "+{total} coins in bounties", "tl": "+{total} barya mula sa gantimpala" },
+    "looted": { "category": "economy", "tone": "good", "icon": "🎁", "en": "+{total} {resource} looted from invaders", "tl": "+{total} {resource} nakuha sa kalaban" },
+
+    "unitJoins": { "category": "minions", "tone": "good", "icon": "✨", "en": "{name} the {unitClass} joins your army", "tl": "Sumali si {name} ({unitClass}) sa hukbo" },
+    "healed": { "category": "minions", "tone": "good", "icon": "💚", "en": "Servants healed +{total} HP", "tl": "Napagaling ang mga alagad +{total} HP" },
+    "stamina": { "category": "minions", "tone": "good", "icon": "💧", "en": "+{total} stamina restored", "tl": "+{total} lakas naibalik" },
+    "blessing": { "category": "minions", "tone": "epic", "icon": "🙏", "en": "Blessing granted: {blessing}", "tl": "Biyaya: {blessing}" }
+  },
+
+  "classifier": {
+    "combat": "victory|repelled|loot|defend|invader|smite|castle hp|incursion|wounded|died|kia",
+    "economy": "harvest|enrich|sold|tribute|supplies|built|yield|coins|🪙",
+    "minions": "summon|evolv|ent\\b|resurrect|cheer|heal|energized|descent|awakens|shield",
+    "skip": "summoned",
+    "badColors": ["#ef4444", "#991b1b", "#f43f5e", "#dc2626"],
+    "epicColors": ["#fbbf24", "#f59e0b"],
+    "unknownUnit": { "en": "A servant", "tl": "Isang alagad" }
+  }
+}

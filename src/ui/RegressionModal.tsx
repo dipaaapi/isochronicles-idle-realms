@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import { PLATFORM_CONFIGS, SEASON_CONFIGS } from '../types/game';
-import { X, RotateCcw, Award, History, Sparkles, ShieldCheck, Zap, AlertTriangle } from 'lucide-react';
+import { X, RotateCcw, Award, History, Sparkles, ShieldCheck, Zap, AlertTriangle, Swords } from 'lucide-react';
+import { ECONOMY_CONFIG } from '../state/economy';
+import {
+  REGRESSION_BOOST_PER_TIER, REGRESSION_TEXT, TEAM_STATS, fillText, formatStat, teamStatTotals,
+  type Localized, type TeamStat,
+} from '../state/skillTree';
 
 interface RegressionModalProps {
   onClose: () => void;
@@ -29,15 +34,19 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
   const [resetConfirmation, setResetConfirmation] = useState('');
 
   const currentPlatform = PLATFORM_CONFIGS[platformPhase || 1];
+  const t = (text: Localized) => (language === 'TL' ? text.tl : text.en);
+  const hpPerTier = ECONOMY_CONFIG.regression.castleHpPerRegression;
+  const boostNow = teamStatTotals({}, regressionCount);
+  const boostNext = teamStatTotals({}, regressionCount + 1);
+  const boostStats = Object.keys(REGRESSION_BOOST_PER_TIER) as TeamStat[];
   const isRecommended = invasion.waveNumber >= 100;
 
   const handlePerformRegression = () => {
     if (regressionName.trim() !== realmName.trim()) return;
     soundFx.playFanfare();
-    const promptMsg =
-      language === 'TL'
-        ? `Gusto mo bang mag-Regress ngayon?\n\n• Itatala ang iyong narating (Wave ${invasion.waveNumber}, Phase ${platformPhase}, Day ${day}).\n• Babalik ang wave sa Wave 1 (Demon Citadel).\n• Makatatanggap ng bonus starting coins at dagdag na castle HP!`
-        : `Undergo Regression now?\n\n• Your achievement will be recorded (Wave ${invasion.waveNumber}, Phase ${platformPhase}, Day ${day}).\n• Days and waves restart at 1 (Demon Citadel).\n• Gain 1 skill point and +100 permanent castle HP after the Ent rebuilds, plus starting coins.`;
+    const promptMsg = fillText(t(REGRESSION_TEXT.confirm), {
+      wave: invasion.waveNumber, phase: platformPhase, day, hp: hpPerTier,
+    });
 
     if (window.confirm(promptMsg)) {
       performRegression();
@@ -46,7 +55,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
   };
 
   const handleResetRegressionProgress = () => {
-    if (!window.confirm(language === 'TL' ? 'Mabubura ang Regression tier at lahat ng history. Ituloy?' : 'This erases regression history, skill points, unlocked skills and permanent regression HP. Continue?')) return;
+    if (!window.confirm(t(REGRESSION_TEXT.resetConfirm))) return;
     if (resetRegressionProgress(resetConfirmation)) setResetConfirmation('');
   };
 
@@ -186,9 +195,24 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>
                   {language === 'TL'
-                    ? `+${(regressionCount + 1) * 100} Permanenteng Max Castle HP sa pagsisimula muli`
-                    : `+${(regressionCount + 1) * 100} Permanent Castle Max HP on restart`}
+                    ? `+${(regressionCount + 1) * hpPerTier} Permanenteng Max Castle HP sa pagsisimula muli`
+                    : `+${(regressionCount + 1) * hpPerTier} Permanent Castle Max HP on restart`}
                 </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Swords className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div>
+                  <span>{fillText(t(REGRESSION_TEXT.teamBoost), { from: regressionCount, to: regressionCount + 1 })}</span>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {boostStats.map((stat) => (
+                      <span key={stat} className="rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10.5px]">
+                        <span className="text-slate-400">{t(TEAM_STATS[stat].name)} </span>
+                        {boostNow[stat] > 0 && <span className="font-mono text-slate-500">{formatStat(stat, boostNow[stat])} → </span>}
+                        <span className="font-mono font-bold text-emerald-300">{formatStat(stat, boostNext[stat])}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </li>
               <li className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-400 shrink-0" />
@@ -212,7 +236,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
           <div className="rounded-2xl border border-rose-500/40 bg-rose-950/20 p-4 space-y-3">
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">Reset Regression Records</h4>
-              <p className="mt-1 text-[11px] text-slate-400">Type <span className="font-mono font-bold text-rose-200">RESET REGRESSIONS</span> to erase the Regression tier, history, skill points, unlocked skills and permanent regression HP.</p>
+              <p className="mt-1 text-[11px] text-slate-400">Type <span className="font-mono font-bold text-rose-200">RESET REGRESSIONS</span> to {t(REGRESSION_TEXT.resetInfo)}</p>
             </div>
             <div className="flex gap-2">
               <input
@@ -232,7 +256,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
           </div>
 
 <div className="rounded-2xl border border-purple-500/40 bg-purple-950/20 p-4 text-sm text-purple-200">
-            Each regression resets to Day 1, Year 1 and Wave 1. Gain 1 skill point and +100 permanent castle HP when the Ent rebuilds. Learned skills and unspent points carry over. Open Skills beside FAQ to spend points.
+            {t(REGRESSION_TEXT.note)}
           </div>
 
           {/* Regression History Records Table */}

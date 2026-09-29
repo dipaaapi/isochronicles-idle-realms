@@ -12,16 +12,25 @@ export const PhaserGame: React.FC = () => {
   const weather = useGameStore((state) => state.weather);
 
   useEffect(() => {
-    if (!containerRef.current || gameRef.current) return;
+    const container = containerRef.current;
+    if (!container || gameRef.current) return;
 
     const initialTargetFps = useGameStore.getState().targetFps;
     const useForcedTimeout = initialTargetFps <= 30;
 
+    // High-DPI: the canvas backing store is devicePixelRatio× the CSS size and
+    // Scale zoom (1/dpr) shrinks it back, so pixels map 1:1 to the physical screen.
+    const readDpr = () =>
+      useGameStore.getState().targetFps <= 30 ? 1 : Math.min(window.devicePixelRatio || 1, 3);
+    let dpr = readDpr();
+    const cssWidth = () => Math.max(1, Math.round(container.clientWidth));
+    const cssHeight = () => Math.max(1, Math.round(container.clientHeight));
+
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      parent: containerRef.current,
-      width: '100%',
-      height: '100%',
+      parent: container,
+      width: cssWidth() * dpr,
+      height: cssHeight() * dpr,
       transparent: true,
       backgroundColor: 'rgba(0,0,0,0)',
       fps: {
@@ -30,10 +39,12 @@ export const PhaserGame: React.FC = () => {
         smoothStep: true,
       },
       scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: '100%',
-        height: '100%',
+        // RESIZE mode ignores zoom, so resizing is handled by the ResizeObserver below
+        mode: Phaser.Scale.NONE,
+        zoom: 1 / dpr,
+      },
+      callbacks: {
+        preBoot: (game) => game.registry.set('dpr', dpr),
       },
       scene: [MainScene],
       render: {
@@ -47,9 +58,33 @@ export const PhaserGame: React.FC = () => {
       banner: false,
     };
 
-    gameRef.current = new Phaser.Game(config);
+    const game = new Phaser.Game(config);
+    gameRef.current = game;
+
+    const applySize = () => {
+      if (!game.isBooted) return; // initial size is already set via config
+      const nextDpr = readDpr();
+      if (nextDpr !== dpr) {
+        dpr = nextDpr;
+        game.scale.setZoom(1 / dpr);
+        game.registry.set('dpr', dpr);
+      }
+      game.scale.resize(cssWidth() * dpr, cssHeight() * dpr);
+    };
+
+    const resizeObserver = new ResizeObserver(applySize);
+    resizeObserver.observe(container);
+    // Moving the window between monitors changes devicePixelRatio without a resize
+    const dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    dprQuery.addEventListener('change', applySize);
+    const unsubscribeFps = useGameStore.subscribe((state, prev) => {
+      if (state.targetFps !== prev.targetFps) applySize();
+    });
 
     return () => {
+      resizeObserver.disconnect();
+      dprQuery.removeEventListener('change', applySize);
+      unsubscribeFps();
       if (gameRef.current) {
         gameRef.current.destroy(true);
         gameRef.current = null;

@@ -1,6 +1,8 @@
 import { isConstructionReady } from '../state/constructionProgress';
 import React from 'react';
 import { useGameStore } from '../state/useGameStore';
+import { CastleUpgradeKey, beaconLevelOf, canAfford, castleUpgradeCost } from '../state/defenseStats';
+import { formatCost } from './costDisplay';
 import { soundFx } from '../game/audio/soundFx';
 import { Coins, Zap, X, ArrowRight } from 'lucide-react';
 
@@ -40,16 +42,15 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
     return null;
   };
 
-  const checkDefense = (key: 'wallLevel' | 'turretLevel' | 'shieldLevel', baseCost: number, title: string) => {
-    const level = state.defense[key];
+  const checkDefense = (key: CastleUpgradeKey, title: string) => {
+    const level = key === 'beaconLevel' ? beaconLevelOf(state.defense) : state.defense[key];
     const nextLevel = level + 1;
     const prompted = state.promptedUpgrades[key] || 0;
 
     if (nextLevel > prompted) {
-      const cost = Math.floor(baseCost * Math.pow(1.5, level - 1));
-      if (state.resources.coins >= cost) {
-        const costDisplay = `${cost} coins`;
-        return { key, type: 'defense' as const, title, level: nextLevel, costDisplay, currency: 'coins' as const };
+      const cost = castleUpgradeCost(key, level);
+      if (cost && canAfford(state.resources, cost)) {
+        return { key, type: 'defense' as const, title, level: nextLevel, costDisplay: formatCost(cost), currency: 'coins' as const };
       }
     }
     return null;
@@ -106,9 +107,9 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
     checkSummon('NECROMANCER', 'Lich Necromancer'),
     checkTech('golemSpeedLevel', 'Servant Speed'),
     checkTech('golemCapacityLevel', 'Servant Capacity'),
-    checkDefense('wallLevel', 70, 'Castle Wall'),
-    checkDefense('turretLevel', 90, 'Castle Turret'),
-    checkDefense('shieldLevel', 110, 'Arcane Shield')
+    checkDefense('wallLevel', 'Castle Wall'),
+    checkDefense('beaconLevel', 'Provoke Beacon'),
+    checkDefense('shieldLevel', 'Arcane Shield')
   ].filter(Boolean) as Array<{
     key: string;
     type: 'tech' | 'defense' | 'summon';

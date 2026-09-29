@@ -10,7 +10,7 @@ interface ANode {
 }
 
 /**
- * Lightweight synchronous A* pathfinder for the 10×10 isometric grid.
+ * Lightweight synchronous A* pathfinder for the isometric platform grid.
  * Returns a path immediately — no async, no callbacks, no queuing.
  */
 export class PathfindingService {
@@ -27,7 +27,7 @@ export class PathfindingService {
 
   /**
    * Synchronous A* pathfind. Returns the path array or null if unreachable.
-   * On a 10×10 grid this runs in microseconds.
+   * On the 20×20 platform this runs well under a millisecond.
    */
   public findPath(
     startX: number,
@@ -54,7 +54,7 @@ export class PathfindingService {
     const h = (x: number, y: number) => Math.abs(x - endX) + Math.abs(y - endY);
 
     const open: ANode[] = [];
-    const closed = new Set<number>(); // packed int key: y*10+x
+    const closed = new Set<number>(); // packed int key: y*gridWidth+x
 
     open.push({ x: startX, y: startY, g: 0, h: h(startX, startY), f: h(startX, startY), parent: null });
 
@@ -80,14 +80,14 @@ export class PathfindingService {
       }
 
       open.splice(bestIdx, 1);
-      closed.add(cur.y * 10 + cur.x);
+      closed.add(cur.y * this.gridWidth + cur.x);
 
       for (const { dx, dy } of DIRS) {
         const nx = cur.x + dx;
         const ny = cur.y + dy;
 
         if (nx < 0 || nx >= this.gridWidth || ny < 0 || ny >= this.gridHeight) continue;
-        if (closed.has(ny * 10 + nx)) continue;
+        if (closed.has(ny * this.gridWidth + nx)) continue;
         const tileVal = this.walkableGrid[ny]?.[nx] ?? -1;
         if (!allowedTiles.includes(tileVal)) continue;
 

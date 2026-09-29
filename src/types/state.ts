@@ -14,11 +14,15 @@ export interface Resources {
   coins: number;
 }
 
-export type ResourceBuildingId = 'WOOD' | 'MINE' | 'QUARRY' | 'PORT';
+export type ResourceBuildingId = 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE';
 
 export interface ResourceBuildingState {
   level: number;
   unlockedOutputs: string[];
+  /** Defense tower level (1–5) once built. */
+  towerLevel?: number;
+  /** Current structure HP; 0 = wrecked (no production or attacks until repaired). */
+  hp?: number;
 }
 
 export type ResourceBuildingsState = Record<ResourceBuildingId, ResourceBuildingState>;
@@ -44,7 +48,8 @@ export interface CastleDefenseState {
   shieldHp: number;
   shieldMaxHp: number;
   wallLevel: number;
-  turretLevel: number;
+  /** Provoke Beacon level (replaced the old castle turret). */
+  beaconLevel: number;
   shieldLevel: number;
 }
 
@@ -122,10 +127,17 @@ export interface UnitRosterItem {
   equipment?: WorkerEquipment;
 }
 
+/** 0 = paused, 1 = normal, 2 = 2×, 3 = 3×. */
+export type GameSpeed = 0 | 1 | 2 | 3;
+
 export interface GameStoreState {
+  /** Unspent points: earned by clearing wave sets in this realm, minus ranks bought. */
   skillPoints: number;
-  unlockedSkills: import('../state/skillTree').SkillId[];
-  unlockSkill: (id: import('../state/skillTree').SkillId) => boolean;
+  skillRanks: import('../state/skillTree').SkillRanks;
+  /** Adds one rank to a skill. */
+  learnSkill: (id: import('../state/skillTree').SkillId) => boolean;
+  /** Refunds every rank for free. */
+  resetSkills: () => void;
   difficulty: import('../state/difficulty').Difficulty;
   // Navigation
   screen: ScreenState;
@@ -165,6 +177,8 @@ export interface GameStoreState {
   isGoreEnabled: boolean;
 
   // Platform & Regression Progression
+  /** Seed for this realm's random establishment placement (src/state/buildingLayout.ts). */
+  layoutSeed: number;
   platformPhase: PlatformPhase; // 1: Demon Citadel, 2: Magma Caldera, 3: Frost Spire, 4: Astral Sanctum
   regressionCount: number;
   regressionHistory: RegressionRecord[];
@@ -181,7 +195,7 @@ export interface GameStoreState {
   measuredFps: number;
 
   // Game Speed (0=paused, 1=normal, 2=fast-forward)
-  gameSpeed: 0 | 1 | 2;
+  gameSpeed: GameSpeed;
 
   // Offline & Timestamps
   lastSavedTimestamp: number;
@@ -225,9 +239,15 @@ export interface GameStoreState {
   tickMerchantTimer: (deltaSeconds: number) => void;
 
   // Castle Defense Actions
-  upgradeDefense: (defenseKey: 'wallLevel' | 'turretLevel' | 'shieldLevel') => boolean;
+  upgradeDefense: (defenseKey: 'wallLevel' | 'beaconLevel' | 'shieldLevel') => boolean;
   repairCastle: () => boolean;
   damageCastle: (amount: number) => void;
+  upgradeTower: (buildingId: ResourceBuildingId) => boolean;
+  repairBuilding: (buildingId: ResourceBuildingId) => boolean;
+  /** Invader damage to an establishment; returns true when this hit wrecked it. */
+  damageBuilding: (buildingId: ResourceBuildingId, amount: number) => boolean;
+  /** Free HP restore (Ent repairs); returns the HP actually restored. */
+  restoreBuildingHp: (buildingId: ResourceBuildingId, amount: number) => number;
 
   // Invasion Actions
   tickInvasionCountdown: (deltaSeconds: number) => void;
@@ -265,7 +285,11 @@ export interface GameStoreState {
   toggleTileCoordinates: () => void;
 
   // Game Speed
-  setGameSpeed: (speed: 0 | 1 | 2) => void;
+  setGameSpeed: (speed: GameSpeed) => void;
+  /** One play/pause button: pauses, or resumes at normal speed. */
+  togglePause: () => void;
+  /** Switches to `speed`, or back to 1× when already running at it. */
+  toggleFastSpeed: (speed: 2 | 3) => void;
 
   // Random loot from scouts
   grantRandomLoot: () => void;
@@ -276,4 +300,29 @@ export interface GameStoreState {
   performRegression: () => void;
   resetRegressionProgress: (confirmation: string) => boolean;
   dismissWave100Celebration: () => void;
+
+  // ── Establishments ─────────────────────────────────────────────────────────
+  /** Skill cooldowns in seconds for each establishment's 2 skills. */
+  establishmentSkillCooldowns: Record<ResourceBuildingId, { skill1: number; skill2: number }>;
+
+  /** The establishment currently open in the modal, or null if closed. */
+  selectedEstablishmentId: 'CASTLE' | ResourceBuildingId | null;
+
+  /** Auto-buy toggle per building — whether to auto-purchase missing upgrade materials. */
+  autoBuyBuildingMaterials: Record<ResourceBuildingId, boolean>;
+
+  // Establishment Actions
+  /** Tick skill cooldowns down by delta seconds. */
+  tickEstablishmentSkills: (deltaSeconds: number) => void;
+  /** Trigger a skill (index 0 or 1) on a building. Returns true if activated. */
+  triggerEstablishmentSkill: (buildingId: ResourceBuildingId, skillIndex: 0 | 1) => boolean;
+  /** Relocate a building to a new random position. Castle cannot be relocated. */
+  relocateBuilding: (buildingId: ResourceBuildingId) => boolean;
+
+  // Establishment Modal Actions
+  openEstablishmentModal: (id: 'CASTLE' | ResourceBuildingId) => void;
+  closeEstablishmentModal: () => void;
+  toggleBuildingAutoBuy: (buildingId: ResourceBuildingId) => void;
+  autoBuyMaterialsForUpgrade: (buildingId: ResourceBuildingId) => void;
 }
+

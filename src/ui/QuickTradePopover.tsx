@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useGameStore } from '../state/useGameStore';
+import { useGameStore, RESOURCE_PRICES } from '../state/useGameStore';
+import { QuantityKnob } from './QuantityKnob';
 import { soundFx } from '../game/audio/soundFx';
 import { X, ArrowLeftRight, Gem, Trees, Hammer, Sparkles, Coins, Check } from 'lucide-react';
 
@@ -15,8 +16,6 @@ const RESOURCE_META = {
     color: 'text-sky-400',
     border: 'border-sky-500/40',
     bg: 'bg-sky-950/90',
-    sellPrice: 3,
-    buyPrice: 5,
   },
   wood: {
     label: 'Grove Wood',
@@ -24,8 +23,6 @@ const RESOURCE_META = {
     color: 'text-emerald-400',
     border: 'border-emerald-500/40',
     bg: 'bg-emerald-950/90',
-    sellPrice: 2,
-    buyPrice: 3,
   },
   stone: {
     label: 'Quarry Stone',
@@ -33,8 +30,6 @@ const RESOURCE_META = {
     color: 'text-amber-400',
     border: 'border-amber-500/40',
     bg: 'bg-amber-950/90',
-    sellPrice: 3,
-    buyPrice: 4,
   },
   arcaneEssence: {
     label: 'Arcane Essence',
@@ -42,8 +37,6 @@ const RESOURCE_META = {
     color: 'text-purple-400',
     border: 'border-purple-500/40',
     bg: 'bg-purple-950/90',
-    sellPrice: 7,
-    buyPrice: 10,
   },
   fish: {
     label: 'Fish',
@@ -51,8 +44,6 @@ const RESOURCE_META = {
     color: 'text-cyan-400',
     border: 'border-cyan-500/40',
     bg: 'bg-cyan-950/90',
-    sellPrice: 4,
-    buyPrice: 6,
   },
   water: {
     label: 'Water',
@@ -60,8 +51,6 @@ const RESOURCE_META = {
     color: 'text-blue-400',
     border: 'border-blue-500/40',
     bg: 'bg-blue-950/90',
-    sellPrice: 1,
-    buyPrice: 2,
   },
 };
 
@@ -79,26 +68,31 @@ export const QuickTradePopover: React.FC<QuickTradePopoverProps> = ({
   const currentStock = resources[resourceKey] || 0;
   const currentCoins = resources.coins || 0;
 
-  const unitPrice = tradeMode === 'SELL' ? meta.sellPrice : meta.buyPrice;
-  const totalCoins = amount * unitPrice;
+  // Same prices the store charges (src/data/economy.json), so the preview always matches the trade
+  const prices = RESOURCE_PRICES[resourceKey];
+  const unitPrice = tradeMode === 'SELL' ? prices.sell : prices.buy;
 
-  // Max trade calculation
-  const maxSell = currentStock;
-  const maxBuy = Math.floor(currentCoins / meta.buyPrice);
-  const maxPossible = tradeMode === 'SELL' ? maxSell : maxBuy;
+  // Most you can trade: everything you hold, or as many as your coins cover
+  const maxSell = Math.floor(currentStock);
+  const maxBuy = Math.floor(currentCoins / prices.buy);
+  const maxPossible = Math.max(0, tradeMode === 'SELL' ? maxSell : maxBuy);
+  const minAmount = maxPossible > 0 ? 1 : 0;
+  const tradeAmount = Math.min(Math.max(amount, minAmount), maxPossible);
+  const totalCoins = tradeAmount * unitPrice;
 
-  const canExecute = tradeMode === 'SELL' 
-    ? amount > 0 && currentStock >= amount 
-    : amount > 0 && currentCoins >= totalCoins;
+  const canExecute = tradeMode === 'SELL'
+    ? tradeAmount > 0 && currentStock >= tradeAmount
+    : tradeAmount > 0 && currentCoins >= totalCoins;
+  const knobColor = tradeMode === 'SELL' ? '#f59e0b' : '#38bdf8';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canExecute) return;
 
     if (tradeMode === 'SELL') {
-      sellResource(resourceKey, amount);
+      sellResource(resourceKey, tradeAmount);
     } else {
-      buyResource(resourceKey, amount);
+      buyResource(resourceKey, tradeAmount);
     }
 
     soundFx.playCoin();
@@ -199,25 +193,63 @@ export const QuickTradePopover: React.FC<QuickTradePopoverProps> = ({
           </div>
         </div>
 
-        {/* Quantity Controls */}
+        {/* Quantity Knob */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between text-xs text-slate-300 font-bold">
             <span>{language === 'TL' ? 'Dami ng Ipapalit:' : 'Trade Amount:'}</span>
-            <span className="font-mono font-black text-white text-base bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700">{amount}</span>
+            <span className="font-mono text-[11px] text-slate-400">
+              {tradeAmount} × {unitPrice} 🪙 = <span className="text-amber-300">{totalCoins.toLocaleString()}</span>
+            </span>
           </div>
 
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAmount(Math.max(minAmount, tradeAmount - 1))}
+              disabled={tradeAmount <= minAmount}
+              aria-label={language === 'TL' ? 'Bawasan' : 'Decrease'}
+              className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 text-lg font-black text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+            >
+              −
+            </button>
+            <QuantityKnob
+              value={tradeAmount}
+              min={minAmount}
+              max={maxPossible}
+              onChange={setAmount}
+              color={knobColor}
+              label={language === 'TL' ? 'Dami ng Ipapalit' : 'Trade amount'}
+              disabled={maxPossible === 0}
+            />
+            <button
+              type="button"
+              onClick={() => setAmount(Math.min(maxPossible, tradeAmount + 1))}
+              disabled={tradeAmount >= maxPossible}
+              aria-label={language === 'TL' ? 'Dagdagan' : 'Increase'}
+              className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 text-lg font-black text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
+          <p className="text-center text-[10px] text-slate-500">
+            {language === 'TL'
+              ? 'I-drag o i-scroll ang knob (Shift = ×10), o gamitin ang arrow keys'
+              : 'Drag or scroll the knob (Shift = ×10), or use the arrow keys'}
+          </p>
+
           <div className="grid grid-cols-4 gap-1.5">
-            {[5, 10, 25, maxPossible].map((qty, idx) => (
+            {[0.25, 0.5, 0.75, 1].map((share) => (
               <button
-                key={idx}
+                key={share}
                 type="button"
+                disabled={maxPossible === 0}
                 onClick={() => {
                   soundFx.playClick();
-                  setAmount(Math.max(1, Math.min(qty, maxPossible || 1)));
+                  setAmount(Math.max(minAmount, Math.floor(maxPossible * share)));
                 }}
-                className="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-all active:scale-95"
+                className="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-all active:scale-95 disabled:opacity-40"
               >
-                {idx === 3 ? (language === 'TL' ? 'LAHAT' : 'ALL') : `+${qty}`}
+                {share === 1 ? (language === 'TL' ? 'LAHAT' : 'MAX') : `${share * 100}%`}
               </button>
             ))}
           </div>
@@ -251,8 +283,8 @@ export const QuickTradePopover: React.FC<QuickTradePopoverProps> = ({
           <Check className="w-4 h-4 stroke-[3]" />
           <span>
             {tradeMode === 'SELL' 
-              ? (language === 'TL' ? `Ibenta ang ${amount} para sa +${totalCoins} 🪙` : `Sell ${amount} for +${totalCoins} 🪙`) 
-              : (language === 'TL' ? `Bumili ng ${amount} sa halagang ${totalCoins} 🪙` : `Buy ${amount} for ${totalCoins} 🪙`)}
+              ? (language === 'TL' ? `Ibenta ang ${tradeAmount} para sa +${totalCoins} 🪙` : `Sell ${tradeAmount} for +${totalCoins} 🪙`) 
+              : (language === 'TL' ? `Bumili ng ${tradeAmount} sa halagang ${totalCoins} 🪙` : `Buy ${tradeAmount} for ${totalCoins} 🪙`)}
           </span>
         </button>
       </div>

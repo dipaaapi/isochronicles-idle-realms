@@ -81,7 +81,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     toggleAutoSetting,
     language,
     gameSpeed,
-    setGameSpeed,
+    togglePause,
+    toggleFastSpeed,
     day,
     year,
     dayProgress,
@@ -97,6 +98,23 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'command' | 'status' | 'resources'>('command');
   const [confirmAction, setConfirmAction] = useState<'SKIP_DAY' | 'SUMMON_WAVE' | null>(null);
+
+  // Keyboard: ` play/pause, 1 = 2x speed, 2 = 3x speed (press again for 1x)
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+      const el = event.target as HTMLElement | null;
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+      if (event.code === 'Backquote') togglePause();
+      else if (event.code === 'Digit1' || event.code === 'Numpad1') toggleFastSpeed(2);
+      else if (event.code === 'Digit2' || event.code === 'Numpad2') toggleFastSpeed(3);
+      else return;
+      event.preventDefault();
+      soundFx.playClick();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [togglePause, toggleFastSpeed]);
 
   useEffect(() => {
     const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -432,9 +450,27 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <div className="p-3 border-t border-slate-800/80 bg-slate-900 flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button onClick={() => setGameSpeed(0)} className={`p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'text-slate-400 hover:bg-slate-800'}`}><Pause className="w-3.5 h-3.5 fill-current" /></button>
-                <button onClick={() => setGameSpeed(1)} className={`p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 1 ? 'bg-emerald-500/30 text-emerald-300' : 'text-slate-400 hover:bg-slate-800'}`}><Play className="w-3.5 h-3.5 fill-current" /></button>
-                <button onClick={() => setGameSpeed(2)} className={`p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 2 ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'}`}><FastForward className="w-3.5 h-3.5 fill-current" /></button>
+                <button
+                  onClick={() => { soundFx.playClick(); togglePause(); }}
+                  title={gameSpeed === 0 ? 'Play ( ` )' : 'Pause ( ` )'}
+                  aria-label={gameSpeed === 0 ? 'Play' : 'Pause'}
+                  className={`relative p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'}`}
+                >
+                  {gameSpeed === 0 ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
+                  <kbd className="absolute -bottom-1 right-0 text-[8px] font-mono text-slate-500">`</kbd>
+                </button>
+                {([2, 3] as const).map((speed, index) => (
+                  <button
+                    key={speed}
+                    onClick={() => { soundFx.playClick(); toggleFastSpeed(speed); }}
+                    title={`${speed}× speed (${index + 1})`}
+                    aria-pressed={gameSpeed === speed}
+                    className={`relative px-1.5 py-1 rounded flex-1 flex items-center justify-center gap-0.5 text-[10px] font-black font-mono ${gameSpeed === speed ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'}`}
+                  >
+                    <FastForward className="w-3 h-3 fill-current" />{speed}×
+                    <kbd className="absolute -bottom-1 right-0 text-[8px] font-mono text-slate-500">{index + 1}</kbd>
+                  </button>
+                ))}
               </div>
 
               <div className="flex items-center gap-1">

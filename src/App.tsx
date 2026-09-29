@@ -14,17 +14,23 @@ import { RegressionModal } from './ui/RegressionModal';
 import { PhaserGame } from './game/PhaserGame';
 import { FAQModal } from './ui/FAQModal';
 import { SkillTreeModal } from './ui/SkillTreeModal';
+import { EstablishmentModal } from './ui/EstablishmentModal';
+import { ActivityLogTray } from './ui/ActivityLogTray';
+import { startActivityWatcher } from './state/activityWatcher';
 
 export const App: React.FC = () => {
   const {
     screen,
     regressionCount,
+    layoutSeed,
     setScreen,
     completeIntro,
     checkOfflineProgress,
     isRegressionModalOpen,
     openRegressionModal,
     closeRegressionModal,
+    selectedEstablishmentId,
+    closeEstablishmentModal,
   } = useGameStore();
 
   const [citadelTab, setCitadelTab] = useState<CitadelTab | null>(null);
@@ -47,6 +53,9 @@ export const App: React.FC = () => {
       setQuickTradeResource(null);
     }
   }, [screen]);
+
+  // Narrate realm events into the activity log tray
+  useEffect(() => startActivityWatcher(), []);
 
   // Check offline progression when landing in the active simulation
   useEffect(() => {
@@ -91,7 +100,8 @@ export const App: React.FC = () => {
         <div className="flex w-full h-full overflow-hidden">
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
-            <PhaserGame key={regressionCount} />
+            <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
+            <ActivityLogTray />
           </div>
 
           {/* Dedicated Right Sidebar HUD */}
@@ -115,6 +125,12 @@ export const App: React.FC = () => {
             isOpen={citadelTab !== null}
             onClose={() => setCitadelTab(null)}
             initialTab={citadelTab || 'MINIONS'}
+          />
+
+          <EstablishmentModal
+            isOpen={selectedEstablishmentId !== null}
+            onClose={closeEstablishmentModal}
+            selectedId={selectedEstablishmentId}
           />
 
           <CastleBreachedModal />

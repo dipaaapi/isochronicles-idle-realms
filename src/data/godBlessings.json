@@ -1,0 +1,50 @@
+{
+  "CELESTIAL_HARVEST": {
+    "id": "CELESTIAL_HARVEST",
+    "name": "Biyaya ng Kalangitan (Celestial Abundance)",
+    "nameEn": "Celestial Abundance",
+    "category": "GATHERING",
+    "icon": "✨🌾",
+    "color": "#fbbf24",
+    "description": "Biyaya mula sa Diyos ng Kasaganaan: Triple (3x) cargo harvest yield at 50% bilis sa lahat ng minero at mangingisda.",
+    "descriptionEn": "Divine Grace of Abundance: Triples (3x) cargo harvest yields and boosts gathering movement speed by +50%.",
+    "durationSeconds": 60,
+    "costResources": {
+      "aetherShards": 60,
+      "arcaneEssence": 12,
+      "coins": 120
+    }
+  },
+  "AEGIS_WRATH": {
+    "id": "AEGIS_WRATH",
+    "name": "Poot ng Maykapal (Wrath of Aegis)",
+    "nameEn": "Wrath of Aegis",
+    "category": "INVASION",
+    "icon": "⚡🛡️",
+    "color": "#38bdf8",
+    "description": "Biyaya mula sa Diyos ng Digmaan: Awtomatikong pinapaputok ang kidlat sa mga lumulusob, 2x bilis ng atake ng mga gusali, at 50% pinsalang bawas sa pader.",
+    "descriptionEn": "Divine Wrath: Smites invaders with continuous celestial lightning, doubles establishment attack speed, and reduces castle damage by 50%.",
+    "durationSeconds": 45,
+    "costResources": {
+      "aetherShards": 75,
+      "arcaneEssence": 15,
+      "coins": 150
+    }
+  },
+  "TITAN_AWAKENING": {
+    "id": "TITAN_AWAKENING",
+    "name": "Paggising ng Titano (Titan Awakening)",
+    "nameEn": "Titan Awakening",
+    "category": "MINIONS",
+    "icon": "🔥👑",
+    "color": "#f43f5e",
+    "description": "Biyaya mula sa Diyos ng Lakas: Walang kapagurang stamina (0 fatigue drain), 2.5x Combat ATK, at permanenteng armor shield sa lahat ng alagad habang umiiral.",
+    "descriptionEn": "Divine Empowerment: Grants infinite stamina (zero fatigue drain), +150% Combat ATK, and radiant shielding to all servants.",
+    "durationSeconds": 50,
+    "costResources": {
+      "aetherShards": 80,
+      "arcaneEssence": 18,
+      "coins": 180
+    }
+  }
+}

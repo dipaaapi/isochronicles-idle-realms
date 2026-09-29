@@ -1,0 +1,152 @@
+[
+  {
+    "id": "rune_pickaxe",
+    "name": "Rune Pickaxe",
+    "slot": "TOOL",
+    "description": "Forged with raw aether crystals. Increases Aether Shard gathering yield by +1 and grants +20 Combat Attack.",
+    "icon": "⛏️",
+    "stats": {
+      "bonusGatherPercent": 25,
+      "bonusAttack": 20
+    },
+    "costResources": {
+      "shards": 25,
+      "stone": 30
+    }
+  },
+  {
+    "id": "lumberjack_cleaver",
+    "name": "Grove Woodcleaver",
+    "slot": "TOOL",
+    "description": "Reinforced timber blade. Increases Grove Wood gathering speed by +20% and grants +25 Combat Attack.",
+    "icon": "🪓",
+    "stats": {
+      "bonusSpeed": 15,
+      "bonusAttack": 25
+    },
+    "costResources": {
+      "wood": 40,
+      "shards": 15
+    }
+  },
+  {
+    "id": "granite_sledge",
+    "name": "Granite Sledge",
+    "slot": "TOOL",
+    "description": "Crushes runic quarry stone with ease. +35 Combat Attack and +1 Cargo capacity on stone.",
+    "icon": "🔨",
+    "stats": {
+      "bonusCargo": 1,
+      "bonusAttack": 35
+    },
+    "costResources": {
+      "stone": 50,
+      "wood": 20
+    }
+  },
+  {
+    "id": "aether_blade",
+    "name": "Void Aether Blade",
+    "slot": "TOOL",
+    "description": "Gleaming blade woven from condensed void essence. Strikes invading crusade soldiers for +65 Combat Attack.",
+    "icon": "⚔️",
+    "stats": {
+      "bonusAttack": 65,
+      "bonusGatherPercent": 30
+    },
+    "costResources": {
+      "essence": 20,
+      "shards": 40
+    }
+  },
+  {
+    "id": "ironstone_plating",
+    "name": "Ironstone Plating",
+    "slot": "ARMOR",
+    "description": "Heavy basalt chestplate. Grants +140 Max HP and reduces damage taken from invaders.",
+    "icon": "🛡️",
+    "stats": {
+      "bonusHp": 140
+    },
+    "costResources": {
+      "stone": 45,
+      "shards": 20
+    }
+  },
+  {
+    "id": "verdant_cloak",
+    "name": "Verdant Travel Cloak",
+    "slot": "ARMOR",
+    "description": "Silken woven nomad cloak. Reduces fatigue stamina drain by 40% and increases speed by +20.",
+    "icon": "🦹",
+    "stats": {
+      "staminaDrainReduction": 40,
+      "bonusSpeed": 20
+    },
+    "costResources": {
+      "wood": 50,
+      "essence": 10
+    }
+  },
+  {
+    "id": "aegis_core",
+    "name": "Aegis Guardian Core",
+    "slot": "ARMOR",
+    "description": "Miniature kinetic field generator. Grants +220 Max HP and +30 Combat Attack.",
+    "icon": "💠",
+    "stats": {
+      "bonusHp": 220,
+      "bonusAttack": 30
+    },
+    "costResources": {
+      "essence": 25,
+      "stone": 40
+    }
+  },
+  {
+    "id": "swift_boots",
+    "name": "Zephyr Wind Boots",
+    "slot": "RELIC",
+    "description": "Lightweight enchanted boots. Grants +35 movement speed across the citadel.",
+    "icon": "👢",
+    "stats": {
+      "bonusSpeed": 35
+    },
+    "costResources": {
+      "wood": 30,
+      "shards": 25
+    },
+    "costCoins": 45
+  },
+  {
+    "id": "dimensional_pouch",
+    "name": "Aether Cargo Pouch",
+    "slot": "RELIC",
+    "description": "Folded pocket dimension allowing the bearer to haul +2 extra resource cargo per trip.",
+    "icon": "🎒",
+    "stats": {
+      "bonusCargo": 2
+    },
+    "costResources": {
+      "shards": 35,
+      "wood": 25
+    },
+    "costCoins": 60
+  },
+  {
+    "id": "vitality_charm",
+    "name": "Eternal Vitality Charm",
+    "slot": "RELIC",
+    "description": "Spiritual amulet granting +80 Max HP and 25% stamina drain reduction.",
+    "icon": "🧿",
+    "stats": {
+      "bonusHp": 80,
+      "staminaDrainReduction": 25
+    },
+    "costResources": {
+      "essence": 15,
+      "stone": 30
+    },
+    "costCoins": 50
+  }
+]

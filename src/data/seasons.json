@@ -1,0 +1,38 @@
+{
+  "SPRING": {
+    "name": "Tagsibol (Spring)",
+    "nameEn": "Spring",
+    "icon": "🌸",
+    "color": "#10b981",
+    "description": "Sariwang hangin at mabilis na pagtubo ng kalikasan. Normal na panahon.",
+    "descriptionEn": "Fresh winds and gentle renewal. Balanced conditions across the realm.",
+    "dayRange": "Day 1 - 91"
+  },
+  "SUMMER": {
+    "name": "Tag-araw (Summer)",
+    "nameEn": "Summer",
+    "icon": "☀️",
+    "color": "#f59e0b",
+    "description": "Mataas na sikat ng araw at matinding init. Madalas ang Heatwave.",
+    "descriptionEn": "Blazing sun and sweltering temperatures. Higher heatwave frequency.",
+    "dayRange": "Day 92 - 182"
+  },
+  "AUTUMN": {
+    "name": "Taglagas (Autumn)",
+    "nameEn": "Autumn",
+    "icon": "🍂",
+    "color": "#ea580c",
+    "description": "Malamig na simoy at pagkalagas ng dahon. Madalas ang malalakas na ulan.",
+    "descriptionEn": "Crisp breezes and falling foliage. Frequent rainfalls and storms.",
+    "dayRange": "Day 183 - 273"
+  },
+  "WINTER": {
+    "name": "Taglamig (Winter)",
+    "nameEn": "Winter",
+    "icon": "❄️",
+    "color": "#06b6d4",
+    "description": "Napakalamig na hamog at yelo. Madalas ang pag-ulan ng niyebe.",
+    "descriptionEn": "Freezing temperatures and frostbite. Heavy snowfalls throughout.",
+    "dayRange": "Day 274 - 365"
+  }
+}
