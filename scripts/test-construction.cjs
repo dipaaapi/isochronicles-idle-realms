@@ -99,8 +99,10 @@ console.log('Custom purchase quantity checks passed.');
 
 const preferences = new Set(['language', 'isAudioMuted', 'isGoreEnabled', 'targetFps', 'showFpsDebug', 'showTileCoordinates', 'measuredFps']);
 const initial = store.getInitialState();
+// Every reset rolls a fresh random layout, so its seed (and the node spots it moves) differ by design
+const rerolled = new Set(['lastSavedTimestamp', 'layoutSeed', 'dynamicResourceNodes']);
 const progressionKeys = Object.keys(initial).filter(key =>
-  typeof initial[key] !== 'function' && !preferences.has(key) && key !== 'lastSavedTimestamp');
+  typeof initial[key] !== 'function' && !preferences.has(key) && !rerolled.has(key));
 const dirtyProgress = Object.fromEntries(progressionKeys.map(key => {
   const value = initial[key];
   return [key, typeof value === 'number' ? 99 : typeof value === 'boolean' ? !value :
@@ -114,6 +116,7 @@ for (const key of progressionKeys) {
 assert.equal(state().language, 'TL');
 assert.equal(state().targetFps, 30);
 assert.ok(state().lastSavedTimestamp > 0, 'reset must not award old offline progress');
+assert.ok(state().layoutSeed > 0 && state().layoutSeed !== 99, 'reset rolls a new establishment layout');
 console.log('Full realm reset checks passed.');
 
 // Store refactor regressions: late-game resources, Ent links, breach roster, skill trigger.
@@ -298,47 +301,86 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.ok(defense.portalMaxHp(20) > defense.portalMaxHp(1));
   assert.ok(defense.portalBounty(10).coins > defense.portalBounty(1).coins);
 
-  // Layout: every footprint is on land, none overlap, work spots are free
-  const rects = [layout.CASTLE_FOOTPRINT, layout.SPIRE_FOOTPRINT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].footprint)];
-  const taken = new Set();
-  for (const r of rects) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
-    assert.ok(x >= 1 && y >= 1 && x <= 8 && y <= 8, 'footprints stay on land');
-    assert.ok(!taken.has(`${x},${y}`), `footprints overlap at ${x},${y}`);
-    taken.add(`${x},${y}`);
+  // Layout: 20×20 platform, citadel at the centre, establishments placed randomly per seed.
+  // For many seeds: every footprint is on land, none overlap, work spots are free and reachable.
+  const N = layout.GRID_SIZE;
+  assert.equal(N, 20, 'the platform is 20×20');
+  const castleCenter = layout.rectCenter(layout.CASTLE_FOOTPRINT);
+  assert.equal(JSON.stringify(castleCenter), JSON.stringify({ x: 10, y: 10 }), 'the citadel stands at the centre');
+  const { PathfindingService: PF } = { PathfindingService };
+  const checkLayout = (seed) => {
+    layout.applyLayoutSeed(seed);
+    const rects = [layout.CASTLE_FOOTPRINT, layout.SPIRE_FOOTPRINT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].footprint)];
+    const taken = new Set();
+    for (const r of rects) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      assert.ok(layout.isLandTile(x, y), `seed ${seed}: footprints stay on land`);
+      assert.ok(!taken.has(`${x},${y}`), `seed ${seed}: footprints overlap at ${x},${y}`);
+      taken.add(`${x},${y}`);
+    }
+    for (const id of layout.BUILDING_IDS) assert.equal(layout.BUILDING_SITES[id].footprint.w * layout.BUILDING_SITES[id].footprint.h, 4);
+    const spots = [layout.CASTLE_GATE, layout.SPIRE_WORK_SPOT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].workSpot), ...layout.PORTAL_SITES.map((p) => p.exit)];
+    for (const s of spots) assert.ok(!taken.has(`${s.x},${s.y}`) && layout.isLandTile(s.x, s.y), `seed ${seed}: work spot ${s.x},${s.y} is walkable land`);
+    const pf = new PF();
+    const base = Array.from({ length: N }, (_, y) => Array.from({ length: N }, (_, x) => (layout.isLandTile(x, y) ? 0 : 1)));
+    for (const p of layout.PORTAL_SITES) base[p.tile.y][p.tile.x] = 0;
+    const nav = new Navigation(pf, base);
+    nav.setSolids([
+      { id: 'CASTLE', rect: layout.CASTLE_FOOTPRINT }, { id: 'SPIRE', rect: layout.SPIRE_FOOTPRINT },
+      ...layout.BUILDING_IDS.map((id) => ({ id, rect: layout.BUILDING_SITES[id].footprint })),
+      ...layout.PORTAL_SITES.map((p) => ({ id: p.id, rect: { ...p.tile, w: 1, h: 1 } })),
+    ]);
+    const gate = layout.CASTLE_GATE;
+    for (const s of spots) {
+      const route = pf.findPath(gate.x, gate.y, s.x, s.y, [0]);
+      assert.ok(route, `seed ${seed}: ${s.x},${s.y} is reachable from the gate`);
+      assert.ok(route.every((t) => !taken.has(`${t.x},${t.y}`)), 'paths never cross a footprint');
+    }
+    for (const p of layout.PORTAL_SITES) {
+      const route = nav.pathToRect(p.exit, layout.CASTLE_FOOTPRINT, [0]);
+      assert.ok(route && route.length > 1, `seed ${seed}: invaders from ${p.id} can reach the citadel walls`);
+    }
+    for (const r of layout.ROAD_TILES) assert.ok(!taken.has(`${r.x},${r.y}`), 'roads never pave a footprint');
+    return nav;
+  };
+  const layoutsSeen = new Set();
+  for (let seed = 1; seed <= 300; seed++) {
+    checkLayout(seed);
+    layoutsSeen.add(JSON.stringify(layout.BUILDING_SITES));
   }
-  assert.equal(layout.CASTLE_FOOTPRINT.w * layout.CASTLE_FOOTPRINT.h, 9, 'the citadel covers 9 tiles');
-  for (const id of layout.BUILDING_IDS) assert.equal(layout.BUILDING_SITES[id].footprint.w * layout.BUILDING_SITES[id].footprint.h, 4);
-  const spots = [layout.CASTLE_GATE, layout.SPIRE_WORK_SPOT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].workSpot), ...layout.PORTAL_SITES.map((p) => p.exit)];
-  for (const s of spots) assert.ok(!taken.has(`${s.x},${s.y}`), `work spot ${s.x},${s.y} is walkable`);
+  assert.ok(layoutsSeen.size > 250, 'establishment placement varies between realms');
+  layout.applyLayoutSeed(7);
+  const first = JSON.stringify(layout.BUILDING_SITES);
+  layout.applyLayoutSeed(8);
+  layout.applyLayoutSeed(7);
+  assert.equal(JSON.stringify(layout.BUILDING_SITES), first, 'a seed always yields the same layout');
 
-  // Navigation: solids block paths and push walkers out; every spot stays reachable
-  const pf = new PathfindingService();
-  const base = Array.from({ length: 10 }, (_, y) => Array.from({ length: 10 }, (_, x) => (x === 0 || y === 0 || x === 9 || y === 9 ? 1 : 0)));
-  for (const p of layout.PORTAL_SITES) base[p.tile.y][p.tile.x] = 0;
-  const nav = new Navigation(pf, base);
-  nav.setSolids([
-    { id: 'CASTLE', rect: layout.CASTLE_FOOTPRINT }, { id: 'SPIRE', rect: layout.SPIRE_FOOTPRINT },
-    ...layout.BUILDING_IDS.map((id) => ({ id, rect: layout.BUILDING_SITES[id].footprint })),
-    ...layout.PORTAL_SITES.map((p) => ({ id: p.id, rect: { ...p.tile, w: 1, h: 1 } })),
-  ]);
-  const gate = layout.CASTLE_GATE;
-  for (const s of spots) {
-    const route = pf.findPath(gate.x, gate.y, s.x, s.y, [0]);
-    assert.ok(route, `${s.x},${s.y} is reachable from the gate`);
-    assert.ok(route.every((t) => !taken.has(`${t.x},${t.y}`)), 'paths never cross a footprint');
-  }
-  const center = IsometricHelper.gridToScreen(4, 4);
+  // Node spots / task locations follow the applied layout (shared objects)
+  const { TASK_NODE_LOCATIONS } = load('src/types/game.ts');
+  assert.equal(JSON.stringify(TASK_NODE_LOCATIONS.STONE), JSON.stringify(layout.BUILDING_SITES.QUARRY.workSpot));
+
+  // The realm's seed survives save export/import and switches the layout
+  const nav = checkLayout(state().layoutSeed);
+  const saveWithSeed = JSON.parse(state().exportSave());
+  saveWithSeed.layoutSeed = 12345;
+  assert.equal(state().importSave(JSON.stringify(saveWithSeed)), true);
+  assert.equal(state().layoutSeed, 12345);
+  assert.equal(layout.getLayoutSeed(), 12345);
+  assert.equal(JSON.stringify({ x: state().dynamicResourceNodes.WOOD.x, y: state().dynamicResourceNodes.WOOD.y }), JSON.stringify(layout.BUILDING_SITES.WOOD.workSpot));
+  const seedBefore = state().layoutSeed;
+  state().performRegression();
+  assert.notEqual(state().layoutSeed, seedBefore, 'regression rolls a new layout');
+  checkLayout(state().layoutSeed);
+
+  // Navigation: solids push walkers out and block line of sight
+  const center = IsometricHelper.gridToScreen(castleCenter.x, castleCenter.y);
   const pushed = nav.pushOut(center.x, center.y);
   const g = Navigation.toGrid(pushed.x, pushed.y);
   assert.ok(!nav.solidAt(g.x, g.y), 'units inside the citadel are pushed out');
   const inside = Navigation.toGrid(center.x, center.y);
-  assert.ok(Math.abs(inside.x - 4) < 1e-9 && Math.abs(inside.y - 4) < 1e-9, 'toGrid inverts gridToScreen');
-  for (const p of layout.PORTAL_SITES) {
-    const route = nav.pathToRect(p.exit, layout.CASTLE_FOOTPRINT, [0]);
-    assert.ok(route && route.length > 1, `invaders from ${p.id} can reach the citadel walls`);
-  }
-  const a = IsometricHelper.gridToScreen(2, 4);
-  const b = IsometricHelper.gridToScreen(6, 4);
+  assert.ok(Math.abs(inside.x - castleCenter.x) < 1e-9 && Math.abs(inside.y - castleCenter.y) < 1e-9, 'toGrid inverts gridToScreen');
+  const row = layout.CASTLE_FOOTPRINT.y + layout.CASTLE_FOOTPRINT.h - 1;
+  const a = IsometricHelper.gridToScreen(layout.CASTLE_FOOTPRINT.x - 2, row);
+  const b = IsometricHelper.gridToScreen(layout.CASTLE_FOOTPRINT.x + layout.CASTLE_FOOTPRINT.w + 1, row);
   assert.equal(nav.hasLineOfSight(a.x, a.y, b.x, b.y), false, 'the citadel blocks line of sight');
   console.log('Tower, beacon, portal, save-migration and obstacle checks passed.');
 }

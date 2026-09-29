@@ -22,6 +22,7 @@ export const App: React.FC = () => {
   const {
     screen,
     regressionCount,
+    layoutSeed,
     setScreen,
     completeIntro,
     checkOfflineProgress,
@@ -99,7 +100,7 @@ export const App: React.FC = () => {
         <div className="flex w-full h-full overflow-hidden">
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
-            <PhaserGame key={regressionCount} />
+            <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
             <ActivityLogTray />
           </div>
 

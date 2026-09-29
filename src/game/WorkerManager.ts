@@ -15,7 +15,7 @@ import { UnitRosterItem } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore, CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
-import { nextConstruction } from '../state/constructionProgress';
+import { CONSTRUCTION_SECONDS, ConstructionStatus, nextConstruction } from '../state/constructionProgress';
 import { skillBonuses } from '../state/skillTree';
 import { soundFx } from './audio/soundFx';
 import { logFloatingText, nearestName } from '../state/activityLog';
@@ -23,7 +23,7 @@ import type { InvasionManager, ActiveInvader } from './InvasionManager';
 import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
 import { Navigation, NavAgent } from './Navigation';
 import type { PortalManager, PortalState } from './PortalManager';
-import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE } from '../state/buildingLayout';
+import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, GRID_CENTER, GRID_SIZE } from '../state/buildingLayout';
 import { buildingHpOf, buildingMaxHp, isBuildingOperational, towerLevelOf } from '../state/defenseStats';
 import type { ResourceBuildingId } from '../types/state';
 import { logMessage } from '../state/activityLog';
@@ -161,8 +161,8 @@ export class WorkerManager {
     c.x = nx;
     c.y = ny;
     const grid = Navigation.tileOf(c.x, c.y);
-    worker.gridX = Phaser.Math.Clamp(grid.x, 0, 9);
-    worker.gridY = Phaser.Math.Clamp(grid.y, 0, 9);
+    worker.gridX = Phaser.Math.Clamp(grid.x, 0, GRID_SIZE - 1);
+    worker.gridY = Phaser.Math.Clamp(grid.y, 0, GRID_SIZE - 1);
     c.setDepth(IsometricHelper.getDepth(worker.gridX, worker.gridY, 6));
     return Math.hypot(tx - c.x, ty - c.y);
   }
@@ -1237,8 +1237,7 @@ export class WorkerManager {
 
           for (const candClass of summonOrder) {
             const curCount = currentStore.roster.filter((u) => u.unitClass === candClass).length;
-            // TREANT cap = 5 (one per establishment); others = 2
-            const maxCap = candClass === 'TREANT' ? 5 : 2;
+            const maxCap = candClass === 'TREANT' ? 1 : 2;
             if (curCount < maxCap) {
               const isFree = candClass === 'TREANT';
               const success = currentStore.summonUnit(candClass, undefined, isFree);
@@ -1305,33 +1304,11 @@ export class WorkerManager {
           worker.treantActionTimer = 4.0;
           worker.treantTargetTile = { ...this.nexusGridPos };
         } else if (worker.treantActionTimer <= 0) {
-          // Find assigned building first (caretaker obligation), then most damaged overall
-          const assignedBid2 = (() => {
-            const s = useGameStore.getState();
-            const a = s.entAssignments || {};
-            for (const [bid, uid] of Object.entries(a)) {
-              if (uid === worker.id) return bid as ResourceBuildingId;
-            }
-            return null;
-          })();
-
-          // Check if assigned building needs repair first
-          let damagedBuilding = null;
-          if (assignedBid2) {
-            const ab = storeState.resourceBuildings[assignedBid2];
-            if (ab && ab.level >= 1 && buildingHpOf(ab) < buildingMaxHp(towerLevelOf(ab))) {
-              damagedBuilding = { id: assignedBid2, b: ab };
-            }
-          }
-
-          // Fallback to any other damaged building
-          if (!damagedBuilding) {
-            damagedBuilding = BUILDING_IDS
-              .map((id) => ({ id, b: storeState.resourceBuildings[id] }))
-              .filter(({ b }) => b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b)))
-              .sort((a, b) => buildingHpOf(a.b) / buildingMaxHp(towerLevelOf(a.b)) - buildingHpOf(b.b) / buildingMaxHp(towerLevelOf(b.b)))[0];
-          }
-
+          // Most damaged establishment (wrecked ones first)
+          const damagedBuilding = BUILDING_IDS
+            .map((id) => ({ id, b: storeState.resourceBuildings[id] }))
+            .filter(({ b }) => b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b)))
+            .sort((a, b) => buildingHpOf(a.b) / buildingMaxHp(towerLevelOf(a.b)) - buildingHpOf(b.b) / buildingMaxHp(towerLevelOf(b.b)))[0];
           if (castleNeedsRepair || castleNeedsFortification) {
             worker.treantMode = 'REPAIR';
             worker.treantRepairId = undefined;
@@ -1394,33 +1371,6 @@ export class WorkerManager {
         // Treant movement towards target
         const dest = worker.treantTargetTile || this.nexusGridPos;
         const destIso = IsometricHelper.gridToScreen(dest.x, dest.y);
-
-        // ── Ent Tethering: constrain movement to assigned establishment ────────
-        const currentStore2 = useGameStore.getState();
-        const assignments = currentStore2.entAssignments || {};
-        let assignedBuildingId: ResourceBuildingId | null = null;
-        for (const [bid, uid] of Object.entries(assignments)) {
-          if (uid === worker.id) {
-            assignedBuildingId = bid as ResourceBuildingId;
-            break;
-          }
-        }
-
-        const TETHER_RADIUS = 5; // tiles
-        if (assignedBuildingId && worker.treantMode !== 'REPAIR') {
-          const site = BUILDING_SITES[assignedBuildingId];
-          const center = { x: site.footprint.x + (site.footprint.w - 1) / 2, y: site.footprint.y + (site.footprint.h - 1) / 2 };
-          const tDist = Math.hypot(dest.x - center.x, dest.y - center.y);
-          if (tDist > TETHER_RADIUS) {
-            // Clamp destination back into tether radius
-            const angle = Math.atan2(dest.y - center.y, dest.x - center.x);
-            const clampedX = center.x + Math.cos(angle) * TETHER_RADIUS;
-            const clampedY = center.y + Math.sin(angle) * TETHER_RADIUS;
-            worker.treantTargetTile = { x: Math.round(clampedX), y: Math.round(clampedY) };
-          }
-        }
-        // ─────────────────────────────────────────────────────────────────────
-
         const dist = Math.hypot(destIso.x - worker.container.x, destIso.y - worker.container.y);
 
         if (dist > 35) {
@@ -1974,8 +1924,8 @@ export class WorkerManager {
 
   private dispatchToTaskNode(worker: WorkerInstance): void {
     if (worker.status === 'MOVING_TO_NODE') return;
-    worker.gridX = Phaser.Math.Clamp(Math.round(worker.gridX ?? 5), 0, 9);
-    worker.gridY = Phaser.Math.Clamp(Math.round(worker.gridY ?? 5), 0, 9);
+    worker.gridX = Phaser.Math.Clamp(Math.round(worker.gridX ?? GRID_CENTER.x), 0, GRID_SIZE - 1);
+    worker.gridY = Phaser.Math.Clamp(Math.round(worker.gridY ?? GRID_CENTER.y), 0, GRID_SIZE - 1);
 
     // Minions are not locked into one resource: they freely roam and gather different needed/random resources
     const isGathererUnit =
@@ -2052,8 +2002,8 @@ export class WorkerManager {
 
   private dispatchToNexus(worker: WorkerInstance): void {
     if (worker.status === 'RETURNING_TO_NEXUS') return;
-    worker.gridX = Phaser.Math.Clamp(Math.round(worker.gridX ?? 5), 0, 9);
-    worker.gridY = Phaser.Math.Clamp(Math.round(worker.gridY ?? 5), 0, 9);
+    worker.gridX = Phaser.Math.Clamp(Math.round(worker.gridX ?? GRID_CENTER.x), 0, GRID_SIZE - 1);
+    worker.gridY = Phaser.Math.Clamp(Math.round(worker.gridY ?? GRID_CENTER.y), 0, GRID_SIZE - 1);
     const allowedTiles = this.getAllowedTiles(worker.unitClass);
     const path = this.pathfinder.findPath(worker.gridX, worker.gridY, this.nexusGridPos.x, this.nexusGridPos.y, allowedTiles);
     worker.currentPath = (path && path.length > 0)
@@ -2061,6 +2011,16 @@ export class WorkerManager {
       : [{ x: worker.gridX, y: worker.gridY }, { x: this.nexusGridPos.x, y: this.nexusGridPos.y }];
     worker.pathIndex = 0;
     worker.status = 'RETURNING_TO_NEXUS';
+  }
+
+  /** The Ent's current construction job (null once everything is built). */
+  public getConstructionStatus(): ConstructionStatus | null {
+    const site = nextConstruction(useGameStore.getState());
+    if (!site) return null;
+    const ent = this.workers.find((w) => w.unitClass === 'TREANT');
+    const progress = Phaser.Math.Clamp((ent?.constructionTimer ?? 0) / CONSTRUCTION_SECONDS, 0, 1);
+    const phase = !ent ? 'waiting' : ent.status === 'MOVING_TO_NODE' ? 'arriving' : ent.status === 'HARVESTING' ? 'building' : 'waiting';
+    return { siteId: site.id, phase, progress };
   }
 
   public getWorkers(): WorkerInstance[] {
@@ -2125,7 +2085,7 @@ export class WorkerManager {
           (storeState.resources[key as keyof typeof storeState.resources] ?? 0) >= (amount ?? 0));
         worker.status = affordable ? 'HARVESTING' : 'IDLE';
         worker.constructionTimer = affordable ? (worker.constructionTimer ?? 0) + deltaSec : 0;
-        if ((worker.constructionTimer ?? 0) >= 4) {
+        if ((worker.constructionTimer ?? 0) >= CONSTRUCTION_SECONDS) {
           const built = site.id === 'CASTLE' ? storeState.buildCastle() : storeState.upgradeResourceBuilding(site.id);
           worker.constructionTimer = 0;
           if (built) {

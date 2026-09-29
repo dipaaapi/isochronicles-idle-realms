@@ -26,7 +26,7 @@ export class IsometricHelper {
     return { x: gridX, y: gridY };
   }
 
-  /** Chess-style column letter for a grid X (0 → "A", 9 → "J"). */
+  /** Chess-style column letter for a grid X (0 → "A", 19 → "T"). */
   static fileLetter(gridX: number): string {
     return String.fromCharCode(65 + gridX);
   }

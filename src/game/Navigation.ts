@@ -130,7 +130,7 @@ export class Navigation {
 
   /**
    * Shortest walkable path from a tile to any tile touching `rect`
-   * (breadth-first; the grid is only 10×10).
+   * (breadth-first over the platform grid).
    */
   pathToRect(start: GridPoint, rect: TileRect, allowed: number[]): GridPoint[] | null {
     const H = this.grid.length;

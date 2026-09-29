@@ -15,6 +15,7 @@ import {
 } from '../state/buildingLayout';
 import { ZONE_MARGIN, TOWER_MAX_LEVEL, beaconLevelOf, beaconStats, buildingHpOf, buildingMaxHp, towerLevelOf } from '../state/defenseStats';
 import type { ResourceBuildingId } from '../types/state';
+import type { ConstructionStatus } from '../state/constructionProgress';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
 import { BUILDING_SPRITE, StructureKey } from './sprites/structureModels';
@@ -73,6 +74,8 @@ export class StructureManager {
   private views = new Map<StructureId | 'SPIRE', StructureView>();
   private zoneGfx: Phaser.GameObjects.Graphics;
   private invaderProvider: () => Provokable[] = () => [];
+  private constructionProvider: () => ConstructionStatus | null = () => null;
+  private elapsed = 0;
   private beaconTimer = 4;
   private beaconActive = 0;
   private beaconRadius = 2.5;
@@ -94,6 +97,11 @@ export class StructureManager {
 
   setInvaderProvider(provider: () => Provokable[]): void {
     this.invaderProvider = provider;
+  }
+
+  /** Where the Ent is building, so only that site shows its construction animation. */
+  setConstructionProvider(provider: () => ConstructionStatus | null): void {
+    this.constructionProvider = provider;
   }
 
   private addView(id: StructureId | 'SPIRE', key: StructureKey, rect: TileRect): void {
@@ -278,7 +286,9 @@ export class StructureManager {
 
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
+    this.elapsed += dt;
     const store = useGameStore.getState();
+    const construction = this.constructionProvider();
 
     for (const view of this.views.values()) {
       let state: ViewState;
@@ -298,16 +308,30 @@ export class StructureManager {
       }
 
       if (state !== view.state) {
+        const finished = view.state === 'site' && state === 'idle';
         view.state = state;
         view.attacking = false;
-        view.container.setAlpha(state === 'site' ? 0.8 : 1);
+        view.container.setAlpha(1);
+        view.container.setScale(1);
         view.fallback.setAlpha(state === 'site' ? 0.35 : state === 'ruined' ? 0.6 : 1);
         if (view.sprite) playStructureAnim(view.sprite, state, true);
+        if (finished) this.playBuiltFlourish(view);
       }
+
+      // Pre-construction: only the site the Ent is working on shows its scaffold;
+      // later plots stay bare paved foundations until their turn comes.
+      if (state === 'site') {
+        const active = construction?.siteId === view.id ? construction : null;
+        view.container.setVisible(!!active);
+        if (!active) continue;
+        this.animateConstructionSite(view, active, dt);
+        continue;
+      }
+      if (!view.container.visible) view.container.setVisible(true);
 
       // HP bar: shown whenever damaged (the castle's also shows its shield during waves)
       const shield = view.id === 'CASTLE' ? store.defense.shieldHp / Math.max(1, store.defense.shieldMaxHp) : 0;
-      const showBar = state !== 'site' && view.id !== 'SPIRE' && (hp < maxHp || (view.id === 'CASTLE' && store.invasion.isActive));
+      const showBar = view.id !== 'SPIRE' && (hp < maxHp || (view.id === 'CASTLE' && store.invasion.isActive));
       // Include skill cooldown states so bar redraws when skills become ready
       const skillKey = (view.id !== 'CASTLE' && view.id !== 'SPIRE')
         ? (() => {
@@ -420,6 +444,82 @@ export class StructureManager {
       g.fillStyle(skill2Ready ? 0xa855f7 : 0xef4444, 1);
       g.fillCircle(dotsX + dotR * 2 + 2, dotsY, dotR);
     }
+  }
+
+  /**
+   * The Ent's active job: scaffold fades in as it arrives, sways and kicks up
+   * dust while being built, and waits dimmed when supplies are short. A
+   * progress bar above the site shows how far the build has come.
+   */
+  private animateConstructionSite(view: StructureView, status: ConstructionStatus, dt: number): void {
+    const building = status.phase === 'building';
+    view.container.setAlpha(status.phase === 'waiting' ? 0.55 + Math.sin(this.elapsed * 3) * 0.1 : building ? 1 : 0.8);
+    view.container.setScale(1, building ? 1 + Math.sin(this.elapsed * 14) * 0.015 : 1);
+
+    if (building) {
+      view.smokeTimer -= dt;
+      if (view.smokeTimer <= 0) {
+        view.smokeTimer = 0.25 + Math.random() * 0.2;
+        this.puffDust(view);
+      }
+    }
+
+    const key = `site|${status.phase}|${Math.round(status.progress * 40)}`;
+    if (key === view.lastHpKey) return;
+    view.lastHpKey = key;
+    this.drawConstructionBar(view, status);
+  }
+
+  private drawConstructionBar(view: StructureView, status: ConstructionStatus): void {
+    const g = view.hpBar;
+    g.clear();
+    const width = view.rect.w * 22;
+    const top = -(structureHeadroom(view.key) ?? (view.key === 'castle' ? 190 : 100)) - 6;
+    const x = -width / 2;
+
+    g.fillStyle(0x000000, 0.7);
+    g.fillRect(x - 1, top - 1, width + 2, 6);
+    if (status.phase === 'waiting') {
+      // Hazard stripes: the Ent is waiting for supplies
+      for (let i = 0; i < width; i += 6) {
+        g.fillStyle(i % 12 === 0 ? 0xf59e0b : 0x3f3f46, 1);
+        g.fillRect(x + i, top, Math.min(4, width - i), 4);
+      }
+      return;
+    }
+    g.fillStyle(0x78350f, 1);
+    g.fillRect(x, top, width, 4);
+    g.fillStyle(0xfbbf24, 1);
+    g.fillRect(x, top, width * Phaser.Math.Clamp(status.progress, 0, 1), 4);
+  }
+
+  private puffDust(view: StructureView): void {
+    const puff = this.scene.add.circle(
+      view.x + Phaser.Math.Between(-view.rect.w * 18, view.rect.w * 18),
+      view.y + Phaser.Math.Between(-6, 8),
+      Phaser.Math.Between(3, 6),
+      Math.random() < 0.5 ? 0xd6b98c : 0xa8a29e,
+      0.6
+    );
+    puff.setDepth(9980);
+    this.layer.add(puff);
+    this.scene.tweens.add({
+      targets: puff,
+      y: puff.y - Phaser.Math.Between(12, 26),
+      x: puff.x + Phaser.Math.Between(-12, 12),
+      scale: 1.8,
+      alpha: 0,
+      duration: 900,
+      ease: 'Sine.easeOut',
+      onComplete: () => puff.destroy(),
+    });
+  }
+
+  /** A finished structure pops into place with a burst of dust. */
+  private playBuiltFlourish(view: StructureView): void {
+    view.container.setScale(0.85);
+    this.scene.tweens.add({ targets: view.container, scaleX: 1, scaleY: 1, duration: 450, ease: 'Back.easeOut' });
+    for (let i = 0; i < 10; i++) this.puffDust(view);
   }
 
   private puffSmoke(view: StructureView): void {

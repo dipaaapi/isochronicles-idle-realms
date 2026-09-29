@@ -1,4 +1,4 @@
-import { NODE_SPOTS } from '../buildingLayout';
+import { NODE_SPOTS, applyLayoutSeed, newLayoutSeed } from '../buildingLayout';
 import { ECONOMY_CONFIG } from '../economy';
 import type { Difficulty } from '../difficulty';
 import type { SkillId } from '../skillTree';
@@ -122,11 +122,20 @@ export const createInitialWorldClock = () => ({
   gameSpeed: 1 as 0 | 1 | 2,
 });
 
+/** Rolls and applies a fresh random establishment layout; returns its seed. */
+export const rollLayout = (): number => {
+  const seed = newLayoutSeed();
+  applyLayoutSeed(seed);
+  return seed;
+};
+
 /**
  * Every progression field of a brand-new realm (no player preferences, no actions).
  * Used for the store's initial state and by resetRealm, so the two can never drift.
+ * Rolls a new random layout first, so resource nodes sit at the new work spots.
  */
 export const createInitialProgress = () => {
+  const layoutSeed = rollLayout();
   const roster = [createSupportSlime()];
   return {
     screen: 'TITLE' as const,
@@ -154,6 +163,7 @@ export const createInitialProgress = () => {
     isOfflineModalOpen: false,
 
     // Platform & Regression Progression
+    layoutSeed,
     platformPhase: 1 as const,
     regressionCount: 0,
     regressionHistory: [],

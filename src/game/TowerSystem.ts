@@ -5,7 +5,7 @@ import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionM
 import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
 import { skillBonuses } from '../state/skillTree';
-import { TileRect } from '../state/buildingLayout';
+import { TileRect, isLandTile } from '../state/buildingLayout';
 import { towerStats, TowerStats } from '../state/defenseStats';
 import type { ResourceBuildingId } from '../types/state';
 import { logMessage } from '../state/activityLog';
@@ -415,7 +415,7 @@ export class TowerSystem {
     for (let y = tower.zone.y; y < tower.zone.y + tower.zone.h; y++) {
       for (let x = tower.zone.x; x < tower.zone.x + tower.zone.w; x++) {
         const inside = x >= tower.rect.x && x < tower.rect.x + tower.rect.w && y >= tower.rect.y && y < tower.rect.y + tower.rect.h;
-        if (!inside && !this.nav.isSolidTile(x, y) && x > 0 && y > 0 && x < 9 && y < 9) ring.push({ x, y });
+        if (!inside && !this.nav.isSolidTile(x, y) && isLandTile(x, y)) ring.push({ x, y });
       }
     }
     for (let i = 0; i < stats.perSummon; i++) {

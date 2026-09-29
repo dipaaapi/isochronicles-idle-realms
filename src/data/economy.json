@@ -51,7 +51,7 @@
   "castleConstructionCost": { "aetherShards": 25, "wood": 35, "stone": 30, "coins": 50 },
   "unitSummon": {
     "maxPerClass": 2,
-    "maxTreants": 5,
+    "maxTreants": 1,
     "costs": {
       "GOLEM": { "base": { "aetherShards": 30, "stone": 20 }, "perUnit": { "aetherShards": 20, "stone": 15 } },
       "WAYFARER": { "base": { "aetherShards": 40, "wood": 30 }, "perUnit": { "aetherShards": 25, "wood": 20 } },

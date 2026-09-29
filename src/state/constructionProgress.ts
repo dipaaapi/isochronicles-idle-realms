@@ -9,6 +9,20 @@ const SITE_LABELS: Record<ResourceBuildingId, string> = {
   CAVE: 'Mystic Cave',
 };
 
+/** Seconds of Ent work at a site before the structure is finished. */
+export const CONSTRUCTION_SECONDS = 4;
+
+/**
+ * What the Ent is doing at the current construction site, for the site's
+ * pre-construction animation: walking there, building (with progress 0–1),
+ * or waiting for supplies.
+ */
+export interface ConstructionStatus {
+  siteId: 'CASTLE' | ResourceBuildingId;
+  phase: 'arriving' | 'building' | 'waiting';
+  progress: number;
+}
+
 /** Establishments that must stand before recruiting and invasions begin (the Mystic Cave is a later bonus). */
 export const CORE_BUILDINGS: ResourceBuildingId[] = ['WOOD', 'QUARRY', 'MINE', 'PORT'];
 

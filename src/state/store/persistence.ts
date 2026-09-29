@@ -4,6 +4,7 @@ import { beaconLevelOf } from '../defenseStats';
 import { normalizeSkillProgress } from '../skillTree';
 import { RESOURCE_KEYS } from '../resources';
 import { localForageStorage } from '../storageAdapter';
+import { applyLayoutSeed } from '../buildingLayout';
 import { getPhaseFromWave } from './defenseSlice';
 import { normalizeResourceBuildings } from './buildingsSlice';
 import {
@@ -13,6 +14,7 @@ import {
   INITIAL_INVASION,
   INITIAL_UPGRADES,
   createInitialEntAssignments,
+  createInitialResourceNodes,
   createSupportSlime,
 } from './initialState';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
@@ -42,6 +44,22 @@ const normalizeEntAssignments = (
   return result;
 };
 
+/**
+ * Switches to a saved realm's layout. Saves from before random layouts have no
+ * seed and keep the one already rolled. Node positions follow the layout;
+ * Ent enrichment levels are kept.
+ */
+const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNodes']) => {
+  if (typeof seed !== 'number' || !Number.isFinite(seed) || seed <= 0) return {};
+  applyLayoutSeed(seed);
+  const positions = createInitialResourceNodes();
+  const dynamicResourceNodes = { ...positions };
+  for (const k of Object.keys(positions) as (keyof typeof positions)[]) {
+    dynamicResourceNodes[k] = { ...positions[k], qualityMultiplier: nodes?.[k]?.qualityMultiplier ?? 1.0 };
+  }
+  return { layoutSeed: seed, dynamicResourceNodes };
+};
+
 const toResources = (raw: Record<string, unknown>): Resources =>
   Object.fromEntries(RESOURCE_KEYS.map((key) => [key, Number(raw[key]) || 0])) as unknown as Resources;
 
@@ -56,6 +74,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       unlockedSkills: state.unlockedSkills,
       regressionCount: state.regressionCount,
       regressionHistory: state.regressionHistory,
+      layoutSeed: state.layoutSeed,
       platformPhase: state.platformPhase,
       year: state.year,
       season: state.season,
@@ -133,6 +152,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         discoveredInvaders: data.discoveredInvaders || [],
         lastSavedTimestamp: Date.now(),
         screen: data.hasCompletedIntro ? 'GAME' : 'TITLE',
+        ...restoreLayout(data.layoutSeed, get().dynamicResourceNodes),
       });
       return true;
     } catch (err) {
@@ -173,6 +193,7 @@ const partialize = (state: GameStoreState) => ({
   platformPhase: state.platformPhase,
   regressionCount: state.regressionCount,
   regressionHistory: state.regressionHistory,
+  layoutSeed: state.layoutSeed,
   lastSavedTimestamp: state.lastSavedTimestamp,
 });
 
@@ -196,6 +217,8 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
       ? { ...INITIAL_DEFENSE, ...persisted.defense, beaconLevel: beaconLevelOf(persisted.defense) }
       : currentState.defense,
     showTileCoordinates: persisted.showTileCoordinates ?? true,
+    layoutSeed: currentState.layoutSeed,
+    ...restoreLayout(persisted.layoutSeed, currentState.dynamicResourceNodes),
   };
 };
 

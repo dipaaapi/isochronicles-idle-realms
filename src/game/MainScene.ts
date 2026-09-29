@@ -28,6 +28,8 @@ import { TowerSystem } from './TowerSystem';
 import {
   BUILDING_IDS,
   BUILDING_SITES,
+  GRID_SIZE,
+  PORTAL_SITES,
   CASTLE_FOOTPRINT,
   CASTLE_GATE,
   ROAD_TILES,
@@ -62,8 +64,8 @@ const DAY_NIGHT_KEYFRAMES: DayNightKeyframe[] = [
 ];
 
 export class MainScene extends Phaser.Scene {
-  private mapWidth: number = 10;
-  private mapHeight: number = 10;
+  private mapWidth: number = GRID_SIZE;
+  private mapHeight: number = GRID_SIZE;
   private tiles: TileInfo[][] = [];
   private pathfinder!: PathfindingService;
   private workerManager!: WorkerManager;
@@ -225,6 +227,7 @@ export class MainScene extends Phaser.Scene {
       blockers: () => this.towers.getBlockers(),
     });
     this.structures.setInvaderProvider(() => this.invasionManager.getInvaders());
+    this.structures.setConstructionProvider(() => this.workerManager.getConstructionStatus());
 
     this.airFxLayer = this.add.container(0, 0);
     this.islandContainer.add(this.airFxLayer);
@@ -301,7 +304,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Chess-style tile names: letters A–J run along X, numbers 1–10 along Y.
+   * Chess-style tile names: letters A–T run along X, numbers 1–20 along Y.
    * Each tile shows its name at the centre of its top face, and the island's
    * front edges carry large rank/file markers like a chessboard border.
    */
@@ -367,7 +370,7 @@ export class MainScene extends Phaser.Scene {
         let type: TileType = 'AETHER_GRASS';
         let walkable = true;
 
-        if ((x === 0 && y === 0) || (x === 9 && y === 0) || (x === 0 && y === 9) || (x === 9 && y === 9)) {
+        if (PORTAL_SITES.some((p) => p.tile.x === x && p.tile.y === y)) {
           type = 'SPAWN_BLOCK'; // invader portals stand here
         } else if (x === 0 || y === 0 || x === this.mapWidth - 1 || y === this.mapHeight - 1) {
           type = 'OCEAN_BLOCK';

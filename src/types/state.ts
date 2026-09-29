@@ -170,6 +170,8 @@ export interface GameStoreState {
   isGoreEnabled: boolean;
 
   // Platform & Regression Progression
+  /** Seed for this realm's random establishment placement (src/state/buildingLayout.ts). */
+  layoutSeed: number;
   platformPhase: PlatformPhase; // 1: Demon Citadel, 2: Magma Caldera, 3: Frost Spire, 4: Astral Sanctum
   regressionCount: number;
   regressionHistory: RegressionRecord[];

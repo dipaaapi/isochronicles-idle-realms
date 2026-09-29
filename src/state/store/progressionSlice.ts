@@ -13,6 +13,7 @@ import {
   createInitialResourceNodes,
   createInitialWorldClock,
   createSupportSlime,
+  rollLayout,
 } from './initialState';
 import type { Achievement, GameStoreState, RegressionRecord, UpgradesState } from '../../types/state';
 import type { SliceArgs } from './types';
@@ -86,8 +87,12 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
       const slime = prev.roster.find((unit) => unit.unitClass === 'AQUA_SLIME');
       const roster = [createSupportSlime(slime?.slimeEvolutionLevel)];
 
+      // A new realm rises with a fresh random establishment layout
+      const layoutSeed = rollLayout();
+
       return {
         ...createInitialWorldClock(),
+        layoutSeed,
         platformPhase: 1,
         skillPoints: prev.skillPoints + 1,
         dynamicResourceNodes: createInitialResourceNodes(),
