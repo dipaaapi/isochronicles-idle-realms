@@ -143,6 +143,18 @@ assert.equal(state().roster.length, 1);
 assert.equal(state().roster[0].slimeEvolutionLevel, 3, 'breach keeps the Support Slime evolution');
 assert.equal(state().lootedResources.metal, 5000, 'breach loot report covers every resource');
 state().resetRealm();
+// A new realm's Slime must not spend the castle supplies on evolutions (soft-lock)
+{
+  const { autoSummon } = load('src/game/workers/supportSlime.ts');
+  state().resetRealm();
+  state().summonUnit('TREANT', 'BUILD', true);
+  const ctx = { getWorkers: () => [], spawnHarvestBurst() {}, spawnFloatingPopup() {} };
+  const slime = { container: { x: 0, y: 0 }, autoSummonTimer: 0 };
+  autoSummon(ctx, slime, 1);
+  assert.equal(state().roster.find(u => u.unitClass === 'TREANT').treantEvolutionLevel, 1, 'no auto-evolve before construction');
+  assert.equal(state().buildCastle(), true, 'the starting supplies still build the castle');
+  state().resetRealm();
+}
 console.log('Store slice regression checks passed.');
 
 const { InvasionManager } = load('src/game/InvasionManager.ts');

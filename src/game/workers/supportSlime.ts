@@ -2,6 +2,7 @@ import { SUPPORT_SLIME_EVOLUTION, UNIT_CLASSES, UnitClass } from '../../types/ga
 import { useGameStore } from '../../state/useGameStore';
 import { maxUnitsOfClass } from '../../state/economy';
 import { canAfford } from '../../state/resources';
+import { nextConstruction } from '../../state/constructionProgress';
 import { soundFx } from '../audio/soundFx';
 import { clampLevel } from './modifiers';
 import type { WorkerContext, WorkerFrame, WorkerInstance } from './types';
@@ -89,14 +90,16 @@ function pulseHeal(ctx: WorkerContext, slime: WorkerInstance, allies: WorkerInst
   soundFx.playHarvest('crystal');
 }
 
-/** Every few seconds: auto-evolve (if enabled) and summon one missing minion the realm can afford. */
-function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: number): void {
+/** Every few seconds: auto-evolve (if enabled, once construction is done) and summon one missing minion the realm can afford. */
+export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: number): void {
   slime.autoSummonTimer = (slime.autoSummonTimer ?? 3.0) - deltaSec;
   if (slime.autoSummonTimer > 0) return;
   slime.autoSummonTimer = 4.0 + Math.random() * 2.0;
 
   const store = useGameStore.getState();
-  if (store.autoSettings?.autoEvolve) {
+  // Evolutions wait until the Ent has finished building: spending the starting
+  // supplies on them would leave the castle unaffordable and soft-lock a new realm.
+  if (store.autoSettings?.autoEvolve && !nextConstruction(store)) {
     store.upgradeSupportSlime();
     store.upgradeTreant();
   }
