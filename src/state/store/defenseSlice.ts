@@ -5,7 +5,7 @@ import { ECONOMY_CONFIG, enemiesInWave } from '../economy';
 import { lootResources } from '../resources';
 import { skillBonuses } from '../skillTree';
 import { restoreWreckedBuildings } from './buildingsSlice';
-import { INITIAL_UPGRADES, createInitialEntAssignments, createSupportSlime } from './initialState';
+import { INITIAL_UPGRADES, createSupportSlime } from './initialState';
 import type { GameStoreState, PlatformPhase } from '../../types/state';
 import type { SliceArgs } from './types';
 
@@ -167,8 +167,6 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         upgrades: { ...INITIAL_UPGRADES },
         roster,
         workerCount: roster.length,
-        // The fallen Ents no longer tend their establishments
-        entAssignments: createInitialEntAssignments(),
         resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
         invasion: {
           ...prev.invasion,

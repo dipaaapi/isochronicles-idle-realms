@@ -73,11 +73,8 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
     defense,
     castleBuilt,
     resources,
-    entAssignments,
     establishmentSkillCooldowns,
     autoBuyBuildingMaterials,
-    assignEntToEstablishment,
-    clearEntAssignment,
     triggerEstablishmentSkill,
     upgradeResourceBuilding,
     upgradeTower,
@@ -111,12 +108,8 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
   const defPct = isCastle ? defense.shieldHp / Math.max(1, defense.shieldMaxHp) : tLevel / 5;
   const defColor = '#38bdf8';
 
-  // Ent assignment
-  const assignedEntId = isCastle ? null : entAssignments[bid];
-  const assignedEnt = assignedEntId ? roster.find((u) => u.id === assignedEntId) : null;
-  const unassignedEnts = roster.filter(
-    (u) => u.unitClass === 'TREANT' && !Object.values(entAssignments).includes(u.id)
-  );
+  // The Ancient Ent builds every upgrade
+  const hasEnt = roster.some((u) => u.unitClass === 'TREANT');
 
   // Skills
   const skillPair = isCastle ? null : ESTABLISHMENT_SKILLS[bid] ?? null;
@@ -244,60 +237,6 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
                 )}
               </div>
 
-              {/* Ent Caretaker section */}
-              {!isCastle && (
-                <div className="bg-slate-800/60 rounded-xl border border-slate-700/50 p-3 space-y-2">
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    🌲 {tl ? 'Tagapag-alaga na Ent' : 'Ent Caretaker'}
-                  </h3>
-                  {assignedEnt ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-emerald-300">{assignedEnt.name}</p>
-                          <p className="text-[10px] text-slate-400">
-                            {tl ? 'Ent Tagapag-alaga (Lv.' : 'Caretaker Ent (Lv.'}{assignedEnt.treantEvolutionLevel ?? 1})
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => clearEntAssignment(assignedEnt.id)}
-                          className="text-[10px] bg-red-900/50 hover:bg-red-800/60 text-red-300 border border-red-700/50 px-2 py-0.5 rounded"
-                        >
-                          {tl ? 'Alisin' : 'Unassign'}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-400">
-                        {tl
-                          ? 'Ang Ent na ito ay awtomatikong nagkukumpuni, nag-a-upgrade, at nagre-relocate ng pasilidad na ito.'
-                          : 'This Ent automatically repairs, upgrades, and can relocate this establishment.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-xs text-amber-400">
-                        ⚠️ {tl ? 'Walang Ent caretaker. Hindi maaaring i-repair, i-upgrade, o ilipat.' : 'No Ent caretaker. Cannot be repaired, upgraded, or relocated.'}
-                      </p>
-                      {unassignedEnts.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {unassignedEnts.map((ent) => (
-                            <button
-                              key={ent.id}
-                              onClick={() => assignEntToEstablishment(ent.id, bid)}
-                              className="text-xs bg-emerald-900/60 hover:bg-emerald-800/60 text-emerald-300 border border-emerald-700/50 px-2 py-0.5 rounded"
-                            >
-                              🌲 {ent.name}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[10px] text-slate-500">
-                          {tl ? 'Walang libreng Ent. Summon ng Ent mula sa Citadel.' : 'No free Ents available. Summon one from the Citadel.'}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Establishment Skills */}
               {!isCastle && skillPair && cooldowns && (
@@ -392,12 +331,12 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
                         })}
                       </div>
                       <button
-                        disabled={!canUpgrade || !assignedEntId}
+                        disabled={!canUpgrade || !hasEnt}
                         onClick={() => upgradeResourceBuilding(bid)}
                         className="w-full mt-1 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors"
                       >
-                        {!assignedEntId
-                          ? (tl ? '🌲 Kailangan ng Ent Caretaker' : '🌲 Requires Ent Caretaker')
+                        {!hasEnt
+                          ? (tl ? '🌲 Kailangan ng Ent' : '🌲 Requires the Ent')
                           : canUpgrade
                             ? (tl ? '⬆️ I-Upgrade' : '⬆️ Upgrade Building')
                             : (tl ? 'Kulang ang Materyales' : 'Insufficient Materials')}

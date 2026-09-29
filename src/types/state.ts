@@ -290,12 +290,7 @@ export interface GameStoreState {
   resetRegressionProgress: (confirmation: string) => boolean;
   dismissWave100Celebration: () => void;
 
-  // ── Ent ↔ Establishment 1-to-1 Caretaker System ────────────────────────────
-  /**
-   * Maps each ResourceBuildingId to the unit ID of its assigned Ent caretaker,
-   * or null if the establishment has no caretaker (its Ent is dead or unassigned).
-   */
-  entAssignments: Record<ResourceBuildingId, string | null>;
+  // ── Establishments ─────────────────────────────────────────────────────────
   /** Skill cooldowns in seconds for each establishment's 2 skills. */
   establishmentSkillCooldowns: Record<ResourceBuildingId, { skill1: number; skill2: number }>;
 
@@ -305,11 +300,7 @@ export interface GameStoreState {
   /** Auto-buy toggle per building — whether to auto-purchase missing upgrade materials. */
   autoBuyBuildingMaterials: Record<ResourceBuildingId, boolean>;
 
-  // Ent/Establishment Actions
-  /** Assign an Ent unit to caretake an establishment. Clears any previous assignment for both. */
-  assignEntToEstablishment: (entUnitId: string, buildingId: ResourceBuildingId) => void;
-  /** Clear the Ent caretaker for a building (called on Ent death). */
-  clearEntAssignment: (entUnitId: string) => void;
+  // Establishment Actions
   /** Tick skill cooldowns down by delta seconds. */
   tickEstablishmentSkills: (deltaSeconds: number) => void;
   /** Trigger a skill (index 0 or 1) on a building. Returns true if activated. */

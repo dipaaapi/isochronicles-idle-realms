@@ -106,8 +106,6 @@ export const createInitialBlessings = (): Record<GodBlessingId, number> => ({
   TITAN_AWAKENING: 0,
 });
 
-export const createInitialEntAssignments = (): Record<ResourceBuildingId, string | null> => perBuilding(() => null);
-
 export const INITIAL_AUTO_BUY_BUILDING: Record<ResourceBuildingId, boolean> = perBuilding(() => false);
 
 /** Session-only world clock / weather values shared by new games and regressions. */
@@ -177,8 +175,7 @@ export const createInitialProgress = () => {
     dynamicResourceNodes: createInitialResourceNodes(),
     activeGodBlessings: createInitialBlessings(),
 
-    // Ent ↔ Establishment 1-to-1 Caretaker System
-    entAssignments: createInitialEntAssignments(),
+    // Establishments
     establishmentSkillCooldowns: perBuilding(() => ({ skill1: 0, skill2: 0 })),
     selectedEstablishmentId: null,
     autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING },

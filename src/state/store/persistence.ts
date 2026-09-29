@@ -13,7 +13,6 @@ import {
   INITIAL_DEFENSE,
   INITIAL_INVASION,
   INITIAL_UPGRADES,
-  createInitialEntAssignments,
   createInitialResourceNodes,
   createSupportSlime,
 } from './initialState';
@@ -29,19 +28,6 @@ const withPermanentSlime = (roster: UnitRosterItem[]): UnitRosterItem[] => {
     ...roster.filter((unit) => unit.unitClass !== 'AQUA_SLIME'),
     createSupportSlime(slime?.slimeEvolutionLevel),
   ];
-};
-
-/** Drops caretaker links to Ents that are no longer in the roster. */
-const normalizeEntAssignments = (
-  raw: Partial<Record<ResourceBuildingId, string | null>> | undefined,
-  roster: UnitRosterItem[]
-): Record<ResourceBuildingId, string | null> => {
-  const result = createInitialEntAssignments();
-  for (const id of Object.keys(result) as ResourceBuildingId[]) {
-    const unitId = raw?.[id];
-    if (unitId && roster.some((unit) => unit.id === unitId)) result[id] = unitId;
-  }
-  return result;
 };
 
 /**
@@ -88,7 +74,6 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       upgrades: state.upgrades,
       castleBuilt: state.castleBuilt,
       resourceBuildings: state.resourceBuildings,
-      entAssignments: state.entAssignments,
       autoBuyBuildingMaterials: state.autoBuyBuildingMaterials,
       defense: state.defense,
       invasion: state.invasion,
@@ -130,7 +115,6 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         resourceBuildings: normalizeResourceBuildings(data.resourceBuildings),
         roster,
         workerCount: roster.length,
-        entAssignments: normalizeEntAssignments(data.entAssignments, roster),
         autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(data.autoBuyBuildingMaterials || {}) },
         upgrades: { ...INITIAL_UPGRADES, ...(data.upgrades || {}) },
         language: data.language || 'EN',
@@ -177,7 +161,6 @@ const partialize = (state: GameStoreState) => ({
   upgrades: state.upgrades,
   castleBuilt: state.castleBuilt,
   resourceBuildings: state.resourceBuildings,
-  entAssignments: state.entAssignments,
   autoBuyBuildingMaterials: state.autoBuyBuildingMaterials,
   showTileCoordinates: state.showTileCoordinates,
   defense: state.defense,
@@ -199,7 +182,9 @@ const partialize = (state: GameStoreState) => ({
 
 /** Upgrades older saves to the current shape when they are rehydrated. */
 const merge = (persistedState: unknown, currentState: GameStoreState): GameStoreState => {
-  const persisted = (persistedState ?? {}) as Partial<GameStoreState>;
+  // Saves from before the single-Ent redesign may still carry caretaker links
+  const { entAssignments: _legacyCaretakers, ...persisted } =
+    (persistedState ?? {}) as Partial<GameStoreState> & { entAssignments?: unknown };
   const roster = withPermanentSlime(persisted.roster ?? currentState.roster);
 
   return {
@@ -211,7 +196,6 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     workerCount: roster.length,
     castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
     resourceBuildings: normalizeResourceBuildings(persisted.resourceBuildings),
-    entAssignments: normalizeEntAssignments(persisted.entAssignments, roster),
     autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(persisted.autoBuyBuildingMaterials ?? {}) },
     defense: persisted.defense
       ? { ...INITIAL_DEFENSE, ...persisted.defense, beaconLevel: beaconLevelOf(persisted.defense) }

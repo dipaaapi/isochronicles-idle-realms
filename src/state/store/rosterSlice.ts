@@ -1,6 +1,5 @@
 import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
-import { BUILDING_IDS } from '../buildingLayout';
 import {
   ECONOMY_CONFIG,
   getUnitSummonCost,
@@ -11,20 +10,11 @@ import {
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { EquipmentItem, EquipmentSlot, HarvestTask, InvaderType, UnitClass } from '../../types/game';
-import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
+import type { GameStoreState, Resources, UnitRosterItem } from '../../types/state';
 import type { SliceArgs } from './types';
 
 type EquipmentKey = 'tool' | 'armor' | 'relic';
 const slotKeyOf = (slot: EquipmentSlot) => slot.toLowerCase() as EquipmentKey;
-
-/** Returns a copy of `assignments` with `unitId` removed from every establishment. */
-const withoutEnt = (assignments: Record<ResourceBuildingId, string | null>, unitId: string) => {
-  const next = { ...assignments };
-  for (const id of Object.keys(next) as ResourceBuildingId[]) {
-    if (next[id] === unitId) next[id] = null;
-  }
-  return next;
-};
 
 /** Crafting recipes name their costs differently from the Resources shape. */
 const craftingCost = (item: EquipmentItem): Partial<Resources> => ({
@@ -34,7 +24,7 @@ const craftingCost = (item: EquipmentItem): Partial<Resources> => ({
   arcaneEssence: item.costResources.essence,
 });
 
-/** Minion roster, evolutions, equipment, Ent caretakers and the Bestiary. */
+/** Minion roster, evolutions, equipment and the Bestiary. */
 export const createRosterSlice = (...[set, get]: SliceArgs) => ({
   discoverEntry: (category: 'beast' | 'invader', id: string) => {
     set((prev) => {
@@ -74,10 +64,6 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
           : state.resources,
         roster: nextRoster,
         workerCount: nextRoster.length,
-        // A removed Treant leaves its establishment without a caretaker
-        entAssignments: unitToRemove.unitClass === 'TREANT'
-          ? withoutEnt(state.entAssignments, unitId)
-          : state.entAssignments,
         lastSavedTimestamp: Date.now(),
       };
     });
@@ -111,20 +97,10 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     };
     const nextRoster = [...state.roster, newUnit];
 
-    // Auto-assign a new Treant to the first establishment without a caretaker
-    let nextEntAssignments = state.entAssignments;
-    if (unitClass === 'TREANT') {
-      const unassigned = BUILDING_IDS.find(
-        (id) => state.resourceBuildings[id]?.level >= 1 && !state.entAssignments[id]
-      );
-      if (unassigned) nextEntAssignments = { ...state.entAssignments, [unassigned]: newUnitId };
-    }
-
     set({
       resources: subtractCost(state.resources, cost),
       roster: nextRoster,
       workerCount: nextRoster.length,
-      entAssignments: nextEntAssignments,
       lastSavedTimestamp: Date.now(),
     });
 
@@ -264,13 +240,4 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     soundFx.playClick();
   },
 
-  // ── Ent ↔ Establishment Caretaker Actions ──────────────────────────────
-  assignEntToEstablishment: (entUnitId: string, buildingId: ResourceBuildingId) => {
-    // Clears this Ent's previous post and displaces any Ent already at the building
-    set((state) => ({ entAssignments: { ...withoutEnt(state.entAssignments, entUnitId), [buildingId]: entUnitId } }));
-  },
-
-  clearEntAssignment: (entUnitId: string) => {
-    set((state) => ({ entAssignments: withoutEnt(state.entAssignments, entUnitId) }));
-  },
 }) satisfies Partial<GameStoreState>;
