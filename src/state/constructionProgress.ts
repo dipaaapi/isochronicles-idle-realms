@@ -1,5 +1,5 @@
 import { ResourceBuildingId, ResourceBuildingsState } from '../types/state';
-import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE } from './buildingLayout';
+import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, SPIRE_WORK_SPOT } from './buildingLayout';
 
 const SITE_LABELS: Record<ResourceBuildingId, string> = {
   WOOD: 'Wood Grove',
@@ -7,6 +7,10 @@ const SITE_LABELS: Record<ResourceBuildingId, string> = {
   MINE: 'Metal Mine',
   PORT: 'Water Port',
   CAVE: 'Mystic Cave',
+  TRENCH: 'Abyssal Trench',
+  CRYPT: 'Crypt of Souls',
+  PERCH: 'Brimstone Perch',
+  KENNEL: 'Infernal Kennel',
 };
 
 /** Seconds of Ent work at a site before the structure is finished. */
@@ -18,7 +22,7 @@ export const CONSTRUCTION_SECONDS = 4;
  * or waiting for supplies.
  */
 export interface ConstructionStatus {
-  siteId: 'CASTLE' | ResourceBuildingId;
+  siteId: 'CASTLE' | 'SPIRE' | ResourceBuildingId;
   phase: 'arriving' | 'building' | 'waiting';
   progress: number;
 }
@@ -27,11 +31,12 @@ export interface ConstructionStatus {
 export const CORE_BUILDINGS: ResourceBuildingId[] = ['WOOD', 'QUARRY', 'MINE', 'PORT'];
 
 /**
- * The Ent's next construction job: the citadel first, then each establishment
+ * The Ent's next construction job: the citadel first, then the Crystal Spire, then each establishment
  * in layout order. x/y is the walkable tile the Ent works from.
  */
-export const nextConstruction = (state: { castleBuilt: boolean; resourceBuildings: ResourceBuildingsState }) => {
+export const nextConstruction = (state: { castleBuilt: boolean; spireBuilt?: boolean; resourceBuildings: ResourceBuildingsState }) => {
   if (!state.castleBuilt) return { id: 'CASTLE' as const, x: CASTLE_GATE.x, y: CASTLE_GATE.y, label: 'Castle' };
+  if (state.spireBuilt === false) return { id: 'SPIRE' as const, x: SPIRE_WORK_SPOT.x, y: SPIRE_WORK_SPOT.y, label: 'Crystal Spire' };
   const id = BUILDING_IDS.find((b) => (state.resourceBuildings[b]?.level ?? 0) < 1);
   if (!id) return undefined;
   const spot = BUILDING_SITES[id].workSpot;

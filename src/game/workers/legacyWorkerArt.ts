@@ -34,7 +34,7 @@ export function renderWorkerGraphics(
     graphics.fillStyle(0x451a03, 1);
     graphics.fillRect(-12, -14, 3, 6);
     graphics.fillRect(9, -14, 3, 6);
-  } else if (unitClass === 'WAYFARER') {
+  } else if (unitClass === 'LAVA_GARGOYLE') {
     // Mabangis na Hellhound: Quadruped wolf snout, fiery red/orange coat, pointed ears
     graphics.fillStyle(0x431407, 1);
     graphics.fillTriangle(0, -20, -8, -2, 8, -2);
@@ -52,8 +52,8 @@ export function renderWorkerGraphics(
     graphics.fillStyle(0xfacc15, 1);
     graphics.fillCircle(-2.5, -15, 1.5);
     graphics.fillCircle(2.5, -15, 1.5);
-  } else if (unitClass === 'CHRONO') {
-    // CHRONO: Lumilipad na Arch-Demon with leathery bat wings & purple arcane aura
+  } else if (unitClass === 'SUCCUBUS') {
+    // SUCCUBUS: Lumilipad na Arch-Demon with leathery bat wings & purple arcane aura
     // Flying leathery bat wings
     graphics.fillStyle(0x581c87, 0.9);
     graphics.fillTriangle(-14, -20, -5, -12, -8, -4);

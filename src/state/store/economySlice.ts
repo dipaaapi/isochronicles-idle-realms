@@ -3,7 +3,8 @@ import { calculateOfflineGains } from '../offlineProgression';
 import { ECONOMY_CONFIG, RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES, type TradeableResource } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { teamBonuses } from '../skillTree';
-import type { GameStoreState, Resources } from '../../types/state';
+import type { BattleEffect, BattleItemId, GameStoreState, ResourceBuildingId, Resources } from '../../types/state';
+import { isBuildingOperational } from '../defenseStats';
 import type { SliceArgs } from './types';
 
 /** Resource bookkeeping, the merchant, loot drops and offline gains. */
@@ -72,13 +73,8 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
     });
   },
 
-  /** Buys just the shortfall for a building's next level, if the coins cover all of it. */
-  autoBuyMaterialsForUpgrade: (buildingId: keyof typeof RESOURCE_BUILDING_CONFIG) => {
+  buyShortfall: (cost: Partial<Resources>): boolean => {
     const state = get();
-    const building = state.resourceBuildings[buildingId];
-    const cost = building && RESOURCE_BUILDING_CONFIG[buildingId].costs[building.level];
-    if (!cost) return;
-
     let totalCoinCost = 0;
     const needed: Partial<Resources> = {};
     for (const [key, amount] of Object.entries(cost) as [keyof Resources, number][]) {
@@ -90,13 +86,94 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
       }
     }
 
-    if (totalCoinCost === 0 || state.resources.coins < totalCoinCost) return;
+    if (totalCoinCost === 0 || state.resources.coins < totalCoinCost) return false;
 
     set((prev) => ({
       resources: addResourceDelta(prev.resources, { ...needed, coins: -totalCoinCost }),
       lastSavedTimestamp: Date.now(),
     }));
     soundFx.playCoin();
+    return true;
+  },
+
+  /** Buys just the shortfall for a building's next level, if the coins cover all of it. */
+  autoBuyMaterialsForUpgrade: (buildingId: keyof typeof RESOURCE_BUILDING_CONFIG) => {
+    const building = get().resourceBuildings[buildingId];
+    const cost = building && RESOURCE_BUILDING_CONFIG[buildingId].costs[building.level];
+    if (cost) get().buyShortfall(cost);
+  },
+
+  researchMunition: (kind: 'armorPiercing' | 'incendiary'): boolean => {
+    const { munitions } = get();
+    const level = munitions[kind];
+    const cfg = ECONOMY_CONFIG.munitions;
+    if (level >= cfg.maxLevel) return false;
+    // Each level costs its base again (level 2 = 2× base, level 3 = 3× base)
+    const cost = Object.fromEntries(
+      Object.entries(cfg[kind].cost).map(([key, amount]) => [key, Number(amount) * (level + 1)])
+    ) as Partial<Resources>;
+    if (!get().spendResources(cost)) return false;
+    set((prev) => ({ munitions: { ...prev.munitions, [kind]: level + 1 }, lastSavedTimestamp: Date.now() }));
+    soundFx.playFanfare();
+    return true;
+  },
+
+  useBattleItem: (item: BattleItemId): boolean => {
+    const state = get();
+    const cfg = ECONOMY_CONFIG.battleItems[item];
+    if (item === 'KINETIC_RESTORE') {
+      const { shieldHp, shieldMaxHp } = state.defense;
+      if (shieldMaxHp <= 0 || shieldHp >= shieldMaxHp) return false;
+    } else if (!state.invasion.isActive) {
+      return false; // Lava Bombs and Death Curses need invaders on the field
+    }
+    if (!get().spendResources(cfg.cost as Partial<Resources>)) return false;
+    if (item === 'KINETIC_RESTORE') {
+      set((prev) => ({
+        defense: {
+          ...prev.defense,
+          shieldHp: Math.min(prev.defense.shieldMaxHp, prev.defense.shieldHp + Math.round(prev.defense.shieldMaxHp * ECONOMY_CONFIG.battleItems.KINETIC_RESTORE.shieldFraction)),
+        },
+      }));
+    } else {
+      set((prev) => ({ pendingBattleEffects: [...prev.pendingBattleEffects, item] }));
+    }
+    soundFx.playFanfare();
+    return true;
+  },
+
+  takeBattleEffects: (): BattleEffect[] => {
+    const effects = get().pendingBattleEffects;
+    if (effects.length > 0) set({ pendingBattleEffects: [] });
+    return effects;
+  },
+
+  tickLandmarks: (deltaSeconds: number) => {
+    const state = get();
+    if (!state.castleBuilt) return;
+    const yields = ECONOMY_CONFIG.landmarkYields as Record<string, Record<string, number>>;
+    const delta: Partial<Resources> = {};
+    for (const id of ['TRENCH', 'PERCH', 'KENNEL'] as ResourceBuildingId[]) {
+      const building = state.resourceBuildings[id];
+      if (!isBuildingOperational(building)) continue;
+      for (const [key, perMinute] of Object.entries(yields[id] ?? {})) {
+        const k = key as keyof Resources;
+        delta[k] = (delta[k] ?? 0) + (perMinute * building.level * deltaSeconds) / 60;
+      }
+    }
+    // Fractions accumulate so slow yields (1 pearl a minute) still arrive
+    const carry = { ...(state.landmarkCarry ?? {}) } as Record<string, number>;
+    const whole: Partial<Resources> = {};
+    for (const [key, amount] of Object.entries(delta)) {
+      const total = (carry[key] ?? 0) + (amount as number);
+      const gained = Math.floor(total);
+      carry[key] = total - gained;
+      if (gained > 0) whole[key as keyof Resources] = gained;
+    }
+    set((prev) => ({
+      landmarkCarry: carry,
+      ...(Object.keys(whole).length ? { resources: addResourceDelta(prev.resources, whole) } : {}),
+    }));
   },
 
   grantRandomLoot: () => {

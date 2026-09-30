@@ -50,6 +50,7 @@ export class WorldEffects {
   private cloudWeather: WeatherType | null = null;
   private weather: WeatherType = 'CLEAR';
   private stormy = false;
+  private strikeHandler?: (x: number, y: number, strength: number) => void;
 
   // Weather particles are pooled as plain data and drawn into two Graphics per frame
   private drops: Drop[] = [];
@@ -756,6 +757,11 @@ export class WorldEffects {
     });
   }
 
+  /** Called wherever a bolt lands so the scene can damage whatever it hit. */
+  public setStrikeHandler(handler: (x: number, y: number, strength: number) => void): void {
+    this.strikeHandler = handler;
+  }
+
   // ── Lightning ──────────────────────────────────────────────────────────────
 
   /** Flicker inside the clouds with no bolt — distant rumble. */
@@ -766,19 +772,28 @@ export class WorldEffects {
   }
 
   private strikeLightning(): void {
-    const tile = Phaser.Utils.Array.GetRandom(this.landTiles);
+    // Storm bolts are drawn to whoever is out in the open
+    const actors = this.getActors().filter((a) => a.active);
+    const drawn = this.stormy && actors.length > 0 && Math.random() < 0.35 ? Phaser.Utils.Array.GetRandom(actors) : null;
+    const tile = drawn
+      ? (({ x, y }) => ({ x: Math.round(x), y: Math.round(y) }))(IsometricHelper.screenToGrid(drawn.x, drawn.y))
+      : Phaser.Utils.Array.GetRandom(this.landTiles);
     if (!tile) return;
-    const ground = IsometricHelper.gridToScreen(tile.x, tile.y);
+    const ground = drawn ? { x: drawn.x, y: drawn.y } : IsometricHelper.gridToScreen(tile.x, tile.y);
     const tx = ground.x + Phaser.Math.Between(-8, 8);
     const ty = ground.y + Phaser.Math.Between(-4, 4);
     this.drawBolt(tx, ty, 1);
+    this.strikeHandler?.(tx, ty, 1);
     logMessage('lightning', { tile: IsometricHelper.tileName(tile.x, tile.y) });
 
     // A storm sometimes forks into a second strike nearby
     if (this.stormy && Math.random() < 0.3) {
-      this.scene.time.delayedCall(Phaser.Math.Between(140, 260), () =>
-        this.drawBolt(tx + Phaser.Math.Between(-60, 60), ty + Phaser.Math.Between(-30, 30), 0.7)
-      );
+      this.scene.time.delayedCall(Phaser.Math.Between(140, 260), () => {
+        const fx = tx + Phaser.Math.Between(-60, 60);
+        const fy = ty + Phaser.Math.Between(-30, 30);
+        this.drawBolt(fx, fy, 0.7);
+        this.strikeHandler?.(fx, fy, 0.7);
+      });
     }
 
     this.lightClouds(180);

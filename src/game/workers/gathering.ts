@@ -1,14 +1,15 @@
 import type { HarvestTask, UnitClass } from '../../types/game';
+import { FIGHTER_CLASSES } from '../../state/store/rosterSlice';
 import type { GameStoreState, Resources } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { teamBonuses } from '../../state/skillTree';
-import { isBuildingOperational } from '../../state/defenseStats';
+import { isBuildingOperational, isSpireOperational } from '../../state/defenseStats';
 import { soundFx } from '../audio/soundFx';
 import { renderCargoGraphics } from './legacyWorkerArt';
 import { CRITICAL_HP, TASK_BUILDING, isEnrichableTask, type WorkerContext, type WorkerFrame, type WorkerInstance } from './types';
 
 const GATHER_TASKS: HarvestTask[] = ['AETHER', 'WOOD', 'STONE', 'METAL', 'ESSENCE', 'FISH', 'WATER'];
-const GATHERER_CLASSES = new Set<UnitClass>(['GOLEM', 'WAYFARER', 'CHRONO', 'MERMAN', 'NECROMANCER']);
+const GATHERER_CLASSES = new Set<UnitClass>(FIGHTER_CLASSES);
 
 /** Level-2 establishments add a by-product to every delivery of their main resource. */
 const BYPRODUCTS: Partial<Record<HarvestTask, { building: keyof GameStoreState['resourceBuildings']; resource: keyof Resources }>> = {
@@ -25,6 +26,8 @@ const HARVEST_MS = 2200;
 
 /** True when a task's establishment (if it needs one) is built and not wrecked. */
 export const isTaskAvailable = (store: GameStoreState, task: HarvestTask): boolean => {
+  // Aether crystals only grow while the Crystal Spire stands (raised and not wrecked)
+  if (task === 'AETHER') return isSpireOperational(store);
   const building = TASK_BUILDING[task];
   return !building || (store.castleBuilt && isBuildingOperational(store.resourceBuildings?.[building]));
 };
@@ -192,7 +195,7 @@ function depositCargo(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerF
     deposit[byproduct.resource] = (deposit[byproduct.resource] ?? 0) + harvested;
   }
   // Chrono-Automaton bonus Arcane Essence
-  if (worker.unitClass === 'CHRONO' && worker.assignedTask === 'ESSENCE') {
+  if (worker.unitClass === 'SUCCUBUS' && worker.assignedTask === 'ESSENCE') {
     deposit.arcaneEssence = (deposit.arcaneEssence || 0) + Math.round(totalMultiplier);
   }
   store.addResources(deposit);

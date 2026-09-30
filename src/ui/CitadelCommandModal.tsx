@@ -1,3 +1,9 @@
+import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
+import { FIGHTER_CLASSES, craftingCost, summonLock } from '../state/store/rosterSlice';
+import { ECONOMY_CONFIG, type TradeableResource } from '../state/economy';
+import type { BattleItemId } from '../types/state';
+import { getUnitSummonCost } from '../state/economy';
+import { canAfford as canAffordCost } from '../state/resources';
 import React, { useEffect, useState } from 'react';
 import { FortificationsPanel } from './FortificationsPanel';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
@@ -53,7 +59,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     inventory,
     language,
     assignUnitTask,
-    summonUnit,
+    autoBuySummon,
+    munitions,
+    useBattleItem,
+    researchMunition,
+    toggleAutoBuySummon,
     upgradeSupportSlime,
     sellResource,
     buyResource,
@@ -91,11 +101,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     onClose();
   };
 
-  const handleSummon = (unitClass: UnitClass) => {
-    soundFx.playClick();
-    summonUnit(unitClass);
-  };
-
   const handleEvolution = (upgradeFn: () => boolean) => {
     soundFx.playClick();
     upgradeFn();
@@ -112,46 +117,12 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     ...(castleBuilt ? (['HEAL', 'BUILD'] as HarvestTask[]) : []),
   ];
 
-  const summonableClasses: UnitClass[] = ['GOLEM', 'WAYFARER', 'CHRONO', 'MERMAN', 'NECROMANCER'];
+  const summonableClasses: UnitClass[] = FIGHTER_CLASSES;
 
-  const getUnitSummonCost = (unitClass: UnitClass, countOfClass: number) => {
-    let aetherShards = 0;
-    let wood = 0;
-    let stone = 0;
-    switch (unitClass) {
-      case 'GOLEM':
-        aetherShards = 30 + countOfClass * 20;
-        stone = 20 + countOfClass * 15;
-        break;
-      case 'WAYFARER':
-        aetherShards = 40 + countOfClass * 25;
-        wood = 30 + countOfClass * 20;
-        break;
-      case 'CHRONO':
-        aetherShards = 70 + countOfClass * 40;
-        stone = 45 + countOfClass * 25;
-        wood = 35 + countOfClass * 20;
-        break;
-      case 'MERMAN':
-        aetherShards = 35 + countOfClass * 20;
-        wood = 25 + countOfClass * 15;
-        break;
-      case 'NECROMANCER':
-        aetherShards = 60 + countOfClass * 30;
-        stone = 30 + countOfClass * 20;
-        break;
-      case 'TREANT':
-        aetherShards = 45;
-        wood = 40;
-        stone = 30;
-        break;
-    }
-    return { aetherShards, wood, stone };
-  };
+  // Every tradeable material, including the advanced drops, trades both ways
+  const marketResources = Object.keys(RESOURCE_PRICES) as TradeableResource[];
 
-  const marketResources = ['aetherShards', 'wood', 'stone', 'arcaneEssence', 'fish', 'water'] as const;
-
-  const handleTrade = (key: typeof marketResources[number], amount: number, mode: 'BUY' | 'SELL') => {
+  const handleTrade = (key: TradeableResource, amount: number, mode: 'BUY' | 'SELL') => {
     soundFx.playClick();
     const cfg = RESOURCE_PRICES[key];
     if (mode === 'BUY') {
@@ -172,15 +143,21 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     (item) => slotFilter === 'ALL' || item.slot === slotFilter
   );
 
-  const canAffordCraft = (item: EquipmentItem) => {
-    if (!item.costResources) return false;
-    const { shards, wood, stone, essence } = item.costResources;
-    if (shards && resources.aetherShards < shards) return false;
-    if (wood && resources.wood < wood) return false;
-    if (stone && resources.stone < stone) return false;
-    if (essence && resources.arcaneEssence < essence) return false;
-    return true;
-  };
+  const canAffordCraft = (item: EquipmentItem) => !!item.costResources && canAffordCost(resources, craftingCost(item));
+
+  const costLabel = (cost: Partial<Record<string, number>>) =>
+    Object.entries(cost).filter(([, n]) => n).map(([key, n]) => `${key === 'coins' ? '🪙' : RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${n}`).join(' ');
+
+  const battleItems: Array<{ id: BattleItemId; icon: string; name: string; desc: string }> = [
+    { id: 'LAVA_BOMB', icon: '🌋', name: 'Lava Bomb', desc: language === 'TL' ? 'Tinatamaan ang lahat ng kalaban ng 60 pinsala.' : 'Deals 60 damage to every invader on the field.' },
+    { id: 'DEATH_CURSE', icon: '💀', name: 'Death Curse', desc: language === 'TL' ? 'Nanghihina ang lahat ng kalaban (8/s nang 8s).' : 'Every invader withers for 8 damage/s over 8s.' },
+    { id: 'KINETIC_RESTORE', icon: '🔮', name: 'Kinetic Barrier', desc: language === 'TL' ? 'Ibinabalik ang 50% ng kalasag ng kuta.' : 'Instantly restores 50% of the citadel shield.' },
+  ];
+
+  const munitionItems: Array<{ id: 'armorPiercing' | 'incendiary'; icon: string; name: string; desc: string }> = [
+    { id: 'armorPiercing', icon: '⚙️', name: 'Armor-Piercing Rounds', desc: language === 'TL' ? '+20% pinsala ng tower sa Mecha bawat antas.' : '+20% tower damage against Mecha per level.' },
+    { id: 'incendiary', icon: '🌋', name: 'Incendiary Rounds', desc: language === 'TL' ? 'Sinusunog ng mga tower ang tinatamaan nila.' : 'Tower hits set invaders burning.' },
+  ];
 
   const techItems: Array<{
     key: keyof UpgradesState;
@@ -405,17 +382,16 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                       const count = roster.filter((u) => u.unitClass === cls).length;
                       const maxCap = 2;
                       const cost = getUnitSummonCost(cls, count);
-                      const canAfford =
-                        resources.aetherShards >= cost.aetherShards &&
-                        resources.wood >= cost.wood &&
-                        resources.stone >= cost.stone;
+                      const canAfford = canAffordCost(resources, cost);
                       const isMax = count >= maxCap;
+                      const lock = summonLock({ upgrades, resourceBuildings }, cls);
+                      const autoBuy = !!autoBuySummon[cls];
 
                       return (
                         <div key={cls} className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2.5">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="text-2xl">{cfg.iconEmoji}</span>
+                              {BEAST_PORTRAITS[cls] ? <img src={BEAST_PORTRAITS[cls]} alt="" className="h-10 w-10 rounded-lg border border-slate-700 object-cover [image-rendering:pixelated]" /> : <span className="text-2xl">{cfg.iconEmoji}</span>}
                               <div>
                                 <h4 className="text-xs font-bold text-white">{cfg.nameEn || cfg.name}</h4>
                                 <span className="text-[10px] text-slate-500 font-mono">Dami: {count}/{maxCap}</span>
@@ -425,20 +401,33 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           </div>
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] font-mono">
-                            <span className="text-slate-400">💎{cost.aetherShards} 🌲{cost.wood} 🪨{cost.stone}</span>
-                            <button
-                              disabled={!canAfford || isMax}
-                              onClick={() => handleSummon(cls)}
-                              className={`px-3 py-1 rounded-xl font-bold transition cursor-pointer ${
-                                isMax
-                                  ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                                  : canAfford
-                                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                              }`}
-                            >
-                              {isMax ? 'Max' : 'Summon'}
-                            </button>
+                            <span className="text-slate-400">
+                              {Object.entries(cost).map(([key, amount]) => `${key === 'coins' ? '🪙' : RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${amount}`).join(' ')}
+                            </span>
+                            {isMax ? (
+                              <span className="px-3 py-1 rounded-xl font-bold bg-slate-800 text-slate-600">Max</span>
+                            ) : lock ? (
+                              <span className="px-2 py-1 rounded-xl font-bold bg-slate-800 text-amber-400/80" title={lock.building ? (language === 'TL' ? 'Itayo muna ang tahanan nito' : 'Build its home establishment first') : (language === 'TL' ? 'I-upgrade muna ang Kastilyo' : 'Upgrade the Castle first')}>
+                                🔒 {lock.building
+                                  ? (language === 'TL' ? RESOURCE_BUILDING_CONFIG[lock.building].label : RESOURCE_BUILDING_CONFIG[lock.building].labelEn)
+                                  : <>Nexus Lv{lock.nexus}{lock.refinery > 1 ? ` · Ref Lv${lock.refinery}` : ''}</>}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => toggleAutoBuySummon(cls)}
+                                title={language === 'TL'
+                                  ? 'Kusang magpapatawag ang Slime. Kapag ON, bibilhin nito gamit ang coins ang kulang na materyales.'
+                                  : 'The Slime summons automatically. When ON, it buys missing materials with coins.'}
+                                className={`px-2.5 py-1 rounded-xl font-bold transition cursor-pointer border ${
+                                  autoBuy
+                                    ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
+                                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                }`}
+                              >
+                                🪙 Auto-buy {autoBuy ? 'ON' : 'OFF'}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -459,7 +448,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                       return (
                         <div key={unit.id} className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/80 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-xl">{cfg.iconEmoji}</span>
+                            {BEAST_PORTRAITS[unit.unitClass] ? <img src={BEAST_PORTRAITS[unit.unitClass]} alt="" className="h-7 w-7 rounded-md border border-slate-700 object-cover [image-rendering:pixelated]" /> : <span className="text-xl">{cfg.iconEmoji}</span>}
                             <span className="text-xs font-bold text-white truncate">{unit.name}</span>
                           </div>
 
@@ -608,6 +597,60 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             {/* ================= TAB 3: ARMORY & GEAR ================= */}
             {activeTab === 'FORGE' && (
               <div className="space-y-4">
+                {/* Battle items & munitions made from the advanced drops */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-2xl bg-orange-950/20 border border-orange-500/30 space-y-2">
+                    <h4 className="text-xs font-bold text-orange-200">{language === 'TL' ? 'Mga Gamit sa Labanan' : 'Battle Items'}</h4>
+                    {battleItems.map((b) => {
+                      const cost = ECONOMY_CONFIG.battleItems[b.id].cost as Partial<Record<string, number>>;
+                      const affordable = canAffordCost(resources, cost);
+                      return (
+                        <div key={b.id} className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-bold text-white">{b.icon} {b.name}</div>
+                            <div className="text-[10px] text-slate-400">{b.desc}</div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!affordable}
+                            onClick={() => { soundFx.playClick(); useBattleItem(b.id); }}
+                            className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-bold font-mono transition cursor-pointer ${affordable ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                          >
+                            {costLabel(cost)}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-700 space-y-2">
+                    <h4 className="text-xs font-bold text-slate-200">{language === 'TL' ? 'Bala ng mga Tower' : 'Tower Munitions'}</h4>
+                    {munitionItems.map((m) => {
+                      const level = munitions[m.id];
+                      const maxed = level >= ECONOMY_CONFIG.munitions.maxLevel;
+                      const cost = Object.fromEntries(
+                        Object.entries(ECONOMY_CONFIG.munitions[m.id].cost).map(([k, n]) => [k, Number(n) * (level + 1)])
+                      );
+                      const affordable = !maxed && canAffordCost(resources, cost);
+                      return (
+                        <div key={m.id} className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-bold text-white">{m.icon} {m.name} <span className="font-mono text-purple-300">Lv.{level}</span></div>
+                            <div className="text-[10px] text-slate-400">{m.desc}</div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!affordable}
+                            onClick={() => { soundFx.playClick(); researchMunition(m.id); }}
+                            className={`shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-bold font-mono transition cursor-pointer ${affordable ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                          >
+                            {maxed ? 'MAX' : costLabel(cost)}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
                   <div className="flex items-center gap-1">
                     {(['ALL', 'TOOL', 'ARMOR', 'RELIC'] as const).map((slot) => (
@@ -663,9 +706,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
                         <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
                           <div className="text-[10px] font-mono text-slate-400">
-                            {item.costResources?.shards && `💎${item.costResources.shards} `}
-                            {item.costResources?.wood && `🌲${item.costResources.wood} `}
-                            {item.costResources?.stone && `🪨${item.costResources.stone} `}
+                            {costLabel(craftingCost(item))}
                           </div>
 
                           <div className="flex items-center gap-1.5">

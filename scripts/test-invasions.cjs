@@ -9,6 +9,7 @@ const state = {
   invasion: { isActive: false }, defense: { castleHp: 100 },
   weather: 'CLEAR', autoSettings: {},
   tickInvasionCountdown() {}, setEnemiesRemaining() {},
+  takeBattleEffects() { return []; }, roster: [], resourceBuildings: {}, addResources() {},
 };
 const exportsObject = {};
 const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts', 'utf8'), {
@@ -25,6 +26,9 @@ vm.runInNewContext(source, {
       }).outputText, { exports, require: () => ({}) });
       return exports;
     }
+    if (name.includes('types/game')) return { INVADER_CONFIGS: new Proxy({}, {
+      get: () => ({ category: 'HUMAN', attackRange: 30, color: 0, speed: 60 }),
+    }) };
     if (name.includes('soundFx')) return { soundFx: { playExplosion() {} } };
     if (name.includes('activityLog')) return new Proxy({}, { get: () => () => undefined });
     if (name.includes('CharacterSprites')) return new Proxy({}, {
@@ -55,9 +59,10 @@ const manager = new InvasionManager({ add: {
 manager.renderInvaderBody = () => {};
 manager.spawnSingleScout();
 const scout = manager.getInvaders()[0];
-assert.equal(scout.currentPath.length, 2, 'unreachable scout routes must have a fallback');
-assert.notDeepEqual(scout.currentPath[0], scout.currentPath[1], 'scouts must exit at a different corner');
-manager.update(16); // Consume the starting path node.
+assert.equal(scout.isRetreating, false, 'scouts must raid instead of wandering off');
+assert.ok(scout.damage > 0, 'scouts must be able to hurt the citadel');
+manager.update(16);
+assert.equal(scout.target?.structure?.id, 'CASTLE', 'scouts must march on the citadel');
 const start = { x: scout.container.x, y: scout.container.y };
 manager.update(100);
 assert.equal(manager.getInvaders().length, 1, 'peacetime must preserve scouts');

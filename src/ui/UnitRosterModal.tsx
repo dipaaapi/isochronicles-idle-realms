@@ -92,9 +92,9 @@ export const UnitRosterModal: React.FC<UnitRosterModalProps> = ({ isOpen, onClos
     switch (unitClass) {
       case 'GOLEM':
         return <Hammer className="w-4 h-4 text-amber-400" />;
-      case 'WAYFARER':
+      case 'LAVA_GARGOYLE':
         return <Compass className="w-4 h-4 text-emerald-400" />;
-      case 'CHRONO':
+      case 'SUCCUBUS':
         return <Sparkles className="w-4 h-4 text-purple-400" />;
       case 'AQUA_SLIME':
         return <span className="text-cyan-400 text-xs">�</span>;
@@ -109,9 +109,9 @@ export const UnitRosterModal: React.FC<UnitRosterModalProps> = ({ isOpen, onClos
     switch (unitClass) {
       case 'GOLEM':
         return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
-      case 'WAYFARER':
+      case 'LAVA_GARGOYLE':
         return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
-      case 'CHRONO':
+      case 'SUCCUBUS':
         return 'border-purple-500/30 bg-purple-500/10 text-purple-300';
       case 'AQUA_SLIME':
         return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300';
@@ -132,13 +132,13 @@ export const UnitRosterModal: React.FC<UnitRosterModalProps> = ({ isOpen, onClos
           stone: 20 + count * 15,
           wood: 0,
         };
-      case 'WAYFARER':
+      case 'LAVA_GARGOYLE':
         return {
           shards: 40 + count * 25,
           wood: 30 + count * 20,
           stone: 0,
         };
-      case 'CHRONO':
+      case 'SUCCUBUS':
         return {
           shards: 70 + count * 40,
           stone: 45 + count * 25,
@@ -316,7 +316,7 @@ export const UnitRosterModal: React.FC<UnitRosterModalProps> = ({ isOpen, onClos
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(['GOLEM', 'WAYFARER', 'CHRONO', 'MERMAN', 'NECROMANCER'] as UnitClass[]).map((cls) => {
+              {(['GOLEM', 'LAVA_GARGOYLE', 'SUCCUBUS', 'MERMAN', 'NECROMANCER'] as UnitClass[]).map((cls) => {
                 const cfg = UNIT_CLASSES[cls];
                 const cost = getSummonCost(cls);
                 const affordable = canAfford(cost);

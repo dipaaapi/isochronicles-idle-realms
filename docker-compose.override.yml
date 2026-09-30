@@ -1,0 +1,4 @@
+services:
+  isochronicle_dev:
+    ports: !override
+      - "5190:5173"

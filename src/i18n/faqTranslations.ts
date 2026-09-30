@@ -22,7 +22,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🎁 How do I get supplies before construction finishes?',
-        answer: 'Random scouts appear between waves. Click them to defeat them and instantly receive wood, stone, aether shards, and coins straight into your resources. The Ent simply waits if supplies are short, so keep hunting scouts.',
+        answer: 'Random scouts raid your citadel between waves, and your towers and establishments fire on them. Click them to defeat them and instantly receive wood, stone, aether shards, and coins straight into your resources. The Ent simply waits if supplies are short, so keep hunting scouts.',
       },
       {
         question: '⚔️ When do minions and waves unlock?',
@@ -64,7 +64,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🎁 Paano kukuha ng supplies bago matapos ang construction?',
-        answer: 'May random scouts na dadaan sa pagitan ng waves. I-click lang sila para talunin at makakuha agad ng wood, stone, aether shards, at coins — diretso sa resources mo. Hihintayin ka lang ng Ent kung kulang pa ang supplies, kaya keep hunting!',
+        answer: 'May random scouts na susugod sa kuta mo sa pagitan ng waves, at babarilin sila ng towers at establishments mo. I-click lang sila para talunin at makakuha agad ng wood, stone, aether shards, at coins — diretso sa resources mo. Hihintayin ka lang ng Ent kung kulang pa ang supplies, kaya keep hunting!',
       },
       {
         question: '⚔️ Kailan magiging available ang minions at waves?',

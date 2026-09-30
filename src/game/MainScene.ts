@@ -21,6 +21,8 @@ import { soundFx } from './audio/soundFx';
 import { prepareCharacterSprites } from './sprites/CharacterSprites';
 import { prepareStructureSprites } from './sprites/StructureSprites';
 import { WorldEffects } from './WorldEffects';
+import { DefenderSystem } from './DefenderSystem';
+import { SkillSystem } from './skills/SkillSystem';
 import { Navigation } from './Navigation';
 import { StructureManager } from './StructureManager';
 import { PortalManager } from './PortalManager';
@@ -36,6 +38,9 @@ import {
   SPIRE_FOOTPRINT,
   TileRect,
   rectCenter,
+  canPlaceEstablishment,
+  footprintOf,
+  type MovableId,
   rectContainsTile,
 } from '../state/buildingLayout';
 
@@ -87,6 +92,8 @@ export class MainScene extends Phaser.Scene {
   private structures!: StructureManager;
   private portals!: PortalManager;
   private towers!: TowerSystem;
+  private defenders!: DefenderSystem;
+  private skills!: SkillSystem;
   private bloomGfx?: Phaser.GameObjects.Graphics;
   private lastBloomKey: string = '';
   private tileCoordinateLabels: Phaser.GameObjects.Text[] = [];
@@ -106,6 +113,16 @@ export class MainScene extends Phaser.Scene {
 
   // Camera Drag State
   private isDragging: boolean = false;
+  // Establishment relocation: hold to lift, click a tile to place
+  private holdTimer?: Phaser.Time.TimerEvent;
+  private ignoreNextUp = false;
+  private moving?: {
+    id: MovableId;
+    ghost: Phaser.GameObjects.Container;
+    footprint: Phaser.GameObjects.Graphics;
+    tile: { x: number; y: number };
+    valid: boolean;
+  };
   private dragStartX: number = 0;
   private dragStartY: number = 0;
   private cameraStartX: number = 0;
@@ -219,11 +236,12 @@ export class MainScene extends Phaser.Scene {
     );
     this.invasionManager.setWorkerProvider(() => this.workerManager.getWorkers());
     this.towers = new TowerSystem(this, this.entityLayer, this.groundFxLayer, this.structures, this.invasionManager, this.nav);
+    this.defenders = new DefenderSystem(this, this.entityLayer, this.structures, this.invasionManager, this.nav);
     this.invasionManager.setWorld({
       nav: this.nav,
       structures: this.structures,
       portals: this.portals,
-      blockers: () => this.towers.getBlockers(),
+      blockers: () => [...this.towers.getBlockers(), ...this.defenders.getBlockers()],
     });
     this.structures.setInvaderProvider(() => this.invasionManager.getInvaders());
     this.structures.setConstructionProvider(() => this.workerManager.getConstructionStatus());
@@ -243,6 +261,8 @@ export class MainScene extends Phaser.Scene {
       this.getIslandBounds()
     );
     this.workerManager.setInvasionManager(this.invasionManager);
+    this.skills = new SkillSystem(this, this.entityLayer, this.workerManager, this.invasionManager, this.structures, this.defenders);
+    this.worldEffects.setStrikeHandler((x, y, strength) => this.lightningStrike(x, y, strength));
 
     // 8. Day/Night Lighting Overlay & Glow Layer
     this.setupDayNightLighting();
@@ -643,6 +663,23 @@ export class MainScene extends Phaser.Scene {
   }
 
   /** World-space rectangle the camera must keep in view: tiles, cliffs, edge labels, units on the back row and the sky arc. */
+  /** A lightning bolt scorches every invader and minion standing where it lands. */
+  private lightningStrike(x: number, y: number, strength: number): void {
+    const radius = 42 * strength;
+    for (const invader of [...this.invasionManager.getInvaders()]) {
+      if (invader.isDead || !invader.container.active) continue;
+      if (Math.hypot(invader.container.x - x, invader.container.y - y) > radius) continue;
+      this.invasionManager.damageInvader(invader, Math.round(40 * strength), '⚡ Struck!');
+    }
+    for (const worker of this.workerManager.getWorkers()) {
+      if (worker.hp <= 0 || !worker.container?.active) continue;
+      if (Math.hypot(worker.container.x - x, worker.container.y - y) > radius) continue;
+      const damage = Math.round(18 * strength);
+      worker.hp = Math.max(0, worker.hp - damage);
+      this.workerManager.spawnFloatingPopup(worker.container.x, worker.container.y - 40, `⚡ -${damage} HP`, '#fde047');
+    }
+  }
+
   private getIslandBounds(): Phaser.Geom.Rectangle {
     const left = IsometricHelper.gridToScreen(0, this.mapHeight - 1).x + TILE_FRAME_OFFSET_X;
     const right = IsometricHelper.gridToScreen(this.mapWidth - 1, 0).x - TILE_FRAME_OFFSET_X;
@@ -697,7 +734,33 @@ export class MainScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
 
+    this.input.mouse?.disableContextMenu();
+    this.input.keyboard?.on('keydown-ESC', () => this.cancelMove());
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.moving) {
+        if (pointer.rightButtonDown()) {
+          this.cancelMove();
+          this.ignoreNextUp = true;
+          return;
+        }
+        this.dragStartX = pointer.x;
+        this.dragStartY = pointer.y;
+        return;
+      }
+
+      // Holding the left button on an establishment lifts it for relocation
+      if (pointer.leftButtonDown() && !useGameStore.getState().invasion.isActive && this.structures) {
+        const id = this.structures.getMovableAt(pointer.worldX - this.islandContainer.x, pointer.worldY - this.islandContainer.y);
+        if (id) {
+          this.holdTimer?.remove();
+          this.holdTimer = this.time.delayedCall(450, () => {
+            const p = this.input.activePointer;
+            if (p.isDown && Math.hypot(p.x - this.dragStartX, p.y - this.dragStartY) < 10) this.startMove(id, p);
+          });
+        }
+      }
+
       if (useGameStore.getState().invasion.isActive && this.invasionManager) {
         const localX = pointer.worldX - this.islandContainer.x;
         const localY = pointer.worldY - this.islandContainer.y;
@@ -712,6 +775,14 @@ export class MainScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.moving) {
+        this.updateGhost(pointer);
+        return;
+      }
+      if (this.holdTimer && Math.hypot(pointer.x - this.dragStartX, pointer.y - this.dragStartY) >= 10) {
+        this.holdTimer.remove();
+        this.holdTimer = undefined;
+      }
       if (this.isDragging) {
         const dx = (pointer.x - this.dragStartX) / this.cameras.main.zoom;
         const dy = (pointer.y - this.dragStartY) / this.cameras.main.zoom;
@@ -724,6 +795,17 @@ export class MainScene extends Phaser.Scene {
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       const dragDist = Math.hypot(pointer.x - this.dragStartX, pointer.y - this.dragStartY);
       this.isDragging = false;
+      this.holdTimer?.remove();
+      this.holdTimer = undefined;
+      if (this.ignoreNextUp) {
+        // The release that ends the lift (or a cancel) is not a click
+        this.ignoreNextUp = false;
+        return;
+      }
+      if (this.moving) {
+        if (dragDist < 10) this.placeMove();
+        return;
+      }
 
       // Short tap (< 10 px) = click on a structure → open establishment modal
       if (dragDist < 10 && this.structures) {
@@ -748,6 +830,72 @@ export class MainScene extends Phaser.Scene {
         this.applyZoom();
       }
     );
+  }
+
+  // ── Establishment relocation ────────────────────────────────────────────────
+
+  private startMove(id: MovableId, pointer: Phaser.Input.Pointer): void {
+    this.isDragging = false;
+    this.ignoreNextUp = true;
+    const ghost = this.structures.createGhost(id);
+    const footprint = ghost.getAt(0) as Phaser.GameObjects.Graphics;
+    this.moving = { id, ghost, footprint, tile: { ...footprintOf(id) }, valid: false };
+    this.updateGhost(pointer);
+    soundFx.playClick();
+    this.workerManager.spawnFloatingPopup(ghost.x, ghost.y - 70, 'Click a new spot · Right-click / Esc to cancel', '#fde68a');
+  }
+
+  /** Snaps the ghost to the tile under the pointer and tints its footprint green or red. */
+  private updateGhost(pointer: Phaser.Input.Pointer): void {
+    const move = this.moving;
+    if (!move) return;
+    const { w, h } = footprintOf(move.id);
+    const grid = IsometricHelper.screenToGrid(pointer.worldX - this.islandContainer.x, pointer.worldY - this.islandContainer.y);
+    const tx = Math.round(grid.x - (w - 1) / 2);
+    const ty = Math.round(grid.y - (h - 1) / 2);
+    move.tile = { x: tx, y: ty };
+    move.valid = canPlaceEstablishment(move.id, tx, ty);
+
+    const c = rectCenter({ x: tx, y: ty, w, h });
+    const pos = IsometricHelper.gridToScreen(c.x, c.y);
+    move.ghost.setPosition(pos.x, pos.y);
+
+    const corner = (gx: number, gy: number) => {
+      const p = IsometricHelper.gridToScreen(gx, gy);
+      return new Phaser.Math.Vector2(p.x - pos.x, p.y - pos.y);
+    };
+    const pts = [corner(tx - 0.5, ty - 0.5), corner(tx + w - 0.5, ty - 0.5), corner(tx + w - 0.5, ty + h - 0.5), corner(tx - 0.5, ty + h - 0.5)];
+    const color = move.valid ? 0x4ade80 : 0xf87171;
+    move.footprint.clear();
+    move.footprint.fillStyle(color, 0.45);
+    move.footprint.fillPoints(pts, true);
+    move.footprint.lineStyle(2, color, 1);
+    move.footprint.strokePoints([...pts, pts[0]], false);
+  }
+
+  private placeMove(): void {
+    const move = this.moving;
+    if (!move) return;
+    if (!move.valid) {
+      soundFx.playCastleHit();
+      this.workerManager.spawnFloatingPopup(move.ghost.x, move.ghost.y - 60, "Can't build there", '#f87171');
+      return;
+    }
+    const { id, tile } = move;
+    this.cancelMove();
+    // Success remounts the scene with the new layout: fresh pavement and navigation
+    if (!useGameStore.getState().relocateEstablishment(id, tile.x, tile.y)) {
+      const pos = IsometricHelper.gridToScreen(tile.x, tile.y);
+      this.workerManager.spawnFloatingPopup(pos.x, pos.y - 60, 'Cannot move during an invasion', '#f87171');
+    }
+  }
+
+  private cancelMove(): void {
+    const move = this.moving;
+    if (!move) return;
+    this.moving = undefined;
+    move.ghost.destroy();
+    this.structures.endGhost(move.id);
   }
 
   update(time: number, delta: number): void {
@@ -811,6 +959,8 @@ export class MainScene extends Phaser.Scene {
 
     this.invasionManager?.update(effectiveDelta);
     this.towers.update(effectiveDelta);
+    this.defenders.update(effectiveDelta);
+    this.skills.update(effectiveDelta);
     this.sortEntities();
 
     this.updateWeatherParticles(effectiveDelta, store.targetFps, weather);
@@ -827,6 +977,7 @@ export class MainScene extends Phaser.Scene {
       const seconds = this._blessingTickAccum / 1000;
       this._blessingTickAccum = 0;
       store.tickGodBlessings(seconds);
+      store.tickLandmarks(seconds);
     }
 
     if (this._fpsDebugText) {
@@ -867,6 +1018,8 @@ export class MainScene extends Phaser.Scene {
     this.workerManager?.destroy();
     this.invasionManager?.destroy();
     this.towers?.destroy();
+    this.defenders?.destroy();
+    this.skills?.destroy();
     this.portals?.destroy();
     this.structures?.destroy();
     this.worldEffects?.destroy();
@@ -895,8 +1048,13 @@ export class MainScene extends Phaser.Scene {
     this.currentWeather = weather;
 
     const cam = this.cameras.main;
-    const viewW = Math.max(cam.width, window.innerWidth * 2);
-    const viewH = Math.max(cam.height, window.innerHeight * 2);
+    // Screen-space graphics still scale with camera zoom around the view centre, so a
+    // rect from (0,0) shrinks toward the lower right. Cover a generous area around the
+    // centre instead, enough for any zoom level.
+    const viewW = Math.max(cam.width, window.innerWidth) * 12;
+    const viewH = Math.max(cam.height, window.innerHeight) * 12;
+    const originX = cam.width / 2 - viewW / 2;
+    const originY = cam.height / 2 - viewH / 2;
 
     const isUltra = targetFps >= 90;
     const isSaver = targetFps <= 30;
@@ -904,15 +1062,15 @@ export class MainScene extends Phaser.Scene {
     if (weather === 'RAIN') {
       const rainAlpha = isSaver ? 0.05 : isUltra ? 0.12 : 0.08;
       this.weatherOverlay.fillStyle(0x1e3a5f, rainAlpha);
-      this.weatherOverlay.fillRect(0, 0, viewW, viewH);
+      this.weatherOverlay.fillRect(originX, originY, viewW, viewH);
     } else if (weather === 'SNOW') {
       const snowAlpha = isSaver ? 0.03 : isUltra ? 0.08 : 0.05;
       this.weatherOverlay.fillStyle(0xffffff, snowAlpha);
-      this.weatherOverlay.fillRect(0, 0, viewW, viewH);
+      this.weatherOverlay.fillRect(originX, originY, viewW, viewH);
     } else if (weather === 'HEATWAVE') {
       const heatAlpha = isSaver ? 0.04 : isUltra ? 0.12 : 0.08;
       this.weatherOverlay.fillStyle(0xf97316, heatAlpha);
-      this.weatherOverlay.fillRect(0, 0, viewW, viewH);
+      this.weatherOverlay.fillRect(originX, originY, viewW, viewH);
     }
 
     const deltaSec = delta / 1000;
@@ -921,7 +1079,7 @@ export class MainScene extends Phaser.Scene {
       p.y += p._vy * deltaSec;
       if (p._vx) p.x += p._vx * deltaSec;
       p._life += delta;
-      if (p._life > 3000 || p.y > viewH + 50) {
+      if (p._life > 3000 || p.y > Math.max(cam.height, window.innerHeight) * 2 + 50) {
         p.destroy();
         this.weatherParticles.splice(i, 1);
       }

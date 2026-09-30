@@ -12,16 +12,32 @@ import {
   expandRect,
   rectCenter,
   rectContainsTile,
+  type MovableId,
 } from '../state/buildingLayout';
-import { ZONE_MARGIN, TOWER_MAX_LEVEL, beaconLevelOf, beaconStats, buildingHpOf, buildingMaxHp, towerLevelOf } from '../state/defenseStats';
-import type { ResourceBuildingId } from '../types/state';
+import {
+  DEFENSE_TEXT,
+  ZONE_MARGIN,
+  TOWER_MAX_LEVEL,
+  beaconLevelOf,
+  beaconStats,
+  buildingHpOf,
+  buildingMaxHp,
+  towerBuildingOf,
+  towerLevelOf,
+} from '../state/defenseStats';
+import type { TowerId } from '../types/state';
 import type { ConstructionStatus } from '../state/constructionProgress';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
 import { BUILDING_SPRITE, StructureKey } from './sprites/structureModels';
 import { createStructureSprite, playStructureAnim, structureHeadroom } from './sprites/StructureSprites';
 
-export type StructureId = 'CASTLE' | ResourceBuildingId;
+export type StructureId = 'CASTLE' | TowerId;
+
+/** Every structure with a defense tower, in the order they are listed. */
+const TOWER_IDS: TowerId[] = ['SPIRE', ...BUILDING_IDS];
+
+const SPIRE_ICON = '💎';
 
 /** Something invaders can walk up to and hit. */
 export interface StructureTarget {
@@ -45,7 +61,7 @@ export interface Provokable {
 type ViewState = 'site' | 'idle' | 'ruined';
 
 interface StructureView {
-  id: StructureId | 'SPIRE';
+  id: StructureId;
   key: StructureKey;
   rect: TileRect;
   x: number;
@@ -62,6 +78,7 @@ interface StructureView {
 
 const FALLBACK_COLORS: Record<StructureKey, number> = {
   castle: 0x4b4468, quarry: 0x8b93a1, mine: 0x6b6b75, grove: 0x2f8f3a, port: 0xa87b4f, cave: 0x4a3d52, spire: 0x22d3ee, portal: 0x78716c,
+  trench: 0x0c4a6e, crypt: 0x3f4a3c, perch: 0x2b1d1a, kennel: 0x7f1d1d,
 };
 
 /**
@@ -71,7 +88,7 @@ const FALLBACK_COLORS: Record<StructureKey, number> = {
  * sync with what is built, and runs the citadel's Provoke Beacon.
  */
 export class StructureManager {
-  private views = new Map<StructureId | 'SPIRE', StructureView>();
+  private views = new Map<StructureId, StructureView>();
   private zoneGfx: Phaser.GameObjects.Graphics;
   private invaderProvider: () => Provokable[] = () => [];
   private constructionProvider: () => ConstructionStatus | null = () => null;
@@ -104,7 +121,7 @@ export class StructureManager {
     this.constructionProvider = provider;
   }
 
-  private addView(id: StructureId | 'SPIRE', key: StructureKey, rect: TileRect): void {
+  private addView(id: StructureId, key: StructureKey, rect: TileRect): void {
     const c = rectCenter(rect);
     const pos = IsometricHelper.gridToScreen(c.x, c.y);
     const container = this.scene.add.container(pos.x, pos.y);
@@ -164,8 +181,8 @@ export class StructureManager {
     const out: StructureTarget[] = [];
     const castle = this.views.get('CASTLE')!;
     if (store.castleBuilt && store.defense.castleHp > 0) out.push({ id: 'CASTLE', rect: castle.rect, x: castle.x, y: castle.y });
-    for (const id of BUILDING_IDS) {
-      const b = store.resourceBuildings[id];
+    for (const id of TOWER_IDS) {
+      const b = towerBuildingOf(store, id);
       const view = this.views.get(id)!;
       if (b && b.level >= 1 && buildingHpOf(b) > 0) out.push({ id, rect: view.rect, x: view.x, y: view.y });
     }
@@ -176,25 +193,32 @@ export class StructureManager {
     return this.getTargets().find((t) => t.id === 'CASTLE');
   }
 
-  /** Operational establishments with their 4×4 defense zones. */
-  getTowers(): Array<{ id: ResourceBuildingId; rect: TileRect; zone: TileRect; x: number; y: number; muzzleX: number; muzzleY: number; towerLevel: number }> {
+  /** Operational establishments and the spire, with their 4×4 defense zones. */
+  getTowers(): Array<{ id: TowerId; rect: TileRect; zone: TileRect; x: number; y: number; muzzleX: number; muzzleY: number; towerLevel: number }> {
     const store = useGameStore.getState();
-    return BUILDING_IDS.filter((id) => {
-      const b = store.resourceBuildings[id];
+    return TOWER_IDS.filter((id) => {
+      const b = towerBuildingOf(store, id);
       return store.castleBuilt && b && b.level >= 1 && buildingHpOf(b) > 0;
     }).map((id) => {
       const view = this.views.get(id)!;
+      const muzzle = this.muzzleOf(id);
       return {
         id,
         rect: view.rect,
         zone: expandRect(view.rect, ZONE_MARGIN),
         x: view.x,
         y: view.y,
-        muzzleX: view.x + MUZZLES[id].x,
-        muzzleY: view.y + MUZZLES[id].y,
-        towerLevel: towerLevelOf(store.resourceBuildings[id]),
+        muzzleX: view.x + muzzle.x,
+        muzzleY: view.y + muzzle.y,
+        towerLevel: towerLevelOf(towerBuildingOf(store, id)),
       };
     });
+  }
+
+  /** Weapon offset from the sprite anchor; the spire fires from the tip of its main crystal. */
+  private muzzleOf(id: TowerId): { x: number; y: number } {
+    if (id !== 'SPIRE') return MUZZLES[id];
+    return { x: 0, y: -((structureHeadroom('spire') ?? 110) - 22) };
   }
 
   /** World position of the beacon crystal on top of the keep. */
@@ -207,8 +231,13 @@ export class StructureManager {
   displayName(id: StructureId): string {
     const tl = useGameStore.getState().language === 'TL';
     if (id === 'CASTLE') return tl ? 'Kuta' : 'Citadel';
+    if (id === 'SPIRE') return tl ? DEFENSE_TEXT.spireName.tl : DEFENSE_TEXT.spireName.en;
     const cfg = RESOURCE_BUILDING_CONFIG[id];
     return tl ? cfg.label : cfg.labelEn;
+  }
+
+  private iconOf(id: TowerId): string {
+    return id === 'SPIRE' ? SPIRE_ICON : RESOURCE_BUILDING_CONFIG[id].icon;
   }
 
   // ── Damage ──────────────────────────────────────────────────────────────────
@@ -225,9 +254,9 @@ export class StructureManager {
     } else {
       const wrecked = store.damageBuilding(target.id, amount);
       const name = this.displayName(target.id);
-      logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount, icon: RESOURCE_BUILDING_CONFIG[target.id].icon });
+      logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount, icon: this.iconOf(target.id) });
       if (wrecked) {
-        logMessage('buildingWrecked', { building: name }, { icon: RESOURCE_BUILDING_CONFIG[target.id].icon });
+        logMessage('buildingWrecked', { building: name }, { icon: this.iconOf(target.id) });
         soundFx.playExplosion();
         this.scene.cameras.main.shake(260, 0.008);
         if (view) this.debris(view, 18);
@@ -267,7 +296,7 @@ export class StructureManager {
   }
 
   /** Returns a looping attack animation (the Hellfire Maw) to idle. */
-  stopAttack(id: ResourceBuildingId): void {
+  stopAttack(id: TowerId): void {
     const view = this.views.get(id);
     if (!view?.sprite || view.state !== 'idle') return;
     view.attacking = false;
@@ -275,7 +304,7 @@ export class StructureManager {
   }
 
   /** Plays a building's attack animation (towers call this when they fire). */
-  playAttack(id: ResourceBuildingId): void {
+  playAttack(id: TowerId): void {
     const view = this.views.get(id);
     if (!view?.sprite || view.state !== 'idle') return;
     view.attacking = true;
@@ -294,14 +323,12 @@ export class StructureManager {
       let state: ViewState;
       let hp = 1;
       let maxHp = 1;
-      if (view.id === 'SPIRE') {
-        state = 'idle';
-      } else if (view.id === 'CASTLE') {
+      if (view.id === 'CASTLE') {
         hp = store.defense.castleHp;
         maxHp = store.defense.castleMaxHp;
         state = !store.castleBuilt ? 'site' : hp <= 0 ? 'ruined' : 'idle';
       } else {
-        const b = store.resourceBuildings[view.id];
+        const b = towerBuildingOf(store, view.id);
         hp = buildingHpOf(b);
         maxHp = buildingMaxHp(towerLevelOf(b));
         state = !store.castleBuilt || !b || b.level < 1 ? 'site' : hp <= 0 ? 'ruined' : 'idle';
@@ -331,15 +358,16 @@ export class StructureManager {
 
       // HP bar: shown whenever damaged (the castle's also shows its shield during waves)
       const shield = view.id === 'CASTLE' ? store.defense.shieldHp / Math.max(1, store.defense.shieldMaxHp) : 0;
-      const showBar = view.id !== 'SPIRE' && (hp < maxHp || (view.id === 'CASTLE' && store.invasion.isActive));
+      const showBar = hp < maxHp || (view.id === 'CASTLE' && store.invasion.isActive);
       // Include skill cooldown states so bar redraws when skills become ready
       const skillKey = (view.id !== 'CASTLE' && view.id !== 'SPIRE')
         ? (() => {
-            const cd = store.establishmentSkillCooldowns?.[view.id as ResourceBuildingId];
+            const cd = store.establishmentSkillCooldowns?.[view.id];
             return cd ? `${cd.skill1 <= 0 ? 1 : 0}${cd.skill2 <= 0 ? 1 : 0}` : '00';
           })()
         : '';
-      const hpKey = showBar ? `${Math.round((hp / Math.max(1, maxHp)) * 60)}|${Math.round(shield * 60)}${skillKey}` : 'off';
+      const levelKey = view.id !== 'CASTLE' ? towerLevelOf(towerBuildingOf(store, view.id)) : 0;
+      const hpKey = showBar ? `${Math.round((hp / Math.max(1, maxHp)) * 60)}|${Math.round(shield * 60)}${skillKey}|${levelKey}` : 'off';
       if (hpKey !== view.lastHpKey) {
         view.lastHpKey = hpKey;
         this.drawHpBar(view, showBar, hp / Math.max(1, maxHp), shield);
@@ -364,12 +392,56 @@ export class StructureManager {
    * game world), or undefined if no structure occupies that tile.
    * Uses the IsometricHelper to convert from screen → grid then checks footprints.
    */
+  /**
+   * Translucent copy of an establishment used while relocating it; the real
+   * building fades until the move is placed or cancelled.
+   */
+  createGhost(id: MovableId): Phaser.GameObjects.Container {
+    const view = this.views.get(id)!;
+    const ghost = this.scene.add.container(view.x, view.y);
+    const footprint = this.scene.add.graphics();
+    ghost.add(footprint);
+    if (view.sprite) {
+      const s = view.sprite;
+      const copy = this.scene.add.sprite(0, 0, s.texture.key, s.frame.name);
+      copy.setOrigin(s.originX, s.originY).setScale(s.scaleX, s.scaleY).setPosition(s.x, s.y);
+      ghost.add(copy);
+    } else {
+      const g = this.scene.add.graphics();
+      g.fillStyle(FALLBACK_COLORS[view.key], 1);
+      g.fillRect(-24, -40, 48, 40);
+      ghost.add(g);
+    }
+    ghost.setAlpha(0.55);
+    ghost.setDepth(99999);
+    this.layer.add(ghost);
+    view.container.setAlpha(0.3);
+    return ghost;
+  }
+
+  /** Restores the faded building after a relocation ends. */
+  endGhost(id: MovableId): void {
+    this.views.get(id)?.container.setAlpha(1);
+  }
+
+  /** Built establishment or spire under a point, for pick-up-and-move. */
+  getMovableAt(localX: number, localY: number): MovableId | undefined {
+    const grid = IsometricHelper.screenToGrid(localX, localY);
+    const gx = Math.floor(grid.x + 0.5);
+    const gy = Math.floor(grid.y + 0.5);
+    const store = useGameStore.getState();
+    if (store.spireBuilt && rectContainsTile(SPIRE_FOOTPRINT, gx, gy)) return 'SPIRE';
+    const id = this.getStructureAt(localX, localY);
+    return id && id !== 'CASTLE' ? id : undefined;
+  }
+
   getStructureAt(localX: number, localY: number): StructureId | undefined {
     const grid = IsometricHelper.screenToGrid(localX, localY);
     const gx = Math.floor(grid.x + 0.5);
     const gy = Math.floor(grid.y + 0.5);
     const store = useGameStore.getState();
     if (store.castleBuilt && rectContainsTile(CASTLE_FOOTPRINT, gx, gy)) return 'CASTLE';
+    if (store.spireBuilt && rectContainsTile(SPIRE_FOOTPRINT, gx, gy)) return 'SPIRE';
     for (const id of BUILDING_IDS) {
       const b = store.resourceBuildings[id];
       if (b && b.level >= 1 && rectContainsTile(BUILDING_SITES[id].footprint, gx, gy)) return id;
@@ -402,9 +474,9 @@ export class StructureManager {
       g.fillRect(x, top + 5, width * Phaser.Math.Clamp(shieldPct, 0, 1), 2);
     }
 
-    // ── +Level indicator (for non-castle establishments) ──────────────────
-    if (view.id !== 'CASTLE' && view.id !== 'SPIRE') {
-      const b = store.resourceBuildings[view.id as ResourceBuildingId];
+    // ── +Level indicator (establishments and the spire) ───────────────────
+    if (view.id !== 'CASTLE') {
+      const b = towerBuildingOf(store, view.id);
       if (b && b.level >= 1) {
         const tLevel = towerLevelOf(b);
         const labelX = x + width + 4;
@@ -428,7 +500,7 @@ export class StructureManager {
 
     // ── Skill status dots ──────────────────────────────────────────────────
     if (view.id !== 'CASTLE' && view.id !== 'SPIRE') {
-      const bid = view.id as ResourceBuildingId;
+      const bid = view.id;
       const cooldowns = store.establishmentSkillCooldowns?.[bid] ?? { skill1: 0, skill2: 0 };
       const skill1Ready = cooldowns.skill1 <= 0;
       const skill2Ready = cooldowns.skill2 <= 0;
@@ -689,18 +761,28 @@ export class StructureManager {
  * anchor (projected from the voxel models: catapult bucket, obelisk crystal,
  * grove canopy, spike launcher, Hellfire Maw).
  */
-const MUZZLES: Record<ResourceBuildingId, { x: number; y: number }> = {
+const MUZZLES: Record<Exclude<TowerId, 'SPIRE'>, { x: number; y: number }> = {
   QUARRY: { x: 19, y: -72 },
   PORT: { x: 4, y: -77 },
   WOOD: { x: 0, y: -80 },
   MINE: { x: 4, y: -16 },
   CAVE: { x: 23, y: -18 },
+  // Landmarks reuse their base model, so they share its muzzle
+  TRENCH: { x: 4, y: -77 },
+  CRYPT: { x: 23, y: -18 },
+  PERCH: { x: 19, y: -72 },
+  KENNEL: { x: 4, y: -16 },
 };
 
-const ZONE_COLORS: Record<ResourceBuildingId, number> = {
+const ZONE_COLORS: Record<TowerId, number> = {
+  SPIRE: 0x22d3ee,
   QUARRY: 0xf59e0b,
   PORT: 0x67e8f9,
   WOOD: 0x4ade80,
   MINE: 0xcbd5e1,
   CAVE: 0xf97316,
+  TRENCH: 0x0ea5e9,
+  CRYPT: 0x4ade80,
+  PERCH: 0xfb923c,
+  KENNEL: 0xef4444,
 };

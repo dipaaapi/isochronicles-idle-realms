@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { GridPoint, HarvestTask, TASK_CONFIG, UNIT_CLASSES, UnitClass, WorkerEquipment, WorkerStatus } from '../../types/game';
-import type { GameStoreState, ResourceBuildingId } from '../../types/state';
+import type { GameStoreState, ResourceBuildingId, TowerId } from '../../types/state';
 import type { NavAgent } from '../Navigation';
 import type { ActiveInvader, InvasionManager } from '../InvasionManager';
 import type { PortalManager } from '../PortalManager';
@@ -62,8 +62,18 @@ export interface WorkerInstance extends NavAgent {
   treantMode?: 'REPAIR' | 'REPLENISH';
   treantTargetTile?: GridPoint;
   /** Establishment the Ent is currently patching up (undefined = castle / none). */
-  treantRepairId?: ResourceBuildingId;
+  treantRepairId?: TowerId;
   autoSummonTimer?: number;
+  // Skill status effects (seconds left)
+  /** Stunned (Siege Stomp): cannot act. */
+  stunTimer?: number;
+  /** Temporal Stasis: moves and fights slower. */
+  slowTimer?: number;
+  slowFactor?: number;
+  /** Seismic Taunt: takes 50% less damage. */
+  armorBuffTimer?: number;
+  /** Target Lock: takes 20% more damage. */
+  markedTimer?: number;
   // Dirty-check cache: skip gauge / lantern redraws when nothing changed
   _gaugeHp: number;
   _gaugeMaxHp: number;

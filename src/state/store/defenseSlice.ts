@@ -4,7 +4,7 @@ import { DEFENSE_CONFIG, beaconLevelOf, castleUpgradeCost } from '../defenseStat
 import { ECONOMY_CONFIG, enemiesInWave } from '../economy';
 import { lootResources } from '../resources';
 import { availableSkillPoints, teamBonuses } from '../skillTree';
-import { restoreWreckedBuildings } from './buildingsSlice';
+import { restoreWreckedBuildings, restoreWreckedSpire } from './buildingsSlice';
 import { INITIAL_UPGRADES, createSupportSlime } from './initialState';
 import type { GameStoreState, PlatformPhase } from '../../types/state';
 import type { SliceArgs } from './types';
@@ -131,7 +131,13 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         : prev.defense.castleHp;
 
       return {
-        resources: { ...prev.resources, coins: prev.resources.coins + bountyCoins },
+        // The Crypt of Souls gathers the fallen's souls after every repelled wave
+        resources: {
+          ...prev.resources,
+          coins: prev.resources.coins + bountyCoins,
+          soulFragments: (prev.resources.soulFragments ?? 0) +
+            (prev.resourceBuildings.CRYPT?.level ?? 0) * ECONOMY_CONFIG.landmarkYields.CRYPT.soulFragmentsPerWave,
+        },
         platformPhase: getPhaseFromWave(nextWave),
         isWave100VictoryCelebration: completedWave100 || prev.isWave100VictoryCelebration,
         isRegressionModalOpen: completedWave100 || prev.isRegressionModalOpen,
@@ -147,6 +153,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         // Every cleared wave set (see skillTree.json) grants skill points
         skillPoints: availableSkillPoints(wavesCleared, prev.skillRanks),
         resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
+        spireTower: restoreWreckedSpire(prev.spireTower),
         lastSavedTimestamp: Date.now(),
       };
     });
@@ -176,6 +183,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         roster,
         workerCount: roster.length,
         resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
+        spireTower: restoreWreckedSpire(prev.spireTower),
         invasion: {
           ...prev.invasion,
           isActive: false,

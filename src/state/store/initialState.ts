@@ -1,4 +1,4 @@
-import { NODE_SPOTS, applyLayoutSeed, newLayoutSeed } from '../buildingLayout';
+import { NODE_SPOTS, applyLayoutSeed, newLayoutSeed, type BuildingPositions } from '../buildingLayout';
 import { ECONOMY_CONFIG } from '../economy';
 import type { Difficulty } from '../difficulty';
 import type { SkillRanks } from '../skillTree';
@@ -11,9 +11,11 @@ import type {
   ResourceBuildingId,
   ResourceBuildingsState,
   Resources,
+  SpireTowerState,
   UnitRosterItem,
   UpgradesState,
 } from '../../types/state';
+import { buildingMaxHp } from '../defenseStats';
 import type { GodBlessingId, InvaderType, UnitClass } from '../../types/game';
 
 export const INITIAL_RESOURCES: Resources = {
@@ -27,6 +29,10 @@ export const INITIAL_RESOURCES: Resources = {
   charcoal: 0,
   coal: 0,
   minerals: 0,
+  obsidianShard: 0,
+  soulFragments: 0,
+  abyssalPearl: 0,
+  scrapMetal: 0,
   coins: 100,
 };
 
@@ -36,10 +42,17 @@ const perBuilding = <T>(value: () => T): Record<ResourceBuildingId, T> => ({
   MINE: value(),
   QUARRY: value(),
   PORT: value(),
+  TRENCH: value(),
+  CRYPT: value(),
+  PERCH: value(),
+  KENNEL: value(),
   CAVE: value(),
 });
 
 export const INITIAL_RESOURCE_BUILDINGS: ResourceBuildingsState = perBuilding(() => ({ level: 0, unlockedOutputs: [] }));
+
+/** The spire's tower starts at level 1 and full health once raised. */
+export const INITIAL_SPIRE_TOWER: SpireTowerState = { towerLevel: 1, hp: buildingMaxHp(1) };
 
 export const INITIAL_DEFENSE: CastleDefenseState = {
   castleHp: 0,
@@ -122,6 +135,24 @@ export const createInitialWorldClock = () => ({
 });
 
 /** Rolls and applies a fresh random establishment layout; returns its seed. */
+/**
+ * Applies a layout (seed + relocated establishments) and moves the resource
+ * nodes to the new work spots, keeping each node's Ent enrichment level.
+ */
+export const applyRealmLayout = (
+  seed: number,
+  positions: BuildingPositions,
+  nodes: GameStoreState['dynamicResourceNodes']
+) => {
+  applyLayoutSeed(seed, positions);
+  const fresh = createInitialResourceNodes();
+  const dynamicResourceNodes = { ...fresh };
+  for (const k of Object.keys(fresh) as (keyof typeof fresh)[]) {
+    dynamicResourceNodes[k] = { ...fresh[k], qualityMultiplier: nodes?.[k]?.qualityMultiplier ?? 1.0 };
+  }
+  return { layoutSeed: seed, buildingPositions: positions, dynamicResourceNodes };
+};
+
 export const rollLayout = (): number => {
   const seed = newLayoutSeed();
   applyLayoutSeed(seed);
@@ -148,6 +179,8 @@ export const createInitialProgress = () => {
     roster,
     upgrades: { ...INITIAL_UPGRADES },
     castleBuilt: false,
+    spireBuilt: false,
+    spireTower: { ...INITIAL_SPIRE_TOWER },
     resourceBuildings: { ...INITIAL_RESOURCE_BUILDINGS },
     defense: { ...INITIAL_DEFENSE },
     invasion: { ...INITIAL_INVASION },
@@ -163,6 +196,11 @@ export const createInitialProgress = () => {
 
     // Platform & Regression Progression
     layoutSeed,
+    buildingPositions: {} as BuildingPositions,
+    munitions: { armorPiercing: 0, incendiary: 0 },
+    pendingSkillCasts: [] as string[],
+    citadelSkillCooldowns: { overdrive: 0, overcharge: 0 },
+    pendingBattleEffects: [] as Array<'LAVA_BOMB' | 'DEATH_CURSE'>,
     platformPhase: 1 as const,
     regressionCount: 0,
     regressionHistory: [],
@@ -170,7 +208,7 @@ export const createInitialProgress = () => {
     isWave100VictoryCelebration: false,
 
     // Silhouette Discovery: Starting beasts are pre-discovered
-    discoveredBeasts: ['GOLEM', 'WAYFARER'] as UnitClass[],
+    discoveredBeasts: ['GOLEM', 'LAVA_GARGOYLE'] as UnitClass[],
     discoveredInvaders: [] as InvaderType[],
     promptedUpgrades: {},
     dynamicResourceNodes: createInitialResourceNodes(),
@@ -180,5 +218,6 @@ export const createInitialProgress = () => {
     establishmentSkillCooldowns: perBuilding(() => ({ skill1: 0, skill2: 0 })),
     selectedEstablishmentId: null,
     autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING },
+    autoBuySummon: {},
   } satisfies Partial<GameStoreState>;
 };

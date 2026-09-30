@@ -7,6 +7,7 @@ import {
   INITIAL_INVASION,
   INITIAL_RESOURCES,
   INITIAL_RESOURCE_BUILDINGS,
+  INITIAL_SPIRE_TOWER,
   createInitialBlessings,
   createInitialProgress,
   createInitialResourceNodes,
@@ -105,6 +106,8 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
       return {
         ...createInitialWorldClock(),
         layoutSeed,
+        buildingPositions: {},
+        munitions: { armorPiercing: 0, incendiary: 0 },
         platformPhase: 1,
         // Skills belong to a realm: refunded here and earned again from wave 1.
         // The new tier's permanent team boosts come from regressionCount.
@@ -127,6 +130,8 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
           aetherShards: REGRESSION.shardsBase + nextCount * REGRESSION.shardsPerRegression,
         },
         castleBuilt: false,
+        spireBuilt: false,
+        spireTower: { ...INITIAL_SPIRE_TOWER },
         resourceBuildings: { ...INITIAL_RESOURCE_BUILDINGS },
         roster,
         workerCount: roster.length,

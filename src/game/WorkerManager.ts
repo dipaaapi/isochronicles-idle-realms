@@ -4,6 +4,7 @@ import { UnitRosterItem } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
+import { isModActive } from './skills/combatMods';
 import { ConstructionStatus, CONSTRUCTION_SECONDS, nextConstruction } from '../state/constructionProgress';
 import { soundFx } from './audio/soundFx';
 import { logFloatingText, nearestName } from '../state/activityLog';
@@ -538,6 +539,18 @@ export class WorkerManager implements WorkerContext {
         : [];
       const frame = computeWorkerFrame(worker, store, treantLevel, delta, aliveInvaders);
       this.updateOverhead(worker, frame.config, time, delta, ambientDarkness);
+
+      // Skill status effects: stuns skip the frame, Temporal Stasis slows, surges speed up
+      for (const key of ['stunTimer', 'slowTimer', 'armorBuffTimer', 'markedTimer'] as const) {
+        if ((worker[key] ?? 0) > 0) worker[key] = Math.max(0, (worker[key] ?? 0) - frame.deltaSec);
+      }
+      if ((worker.stunTimer ?? 0) > 0) {
+        worker.overrideEmote = '💫';
+        worker.overrideEmoteTimer = 300;
+        continue;
+      }
+      if ((worker.slowTimer ?? 0) > 0) frame.effectiveSpeed *= worker.slowFactor ?? 1;
+      if (isModActive('beastSurge')) frame.effectiveSpeed *= 1.3;
 
       const isSupportSlime = worker.unitClass === 'AQUA_SLIME';
       const isTreant = worker.unitClass === 'TREANT';

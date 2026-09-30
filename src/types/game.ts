@@ -14,6 +14,8 @@ export { TASK_NODE_LOCATIONS, TASK_CONFIG } from '../data/tasks';
 export { UNIT_CLASSES } from '../data/units';
 export { INVADER_CONFIGS } from '../data/invaders';
 
+import type { ResourceBuildingId } from './state';
+
 export interface GridPoint {
   x: number;
   y: number;
@@ -62,6 +64,10 @@ export interface EquipmentItem {
     wood?: number;
     stone?: number;
     essence?: number;
+    obsidian?: number;
+    souls?: number;
+    pearl?: number;
+    scrap?: number;
   };
   costCoins?: number;
 }
@@ -90,7 +96,13 @@ export type WorkerStatus =
 
 export type HarvestTask = 'AETHER' | 'WOOD' | 'STONE' | 'METAL' | 'ESSENCE' | 'FISH' | 'WATER' | 'HEAL' | 'BUILD';
 
-export type UnitClass = 'GOLEM' | 'WAYFARER' | 'CHRONO' | 'AQUA_SLIME' | 'MERMAN' | 'NECROMANCER' | 'TREANT';
+/** Team Beasts: 2 rulers (Treant, Slime) and 8 fighters. */
+export type UnitClass =
+  | 'TREANT' | 'AQUA_SLIME'
+  | 'GOLEM' | 'MERMAN' | 'NECROMANCER' | 'KRAKEN' | 'DEMON_HOUND' | 'SUCCUBUS' | 'LAVA_GARGOYLE' | 'HARPY';
+
+/** Each team has 2 rulers and 8 fighters. */
+export type UnitRole = 'RULER' | 'FIGHTER';
 
 export interface SlimeSupportProfile {
   level: 1 | 2 | 3 | 4 | 5;
@@ -154,6 +166,9 @@ export const GOD_BLESSINGS = godBlessings as unknown as Record<GodBlessingId, Go
 
 export interface UnitClassConfig {
   classType: UnitClass;
+  role: UnitRole;
+  /** Establishment that must stand before this beast can be summoned (its home). */
+  requiredBuilding?: ResourceBuildingId;
   name: string;
   nameEn?: string;
   subtitle: string;
@@ -192,10 +207,17 @@ export interface WorkerData {
   harvestProgress: number;
 }
 
-export type InvaderType = 'HUMAN_KNIGHT' | 'HUMAN_ARCHER' | 'MECHA_SCOUT' | 'MECHA_TITAN' | 'VOID_SHADE' | 'RIFT_STALKER' | 'CORRUPTED_GOLEM' | 'DEEP_ONE';
+/** Team Invaders (Human & Mecha Alliance): 2 rulers and 8 fighters. */
+export type InvaderType =
+  | 'HIGH_PRIEST' | 'MECHA_VALKYRIE'
+  | 'HUMAN_KNIGHT' | 'HUMAN_ARCHER' | 'MECHA_SCOUT' | 'MECHA_TITAN'
+  | 'ASSASSIN' | 'MECHA_DRONE' | 'MECHA_SIEGE_TANK' | 'CHRONO';
 
 export interface InvaderConfig {
   type: InvaderType;
+  role: UnitRole;
+  /** Airborne units: the Brimstone Perch deals bonus damage to them. */
+  flying?: boolean;
   name: string;
   nameEn?: string;
   category: 'HUMAN' | 'MECHA';

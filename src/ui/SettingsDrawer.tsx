@@ -40,6 +40,32 @@ const loreSections = loreMarkdown
   })
   .filter((section) => section.heading && section.body);
 
+// Declared at module scope: defining it inside SettingsDrawer made React remount
+// the row (and its button) on every store tick, swallowing clicks mid-press.
+const SettingRow: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}> = ({ icon, title, description, children }) => (
+  <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="shrink-0 rounded-xl bg-slate-800/80 p-2 text-sky-400">
+        {icon}
+      </div>
+
+      <div className="min-w-0">
+        <div className="text-xs font-semibold text-slate-100">{title}</div>
+        <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
+          {description}
+        </div>
+      </div>
+    </div>
+
+    <div className="shrink-0">{children}</div>
+  </div>
+);
+
 export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   isOpen,
   onClose,
@@ -169,30 +195,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       icon: Code2,
     },
   ];
-
-  const SettingRow: React.FC<{
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-    children: React.ReactNode;
-  }> = ({ icon, title, description, children }) => (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="shrink-0 rounded-xl bg-slate-800/80 p-2 text-sky-400">
-          {icon}
-        </div>
-
-        <div className="min-w-0">
-          <div className="text-xs font-semibold text-slate-100">{title}</div>
-          <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
-            {description}
-          </div>
-        </div>
-      </div>
-
-      <div className="shrink-0">{children}</div>
-    </div>
-  );
 
   return (
     <div
@@ -372,8 +374,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
                   <div className="mt-3 grid grid-cols-3 gap-2">
                     {[30, 60, 90].map((fps) => {
-                      const isActive =
-                        useGameStore.getState().targetFps === fps;
+                      const isActive = targetFps === fps;
 
                       return (
                         <button

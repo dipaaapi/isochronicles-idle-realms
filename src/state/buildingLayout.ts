@@ -41,8 +41,12 @@ export const GRID_CENTER: GridPoint = { x: Math.floor(GRID_SIZE / 2), y: Math.fl
 export const CASTLE_FOOTPRINT: TileRect = layout.castle.footprint;
 /** Walkable tile in front of the citadel gate — deposits, spawns and repairs happen here. */
 export const CASTLE_GATE: GridPoint = layout.castle.gate;
-export const SPIRE_FOOTPRINT: TileRect = layout.spire.footprint;
-export const SPIRE_WORK_SPOT: GridPoint = layout.spire.workSpot;
+/** Mutable: a relocated spire updates these in place (see applyLayoutSeed). */
+export const SPIRE_FOOTPRINT: TileRect = { ...layout.spire.footprint };
+export const SPIRE_WORK_SPOT: GridPoint = { ...layout.spire.workSpot };
+
+/** Buildings the player can pick up and move. */
+export type MovableId = ResourceBuildingId | 'SPIRE';
 
 export const BUILDING_IDS: ResourceBuildingId[] = layout.constructionOrder as ResourceBuildingId[];
 
@@ -106,7 +110,23 @@ export const newLayoutSeed = (): number => Math.floor(Math.random() * 0x7fffffff
  * establishment's work spot is the free side tile closest to the castle gate.
  * Also returns decorative road tiles leading from the gate to each work spot.
  */
-export function generateLayout(seed: number): { sites: Record<ResourceBuildingId, BuildingSite>; roads: GridPoint[] } {
+/** Player-chosen top-left tiles for relocated establishments. */
+export type BuildingPositions = Partial<Record<MovableId, GridPoint>>;
+
+/** Free edge tile of a footprint closest to the castle gate (where minions work). */
+const workSpotFor = (footprint: TileRect): GridPoint => {
+  const sides: GridPoint[] = [];
+  for (let i = 0; i < footprint.w; i++) sides.push({ x: footprint.x + i, y: footprint.y - 1 }, { x: footprint.x + i, y: footprint.y + footprint.h });
+  for (let i = 0; i < footprint.h; i++) sides.push({ x: footprint.x - 1, y: footprint.y + i }, { x: footprint.x + footprint.w, y: footprint.y + i });
+  return sides
+    .filter((s) => isLandTile(s.x, s.y))
+    .sort((a, b) => Math.hypot(a.x - CASTLE_GATE.x, a.y - CASTLE_GATE.y) - Math.hypot(b.x - CASTLE_GATE.x, b.y - CASTLE_GATE.y))[0];
+};
+
+export function generateLayout(
+  seed: number,
+  positions: BuildingPositions = {}
+): { sites: Record<ResourceBuildingId, BuildingSite>; roads: GridPoint[] } {
   const { size, castleClearance, minGap, edgeMargin } = layout.establishments;
   const random = seededRandom(seed);
   const key = (x: number, y: number) => `${x},${y}`;
@@ -132,8 +152,13 @@ export function generateLayout(seed: number): { sites: Record<ResourceBuildingId
 
   const gate = CASTLE_GATE;
   const sites = {} as Record<ResourceBuildingId, BuildingSite>;
+  // Relocated establishments claim their tiles first; the rest are placed around them
   for (const id of BUILDING_IDS) {
-    let spot: GridPoint | null = null;
+    const moved = positions[id];
+    if (moved) block(expandRect({ ...moved, ...size }, minGap));
+  }
+  for (const id of BUILDING_IDS) {
+    let spot: GridPoint | null = positions[id] ? { ...positions[id]! } : null;
     for (let attempt = 0; attempt < 400 && !spot; attempt++) {
       const x = minPos + Math.floor(random() * (maxX - minPos + 1));
       const y = minPos + Math.floor(random() * (maxY - minPos + 1));
@@ -146,16 +171,10 @@ export function generateLayout(seed: number): { sites: Record<ResourceBuildingId
     if (!spot) throw new Error(`No room to place ${id}`);
 
     const footprint: TileRect = { ...spot, ...size };
-    // Work spot: the edge-adjacent tile nearest the gate
-    const sides: GridPoint[] = [];
-    for (let i = 0; i < size.w; i++) sides.push({ x: footprint.x + i, y: footprint.y - 1 }, { x: footprint.x + i, y: footprint.y + size.h });
-    for (let i = 0; i < size.h; i++) sides.push({ x: footprint.x - 1, y: footprint.y + i }, { x: footprint.x + size.w, y: footprint.y + i });
-    const workSpot = sides
-      .filter((s) => isLandTile(s.x, s.y))
-      .sort((a, b) => Math.hypot(a.x - gate.x, a.y - gate.y) - Math.hypot(b.x - gate.x, b.y - gate.y))[0];
+    const workSpot = workSpotFor(footprint);
 
     sites[id] = { id, footprint, workSpot };
-    block(expandRect(footprint, minGap));
+    if (!positions[id]) block(expandRect(footprint, minGap));
   }
 
   // Roads: an L from the gate to each work spot, never paving over a footprint
@@ -164,8 +183,8 @@ export function generateLayout(seed: number): { sites: Record<ResourceBuildingId
   const pave = (x: number, y: number) => {
     if (!solids.some((r) => rectContainsTile(r, x, y))) roads.set(key(x, y), { x, y });
   };
-  for (const id of BUILDING_IDS) {
-    const { workSpot } = sites[id];
+  // The Crystal Spire gets a road too (it can be relocated like the establishments)
+  for (const workSpot of [SPIRE_WORK_SPOT, ...BUILDING_IDS.map((id) => sites[id].workSpot)]) {
     const stepX = Math.sign(workSpot.x - gate.x);
     const stepY = Math.sign(workSpot.y - gate.y);
     for (let x = gate.x; x !== workSpot.x; x += stepX) pave(x, gate.y);
@@ -183,6 +202,7 @@ export const BUILDING_SITES: Record<ResourceBuildingId, BuildingSite> = generate
 export const ROAD_TILES: GridPoint[] = [];
 
 let activeSeed = 0;
+let activePositions = '{}';
 export const getLayoutSeed = () => activeSeed;
 
 /**
@@ -190,10 +210,16 @@ export const getLayoutSeed = () => activeSeed;
  * place so every module holding a reference (NODE_SPOTS, TASK_NODE_LOCATIONS)
  * follows along. The Phaser scene is keyed on the seed and remounts to redraw.
  */
-export function applyLayoutSeed(seed: number): void {
-  if (seed === activeSeed) return;
+export function applyLayoutSeed(seed: number, positions: BuildingPositions = {}): void {
+  const posKey = JSON.stringify(positions);
+  if (seed === activeSeed && posKey === activePositions) return;
   activeSeed = seed;
-  const { sites, roads } = generateLayout(seed);
+  activePositions = posKey;
+  // The spire moves first so establishments are placed (and roads routed) around it
+  const spire = positions.SPIRE;
+  Object.assign(SPIRE_FOOTPRINT, spire ? { ...spire, w: layout.spire.footprint.w, h: layout.spire.footprint.h } : layout.spire.footprint);
+  Object.assign(SPIRE_WORK_SPOT, spire ? workSpotFor(SPIRE_FOOTPRINT) : layout.spire.workSpot);
+  const { sites, roads } = generateLayout(seed, positions);
   for (const id of BUILDING_IDS) {
     Object.assign(BUILDING_SITES[id].footprint, sites[id].footprint);
     Object.assign(BUILDING_SITES[id].workSpot, sites[id].workSpot);
@@ -201,6 +227,29 @@ export function applyLayoutSeed(seed: number): void {
   ROAD_TILES.splice(0, ROAD_TILES.length, ...roads);
 }
 applyLayoutSeed(1);
+
+/** Current footprint of a movable building. */
+export const footprintOf = (id: MovableId): TileRect => (id === 'SPIRE' ? SPIRE_FOOTPRINT : BUILDING_SITES[id].footprint);
+
+/**
+ * Whether establishment `id` may be moved so its top-left tile is (x, y): fully
+ * on land, clear of the citadel, spire, portals and one free tile away from
+ * every other establishment.
+ */
+export function canPlaceEstablishment(id: MovableId, x: number, y: number): boolean {
+  const { castleClearance, edgeMargin } = layout.establishments;
+  const size = id === 'SPIRE' ? layout.spire.footprint : layout.establishments.size;
+  const rect: TileRect = { x, y, ...size };
+  const overlaps = (other: TileRect) =>
+    rect.x < other.x + other.w && rect.x + rect.w > other.x && rect.y < other.y + other.h && rect.y + rect.h > other.y;
+  if (x < edgeMargin - 1 || y < edgeMargin - 1) return false;
+  if (x + size.w - 1 > GRID_SIZE - edgeMargin || y + size.h - 1 > GRID_SIZE - edgeMargin) return false;
+  if (overlaps(expandRect(CASTLE_FOOTPRINT, castleClearance - 1))) return false;
+  if (id !== 'SPIRE' && overlaps(expandRect(SPIRE_FOOTPRINT, 1))) return false;
+  if (id !== 'SPIRE' && overlaps({ ...SPIRE_WORK_SPOT, w: 1, h: 1 })) return false;
+  if (PORTAL_SITES.some((p) => overlaps(expandRect({ ...p.exit, w: 1, h: 1 }, 1)))) return false;
+  return BUILDING_IDS.every((other) => other === id || !overlaps(expandRect(BUILDING_SITES[other].footprint, 1)));
+}
 
 /** Resource-node positions (where minions harvest) derived from the layout. */
 export const NODE_SPOTS = {

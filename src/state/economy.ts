@@ -22,6 +22,7 @@ export const RESOURCE_BUILDING_CONFIG: Record<ResourceBuildingId, {
 }> = config.resourceBuildings;
 
 export const CASTLE_CONSTRUCTION_COST: Partial<Resources> = config.castleConstructionCost;
+export const SPIRE_CONSTRUCTION_COST: Partial<Resources> = config.spireConstructionCost;
 
 type CostFormula = { base: Partial<Resources>; perUnit?: Partial<Resources>; perLevel?: Partial<Resources> };
 

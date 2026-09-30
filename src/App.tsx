@@ -23,6 +23,7 @@ export const App: React.FC = () => {
     screen,
     regressionCount,
     layoutSeed,
+    buildingPositions,
     setScreen,
     completeIntro,
     checkOfflineProgress,
@@ -72,7 +73,11 @@ export const App: React.FC = () => {
     setScreen('GAME');
   };
 
+  // A new realm starts from scratch; backing out of the story keeps the old save
   const handleBeginReconstruction = () => {
+    const { difficulty, resetRealm } = useGameStore.getState();
+    resetRealm();
+    useGameStore.setState({ difficulty });
     completeIntro();
   };
 
@@ -100,7 +105,7 @@ export const App: React.FC = () => {
         <div className="flex w-full h-full overflow-hidden">
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
-            <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
+            <PhaserGame key={`${regressionCount}-${layoutSeed}-${JSON.stringify(buildingPositions)}`} />
             <ActivityLogTray />
           </div>
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { BUILDING_IDS } from '../state/buildingLayout';
-import { buildingHpOf, buildingMaxHp, towerLevelOf } from '../state/defenseStats';
+import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { ESTABLISHMENT_SKILLS } from '../data/establishmentSkills';
 import type { ResourceBuildingId } from '../types/state';
 import type { StructureId } from '../game/StructureManager';
@@ -21,6 +21,7 @@ interface EstablishmentModalProps {
 
 const ESTABLISHMENTS_LIST: { id: StructureId; label: string; labelEn: string; icon: string }[] = [
   { id: 'CASTLE', label: 'Kastilyo', labelEn: 'Castle', icon: '🏰' },
+  { id: 'SPIRE', label: DEFENSE_TEXT.spireName.tl, labelEn: DEFENSE_TEXT.spireName.en, icon: '💎' },
   ...BUILDING_IDS.map((id) => ({
     id: id as StructureId,
     label: RESOURCE_BUILDING_CONFIG[id].label,
@@ -70,6 +71,8 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
     language,
     roster,
     resourceBuildings,
+    spireBuilt,
+    spireTower,
     defense,
     castleBuilt,
     resources,
@@ -93,8 +96,10 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   const isCastle = activeEstab === 'CASTLE';
-  const buildingState = isCastle ? null : resourceBuildings[activeEstab as ResourceBuildingId];
-  const buildingConfig = isCastle ? null : RESOURCE_BUILDING_CONFIG[activeEstab as ResourceBuildingId];
+  // The spire has a defense tower like the establishments, but no production, skills or auto-buy
+  const isSpire = activeEstab === 'SPIRE';
+  const buildingState = isCastle ? null : towerBuildingOf({ spireBuilt, spireTower, resourceBuildings }, activeEstab) ?? null;
+  const buildingConfig = isCastle || isSpire ? null : RESOURCE_BUILDING_CONFIG[activeEstab];
   const bid = activeEstab as ResourceBuildingId;
 
   // HP
@@ -112,8 +117,8 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
   const hasEnt = roster.some((u) => u.unitClass === 'TREANT');
 
   // Skills
-  const skillPair = isCastle ? null : ESTABLISHMENT_SKILLS[bid] ?? null;
-  const cooldowns = isCastle ? null : (establishmentSkillCooldowns[bid] ?? { skill1: 0, skill2: 0 });
+  const skillPair = isCastle || isSpire ? null : ESTABLISHMENT_SKILLS[bid] ?? null;
+  const cooldowns = isCastle || isSpire ? null : (establishmentSkillCooldowns[bid] ?? { skill1: 0, skill2: 0 });
 
   // Upgrade cost
   const nextLevel = buildingState ? buildingState.level + 1 : 1;
@@ -139,7 +144,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
         <div className="flex overflow-x-auto gap-1.5 px-3 py-2 bg-slate-800/70 border-b border-slate-700/50 shrink-0 scrollbar-hide">
           {ESTABLISHMENTS_LIST.map(({ id, label, labelEn, icon }) => {
             const active = id === activeEstab;
-            const isBuilt = id === 'CASTLE' ? castleBuilt : (resourceBuildings[id as ResourceBuildingId]?.level ?? 0) >= 1;
+            const isBuilt = id === 'CASTLE' ? castleBuilt : id === 'SPIRE' ? spireBuilt : (resourceBuildings[id]?.level ?? 0) >= 1;
             return (
               <button
                 key={id}
@@ -229,10 +234,12 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
                   </div>
                 ) : (
                   <div className="space-y-1 text-xs text-slate-300">
-                    <div className="flex justify-between"><span className="text-slate-400">{tl ? 'Antas ng Produksyon' : 'Production Level'}</span><span className="font-mono">{buildingState?.level ?? 0}</span></div>
+                    {!isSpire && <div className="flex justify-between"><span className="text-slate-400">{tl ? 'Antas ng Produksyon' : 'Production Level'}</span><span className="font-mono">{buildingState?.level ?? 0}</span></div>}
                     <div className="flex justify-between"><span className="text-slate-400">{tl ? 'Antas ng Tore' : 'Tower Level'}</span><span className="font-mono">{tLevel} / 5</span></div>
                     <div className="flex justify-between"><span className="text-slate-400">{tl ? 'HP' : 'HP'}</span><span className="font-mono">{fmtNum(Math.round(hp))} / {fmtNum(Math.round(maxHp))}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-400">{tl ? 'Mga Output' : 'Outputs'}</span><span className="font-mono">{buildingState?.unlockedOutputs?.join(', ') || '—'}</span></div>
+                    {isSpire
+                      ? <p className="text-[11px] leading-snug text-cyan-300/80">{tl ? DEFENSE_TEXT.spireNote.tl : DEFENSE_TEXT.spireNote.en}</p>
+                      : <div className="flex justify-between"><span className="text-slate-400">{tl ? 'Mga Output' : 'Outputs'}</span><span className="font-mono">{buildingState?.unlockedOutputs?.join(', ') || '—'}</span></div>}
                   </div>
                 )}
               </div>
@@ -351,7 +358,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
                     </h3>
                     <button
                       disabled={!buildingState || buildingState.level < 1 || tLevel >= 5}
-                      onClick={() => upgradeTower(bid)}
+                      onClick={() => upgradeTower(isSpire ? 'SPIRE' : bid)}
                       className="w-full py-1.5 rounded-lg text-xs font-bold bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 text-white transition-colors"
                     >
                       {tLevel >= 5 ? (tl ? 'MAX LEVEL' : 'Max Tower Level') : (tl ? '🗼 I-Upgrade ang Tore' : '🗼 Upgrade Tower')}
@@ -368,7 +375,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
                     </p>
                     <button
                       disabled={!buildingState || buildingState.level < 1 || hp >= maxHp}
-                      onClick={() => repairBuilding(bid)}
+                      onClick={() => repairBuilding(isSpire ? 'SPIRE' : bid)}
                       className="w-full py-1.5 rounded-lg text-xs font-bold bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white transition-colors"
                     >
                       {hp >= maxHp ? (tl ? 'Buo na ang HP' : 'HP Full') : (tl ? '🔨 I-Repair' : '🔨 Repair Building')}
@@ -382,9 +389,11 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({ isOpen, 
           {/* ─── AUTO_BUY tab ─────────────────────────────────────────────── */}
           {activeTab === 'AUTO_BUY' && (
             <>
-              {isCastle ? (
+              {isCastle || isSpire ? (
                 <div className="text-xs text-slate-400 text-center py-4">
-                  {tl ? 'Ang Kastilyo ay walang auto-buy materials.' : 'The Castle has no auto-buy materials.'}
+                  {isSpire
+                    ? (tl ? 'Ang Tore ng Kristal ay walang auto-buy materials.' : 'The Crystal Spire has no auto-buy materials.')
+                    : (tl ? 'Ang Kastilyo ay walang auto-buy materials.' : 'The Castle has no auto-buy materials.')}
                 </div>
               ) : (
                 <>

@@ -1,6 +1,7 @@
 import { SUPPORT_SLIME_EVOLUTION, UNIT_CLASSES, UnitClass } from '../../types/game';
 import { useGameStore } from '../../state/useGameStore';
-import { maxUnitsOfClass } from '../../state/economy';
+import { getUnitSummonCost, maxUnitsOfClass } from '../../state/economy';
+import { FIGHTER_CLASSES, summonLock } from '../../state/store/rosterSlice';
 import { canAfford } from '../../state/resources';
 import { nextConstruction } from '../../state/constructionProgress';
 import { soundFx } from '../audio/soundFx';
@@ -15,7 +16,7 @@ const urgencyOf = (ally: WorkerInstance) =>
   (1 - ally.hp / ally.maxHp) * 2.0 + (1 - ally.stamina / ally.maxStamina) * 1.5;
 
 /** Priority order the Slime summons in: Builder Treant first, then diverse combatants & gatherers. */
-const SUMMON_ORDER: UnitClass[] = ['TREANT', 'GOLEM', 'WAYFARER', 'CHRONO', 'MERMAN', 'NECROMANCER'];
+const SUMMON_ORDER: UnitClass[] = ['TREANT', ...FIGHTER_CLASSES];
 
 /**
  * A Support Slime off cooldown revives a fallen minion if the realm can pay.
@@ -108,7 +109,12 @@ export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: 
     const count = store.roster.filter((u) => u.unitClass === unitClass).length;
     if (count >= maxUnitsOfClass(unitClass)) continue;
     const isFree = unitClass === 'TREANT';
-    if (!store.summonUnit(unitClass, undefined, isFree)) continue;
+    // With auto-buy on, top up the missing materials with coins first
+    if (!isFree && store.autoBuySummon?.[unitClass] && !summonLock(store, unitClass)) {
+      const cost = getUnitSummonCost(unitClass, count);
+      if (!canAfford(store.resources, cost)) store.buyShortfall(cost);
+    }
+    if (!useGameStore.getState().summonUnit(unitClass, undefined, isFree)) continue;
 
     ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0x38bdf8, 12);
     ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0xfbbf24, 8);

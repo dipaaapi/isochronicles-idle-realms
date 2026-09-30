@@ -1,11 +1,11 @@
 import { TASK_NODE_LOCATIONS, TREANT_EVOLUTION } from '../../types/game';
-import type { GameStoreState, ResourceBuildingId } from '../../types/state';
+import type { GameStoreState, ResourceBuildingState, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
-import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG } from '../../state/economy';
+import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../../state/economy';
 import { canAfford } from '../../state/resources';
 import { CONSTRUCTION_SECONDS, nextConstruction } from '../../state/constructionProgress';
-import { BUILDING_IDS, BUILDING_SITES } from '../../state/buildingLayout';
-import { buildingHpOf, buildingMaxHp, towerLevelOf } from '../../state/defenseStats';
+import { BUILDING_IDS, BUILDING_SITES, SPIRE_WORK_SPOT } from '../../state/buildingLayout';
+import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
 import { logMessage } from '../../state/activityLog';
 import { IsometricHelper } from '../IsometricHelper';
 import { soundFx } from '../audio/soundFx';
@@ -16,11 +16,22 @@ const ENRICHABLE: EnrichableNode[] = ['AETHER', 'STONE', 'WOOD', 'ESSENCE'];
 
 type TreantProfile = typeof TREANT_EVOLUTION[1];
 
-const hpRatio = (b: GameStoreState['resourceBuildings'][ResourceBuildingId]) =>
+const hpRatio = (b: ResourceBuildingState | undefined) =>
   buildingHpOf(b) / buildingMaxHp(towerLevelOf(b));
 
-const isDamaged = (b: GameStoreState['resourceBuildings'][ResourceBuildingId] | undefined) =>
+const isDamaged = (b: ResourceBuildingState | undefined) =>
   !!b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b));
+
+/** Everything the Ent repairs besides the citadel. */
+const REPAIRABLE: TowerId[] = ['SPIRE', ...BUILDING_IDS];
+
+const repairSpot = (id: TowerId) => (id === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[id].workSpot);
+
+const towerLabel = (id: TowerId, tl: boolean): { name: string; icon: string } => {
+  if (id === 'SPIRE') return { name: tl ? DEFENSE_TEXT.spireName.tl : DEFENSE_TEXT.spireName.en, icon: '💎' };
+  const cfg = RESOURCE_BUILDING_CONFIG[id];
+  return { name: tl ? cfg.label : cfg.labelEn, icon: cfg.icon };
+};
 
 /**
  * Walks the Ent to the next unbuilt structure and builds it once supplies allow.
@@ -48,12 +59,16 @@ export function updateConstruction(
     return true;
   }
 
-  const cost = site.id === 'CASTLE' ? CASTLE_CONSTRUCTION_COST : RESOURCE_BUILDING_CONFIG[site.id].costs[0];
+  const cost = site.id === 'CASTLE' ? CASTLE_CONSTRUCTION_COST
+    : site.id === 'SPIRE' ? SPIRE_CONSTRUCTION_COST
+    : RESOURCE_BUILDING_CONFIG[site.id].costs[0];
   const affordable = canAfford(store.resources, cost);
   worker.status = affordable ? 'HARVESTING' : 'IDLE';
   worker.constructionTimer = affordable ? (worker.constructionTimer ?? 0) + deltaSec : 0;
   if (worker.constructionTimer >= CONSTRUCTION_SECONDS) {
-    const built = site.id === 'CASTLE' ? store.buildCastle() : store.upgradeResourceBuilding(site.id);
+    const built = site.id === 'CASTLE' ? store.buildCastle()
+      : site.id === 'SPIRE' ? store.buildSpire()
+      : store.upgradeResourceBuilding(site.id);
     worker.constructionTimer = 0;
     if (built) {
       ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 12);
@@ -84,16 +99,16 @@ function chooseTreantJob(
     return;
   }
 
-  // Most damaged establishment (wrecked ones first)
-  const damagedId = BUILDING_IDS
-    .filter((id) => isDamaged(store.resourceBuildings[id]))
-    .sort((a, b) => hpRatio(store.resourceBuildings[a]) - hpRatio(store.resourceBuildings[b]))[0];
+  // Most damaged establishment or spire (wrecked ones first)
+  const damagedId = REPAIRABLE
+    .filter((id) => isDamaged(towerBuildingOf(store, id)))
+    .sort((a, b) => hpRatio(towerBuildingOf(store, a)) - hpRatio(towerBuildingOf(store, b)))[0];
 
   if (damagedId) {
     worker.treantMode = 'REPAIR';
     worker.treantRepairId = damagedId;
     worker.treantActionTimer = 8.0;
-    worker.treantTargetTile = { ...BUILDING_SITES[damagedId].workSpot };
+    worker.treantTargetTile = { ...repairSpot(damagedId) };
     return;
   }
 
@@ -132,9 +147,9 @@ function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: 
     if (restored > 0) {
       ctx.spawnHarvestBurst(x, y - 15, 0x15803d, 6);
       soundFx.playHarvest('wood');
-      const cfg = RESOURCE_BUILDING_CONFIG[repairId];
-      logMessage('buildingRepaired', { building: useGameStore.getState().language === 'TL' ? cfg.label : cfg.labelEn },
-        { mergeKey: `repair:${repairId}`, amount: restored, icon: cfg.icon });
+      const label = towerLabel(repairId, useGameStore.getState().language === 'TL');
+      logMessage('buildingRepaired', { building: label.name },
+        { mergeKey: `repair:${repairId}`, amount: restored, icon: label.icon });
     } else {
       worker.treantActionTimer = 0; // fully repaired: pick the next job
     }

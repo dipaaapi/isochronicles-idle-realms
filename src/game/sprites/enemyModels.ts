@@ -1,5 +1,6 @@
 import type { InvaderType } from '../../types/game';
 import type { Part, Pose, Shape, Vec3, VoxelModel } from './VoxelSprite';
+import { recolorModel } from './VoxelSprite';
 
 /**
  * Voxel models for every invader, following the bestiary artwork in
@@ -455,7 +456,9 @@ const deepOne = (): VoxelModel => {
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 
-export type EnemySpriteKey = 'knight' | 'archer' | 'mechaScout' | 'mechaTitan' | 'deepOne';
+export type EnemySpriteKey =
+  | 'knight' | 'archer' | 'mechaScout' | 'mechaTitan' | 'deepOne'
+  | 'highPriest' | 'valkyrie' | 'assassin' | 'drone' | 'siegeTank' | 'chronoMage';
 
 export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   knight,
@@ -463,16 +466,25 @@ export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   mechaScout,
   mechaTitan,
   deepOne,
+  // Variants of the base models, recoloured to match the codex artwork
+  highPriest: () => recolorModel(archer(), 0xfff7e0, 0xfde047, 0.75),
+  valkyrie: () => recolorModel(mechaScout(), 0xdbeafe, 0x38bdf8, 0.55),
+  assassin: () => recolorModel(knight(), 0x1f2937, 0xdc2626, 0.75),
+  drone: () => recolorModel(mechaScout(), 0x4d7c0f, 0xef4444, 0.6, 0.7),
+  siegeTank: () => recolorModel(mechaTitan(), 0x4d5a2a, 0xf97316, 0.6),
+  chronoMage: () => recolorModel(archer(), 0x1e293b, 0xfbbf24, 0.7),
 };
 
-/** Which sprite each invader type uses (variant types share a base model). */
+/** Which sprite each invader type uses. */
 export const INVADER_SPRITE: Record<InvaderType, EnemySpriteKey> = {
+  HIGH_PRIEST: 'highPriest',
+  MECHA_VALKYRIE: 'valkyrie',
   HUMAN_KNIGHT: 'knight',
-  VOID_SHADE: 'knight',
   HUMAN_ARCHER: 'archer',
   MECHA_SCOUT: 'mechaScout',
-  RIFT_STALKER: 'mechaScout',
   MECHA_TITAN: 'mechaTitan',
-  CORRUPTED_GOLEM: 'mechaTitan',
-  DEEP_ONE: 'deepOne',
+  ASSASSIN: 'assassin',
+  MECHA_DRONE: 'drone',
+  MECHA_SIEGE_TANK: 'siegeTank',
+  CHRONO: 'chronoMage',
 };

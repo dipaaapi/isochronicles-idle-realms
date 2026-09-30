@@ -10,18 +10,38 @@ import {
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { EquipmentItem, EquipmentSlot, HarvestTask, InvaderType, UnitClass } from '../../types/game';
-import type { GameStoreState, Resources, UnitRosterItem } from '../../types/state';
+import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import type { SliceArgs } from './types';
+
+/** Castle (Nexus) / Refinery levels a paid summon still needs, or null when unlocked. */
+export const summonLock = (
+  state: Pick<GameStoreState, 'upgrades' | 'resourceBuildings'>,
+  unitClass: UnitClass
+): { nexus: number; refinery: number; building?: ResourceBuildingId } | null => {
+  const cfg = UNIT_CLASSES[unitClass];
+  const { upgrades } = state;
+  const homeMissing = !!cfg.requiredBuilding && (state.resourceBuildings[cfg.requiredBuilding]?.level ?? 0) < 1;
+  return homeMissing || upgrades.nexusLevel < cfg.requiredNexusLevel || upgrades.refineryLevel < cfg.requiredRefineryLevel
+    ? { nexus: cfg.requiredNexusLevel, refinery: cfg.requiredRefineryLevel, building: homeMissing ? cfg.requiredBuilding : undefined }
+    : null;
+};
+
+/** Fighters the Slime can summon (rulers are unique and arrive on their own). */
+export const FIGHTER_CLASSES = (Object.keys(UNIT_CLASSES) as UnitClass[]).filter((c) => UNIT_CLASSES[c].role === 'FIGHTER');
 
 type EquipmentKey = 'tool' | 'armor' | 'relic';
 const slotKeyOf = (slot: EquipmentSlot) => slot.toLowerCase() as EquipmentKey;
 
 /** Crafting recipes name their costs differently from the Resources shape. */
-const craftingCost = (item: EquipmentItem): Partial<Resources> => ({
+export const craftingCost = (item: EquipmentItem): Partial<Resources> => ({
   aetherShards: item.costResources.shards,
   wood: item.costResources.wood,
   stone: item.costResources.stone,
   arcaneEssence: item.costResources.essence,
+  obsidianShard: item.costResources.obsidian,
+  soulFragments: item.costResources.souls,
+  abyssalPearl: item.costResources.pearl,
+  scrapMetal: item.costResources.scrap,
 });
 
 /** Minion roster, evolutions, equipment and the Bestiary. */
@@ -79,10 +99,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
 
     const config = UNIT_CLASSES[unitClass];
     // Requirements are bypassed for free summons from the Support Slime
-    if (!isFreeCost && (
-      state.upgrades.nexusLevel < config.requiredNexusLevel ||
-      state.upgrades.refineryLevel < config.requiredRefineryLevel
-    )) return false;
+    if (!isFreeCost && summonLock(state, unitClass)) return false;
 
     const cost = isFreeCost ? {} : getUnitSummonCost(unitClass, countOfClass);
     if (!canAfford(state.resources, cost)) return false;
@@ -105,9 +122,14 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     });
 
     get().discoverEntry('beast', unitClass);
-    if (unitClass === 'CHRONO') soundFx.playFanfare();
+    if (unitClass === 'SUCCUBUS') soundFx.playFanfare();
     else soundFx.playGolemCheer();
     return true;
+  },
+
+  toggleAutoBuySummon: (unitClass: UnitClass) => {
+    set((state) => ({ autoBuySummon: { ...state.autoBuySummon, [unitClass]: !state.autoBuySummon[unitClass] } }));
+    soundFx.playClick();
   },
 
   summonWorker: (): boolean => get().summonUnit('GOLEM', 'AETHER'),

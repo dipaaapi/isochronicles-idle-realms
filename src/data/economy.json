@@ -1,80 +1,433 @@
 {
   "resourcePrices": {
-    "aetherShards": { "sell": 10, "buy": 25, "label": "Kristal (Gems)", "icon": "💎" },
-    "wood": { "sell": 6, "buy": 15, "label": "Kahoy (Wood)", "icon": "🌲" },
-    "stone": { "sell": 8, "buy": 20, "label": "Bato (Stone)", "icon": "🪨" },
-    "arcaneEssence": { "sell": 25, "buy": 60, "label": "Magic (Potion)", "icon": "🔮" },
-    "fish": { "sell": 4, "buy": 10, "label": "Isda (Fish)", "icon": "🐟" },
-    "water": { "sell": 2, "buy": 5, "label": "Tubig (Water)", "icon": "💧" },
-    "metal": { "sell": 12, "buy": 30, "label": "Metal", "icon": "🔩" },
-    "charcoal": { "sell": 10, "buy": 24, "label": "Charcoal", "icon": "🪵" },
-    "coal": { "sell": 14, "buy": 32, "label": "Coal", "icon": "⚫" },
-    "minerals": { "sell": 18, "buy": 40, "label": "Minerals", "icon": "💠" }
+    "aetherShards": {
+      "sell": 10,
+      "buy": 25,
+      "label": "Kristal (Gems)",
+      "icon": "💎"
+    },
+    "wood": {
+      "sell": 6,
+      "buy": 15,
+      "label": "Kahoy (Wood)",
+      "icon": "🌲"
+    },
+    "stone": {
+      "sell": 8,
+      "buy": 20,
+      "label": "Bato (Stone)",
+      "icon": "🪨"
+    },
+    "arcaneEssence": {
+      "sell": 25,
+      "buy": 60,
+      "label": "Magic (Potion)",
+      "icon": "🔮"
+    },
+    "fish": {
+      "sell": 4,
+      "buy": 10,
+      "label": "Isda (Fish)",
+      "icon": "🐟"
+    },
+    "water": {
+      "sell": 2,
+      "buy": 5,
+      "label": "Tubig (Water)",
+      "icon": "💧"
+    },
+    "metal": {
+      "sell": 12,
+      "buy": 30,
+      "label": "Metal",
+      "icon": "🔩"
+    },
+    "charcoal": {
+      "sell": 10,
+      "buy": 24,
+      "label": "Charcoal",
+      "icon": "🪵"
+    },
+    "coal": {
+      "sell": 14,
+      "buy": 32,
+      "label": "Coal",
+      "icon": "⚫"
+    },
+    "minerals": {
+      "sell": 18,
+      "buy": 40,
+      "label": "Minerals",
+      "icon": "💠"
+    },
+    "obsidianShard": {
+      "sell": 20,
+      "buy": 50,
+      "label": "Obsidian Shard",
+      "icon": "🌋"
+    },
+    "soulFragments": {
+      "sell": 22,
+      "buy": 55,
+      "label": "Soul Fragments",
+      "icon": "💀"
+    },
+    "abyssalPearl": {
+      "sell": 30,
+      "buy": 75,
+      "label": "Abyssal Pearl",
+      "icon": "🔮"
+    },
+    "scrapMetal": {
+      "sell": 9,
+      "buy": 22,
+      "label": "Scrap Metal",
+      "icon": "⚙️"
+    }
   },
   "resourceBuildings": {
     "WOOD": {
       "label": "Kagubatan",
       "labelEn": "Wood Grove",
       "icon": "🌲",
-      "outputs": ["wood", "charcoal"],
-      "costs": [{ "wood": 20, "stone": 15, "coins": 25 }, { "wood": 35, "stone": 25, "coins": 50 }]
+      "outputs": [
+        "wood",
+        "charcoal"
+      ],
+      "costs": [
+        {
+          "wood": 20,
+          "stone": 15,
+          "coins": 25
+        },
+        {
+          "wood": 35,
+          "stone": 25,
+          "coins": 50
+        }
+      ]
     },
     "MINE": {
       "label": "Minahan",
       "labelEn": "Metal Mine",
       "icon": "⛏️",
-      "outputs": ["metal", "coal"],
-      "costs": [{ "wood": 25, "stone": 20, "coins": 30 }, { "wood": 40, "stone": 35, "coins": 60 }]
+      "outputs": [
+        "metal",
+        "coal"
+      ],
+      "costs": [
+        {
+          "wood": 25,
+          "stone": 20,
+          "coins": 30
+        },
+        {
+          "wood": 40,
+          "stone": 35,
+          "coins": 60
+        }
+      ]
     },
     "QUARRY": {
       "label": "Kwartel",
       "labelEn": "Stone Quarry",
       "icon": "🪨",
-      "outputs": ["stone", "minerals"],
-      "costs": [{ "wood": 15, "stone": 25, "coins": 25 }, { "wood": 30, "stone": 45, "coins": 55 }]
+      "outputs": [
+        "stone",
+        "minerals"
+      ],
+      "costs": [
+        {
+          "wood": 15,
+          "stone": 25,
+          "coins": 25
+        },
+        {
+          "wood": 30,
+          "stone": 45,
+          "coins": 55
+        }
+      ]
     },
     "PORT": {
       "label": "Pantalan",
       "labelEn": "Water Port",
       "icon": "⚓",
-      "outputs": ["water", "fish"],
-      "costs": [{ "wood": 25, "stone": 15, "coins": 30 }, { "wood": 40, "stone": 25, "coins": 65 }]
+      "outputs": [
+        "water",
+        "fish"
+      ],
+      "costs": [
+        {
+          "wood": 25,
+          "stone": 15,
+          "coins": 30
+        },
+        {
+          "wood": 40,
+          "stone": 25,
+          "coins": 65
+        }
+      ]
     },
     "CAVE": {
       "label": "Yungib ng Hiwaga",
       "labelEn": "Mystic Cave",
       "icon": "🌋",
-      "outputs": ["arcaneEssence", "aetherShards"],
-      "costs": [{ "wood": 30, "stone": 40, "aetherShards": 30, "coins": 45 }, { "stone": 60, "aetherShards": 50, "coins": 80 }]
+      "outputs": [
+        "arcaneEssence",
+        "aetherShards"
+      ],
+      "costs": [
+        {
+          "wood": 30,
+          "stone": 40,
+          "aetherShards": 30,
+          "coins": 45
+        },
+        {
+          "stone": 60,
+          "aetherShards": 50,
+          "coins": 80
+        }
+      ]
+    },
+    "TRENCH": {
+      "label": "Bangin ng Kailaliman",
+      "labelEn": "Abyssal Trench",
+      "icon": "🌊",
+      "outputs": [
+        "water",
+        "fish",
+        "abyssalPearl"
+      ],
+      "costs": [
+        {
+          "wood": 40,
+          "stone": 50,
+          "coins": 60
+        },
+        {
+          "stone": 80,
+          "aetherShards": 40,
+          "coins": 110
+        },
+        {
+          "stone": 120,
+          "aetherShards": 80,
+          "coins": 180
+        }
+      ]
+    },
+    "CRYPT": {
+      "label": "Libingan ng mga Kaluluwa",
+      "labelEn": "Crypt of Souls",
+      "icon": "⚰️",
+      "outputs": [
+        "soulFragments"
+      ],
+      "costs": [
+        {
+          "stone": 60,
+          "arcaneEssence": 10,
+          "coins": 70
+        },
+        {
+          "stone": 90,
+          "arcaneEssence": 25,
+          "coins": 130
+        }
+      ]
+    },
+    "PERCH": {
+      "label": "Dapuan ng Asupre",
+      "labelEn": "Brimstone Perch",
+      "icon": "🌋",
+      "outputs": [
+        "obsidianShard"
+      ],
+      "costs": [
+        {
+          "stone": 55,
+          "wood": 25,
+          "coins": 65
+        },
+        {
+          "stone": 90,
+          "coal": 15,
+          "coins": 120
+        }
+      ]
+    },
+    "KENNEL": {
+      "label": "Kulungan ng Impiyerno",
+      "labelEn": "Infernal Kennel",
+      "icon": "🐺",
+      "outputs": [
+        "charcoal"
+      ],
+      "costs": [
+        {
+          "wood": 45,
+          "stone": 35,
+          "coins": 55
+        },
+        {
+          "wood": 70,
+          "charcoal": 20,
+          "coins": 100
+        }
+      ]
     }
   },
-  "castleConstructionCost": { "aetherShards": 25, "wood": 35, "stone": 30, "coins": 50 },
+  "castleConstructionCost": {
+    "aetherShards": 25,
+    "wood": 35,
+    "stone": 30,
+    "coins": 50
+  },
+  "spireConstructionCost": {
+    "wood": 15,
+    "stone": 20
+  },
   "unitSummon": {
     "maxPerClass": 2,
     "maxTreants": 1,
     "costs": {
-      "GOLEM": { "base": { "aetherShards": 30, "stone": 20 }, "perUnit": { "aetherShards": 20, "stone": 15 } },
-      "WAYFARER": { "base": { "aetherShards": 40, "wood": 30 }, "perUnit": { "aetherShards": 25, "wood": 20 } },
-      "CHRONO": { "base": { "aetherShards": 70, "stone": 45, "wood": 35 }, "perUnit": { "aetherShards": 40, "stone": 25, "wood": 20 } },
-      "MERMAN": { "base": { "aetherShards": 35, "wood": 25 }, "perUnit": { "aetherShards": 20, "wood": 15 } },
-      "NECROMANCER": { "base": { "aetherShards": 60, "stone": 30 }, "perUnit": { "aetherShards": 30, "stone": 20 } },
-      "TREANT": { "base": { "aetherShards": 45, "wood": 40, "stone": 30 }, "perUnit": {} }
+      "GOLEM": {
+        "base": {
+          "aetherShards": 30,
+          "stone": 20
+        },
+        "perUnit": {
+          "aetherShards": 20,
+          "stone": 15
+        }
+      },
+      "LAVA_GARGOYLE": {
+        "base": {
+          "aetherShards": 40,
+          "wood": 30
+        },
+        "perUnit": {
+          "aetherShards": 25,
+          "wood": 20
+        }
+      },
+      "SUCCUBUS": {
+        "base": {
+          "aetherShards": 70,
+          "stone": 45,
+          "wood": 35
+        },
+        "perUnit": {
+          "aetherShards": 40,
+          "stone": 25,
+          "wood": 20
+        }
+      },
+      "MERMAN": {
+        "base": {
+          "aetherShards": 35,
+          "wood": 25
+        },
+        "perUnit": {
+          "aetherShards": 20,
+          "wood": 15
+        }
+      },
+      "NECROMANCER": {
+        "base": {
+          "aetherShards": 60,
+          "stone": 30
+        },
+        "perUnit": {
+          "aetherShards": 30,
+          "stone": 20
+        }
+      },
+      "TREANT": {
+        "base": {
+          "aetherShards": 45,
+          "wood": 40,
+          "stone": 30
+        },
+        "perUnit": {}
+      },
+      "KRAKEN": {
+        "base": {
+          "aetherShards": 80,
+          "abyssalPearl": 3,
+          "stone": 40
+        },
+        "perUnit": {
+          "aetherShards": 40,
+          "abyssalPearl": 2,
+          "stone": 25
+        }
+      },
+      "DEMON_HOUND": {
+        "base": {
+          "aetherShards": 45,
+          "charcoal": 10,
+          "wood": 25
+        },
+        "perUnit": {
+          "aetherShards": 25,
+          "charcoal": 6,
+          "wood": 15
+        }
+      },
+      "HARPY": {
+        "base": {
+          "aetherShards": 40,
+          "wood": 30,
+          "stone": 10
+        },
+        "perUnit": {
+          "aetherShards": 22,
+          "wood": 18,
+          "stone": 8
+        }
+      }
     }
   },
   "slimeEvolution": {
     "maxLevel": 5,
     "killsPerLevel": 12,
     "cost": {
-      "base": { "aetherShards": 30, "wood": 20, "stone": 15, "coins": 40 },
-      "perLevel": { "aetherShards": 25, "wood": 18, "stone": 12, "coins": 35 }
+      "base": {
+        "aetherShards": 30,
+        "wood": 20,
+        "stone": 15,
+        "coins": 40
+      },
+      "perLevel": {
+        "aetherShards": 25,
+        "wood": 18,
+        "stone": 12,
+        "coins": 35
+      }
     }
   },
   "techUpgrade": {
-    "aetherShards": { "base": 40, "growth": 1.6 },
-    "wood": { "base": 30, "growth": 1.5 },
-    "stone": { "base": 25, "growth": 1.5 }
+    "aetherShards": {
+      "base": 40,
+      "growth": 1.6
+    },
+    "wood": {
+      "base": 30,
+      "growth": 1.5
+    },
+    "stone": {
+      "base": 25,
+      "growth": 1.5
+    }
   },
-  "castleRepair": { "coins": 40, "amount": 120 },
+  "castleRepair": {
+    "coins": 40,
+    "amount": 150
+  },
   "merchantRestockSeconds": 90,
   "breachLootFraction": 0.5,
   "invasion": {
@@ -90,5 +443,61 @@
     "shardsBase": 50,
     "shardsPerRegression": 25,
     "castleHpPerRegression": 100
+  },
+  "landmarkYields": {
+    "TRENCH": {
+      "water": 6,
+      "fish": 4,
+      "abyssalPearl": 1
+    },
+    "PERCH": {
+      "obsidianShard": 1.5
+    },
+    "KENNEL": {
+      "charcoal": 2
+    },
+    "CRYPT": {
+      "soulFragmentsPerWave": 3
+    }
+  },
+  "kennelWaveSpeedBonus": 0.15,
+  "munitions": {
+    "maxLevel": 3,
+    "armorPiercing": {
+      "perLevel": 0.2,
+      "cost": {
+        "scrapMetal": 10,
+        "coins": 60
+      }
+    },
+    "incendiary": {
+      "burnDpsPerLevel": 2,
+      "burnSeconds": 2,
+      "cost": {
+        "obsidianShard": 6,
+        "coins": 60
+      }
+    }
+  },
+  "battleItems": {
+    "LAVA_BOMB": {
+      "cost": {
+        "obsidianShard": 4
+      },
+      "damage": 60
+    },
+    "DEATH_CURSE": {
+      "cost": {
+        "soulFragments": 5
+      },
+      "burnDps": 8,
+      "burnSeconds": 8
+    },
+    "KINETIC_RESTORE": {
+      "cost": {
+        "abyssalPearl": 2
+      },
+      "shieldFraction": 0.5
+    }
   }
 }

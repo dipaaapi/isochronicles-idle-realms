@@ -515,3 +515,24 @@ export function renderStrip(
   }
   return { layout, width, height, data };
 }
+
+// ── Variants ─────────────────────────────────────────────────────────────────
+
+const mixChannel = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+const mixColor = (from: number, to: number, t: number): number =>
+  (mixChannel(from >> 16, to >> 16, t) << 16) |
+  (mixChannel((from >> 8) & 0xff, (to >> 8) & 0xff, t) << 8) |
+  mixChannel(from & 0xff, to & 0xff, t);
+
+/**
+ * A recoloured copy of a model: every lit material is blended toward `tint`
+ * (keeping its light/dark shading) and emissive materials take `glow`. Used to
+ * give related characters their own look without a new voxel model.
+ */
+export function recolorModel<T extends VoxelGeometry>(model: T, tint: number, glow: number, amount = 0.6, scale = 1): T {
+  return {
+    ...model,
+    materials: model.materials.map((m) => ({ ...m, color: m.emissive ? glow : mixColor(m.color, tint, amount) })),
+    pixelsPerVoxel: (model.pixelsPerVoxel ?? 1) * scale,
+  };
+}

@@ -12,6 +12,8 @@ import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import type { WorkerInstance } from './WorkerManager';
 import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
 import { DEFENSE_CONFIG } from '../state/defenseStats';
+import { ECONOMY_CONFIG } from '../state/economy';
+import { auras, isModActive } from './skills/combatMods';
 import { teamBonuses } from '../state/skillTree';
 import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
 import { Navigation } from './Navigation';
@@ -27,6 +29,28 @@ const EMERGE_SECONDS = 0.7;
 const ENTER_SECONDS = 0.55;
 /** Invaders only break off toward a defender or sapling this close (world px). */
 const AGGRO_RADIUS = 110;
+
+/** Which fighters join the waves, from which wave, and how often (relative weight). */
+const WAVE_POOL: Array<{ type: InvaderType; fromWave: number; weight: number }> = [
+  { type: 'HUMAN_KNIGHT', fromWave: 1, weight: 4 },
+  { type: 'HUMAN_ARCHER', fromWave: 2, weight: 3 },
+  { type: 'ASSASSIN', fromWave: 3, weight: 2 },
+  { type: 'MECHA_DRONE', fromWave: 4, weight: 3 },
+  { type: 'MECHA_SCOUT', fromWave: 6, weight: 3 },
+  { type: 'CHRONO', fromWave: 8, weight: 2 },
+  { type: 'MECHA_TITAN', fromWave: 10, weight: 2 },
+  { type: 'MECHA_SIEGE_TANK', fromWave: 14, weight: 1.5 },
+];
+
+const pickWaveInvader = (waveNumber: number): InvaderType => {
+  const pool = WAVE_POOL.filter((e) => waveNumber >= e.fromWave);
+  let roll = Math.random() * pool.reduce((sum, e) => sum + e.weight, 0);
+  for (const entry of pool) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.type;
+  }
+  return 'HUMAN_KNIGHT';
+};
 
 export class InvasionManager {
   private scene: Phaser.Scene;
@@ -118,6 +142,9 @@ export class InvasionManager {
       }
     }
 
+    // Battle items fired from the Armory
+    for (const effect of store.takeBattleEffects()) this.playBattleEffect(effect);
+
     // 3. Update living invaders movement and attacks
     this.updateInvaders(deltaSec);
   }
@@ -179,6 +206,37 @@ export class InvasionManager {
     }
   }
 
+  /** Lava Bomb: heavy damage to every invader. Death Curse: everyone withers (burn). */
+  private playBattleEffect(effect: 'LAVA_BOMB' | 'DEATH_CURSE'): void {
+    const items = ECONOMY_CONFIG.battleItems;
+    for (const invader of [...this.invaders]) {
+      if (invader.isDead || (invader.emerge ?? 0) > 0) continue;
+      if (effect === 'LAVA_BOMB') {
+        this.spawnDeathBurst(invader.container.x, invader.container.y - 10, 0xf97316);
+        this.damageInvader(invader, items.LAVA_BOMB.damage, '🌋');
+      } else {
+        this.applyBurn(invader, items.DEATH_CURSE.burnDps, items.DEATH_CURSE.burnSeconds);
+        if (invader.sprite?.active) invader.sprite.setTint(0x86efac);
+      }
+    }
+    soundFx.playExplosion();
+    this.scene.cameras.main.flash(180, effect === 'LAVA_BOMB' ? 255 : 80, effect === 'LAVA_BOMB' ? 120 : 220, effect === 'LAVA_BOMB' ? 40 : 120, true);
+  }
+
+  /** The High Priest mends nearby soldiers every few seconds. */
+  private priestHeal(priest: ActiveInvader, deltaSec: number): void {
+    priest.healTimer = (priest.healTimer ?? 3) - deltaSec;
+    if (priest.healTimer > 0) return;
+    priest.healTimer = 3;
+    for (const ally of this.invaders) {
+      if (ally.isDead || ally === priest || ally.hp >= ally.maxHp) continue;
+      if (Math.hypot(ally.container.x - priest.container.x, ally.container.y - priest.container.y) > 130) continue;
+      ally.hp = Math.min(ally.maxHp, ally.hp + 14);
+      this.renderHpBar(ally.hpBarGfx, ally.hp, ally.maxHp);
+      this.spawnFloatingPopup(ally.container.x, ally.container.y - 30, '+14 ✝️', '#fde68a');
+    }
+  }
+
   public spawnLootScouts(): void {
     // Spawns 1 to 3 non-threatening wandering scouts
     const numScouts = Math.floor(Math.random() * 3) + 1;
@@ -198,9 +256,9 @@ export class InvasionManager {
 
     const type: InvaderType = 'HUMAN_ARCHER'; // re-use archer sprite for now, but weak stats
 
-    // Low HP, low damage so they aren't a threat
-    const finalMaxHp = 10;
-    const finalDamage = 0; // they don't attack
+    // Weak raiders: they march on the citadel, but towers and establishments cut them down
+    const finalMaxHp = 25;
+    const finalDamage = 4;
     const finalBounty = 0; // custom drop is handled in strike function
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
@@ -239,10 +297,11 @@ export class InvasionManager {
       bountyCoins: finalBounty,
       attackTimer: 0,
       isDead: false,
-      isRetreating: true, // trick it into wandering off
+      isRetreating: false,
       spawnGrid: { x: spawnGrid.x, y: spawnGrid.y },
       baseScale: 1,
       portal: fromPortal,
+      retargetTimer: 0,
     };
 
     // Interactive Clicking: Smite for Loot
@@ -253,15 +312,6 @@ export class InvasionManager {
         this.tapInvader(invader);
       }
     });
-
-    // Wander across the island and slip out through a different rift
-    const exitPortal = this.portals?.pickAny(fromPortal);
-    const exitPoints = InvasionManager.EXITS.filter((point) => point.x !== spawnGrid.x || point.y !== spawnGrid.y);
-    const leaveGrid = exitPortal ? exitPortal.site.exit : exitPoints[Math.floor(Math.random() * exitPoints.length)];
-    invader.exitPortal = exitPortal;
-    const spawnPath = this.pathfinder.findPath(spawnGrid.x, spawnGrid.y, leaveGrid.x, leaveGrid.y, [0]);
-    invader.currentPath = (spawnPath && spawnPath.length > 0) ? spawnPath : [spawnGrid, leaveGrid];
-    invader.pathIndex = 0;
 
     if (fromPortal) this.beginEmerge(invader, fromPortal);
     this.invaders.push(invader);
@@ -280,28 +330,15 @@ export class InvasionManager {
       ? portal.site.exit
       : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
 
-    // Choose enemy type based on wave (Humans & Mechas & Deep One) AND nexusLevel
-    let type: InvaderType = 'HUMAN_KNIGHT';
-    const rand = Math.random();
-
     // Boss waves every 5 waves, and massive Phase Climax Bosses at 25, 50, 75, 100
     const isPhaseClimaxBoss = waveNumber === 25 || waveNumber === 50 || waveNumber === 75 || waveNumber === 100;
     const isBossWave = (waveNumber % 5 === 0) || isPhaseClimaxBoss;
     const isLastEnemyOfWave = this.enemiesSpawnedCount === this.totalEnemiesToSpawn - 1;
 
-    if ((isPhaseClimaxBoss || isBossWave) && isLastEnemyOfWave) {
-      type = 'MECHA_TITAN';
-    } else if (waveNumber >= 15 && rand < 0.35) {
-      type = 'MECHA_TITAN';
-    } else if (waveNumber >= 8 && rand < 0.55) {
-      type = 'MECHA_SCOUT';
-    } else if (waveNumber >= 4 && rand < 0.70) {
-      type = 'HUMAN_ARCHER';
-    } else if (rand < 0.85) {
-      type = 'DEEP_ONE';
-    } else {
-      type = 'HUMAN_KNIGHT';
-    }
+    // The alliance's rulers lead the boss waves; everyone else is drawn from the unlocked pool
+    const type: InvaderType = (isPhaseClimaxBoss || isBossWave) && isLastEnemyOfWave
+      ? (Math.floor(waveNumber / 5) % 2 === 1 ? 'HIGH_PRIEST' : 'MECHA_VALKYRIE')
+      : pickWaveInvader(waveNumber);
 
     // Auto-discover invader in Demon Lord Bestiary!
     useGameStore.getState().discoverEntry('invader', type);
@@ -574,8 +611,13 @@ export class InvasionManager {
    * Deals damage to an invader. `quiet` skips the hit burst (for rapid ticks
    * like flamethrower and burn damage).
    */
-  public damageInvader(invader: ActiveInvader, damage: number, popupText?: string, quiet: boolean = false): void {
+  public damageInvader(invader: ActiveInvader, rawDamage: number, popupText?: string, quiet: boolean = false): void {
     if (invader.isDead) return;
+    if ((invader.invulnTimer ?? 0) > 0) {
+      if (popupText) this.spawnFloatingPopup(invader.container.x, invader.container.y - 24, '🛡️ Immune', '#fde68a');
+      return;
+    }
+    const damage = this.modifiedDamage(invader, rawDamage);
 
     invader.hp -= damage;
     this.renderHpBar(invader.hpBarGfx, invader.hp, invader.maxHp);
@@ -601,6 +643,51 @@ export class InvasionManager {
     }
   }
 
+  /** Armor shred (+30%) and the High Priest's Divine Aura (-20% for nearby humans). */
+  private modifiedDamage(invader: ActiveInvader, damage: number): number {
+    let mult = (invader.vulnTimer ?? 0) > 0 ? 1.3 : 1;
+    if (INVADER_CONFIGS[invader.type].category === 'HUMAN') {
+      const blessed = this.invaders.some((p) => p.type === 'HIGH_PRIEST' && !p.isDead &&
+        Math.hypot(p.container.x - invader.container.x, p.container.y - invader.container.y) <= 130);
+      if (blessed) mult *= 0.8;
+    }
+    return Math.max(1, Math.round(damage * mult));
+  }
+
+  /** Called whenever an invader dies (Necromancer reanimation, Corpse Explosion). */
+  public onInvaderKilled?: (invader: ActiveInvader) => void;
+
+  /** Pushes an invader `distance` px away from a point, staying off solid tiles. */
+  public knockback(invader: ActiveInvader, fromX: number, fromY: number, distance: number): void {
+    if (invader.isDead || !invader.container.active) return;
+    const dx = invader.container.x - fromX;
+    const dy = invader.container.y - fromY;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = invader.container.x + (dx / len) * distance;
+    const ny = invader.container.y + (dy / len) * distance;
+    const pos = this.nav ? this.nav.pushOut(nx, ny, 0.2) : { x: nx, y: ny };
+    this.scene.tweens.add({ targets: invader.container, x: pos.x, y: pos.y, duration: 260, ease: 'Quad.easeOut' });
+    invader.structPath = undefined;
+    invader.retargetTimer = 0;
+  }
+
+  /** Invader skill hit on a minion (goes through armor, shields and death handling). */
+  public strikeWorker(invader: ActiveInvader, worker: WorkerInstance, damage: number): void {
+    if (worker.hp <= 0 || !worker.container?.active) return;
+    this.hitWorker(invader, worker, damage);
+  }
+
+  /** Target Lock: structures marked by a Mecha Scout take 20% more damage until this scene time. */
+  private markedStructures = new Map<string, number>();
+  public markStructure(id: string, seconds: number): void {
+    this.markedStructures.set(id, this.scene.time.now + seconds * 1000);
+  }
+
+  /** Cyber Command: mecha attack 25% faster while a Mecha Valkyrie lives. */
+  private attackRate(invader: ActiveInvader): number {
+    return auras.cyberCommand && INVADER_CONFIGS[invader.type].category === 'MECHA' ? 0.8 : 1;
+  }
+
   /** Ice storms slow invaders (the strongest active slow wins). */
   public applySlow(invader: ActiveInvader, factor: number, seconds: number): void {
     if (invader.isDead) return;
@@ -615,6 +702,18 @@ export class InvasionManager {
     invader.burnDps = Math.max(invader.burnDps ?? 0, dps);
     invader.burnTimer = Math.max(invader.burnTimer ?? 0, seconds);
     invader.burnTick = invader.burnTick ?? 0;
+  }
+
+  /** Mecha leave scrap metal; souls are harvested while a Necromancer or the Crypt of Souls stands. */
+  private advancedDrops(invader: ActiveInvader): void {
+    const store = useGameStore.getState();
+    const drops: Array<[string, number, string]> = [];
+    if (INVADER_CONFIGS[invader.type].category === 'MECHA') drops.push(['scrapMetal', Phaser.Math.Between(1, 3), '⚙️']);
+    const reaper = store.roster.some((u) => u.unitClass === 'NECROMANCER') || (store.resourceBuildings.CRYPT?.level ?? 0) >= 1;
+    if (reaper) drops.push(['soulFragments', 1, '💀']);
+    if (drops.length === 0) return;
+    store.addResources(Object.fromEntries(drops.map(([key, amount]) => [key, amount])));
+    this.spawnFloatingPopup(invader.container.x, invader.container.y - 62, drops.map(([, n, icon]) => `+${n} ${icon}`).join(' '), '#cbd5e1');
   }
 
   private tickStatus(invader: ActiveInvader, deltaSec: number): void {
@@ -647,6 +746,7 @@ export class InvasionManager {
 
   private eliminateInvader(invader: ActiveInvader): void {
     if (invader.isDead) return;
+    if (!invader.isScout) this.onInvaderKilled?.(invader);
     if (invader.isScout) {
       invader.isDead = true;
       invader.hp = 0;
@@ -699,6 +799,7 @@ export class InvasionManager {
     const waveFactor = Math.max(1, Math.ceil(useGameStore.getState().invasion.waveNumber / 15));
     const dropCount = Phaser.Math.Between(1, 4) * waveFactor;
     useGameStore.getState().addResources({ [pickedDrop.key]: dropCount });
+    this.advancedDrops(invader);
     this.spawnFloatingPopup(
       invader.container.x,
       invader.container.y - 48,
@@ -791,14 +892,28 @@ export class InvasionManager {
   }
 
   /**
-   * Provoked invaders and rushers go for the citadel. Otherwise they fight whatever is
+   * Provoked invaders, rushers and raiding scouts go for the citadel. Otherwise they fight whatever is
    * nearest: a defending minion or sapling that gets close, else the closest
    * standing structure (establishment or citadel).
    */
   private chooseTarget(invader: ActiveInvader, defenders: WorkerInstance[]): InvaderTarget | undefined {
+    // Charmed: turns on the nearest fellow invader
+    if ((invader.charmTimer ?? 0) > 0) {
+      const victim = this.invaders
+        .filter((o) => o !== invader && !o.isDead && (o.emerge ?? 0) <= 0)
+        .sort((a, b) => Math.hypot(a.container.x - invader.container.x, a.container.y - invader.container.y) -
+          Math.hypot(b.container.x - invader.container.x, b.container.y - invader.container.y))[0];
+      if (victim) return { kind: 'blocker', blocker: this.asBlocker(victim) };
+    }
+    // Taunted: must fight the Golem
+    const taunter = invader.tauntBy;
+    if ((invader.tauntTimer ?? 0) > 0 && taunter && taunter.hp > 0 && taunter.container?.active) {
+      return { kind: 'worker', worker: taunter };
+    }
+
     const structures = this.structures ? this.structures.getTargets() : [this.fallbackCastle()].filter(Boolean) as StructureTarget[];
     const castle = structures.find((s) => s.id === 'CASTLE');
-    if (((invader.provokedTimer ?? 0) > 0 || invader.isRusher) && castle) return { kind: 'structure', structure: castle };
+    if (((invader.provokedTimer ?? 0) > 0 || invader.isRusher || invader.isScout) && castle) return { kind: 'structure', structure: castle };
 
     const x = invader.container.x;
     const y = invader.container.y;
@@ -836,6 +951,17 @@ export class InvasionManager {
     return structure ? { kind: 'structure', structure } : undefined;
   }
 
+  /** Lets a charmed invader attack another invader through the blocker interface. */
+  private asBlocker(victim: ActiveInvader): InvaderBlocker {
+    const manager = this;
+    return {
+      container: victim.container,
+      get hp() { return victim.hp; },
+      get dead() { return victim.isDead; },
+      takeHit: (damage: number) => manager.damageInvader(victim, damage, '💘'),
+    };
+  }
+
   private updateInvaders(deltaSec: number): void {
     const workers = this.workerProvider ? this.workerProvider() : [];
     // Active defenders: only workers that have actively rallied to COMBAT
@@ -850,6 +976,11 @@ export class InvasionManager {
 
       this.tickStatus(invader, deltaSec);
       if (invader.isDead) continue;
+      if (invader.type === 'HIGH_PRIEST') this.priestHeal(invader, deltaSec);
+      for (const key of ['frozenTimer', 'vulnTimer', 'invulnTimer', 'charmTimer', 'tauntTimer'] as const) {
+        if ((invader[key] ?? 0) > 0) invader[key] = Math.max(0, (invader[key] ?? 0) - deltaSec);
+      }
+      if ((invader.frozenTimer ?? 0) > 0) continue; // Frozen or rooted solid: no moving, no attacking
       const slow = (invader.slowTimer ?? 0) > 0 ? invader.slowFactor ?? 1 : 1;
 
       // When castle is crushed (HP = 0) or invader is in retreat mode, they march off the platform with their loot
@@ -939,7 +1070,7 @@ export class InvasionManager {
     this.faceInvader(invader, tc.x - invader.container.x, tc.y - invader.container.y, false);
     invader.attackTimer -= deltaSec;
     if (invader.attackTimer > 0) return;
-    invader.attackTimer = 1.1;
+    invader.attackTimer = 1.1 * this.attackRate(invader);
     if (invader.sprite) playEnemyAttack(invader.sprite);
     const damage = Math.round(invader.damage * damageMult);
     if (target.kind === 'blocker') {
@@ -974,7 +1105,7 @@ export class InvasionManager {
     this.faceInvader(invader, structure.x - invader.container.x, structure.y - 20 - invader.container.y, false);
     invader.attackTimer -= deltaSec;
     if (invader.attackTimer > 0) return false;
-    invader.attackTimer = 1.4;
+    invader.attackTimer = 1.4 * this.attackRate(invader);
     if (invader.sprite) playEnemyAttack(invader.sprite);
     let damage = Math.round(invader.damage * damageMult);
     if (structure.id === 'CASTLE') {
@@ -982,6 +1113,8 @@ export class InvasionManager {
       const isAegisWrath = (useGameStore.getState().activeGodBlessings?.AEGIS_WRATH || 0) > 0;
       damage = Math.max(1, Math.round(damage * (isAegisWrath ? 0.5 : 1)));
     }
+    if (structure.id !== 'CASTLE' && isModActive('fortress')) damage = Math.max(1, Math.round(damage * 0.5));
+    if ((this.markedStructures.get(structure.id) ?? 0) > this.scene.time.now) damage = Math.round(damage * 1.2);
     this.attackVisual(invader, structure.x, structure.y - 24, true);
     if (this.structures) this.structures.damage(structure, damage);
     else useGameStore.getState().damageCastle(damage);
@@ -990,7 +1123,7 @@ export class InvasionManager {
 
   /** Follows a breadth-first path to the nearest tile touching the structure. */
   private approachStructure(invader: ActiveInvader, structure: StructureTarget, step: number, deltaSec: number): void {
-    const allowed = invader.type === 'DEEP_ONE' ? [0, 1] : [0];
+    const allowed = INVADER_CONFIGS[invader.type].flying ? [0, 1] : [0];
     invader.structTimer = (invader.structTimer ?? 0) - deltaSec;
     const here = Navigation.tileOf(invader.container.x, invader.container.y);
     if (!invader.structPath || invader.structGoal !== structure.id || invader.structTimer <= 0) {
@@ -1017,9 +1150,9 @@ export class InvasionManager {
     this.chase(invader, structure.x, structure.y, step, deltaSec);
   }
 
-  /** Knights and mecha clang their blades; the Deep One bashes. */
+  /** Human blades clang; mecha weapons slam. */
   private meleeSound(invader: ActiveInvader): void {
-    if (invader.type === 'DEEP_ONE') soundFx.playMonsterBash();
+    if (INVADER_CONFIGS[invader.type].category === 'MECHA') soundFx.playWallBang();
     else soundFx.playSwordClang();
   }
 
@@ -1044,8 +1177,12 @@ export class InvasionManager {
   }
 
   /** Invader strike on a defending minion (armor, shields, gore, death / retreat). */
-  private hitWorker(invader: ActiveInvader, closestDefender: WorkerInstance, weatherDmg: number): void {
+  private hitWorker(invader: ActiveInvader, closestDefender: WorkerInstance, baseDmg: number): void {
     const invaderConfig = INVADER_CONFIGS[invader.type];
+    // Seismic Taunt halves damage; Target Lock adds 20%
+    const weatherDmg = Math.round(baseDmg *
+      ((closestDefender.armorBuffTimer ?? 0) > 0 ? 0.5 : 1) *
+      ((closestDefender.markedTimer ?? 0) > 0 ? 1.2 : 1));
     const defenderX = closestDefender.container.x;
     const defenderY = closestDefender.container.y;
 
@@ -1079,7 +1216,7 @@ export class InvasionManager {
       this.meleeSound(invader);
     }
 
-    const bloodColor = closestDefender.unitClass === 'GOLEM' || closestDefender.unitClass === 'CHRONO'
+    const bloodColor = closestDefender.unitClass === 'GOLEM' || closestDefender.unitClass === 'SUCCUBUS'
       ? 0x38bdf8
       : closestDefender.unitClass === 'AQUA_SLIME' ? 0x0ea5e9 : 0x991b1b;
     if (useGameStore.getState().isGoreEnabled) this.spawnDeathBurst(defenderX, defenderY - 15, bloodColor, true);
@@ -1186,7 +1323,7 @@ export class InvasionManager {
         : this.portals?.nearest(invader.container.x, invader.container.y) ?? undefined;
       invader.exitPortal = portal;
       const exitEdge: GridPoint = portal ? portal.site.exit : invader.spawnGrid || { x: 1, y: 1 };
-      const allowedTiles = invader.type === 'DEEP_ONE' ? [0, 1] : [0];
+      const allowedTiles = INVADER_CONFIGS[invader.type].flying ? [0, 1] : [0];
       const returnPath = this.pathfinder.findPath(curGrid.x, curGrid.y, exitEdge.x, exitEdge.y, allowedTiles);
 
       invader.currentPath = (returnPath && returnPath.length > 0)

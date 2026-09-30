@@ -4,9 +4,8 @@ import { beaconLevelOf } from '../defenseStats';
 import { normalizeSkillProgress } from '../skillTree';
 import { RESOURCE_KEYS } from '../resources';
 import { localForageStorage } from '../storageAdapter';
-import { applyLayoutSeed } from '../buildingLayout';
 import { getPhaseFromWave } from './defenseSlice';
-import { normalizeResourceBuildings } from './buildingsSlice';
+import { normalizeResourceBuildings, normalizeSpireTower } from './buildingsSlice';
 import {
   INITIAL_AUTO_BUY_BUILDING,
   INITIAL_AUTO_SETTINGS,
@@ -14,15 +13,36 @@ import {
   INITIAL_INVASION,
   INITIAL_UPGRADES,
   createInitialResourceNodes,
+  applyRealmLayout,
   createSupportSlime,
 } from './initialState';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
+import { INVADER_CONFIGS, UNIT_CLASSES } from '../../types/game';
+import type { InvaderType, UnitClass } from '../../types/game';
 import type { SliceArgs } from './types';
 
 const SAVE_VERSION = '1.3.0';
 
+/** Beast classes renamed by the 10 vs 10 codex (old save key → new key). */
+const RENAMED_BEASTS: Record<string, UnitClass> = { WAYFARER: 'LAVA_GARGOYLE', CHRONO: 'SUCCUBUS' };
+
+const migrateBeast = (id: string): string => RENAMED_BEASTS[id] ?? id;
+
+/** Old saves: renamed beasts get their new class; unknown classes are dropped. */
+const migrateRoster = (roster: UnitRosterItem[]): UnitRosterItem[] =>
+  roster
+    .map((unit) => ({ ...unit, unitClass: migrateBeast(unit.unitClass) as UnitClass }))
+    .filter((unit) => unit.unitClass in UNIT_CLASSES);
+
+/** Codex discoveries limited to entries that still exist (the Deep One left the invaders). */
+const migrateDiscovered = <K extends string>(list: unknown, known: Record<K, unknown>, fallback: K[]): K[] =>
+  Array.isArray(list)
+    ? Array.from(new Set(list.map((id) => migrateBeast(String(id))).filter((id): id is K => id in known)))
+    : fallback;
+
 /** Keeps exactly one permanent Support Slime (last in the roster), preserving its evolution. */
-const withPermanentSlime = (roster: UnitRosterItem[]): UnitRosterItem[] => {
+const withPermanentSlime = (rawRoster: UnitRosterItem[]): UnitRosterItem[] => {
+  const roster = migrateRoster(rawRoster);
   const slime = roster.find((unit) => unit.unitClass === 'AQUA_SLIME');
   return [
     ...roster.filter((unit) => unit.unitClass !== 'AQUA_SLIME'),
@@ -35,15 +55,15 @@ const withPermanentSlime = (roster: UnitRosterItem[]): UnitRosterItem[] => {
  * seed and keep the one already rolled. Node positions follow the layout;
  * Ent enrichment levels are kept.
  */
-const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNodes']) => {
+const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNodes'], positions?: unknown) => {
   if (typeof seed !== 'number' || !Number.isFinite(seed) || seed <= 0) return {};
-  applyLayoutSeed(seed);
-  const positions = createInitialResourceNodes();
-  const dynamicResourceNodes = { ...positions };
-  for (const k of Object.keys(positions) as (keyof typeof positions)[]) {
-    dynamicResourceNodes[k] = { ...positions[k], qualityMultiplier: nodes?.[k]?.qualityMultiplier ?? 1.0 };
+  const clean: GameStoreState['buildingPositions'] = {};
+  if (positions && typeof positions === 'object') {
+    for (const [id, pos] of Object.entries(positions as Record<string, { x?: unknown; y?: unknown }>)) {
+      if (Number.isInteger(pos?.x) && Number.isInteger(pos?.y)) clean[id as ResourceBuildingId] = { x: pos.x as number, y: pos.y as number };
+    }
   }
-  return { layoutSeed: seed, dynamicResourceNodes };
+  return applyRealmLayout(seed, clean, nodes);
 };
 
 const toResources = (raw: Record<string, unknown>): Resources =>
@@ -61,6 +81,8 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       regressionCount: state.regressionCount,
       regressionHistory: state.regressionHistory,
       layoutSeed: state.layoutSeed,
+      buildingPositions: state.buildingPositions,
+      munitions: state.munitions,
       platformPhase: state.platformPhase,
       year: state.year,
       season: state.season,
@@ -73,8 +95,11 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       roster: state.roster,
       upgrades: state.upgrades,
       castleBuilt: state.castleBuilt,
+      spireBuilt: state.spireBuilt,
+      spireTower: state.spireTower,
       resourceBuildings: state.resourceBuildings,
       autoBuyBuildingMaterials: state.autoBuyBuildingMaterials,
+      autoBuySummon: state.autoBuySummon,
       defense: state.defense,
       invasion: state.invasion,
       achievements: state.achievements,
@@ -112,10 +137,15 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         hasCompletedIntro: !!data.hasCompletedIntro,
         resources: toResources(data.resources),
         castleBuilt: data.castleBuilt ?? false,
+        // Saves from before the spire needed building keep it standing once the citadel is up
+        munitions: { armorPiercing: 0, incendiary: 0, ...(data.munitions || {}) },
+        spireBuilt: data.spireBuilt ?? (data.castleBuilt ?? false),
+        spireTower: normalizeSpireTower(data.spireTower),
         resourceBuildings: normalizeResourceBuildings(data.resourceBuildings),
         roster,
         workerCount: roster.length,
         autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(data.autoBuyBuildingMaterials || {}) },
+        autoBuySummon: data.autoBuySummon || {},
         upgrades: { ...INITIAL_UPGRADES, ...(data.upgrades || {}) },
         language: data.language || 'EN',
         defense: {
@@ -132,11 +162,11 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         ambientDarkness: data.ambientDarkness || 0,
         isAudioMuted: data.isAudioMuted || false,
         isGoreEnabled: data.isGoreEnabled || false,
-        discoveredBeasts: data.discoveredBeasts || ['GOLEM', 'WAYFARER'],
-        discoveredInvaders: data.discoveredInvaders || [],
+        discoveredBeasts: migrateDiscovered<UnitClass>(data.discoveredBeasts, UNIT_CLASSES, ['GOLEM', 'LAVA_GARGOYLE']),
+        discoveredInvaders: migrateDiscovered<InvaderType>(data.discoveredInvaders, INVADER_CONFIGS, []),
         lastSavedTimestamp: Date.now(),
         screen: data.hasCompletedIntro ? 'GAME' : 'TITLE',
-        ...restoreLayout(data.layoutSeed, get().dynamicResourceNodes),
+        ...restoreLayout(data.layoutSeed, get().dynamicResourceNodes, data.buildingPositions),
       });
       return true;
     } catch (err) {
@@ -160,8 +190,11 @@ const partialize = (state: GameStoreState) => ({
   roster: state.roster,
   upgrades: state.upgrades,
   castleBuilt: state.castleBuilt,
+  spireBuilt: state.spireBuilt,
+  spireTower: state.spireTower,
   resourceBuildings: state.resourceBuildings,
   autoBuyBuildingMaterials: state.autoBuyBuildingMaterials,
+  autoBuySummon: state.autoBuySummon,
   showTileCoordinates: state.showTileCoordinates,
   isGoreEnabled: state.isGoreEnabled,
   defense: state.defense,
@@ -178,6 +211,8 @@ const partialize = (state: GameStoreState) => ({
   regressionCount: state.regressionCount,
   regressionHistory: state.regressionHistory,
   layoutSeed: state.layoutSeed,
+  buildingPositions: state.buildingPositions,
+  munitions: state.munitions,
   lastSavedTimestamp: state.lastSavedTimestamp,
 });
 
@@ -195,15 +230,22 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     difficulty: normalizeDifficulty(persisted.difficulty),
     roster,
     workerCount: roster.length,
+    discoveredBeasts: migrateDiscovered<UnitClass>(persisted.discoveredBeasts, UNIT_CLASSES, currentState.discoveredBeasts),
+    discoveredInvaders: migrateDiscovered<InvaderType>(persisted.discoveredInvaders, INVADER_CONFIGS, currentState.discoveredInvaders),
     castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
+    munitions: { armorPiercing: 0, incendiary: 0, ...(persisted.munitions ?? {}) },
+    pendingBattleEffects: [],
+    spireBuilt: persisted.spireBuilt ?? (persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0)),
+    spireTower: normalizeSpireTower(persisted.spireTower),
     resourceBuildings: normalizeResourceBuildings(persisted.resourceBuildings),
     autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(persisted.autoBuyBuildingMaterials ?? {}) },
+    autoBuySummon: persisted.autoBuySummon ?? {},
     defense: persisted.defense
       ? { ...INITIAL_DEFENSE, ...persisted.defense, beaconLevel: beaconLevelOf(persisted.defense) }
       : currentState.defense,
     showTileCoordinates: persisted.showTileCoordinates ?? true,
     layoutSeed: currentState.layoutSeed,
-    ...restoreLayout(persisted.layoutSeed, currentState.dynamicResourceNodes),
+    ...restoreLayout(persisted.layoutSeed, currentState.dynamicResourceNodes, persisted.buildingPositions),
   };
 };
 

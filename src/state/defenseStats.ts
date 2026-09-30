@@ -1,12 +1,12 @@
 import config from '../data/defenseConfig.json';
-import type { CastleDefenseState, ResourceBuildingId, ResourceBuildingState, Resources } from '../types/state';
+import type { CastleDefenseState, ResourceBuildingState, Resources, SpireTowerState, TowerId } from '../types/state';
 
 /**
  * Establishment towers, the citadel's Provoke Beacon and invader portals —
  * pure stat/cost formulas over src/data/defenseConfig.json.
  */
 
-export type TowerAttack = 'catapult' | 'iceStorm' | 'saplings' | 'spikes' | 'flamethrower';
+export type TowerAttack = 'catapult' | 'iceStorm' | 'saplings' | 'spikes' | 'flamethrower' | 'aetherArc';
 export type CastleUpgradeKey = 'wallLevel' | 'shieldLevel' | 'beaconLevel';
 export type Localized = { en: string; tl: string };
 
@@ -28,7 +28,7 @@ export const DEFENSE_TEXT = config.text;
 export const TOWER_MAX_LEVEL = config.towerMaxLevel;
 /** Tower zones extend this many tiles past the footprint (2×2 footprint → 4×4 zone). */
 export const ZONE_MARGIN = config.zoneMarginTiles;
-export const TOWERS = config.towers as unknown as Record<ResourceBuildingId, TowerConfig>;
+export const TOWERS = config.towers as unknown as Record<TowerId, TowerConfig>;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -43,6 +43,24 @@ export const buildingHpOf = (b?: ResourceBuildingState): number =>
   !b || b.level < 1 ? 0 : Math.min(b.hp ?? buildingMaxHp(towerLevelOf(b)), buildingMaxHp(towerLevelOf(b)));
 
 export const isBuildingOperational = (b?: ResourceBuildingState): boolean => !!b && b.level >= 1 && buildingHpOf(b) > 0;
+
+/** The Crystal Spire viewed as a building (level 1 once raised) so the helpers above apply to it too. */
+export const spireAsBuilding = (spireBuilt: boolean, spire?: Partial<SpireTowerState>): ResourceBuildingState => ({
+  level: spireBuilt ? 1 : 0,
+  unlockedOutputs: [],
+  towerLevel: spire?.towerLevel ?? 1,
+  hp: spire?.hp,
+});
+
+/** Any tower's building state: an establishment, or the spire. */
+export const towerBuildingOf = (
+  state: { spireBuilt: boolean; spireTower?: Partial<SpireTowerState>; resourceBuildings: Record<string, ResourceBuildingState> },
+  id: TowerId
+): ResourceBuildingState | undefined => (id === 'SPIRE' ? spireAsBuilding(state.spireBuilt, state.spireTower) : state.resourceBuildings[id]);
+
+/** Aether grows only while the spire stands unwrecked. */
+export const isSpireOperational = (state: { spireBuilt: boolean; spireTower?: Partial<SpireTowerState> }): boolean =>
+  isBuildingOperational(spireAsBuilding(state.spireBuilt, state.spireTower));
 
 export interface TowerStats {
   attack: TowerAttack;
@@ -63,13 +81,17 @@ export interface TowerStats {
   burnDps: number;
   burnSeconds: number;
   splashTiles: number;
+  chains: number;
+  chainTiles: number;
+  /** Damage multiplier against flying invaders (Brimstone Perch). */
+  flyingMultiplier: number;
 }
 
 /**
  * Combat stats of an establishment at a tower level. `damageMultiplier`
  * carries permanent skills (e.g. the old Castle Turrets skill now boosts towers).
  */
-export function towerStats(id: ResourceBuildingId, towerLevel: number, damageMultiplier = 1): TowerStats {
+export function towerStats(id: TowerId, towerLevel: number, damageMultiplier = 1): TowerStats {
   const t = TOWERS[id];
   const n = Math.max(1, towerLevel) - 1;
   const num = (key: string, fallback = 0) => (typeof t[key] === 'number' ? (t[key] as number) : fallback);
@@ -93,11 +115,14 @@ export function towerStats(id: ResourceBuildingId, towerLevel: number, damageMul
     burnDps: Math.round((num('burnDps') + num('burnDpsPerLevel') * n) * damageMultiplier),
     burnSeconds: num('burnSeconds'),
     splashTiles: num('splashTiles'),
+    chains: num('chains') + num('chainsPerLevel') * n,
+    chainTiles: num('chainTiles'),
+    flyingMultiplier: num('flyingMultiplier', 1),
   };
 }
 
 /** Cost to raise a tower from `towerLevel` to the next, or null at max. */
-export function towerUpgradeCost(id: ResourceBuildingId, towerLevel: number): Partial<Resources> | null {
+export function towerUpgradeCost(id: TowerId, towerLevel: number): Partial<Resources> | null {
   if (towerLevel < 1 || towerLevel >= TOWER_MAX_LEVEL) return null;
   return TOWERS[id].costs[towerLevel - 1] ?? null;
 }

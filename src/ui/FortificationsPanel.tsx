@@ -16,18 +16,22 @@ import {
   buildingRepairCost,
   canAfford,
   castleUpgradeCost,
+  towerBuildingOf,
   towerLevelOf,
   towerStats,
   towerUpgradeCost,
 } from '../state/defenseStats';
 import { teamBonuses } from '../state/skillTree';
 import { soundFx } from '../game/audio/soundFx';
-import type { ResourceBuildingId, Resources } from '../types/state';
+import type { Resources, TowerId } from '../types/state';
 import { resourceIcon } from './costDisplay';
 
 type Text = { en: string; tl: string };
 
 const CASTLE_UPGRADES: CastleUpgradeKey[] = ['wallLevel', 'shieldLevel', 'beaconLevel'];
+
+/** The spire first, then the five establishments. */
+const TOWER_IDS: TowerId[] = ['SPIRE', ...BUILDING_IDS];
 
 /** Cost chips: red when the player is short of that resource. */
 const CostChips: React.FC<{ cost: Partial<Resources>; resources: Resources }> = ({ cost, resources }) => (
@@ -64,6 +68,8 @@ export const FortificationsPanel: React.FC = () => {
     resources,
     defense,
     castleBuilt,
+    spireBuilt,
+    spireTower,
     resourceBuildings,
     skillRanks,
     regressionCount,
@@ -88,7 +94,7 @@ export const FortificationsPanel: React.FC = () => {
 
   const castleLevel = (key: CastleUpgradeKey) => (key === 'beaconLevel' ? beaconLevelOf(defense) : defense[key]);
 
-  const statLine = (id: ResourceBuildingId, s: TowerStats): string[] => {
+  const statLine = (id: TowerId, s: TowerStats): string[] => {
     const tx = DEFENSE_TEXT;
     const lines = [`${t(tx.damage)} ${s.damage}`, `${t(tx.cooldown)} ${s.cooldown}s`];
     if (id === 'QUARRY') lines.push(`${t(tx.splash)} ${s.splashTiles} ${t(tx.tiles)}`);
@@ -96,6 +102,7 @@ export const FortificationsPanel: React.FC = () => {
     if (id === 'WOOD') lines.push(`${s.charges} ${t(tx.charges)}`, `${s.perSummon} ${t(tx.perSummon)}`, `${t(tx.hp)} ${s.saplingHp}`);
     if (id === 'MINE') lines.push(`${s.volley} ${t(tx.volley)}`);
     if (id === 'CAVE') lines.push(`${t(tx.burn)} ${s.burnDps}/s`);
+    if (id === 'SPIRE') lines.push(`${s.chains} ${t(tx.chains)}`);
     return lines;
   };
 
@@ -187,9 +194,11 @@ export const FortificationsPanel: React.FC = () => {
           <p className="text-[11px] leading-snug text-slate-500">{t(DEFENSE_TEXT.establishmentsNote)}</p>
         </div>
 
-        {BUILDING_IDS.map((id) => {
-          const building = resourceBuildings[id];
-          const cfg = RESOURCE_BUILDING_CONFIG[id];
+        {TOWER_IDS.map((id) => {
+          const isSpire = id === 'SPIRE';
+          const building = towerBuildingOf({ spireBuilt, spireTower, resourceBuildings }, id);
+          const cfg = isSpire ? null : RESOURCE_BUILDING_CONFIG[id];
+          const title = isSpire ? t(DEFENSE_TEXT.spireName) : language === 'TL' ? cfg!.label : cfg!.labelEn;
           const tower = TOWERS[id];
           const built = castleBuilt && (building?.level ?? 0) >= 1;
           const towerLevel = towerLevelOf(building);
@@ -199,7 +208,7 @@ export const FortificationsPanel: React.FC = () => {
           const stats = towerStats(id, Math.max(1, towerLevel), damageMultiplier);
           const next = towerLevel < TOWER_MAX_LEVEL ? towerStats(id, towerLevel + 1, damageMultiplier) : null;
           const upgradeCost = built ? towerUpgradeCost(id, towerLevel) : null;
-          const productionCost = built ? cfg.costs[building.level] : undefined;
+          const productionCost = built && cfg && building ? cfg.costs[building.level] : undefined;
           const repairCost = buildingRepairCost();
           const needsRepair = built && hp < maxHp;
 
@@ -207,11 +216,12 @@ export const FortificationsPanel: React.FC = () => {
             <div key={id} className={`space-y-2.5 rounded-2xl border p-3.5 ${wrecked ? 'border-rose-500/40 bg-rose-950/20' : 'border-slate-800 bg-slate-900/50'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-lg">{cfg.icon}</div>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-lg">{isSpire ? '💎' : cfg!.icon}</div>
                   <div className="min-w-0">
-                    <div className="text-xs font-bold text-white">{language === 'TL' ? cfg.label : cfg.labelEn}</div>
+                    <div className="text-xs font-bold text-white">{title}</div>
                     <div className="text-[11px] font-semibold text-amber-200">{tower.icon} {t(tower.name)}</div>
                     <p className="text-[10px] leading-snug text-slate-400">{t(tower.desc)}</p>
+                    {isSpire && <p className="text-[10px] leading-snug text-cyan-300/80">{t(DEFENSE_TEXT.spireNote)}</p>}
                   </div>
                 </div>
                 {built && (
@@ -219,9 +229,11 @@ export const FortificationsPanel: React.FC = () => {
                     <div className="rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">
                       {t(DEFENSE_TEXT.tower)} {t(DEFENSE_TEXT.level)}{towerLevel}
                     </div>
-                    <div className="mt-1 rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                      {t(DEFENSE_TEXT.production)} {t(DEFENSE_TEXT.level)}{building.level}
-                    </div>
+                    {cfg && building && (
+                      <div className="mt-1 rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                        {t(DEFENSE_TEXT.production)} {t(DEFENSE_TEXT.level)}{building.level}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -250,7 +262,7 @@ export const FortificationsPanel: React.FC = () => {
                     })}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className={`grid grid-cols-1 gap-2 ${cfg ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                     {/* Defense tower upgrade */}
                     <div className="space-y-1 rounded-xl bg-slate-950/60 p-2">
                       {upgradeCost ? (
@@ -272,8 +284,8 @@ export const FortificationsPanel: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Production level (unlocks the second output) */}
-                    <div className="space-y-1 rounded-xl bg-slate-950/60 p-2">
+                    {/* Production level (unlocks the second output); the spire has none */}
+                    {id !== 'SPIRE' && cfg && building && <div className="space-y-1 rounded-xl bg-slate-950/60 p-2">
                       {productionCost ? (
                         <>
                           <CostChips cost={productionCost} resources={resources} />
@@ -294,7 +306,7 @@ export const FortificationsPanel: React.FC = () => {
                           {t(DEFENSE_TEXT.outputs)} {cfg.outputs.map((o) => resourceIcon(o as keyof Resources)).join(' ')}
                         </div>
                       )}
-                    </div>
+                    </div>}
 
                     {/* Repair */}
                     <div className="space-y-1 rounded-xl bg-slate-950/60 p-2">

@@ -1,4 +1,5 @@
 import { soundFx } from '../audio/soundFx';
+import { auras } from '../skills/combatMods';
 import type { ActiveInvader } from '../InvasionManager';
 import type { PortalState } from '../PortalManager';
 import { CRITICAL_HP, type WorkerContext, type WorkerFrame, type WorkerInstance } from './types';
@@ -159,7 +160,17 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   if (targetPortal) {
     ctx.portals?.damage(targetPortal, effectiveAttack);
   } else {
-    ctx.invasionManager?.damageInvader(targetInvader!, effectiveAttack, `-${effectiveAttack} ⚔️`);
+    // Shield Wall: knights block 60% of ranged blows
+    const ranged = config.attackRange > 60;
+    const shielded = ranged && targetInvader!.type === 'HUMAN_KNIGHT';
+    const dealt = shielded ? Math.max(1, Math.round(effectiveAttack * 0.4)) : effectiveAttack;
+    ctx.invasionManager?.damageInvader(targetInvader!, dealt, shielded ? `-${dealt} 🛡️` : `-${dealt} ⚔️`);
+    // Blood Frenzy (Infernal Kennel, citadel below 30%): melee beasts steal life
+    if (!ranged && auras.bloodFrenzy && worker.hp < worker.maxHp) {
+      worker.hp = Math.min(worker.maxHp, worker.hp + Math.round(dealt * 0.3));
+    }
+    // Temporal Stasis also slows a beast's swings
+    if ((worker.slowTimer ?? 0) > 0) worker.combatCooldown /= worker.slowFactor ?? 1;
   }
 
   // Display projectile or slash depending on range
@@ -173,7 +184,6 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   ctx.spawnHarvestBurst(targetX, targetY - 10, targetPortal ? 0xfde047 : 0x38bdf8, 6);
   // Blows on armoured knights and mecha ring out; everything else is a heavy bash
   if (targetPortal) soundFx.playWallBang();
-  else if (targetInvader!.type === 'DEEP_ONE') soundFx.playMonsterBash();
   else soundFx.playSwordClang();
   // Visual punch lunge animation with safe completion
   ctx.scene.tweens.add({

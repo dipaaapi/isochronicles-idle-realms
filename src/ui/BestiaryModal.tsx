@@ -32,22 +32,11 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
     onClose();
   };
 
-  const beastKeys: UnitClass[] = [
-    'GOLEM',
-    'WAYFARER',
-    'CHRONO',
-    'AQUA_SLIME',
-    'MERMAN',
-    'NECROMANCER',
-    'TREANT',
-  ];
-  const invaderKeys: InvaderType[] = [
-    'HUMAN_KNIGHT',
-    'HUMAN_ARCHER',
-    'MECHA_SCOUT',
-    'MECHA_TITAN',
-    'DEEP_ONE',
-  ];
+  // Rulers first, then fighters, in config order
+  const byRole = <K extends string>(keys: K[], roleOf: (k: K) => string) =>
+    [...keys.filter((k) => roleOf(k) === 'RULER'), ...keys.filter((k) => roleOf(k) !== 'RULER')];
+  const beastKeys = byRole(Object.keys(UNIT_CLASSES) as UnitClass[], (k) => UNIT_CLASSES[k].role);
+  const invaderKeys = byRole(Object.keys(INVADER_CONFIGS) as InvaderType[], (k) => INVADER_CONFIGS[k].role);
 
   const totalBeasts = beastKeys.length;
   const unlockedBeastsCount = beastKeys.filter((k) =>
@@ -189,6 +178,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                             }`}
                           >
                             {isDiscovered ? (language === 'TL' ? config.name : (config.nameEn || config.name)) : (language === 'TL' ? '❓ Hindi pa Natutuklasan' : '❓ Undiscovered')}
+                            {config.role === 'RULER' && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-amber-300">👑 {language === 'TL' ? 'Pinuno' : 'Ruler'}</span>}
                           </h3>
                           {isDiscovered ? (
                             <span className="shrink-0 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
@@ -228,6 +218,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
               })}
             </div>
           )}
+
 
           {activeTab === 'INVADERS' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -290,6 +281,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                             }`}
                           >
                             {isDiscovered ? (language === 'TL' ? config.name : (config.nameEn || config.name)) : (language === 'TL' ? '❓ Hindi pa Nakakatapat' : '❓ Unencountered')}
+                            {config.role === 'RULER' && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-amber-300">👑 {language === 'TL' ? 'Pinuno' : 'Ruler'}</span>}
                           </h3>
                           {isDiscovered ? (
                             <span className="shrink-0 text-[10px] font-bold text-sky-400 bg-sky-950/60 border border-sky-500/30 px-2 py-0.5 rounded-full">
@@ -332,6 +324,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
               })}
             </div>
           )}
+
         </div>
 
         {/* Footer info */}

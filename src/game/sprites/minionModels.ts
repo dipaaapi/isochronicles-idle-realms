@@ -1,6 +1,7 @@
 import type { UnitClass } from '../../types/game';
 import type { Part, Pose, Shape, Vec3, VoxelModel } from './VoxelSprite';
-import { breathe } from './enemyModels';
+import { breathe, ENEMY_MODELS } from './enemyModels';
+import { recolorModel } from './VoxelSprite';
 
 /**
  * Voxel models for the Demon Lord's minions, following the bestiary artwork in
@@ -593,7 +594,9 @@ const sapling = (): VoxelModel => {
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 
-export type MinionSpriteKey = 'golem' | 'wayfarer' | 'chrono' | 'slime' | 'treant' | 'merman' | 'necromancer' | 'sapling';
+export type MinionSpriteKey =
+  | 'golem' | 'wayfarer' | 'chrono' | 'slime' | 'treant' | 'merman' | 'necromancer' | 'sapling'
+  | 'kraken' | 'demonHound' | 'harpy';
 
 export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   golem,
@@ -604,14 +607,21 @@ export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   merman,
   necromancer,
   sapling,
+  // Variants of existing models, recoloured to match the codex artwork
+  kraken: () => recolorModel(ENEMY_MODELS.deepOne(), 0xb45353, 0xfacc15, 0.6, 1.15),
+  demonHound: () => recolorModel(golem(), 0x9a3412, 0xfb923c, 0.65, 0.85),
+  harpy: () => recolorModel(wayfarer(), 0x8b5e34, 0xfde68a, 0.6),
 };
 
 export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
-  GOLEM: 'golem',
-  WAYFARER: 'wayfarer',
-  CHRONO: 'chrono',
-  AQUA_SLIME: 'slime',
   TREANT: 'treant',
+  AQUA_SLIME: 'slime',
+  GOLEM: 'golem',
   MERMAN: 'merman',
   NECROMANCER: 'necromancer',
+  KRAKEN: 'kraken',
+  DEMON_HOUND: 'demonHound',
+  SUCCUBUS: 'chrono',
+  LAVA_GARGOYLE: 'wayfarer',
+  HARPY: 'harpy',
 };

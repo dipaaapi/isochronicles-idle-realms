@@ -11,10 +11,24 @@ export interface Resources {
   charcoal?: number;
   coal?: number;
   minerals?: number;
+  /** 🌋 From the Brimstone Perch / Lava Gargoyles: incendiary ammo and Lava Bombs. */
+  obsidianShard?: number;
+  /** 💀 From invaders slain while a Necromancer or the Crypt of Souls stands: Death Curse, revivals. */
+  soulFragments?: number;
+  /** 🔮 From the Abyssal Trench: Tidal Amulets and Kinetic Barrier restores. */
+  abyssalPearl?: number;
+  /** ⚙️ Dropped by defeated Mecha: sold for coins or researched into Armor-Piercing ammo. */
+  scrapMetal?: number;
   coins: number;
 }
 
-export type ResourceBuildingId = 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE';
+export type BattleItemId = 'LAVA_BOMB' | 'DEATH_CURSE' | 'KINETIC_RESTORE';
+export type BattleEffect = 'LAVA_BOMB' | 'DEATH_CURSE';
+
+export type ResourceBuildingId =
+  | 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE'
+  // Landmarks: homes of the new beasts
+  | 'TRENCH' | 'CRYPT' | 'PERCH' | 'KENNEL';
 
 export interface ResourceBuildingState {
   level: number;
@@ -26,6 +40,17 @@ export interface ResourceBuildingState {
 }
 
 export type ResourceBuildingsState = Record<ResourceBuildingId, ResourceBuildingState>;
+
+/** Anything with a defense tower: the five establishments plus the Crystal Spire. */
+export type TowerId = ResourceBuildingId | 'SPIRE';
+
+/** The Crystal Spire's defense tower (it has no production levels). */
+export interface SpireTowerState {
+  /** Defense tower level (1–5). */
+  towerLevel: number;
+  /** Current structure HP; 0 = wrecked (no aether and no attacks until repaired). */
+  hp: number;
+}
 
 export interface OfflineGainsData {
   elapsedSeconds: number;
@@ -151,6 +176,9 @@ export interface GameStoreState {
   roster: UnitRosterItem[];
   upgrades: UpgradesState;
   castleBuilt: boolean;
+  /** The Crystal Spire is raised by the Ent right after the citadel. */
+  spireBuilt: boolean;
+  spireTower: SpireTowerState;
   resourceBuildings: ResourceBuildingsState;
 
   // Castle Defenses & Invasions
@@ -179,6 +207,30 @@ export interface GameStoreState {
   // Platform & Regression Progression
   /** Seed for this realm's random establishment placement (src/state/buildingLayout.ts). */
   layoutSeed: number;
+  /** Player-relocated establishments (top-left tile), layered over the seeded layout. */
+  buildingPositions: Partial<Record<ResourceBuildingId | 'SPIRE', { x: number; y: number }>>;
+  /** Tower ammunition research (levels 0–3): scrap → armor-piercing vs Mecha, obsidian → incendiary burn. */
+  munitions: { armorPiercing: number; incendiary: number };
+  /** Battle items fired from the Armory; the scene plays them on its next frame. */
+  pendingBattleEffects: BattleEffect[];
+  /** Crafts and fires a single-use battle item; false when unaffordable or unusable now. */
+  useBattleItem: (item: BattleItemId) => boolean;
+  researchMunition: (kind: 'armorPiercing' | 'incendiary') => boolean;
+  /** Removes and returns the queued battle effects (scene side). */
+  takeBattleEffects: () => BattleEffect[];
+  /** Establishment / citadel skill ids waiting for the scene to play them. */
+  pendingSkillCasts: string[];
+  takeSkillCasts: () => string[];
+  /** Seconds until the citadel's Abyssal Overdrive and the Spire's Arcane Overcharge are ready. */
+  citadelSkillCooldowns: { overdrive: number; overcharge: number };
+  /** Abyssal Overdrive: spend aether shards to throw invaders back from the walls. */
+  castAbyssalOverdrive: () => boolean;
+  /** Arcane Overcharge: spend coins and essence to double the Spire's fire rate for 10s. */
+  castArcaneOvercharge: () => boolean;
+  /** Passive landmark yields (Abyssal Trench, Brimstone Perch, Infernal Kennel). */
+  tickLandmarks: (deltaSeconds: number) => void;
+  /** Fractional landmark yields waiting to become whole resources. */
+  landmarkCarry?: Record<string, number>;
   platformPhase: PlatformPhase; // 1: Demon Citadel, 2: Magma Caldera, 3: Frost Spire, 4: Astral Sanctum
   regressionCount: number;
   regressionHistory: RegressionRecord[];
@@ -242,12 +294,12 @@ export interface GameStoreState {
   upgradeDefense: (defenseKey: 'wallLevel' | 'beaconLevel' | 'shieldLevel') => boolean;
   repairCastle: () => boolean;
   damageCastle: (amount: number) => void;
-  upgradeTower: (buildingId: ResourceBuildingId) => boolean;
-  repairBuilding: (buildingId: ResourceBuildingId) => boolean;
-  /** Invader damage to an establishment; returns true when this hit wrecked it. */
-  damageBuilding: (buildingId: ResourceBuildingId, amount: number) => boolean;
+  upgradeTower: (buildingId: TowerId) => boolean;
+  repairBuilding: (buildingId: TowerId) => boolean;
+  /** Invader damage to an establishment or the spire; returns true when this hit wrecked it. */
+  damageBuilding: (buildingId: TowerId, amount: number) => boolean;
   /** Free HP restore (Ent repairs); returns the HP actually restored. */
-  restoreBuildingHp: (buildingId: ResourceBuildingId, amount: number) => number;
+  restoreBuildingHp: (buildingId: TowerId, amount: number) => number;
 
   // Invasion Actions
   tickInvasionCountdown: (deltaSeconds: number) => void;
@@ -277,6 +329,7 @@ export interface GameStoreState {
   tickGodBlessings: (deltaSeconds: number) => void;
   upgradeTreant: () => boolean;
   buildCastle: () => boolean;
+  buildSpire: () => boolean;
   upgradeResourceBuilding: (buildingId: ResourceBuildingId) => boolean;
 
   // FPS & Performance Settings Actions
@@ -306,10 +359,15 @@ export interface GameStoreState {
   establishmentSkillCooldowns: Record<ResourceBuildingId, { skill1: number; skill2: number }>;
 
   /** The establishment currently open in the modal, or null if closed. */
-  selectedEstablishmentId: 'CASTLE' | ResourceBuildingId | null;
+  selectedEstablishmentId: 'CASTLE' | TowerId | null;
 
   /** Auto-buy toggle per building — whether to auto-purchase missing upgrade materials. */
   autoBuyBuildingMaterials: Record<ResourceBuildingId, boolean>;
+  /** Minions the Support Slime may buy missing summon materials for (with coins). */
+  autoBuySummon: Partial<Record<UnitClass, boolean>>;
+  toggleAutoBuySummon: (unitClass: UnitClass) => void;
+  /** Buys only the shortfall of `cost` with coins; false when coins cannot cover all of it. */
+  buyShortfall: (cost: Partial<Resources>) => boolean;
 
   // Establishment Actions
   /** Tick skill cooldowns down by delta seconds. */
@@ -320,7 +378,9 @@ export interface GameStoreState {
   relocateBuilding: (buildingId: ResourceBuildingId) => boolean;
 
   // Establishment Modal Actions
-  openEstablishmentModal: (id: 'CASTLE' | ResourceBuildingId) => void;
+  openEstablishmentModal: (id: 'CASTLE' | TowerId) => void;
+  /** Moves an establishment so its top-left tile is (x, y). Refused mid-wave or on a blocked spot. */
+  relocateEstablishment: (id: ResourceBuildingId | 'SPIRE', x: number, y: number) => boolean;
   closeEstablishmentModal: () => void;
   toggleBuildingAutoBuy: (buildingId: ResourceBuildingId) => void;
   autoBuyMaterialsForUpgrade: (buildingId: ResourceBuildingId) => void;

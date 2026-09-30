@@ -1,5 +1,6 @@
 import type { ResourceBuildingId } from '../../types/state';
 import type { Part, Pose, Shape, VoxelGeometry } from './VoxelSprite';
+import { recolorModel } from './VoxelSprite';
 
 /**
  * Voxel models for the citadel, the five establishments, the Crystal Spire
@@ -718,7 +719,7 @@ const cave = (): StructureModel => {
 // ── Crystal Spire — the aether node: a cluster of cyan crystals on rock ──────
 
 const spire = (): StructureModel => {
-  const M = { rock: 0, rockDark: 1, crystal: 2, crystalLight: 3, core: 4, deep: 5, grass: 6, edge: 7 };
+  const M = { rock: 0, rockDark: 1, crystal: 2, crystalLight: 3, core: 4, deep: 5, grass: 6, edge: 7, wood: 8, arc: 9 };
   const shard = (name: string, x: number, y: number, h: number, r: number, mat: number): Part => ({
     name, parent: 'rocks', pivot: [x, y, 4], shapes: [
       ell(x, y, 4 + h / 2, r, r, h / 2, mat),
@@ -741,8 +742,17 @@ const spire = (): StructureModel => {
     {
       name: 'float', pivot: [25, 25, 62], shapes: around(3, 11).map(({ c, s }) => ell(25 + c, 25 + s, 62, 1.6, 1.6, 3.2, M.crystalLight)),
     },
+    // Aether Arc charge: a crackling ring of sparks around the main crystal's tip
+    {
+      name: 'surge', pivot: [25, 25, 56], shapes: around(12, 7).map(({ c, s }) => ball(25 + c, 25 + s, 56, 1.1, M.arc)),
+    },
+    rubblePart(M.rockDark, M.deep),
+    siteScaffold(M.wood, M.rock),
   ];
+  const body = ['main', 'left', 'right', 'front', 'back'];
+  const { base, site } = establishmentPoses([...body, 'float'], ['surge']);
   const tilt: Pose = {
+    ...base,
     left: { roll: 0.35, pitch: -0.2 }, right: { roll: -0.3, pitch: 0.25 }, front: { roll: 0.3, pitch: 0.35 },
     back: { roll: -0.25, pitch: -0.3 }, main: { roll: 0.04 },
   };
@@ -752,15 +762,31 @@ const spire = (): StructureModel => {
     { float: { yaw: Math.PI / 3, offset: [0, 0, 1.6] } },
     { float: { yaw: Math.PI / 2, offset: [0, 0, 1] } },
   ]);
+  // Crystals flare and the sparks ring out as the bolt is loosed
+  const attack = withBase(tilt, [
+    { main: { roll: 0.04, scale: [1.1, 1.1, 1.04] }, float: { yaw: 0.5, offset: [0, 0, 2] }, surge: { hidden: false, scale: [0.5, 0.5, 1] } },
+    { main: { roll: 0.04, scale: [1.25, 1.25, 1.08] }, float: { yaw: 1.2, offset: [0, 0, 3] }, surge: { hidden: false, yaw: 0.4 } },
+    { main: { roll: 0.04, scale: [1.15, 1.15, 1.05] }, float: { yaw: 1.9, offset: [0, 0, 2] }, surge: { hidden: false, yaw: 0.8, scale: [1.5, 1.5, 1] } },
+    { main: { roll: 0.04, scale: [1.02, 1.02, 1] }, float: { yaw: 2.4, offset: [0, 0, 1] } },
+  ]);
+  // Wrecked: shards cracked and toppled, the floating crystals fallen dark
+  const ruined: Pose = {
+    ...hide('scaffold', 'surge', 'float'),
+    main: { roll: 0.55, pitch: 0.2, scale: [1, 1, 0.45] },
+    left: { roll: 1.1, pitch: -0.3, scale: [1, 1, 0.6] },
+    right: { roll: -0.9, pitch: 0.5, scale: [1, 1, 0.55] },
+    front: { roll: 0.8, pitch: 0.9, scale: [1, 1, 0.6] },
+    back: { roll: -0.7, pitch: -0.8, scale: [1, 1, 0.5] },
+  };
   return {
     size: [51, 51, 70], foot: [25.5, 25.5, 0],
     materials: [
       { color: 0x57534e }, { color: 0x3f3a36 }, { color: 0x22d3ee }, { color: 0xa5f3fc }, { color: 0x67e8f9, emissive: true },
-      { color: 0x0e7490 }, { color: 0x3f6b35 }, { color: 0x2f4a26 },
+      { color: 0x0e7490 }, { color: 0x3f6b35 }, { color: 0x2f4a26 }, { color: 0x6f4e2e }, { color: 0xecfeff, emissive: true },
     ],
     parts,
-    animations: { idle },
-    rates: { idle: 3 },
+    animations: { idle, attack, ruined: [ruined], site: [site] },
+    rates: { idle: 3, attack: 9, ruined: 1, site: 1 },
     loops: ['idle'],
   };
 };
@@ -855,11 +881,18 @@ const portal = (): StructureModel => {
 
 // ── Registry ─────────────────────────────────────────────────────────────────
 
-export type StructureKey = 'castle' | 'quarry' | 'mine' | 'grove' | 'port' | 'cave' | 'spire' | 'portal';
+export type StructureKey =
+  | 'castle' | 'quarry' | 'mine' | 'grove' | 'port' | 'cave' | 'spire' | 'portal'
+  | 'trench' | 'crypt' | 'perch' | 'kennel';
 
 // Order = bake order: the always-visible citadel, portals and spire first
 export const STRUCTURE_MODELS: Record<StructureKey, () => StructureModel> = {
   castle, portal, spire, quarry, mine, grove, port, cave,
+  // Landmarks: recoloured variants of the base establishments
+  trench: () => recolorModel(port(), 0x0c4a6e, 0x22d3ee, 0.55),
+  crypt: () => recolorModel(cave(), 0x3f4a3c, 0x4ade80, 0.6),
+  perch: () => recolorModel(quarry(), 0x2b1d1a, 0xf97316, 0.65),
+  kennel: () => recolorModel(mine(), 0x7f1d1d, 0xfb923c, 0.55),
 };
 
 export const BUILDING_SPRITE: Record<ResourceBuildingId, StructureKey> = {
@@ -868,5 +901,8 @@ export const BUILDING_SPRITE: Record<ResourceBuildingId, StructureKey> = {
   WOOD: 'grove',
   PORT: 'port',
   CAVE: 'cave',
+  TRENCH: 'trench',
+  CRYPT: 'crypt',
+  PERCH: 'perch',
+  KENNEL: 'kennel',
 };
-

@@ -10,7 +10,7 @@ export function renderInvaderBody(graphics: Phaser.GameObjects.Graphics, type: I
   graphics.clear();
   const cfg = INVADER_CONFIGS[type];
 
-  if (type === 'HUMAN_KNIGHT' || type === 'VOID_SHADE') {
+  if (type === 'HUMAN_KNIGHT' || type === 'ASSASSIN' || type === 'HIGH_PRIEST') {
     // Human Crusader Knight: Shining silver armor, blue cape, iron helmet & sword
     // Cape
     graphics.fillStyle(0x2563eb, 0.9);
@@ -30,7 +30,7 @@ export function renderInvaderBody(graphics: Phaser.GameObjects.Graphics, type: I
     graphics.fillRect(8, -20, 2, 14);
     graphics.fillStyle(0x64748b, 1);
     graphics.fillRect(6, -10, 6, 2);
-  } else if (type === 'HUMAN_ARCHER') {
+  } else if (type === 'HUMAN_ARCHER' || type === 'CHRONO') {
     // Human Ranger / Archer: Green cloak, leather vest, curved wooden bow
     graphics.fillStyle(0x166534, 1);
     graphics.fillTriangle(0, -20, -7, -2, 7, -2);
@@ -45,7 +45,7 @@ export function renderInvaderBody(graphics: Phaser.GameObjects.Graphics, type: I
     // Arrow
     graphics.lineStyle(1, 0xffffff, 0.9);
     graphics.lineBetween(4, -12, 12, -12);
-  } else if (type === 'MECHA_SCOUT' || type === 'RIFT_STALKER') {
+  } else if (type === 'MECHA_SCOUT' || type === 'MECHA_DRONE' || type === 'MECHA_VALKYRIE') {
     // Cybernetic Mecha Walker Drone: Dual hydraulic metal legs, glowing neon scanning visor
     // Walker Legs
     graphics.fillStyle(0x475569, 1);
@@ -64,36 +64,8 @@ export function renderInvaderBody(graphics: Phaser.GameObjects.Graphics, type: I
     graphics.fillRect(4, -26, 2, 7);
     graphics.fillStyle(0xef4444, 1);
     graphics.fillCircle(5, -26, 2);
-  } else if (type === 'DEEP_ONE') {
-    // DEEP_ONE: Squid-like sea monster with tentacles
-    graphics.fillStyle(0x0284c7, 1); // Dark blue body
-    graphics.fillEllipse(0, -14, 12, 16);
-    graphics.fillStyle(0x0c4a6e, 1); // Darker shading
-    graphics.fillEllipse(0, -15, 10, 14);
-    // Giant glowing yellow eye
-    graphics.fillStyle(0xfacc15, 1);
-    graphics.fillCircle(0, -14, 4);
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillRect(-1, -16, 2, 4); // Slit pupil
-    // Tentacles
-    graphics.lineStyle(3, 0x0284c7, 1);
-    graphics.beginPath();
-    graphics.moveTo(-4, -6);
-    graphics.lineTo(-8, 2);
-    graphics.lineTo(-12, 0);
-    graphics.strokePath();
-    graphics.beginPath();
-    graphics.moveTo(4, -6);
-    graphics.lineTo(8, 2);
-    graphics.lineTo(12, 0);
-    graphics.strokePath();
-    graphics.beginPath();
-    graphics.moveTo(0, -4);
-    graphics.lineTo(0, 4);
-    graphics.lineTo(3, 6);
-    graphics.strokePath();
   } else {
-    // MECHA_TITAN / CORRUPTED_GOLEM: Heavy Heavy Combat Mecha
+    // MECHA_TITAN / MECHA_SIEGE_TANK: Heavy Heavy Combat Mecha
     // Heavy Hydraulic Tread Legs
     graphics.fillStyle(0x1e293b, 1);
     graphics.fillRect(-12, -6, 7, 9);

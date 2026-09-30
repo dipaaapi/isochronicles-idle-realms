@@ -2,9 +2,17 @@ import Phaser from 'phaser';
 import { SUPPORT_SLIME_EVOLUTION, TASK_CONFIG, TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { WeatherType, GameStoreState } from '../../types/state';
 import { teamBonuses } from '../../state/skillTree';
+import { isBuildingOperational } from '../../state/defenseStats';
+import { ECONOMY_CONFIG } from '../../state/economy';
 import type { WorkerFrame, WorkerInstance } from './types';
 
 type EvolutionLevel = 1 | 2 | 3 | 4 | 5;
+/** The Infernal Kennel's pack howl: +15% beast speed while a wave is under way. */
+const kennelSpeedBonus = (store: GameStoreState): number =>
+  store.invasion.isActive && isBuildingOperational(store.resourceBuildings.KENNEL)
+    ? 1 + ECONOMY_CONFIG.kennelWaveSpeedBonus
+    : 1;
+
 export const clampLevel = (level: number | undefined): EvolutionLevel =>
   Phaser.Math.Clamp(level ?? 1, 1, 5) as EvolutionLevel;
 
@@ -39,7 +47,7 @@ export function computeWorkerFrame(
 
   // Class-specific cargo bonuses
   let classCapacityBonus = 0;
-  if (worker.unitClass === 'CHRONO') classCapacityBonus = 1;
+  if (worker.unitClass === 'SUCCUBUS') classCapacityBonus = 1;
   if (worker.unitClass === 'GOLEM' && (worker.assignedTask === 'STONE' || worker.assignedTask === 'AETHER')) {
     classCapacityBonus = 1;
   }
@@ -79,13 +87,13 @@ export function computeWorkerFrame(
     motivationMult = 1.25;
   }
   // Wayfarer speed bonus on woodcutting
-  const taskSpecialtySpeed = worker.unitClass === 'WAYFARER' && worker.assignedTask === 'WOOD' ? 1.2 : 1;
+  const taskSpecialtySpeed = worker.unitClass === 'LAVA_GARGOYLE' && worker.assignedTask === 'WOOD' ? 1.2 : 1;
   const weather = WEATHER_EFFECTS[store.weather] ?? WEATHER_EFFECTS.CLEAR;
   const slimeMovementBonus = worker.unitClass === 'AQUA_SLIME'
     ? 1 + SUPPORT_SLIME_EVOLUTION[clampLevel(worker.supportEvolutionLevel)].speedBonusPercent / 100
     : 1;
   // Celestial Abundance: +50% worker speed on gatherers
-  const blessingSpeedBonus = isHarvestBlessingActive ? 1.5 : 1.0;
+  const blessingSpeedBonus = (isHarvestBlessingActive ? 1.5 : 1.0) * kennelSpeedBonus(store);
 
   // Citadel Majesty: +10% to +35% speed when Castle is in peak condition (>= 90% HP)
   const { castleHp, castleMaxHp } = store.defense;
@@ -109,7 +117,8 @@ export function computeWorkerFrame(
     effectiveAttack,
     drainReduction,
     weatherDrainMult: weather.drain,
-    isInvasionActive: store.invasion.isActive,
+    // Raiding scouts between waves also call the minions to arms
+    isInvasionActive: store.invasion.isActive || aliveInvaders.some((i) => i.isScout && !i.isDead && !i.isRetreating),
     aliveInvaders,
   };
 }

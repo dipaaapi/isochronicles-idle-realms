@@ -72,12 +72,18 @@ assert.equal(state().castleBuilt, false, 'construction takes time');
 manager.updateConstruction(worker, state(), 1, 65);
 assert.equal(state().castleBuilt, true, 'Ent automatically completes the castle');
 assert.equal(state().resources.wood, 30, 'castle supplies are deducted once');
+const spireSite = nextConstruction(state());
+assert.equal(spireSite.id, 'SPIRE', 'the Ent raises the Crystal Spire right after the castle');
+Object.assign(worker.container, IsometricHelper.gridToScreen(spireSite.x, spireSite.y));
+manager.updateConstruction(worker, state(), 4, 65);
+assert.equal(state().spireBuilt, true, 'Ent completes the Crystal Spire');
+assert.equal(state().resources.wood, 15, 'spire supplies are deducted once');
 store.setState({ resources: { ...state().resources, wood: 0 } });
 Object.assign(worker.container, IsometricHelper.gridToScreen(8, 8));
 manager.updateConstruction(worker, state(), 20, 65);
 assert.equal(state().resourceBuildings.WOOD.level, 0, 'Ent waits for supplies');
 store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
-for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE']) {
+for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT']) {
   const site = nextConstruction(state());
   assert.equal(site.id, id);
   Object.assign(worker.container, IsometricHelper.gridToScreen(site.x, site.y));
@@ -268,8 +274,8 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     assert.equal(b.hp, defense.buildingMaxHp(1), `${id} starts at full HP`);
   }
 
-  // Each establishment has a distinct weapon
-  assert.deepEqual(layout.BUILDING_IDS.map((id) => defense.towerStats(id, 1).attack).sort(),
+  // Each base establishment has a distinct weapon (landmarks reuse these with their own stats)
+  assert.deepEqual(['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE'].map((id) => defense.towerStats(id, 1).attack).sort(),
     ['catapult', 'flamethrower', 'iceStorm', 'saplings', 'spikes']);
   assert.equal(defense.towerStats('WOOD', 1).charges, 5, 'the grove summons five times per wave');
   assert.ok(defense.towerStats('MINE', 5).volley > defense.towerStats('MINE', 1).volley, 'higher towers fire more spikes');
@@ -298,6 +304,30 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.equal(state().resourceBuildings.QUARRY.hp, Math.round(defense.buildingMaxHp(1) * 0.75));
   assert.equal(state().restoreBuildingHp('QUARRY', 99999), defense.buildingMaxHp(1) - Math.round(defense.buildingMaxHp(1) * 0.75));
   assert.equal(state().repairBuilding('QUARRY'), false, 'nothing to repair at full HP');
+
+  // The Crystal Spire is a tower too: it fights, levels up, gets wrecked and repaired
+  assert.equal(defense.towerStats('SPIRE', 1).attack, 'aetherArc');
+  assert.ok(defense.towerStats('SPIRE', 5).chains > defense.towerStats('SPIRE', 1).chains, 'higher spires chain further');
+  assert.equal(state().upgradeTower('SPIRE'), false, 'an unbuilt spire cannot be upgraded');
+  assert.equal(state().buildSpire(), true);
+  assert.equal(state().spireTower.towerLevel, 1);
+  assert.equal(state().spireTower.hp, defense.buildingMaxHp(1), 'a new spire starts at full HP');
+  const shardsBefore = state().resources.aetherShards;
+  assert.equal(state().upgradeTower('SPIRE'), true);
+  assert.equal(state().spireTower.towerLevel, 2);
+  assert.ok(state().resources.aetherShards < shardsBefore, 'spire upgrades cost aether');
+  assert.equal(state().spireTower.hp, defense.buildingMaxHp(2), 'upgrades raise the spire max HP');
+  assert.equal(state().damageBuilding('SPIRE', 99999), true, 'the spire can be wrecked');
+  assert.equal(defense.isSpireOperational(state()), false, 'a wrecked spire grows no aether');
+  state().resolveInvasionVictory(0);
+  assert.equal(state().spireTower.hp, Math.round(defense.buildingMaxHp(2) * 0.25), 'the spire recovers 25% when a wave ends');
+  assert.equal(state().repairBuilding('SPIRE'), true);
+  assert.equal(defense.isSpireOperational(state()), true);
+  const spireSave = JSON.parse(state().exportSave());
+  delete spireSave.spireTower;
+  assert.equal(state().importSave(JSON.stringify(spireSave)), true);
+  assert.equal(state().spireTower.towerLevel, 1, 'old saves get a level 1 spire');
+  assert.equal(state().spireTower.hp, defense.buildingMaxHp(1), 'old saves get a full-HP spire');
 
   // Citadel: no turret any more — the Provoke Beacon grows instead
   const beacon1 = defense.beaconStats(1);

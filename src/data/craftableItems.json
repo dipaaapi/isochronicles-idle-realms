@@ -148,5 +148,66 @@
       "stone": 30
     },
     "costCoins": 50
+  },
+  {
+    "id": "obsidian_warblade",
+    "name": "Obsidian Warblade",
+    "slot": "TOOL",
+    "icon": "🌋",
+    "description": "A blade knapped from Brimstone obsidian. Grants +45 Combat Attack and faster work swings.",
+    "stats": {
+      "bonusAttack": 45,
+      "bonusSpeed": 10
+    },
+    "costResources": {
+      "obsidian": 6,
+      "stone": 20
+    }
+  },
+  {
+    "id": "soulbound_shroud",
+    "name": "Soulbound Shroud",
+    "slot": "ARMOR",
+    "icon": "💀",
+    "description": "Woven from harvested souls. Grants +120 HP and shrugs off fatigue.",
+    "stats": {
+      "bonusHp": 120,
+      "staminaDrainReduction": 15
+    },
+    "costResources": {
+      "souls": 8,
+      "essence": 10
+    }
+  },
+  {
+    "id": "tidal_amulet",
+    "name": "Tidal Amulet",
+    "slot": "RELIC",
+    "icon": "🔮",
+    "description": "An abyssal pearl set in coral. Grants +40 HP, +25% stamina efficiency and +1 cargo.",
+    "stats": {
+      "bonusHp": 40,
+      "staminaDrainReduction": 25,
+      "bonusCargo": 1
+    },
+    "costResources": {
+      "pearl": 4,
+      "shards": 30
+    }
+  },
+  {
+    "id": "scrapforged_plating",
+    "name": "Scrapforged Plating",
+    "slot": "ARMOR",
+    "icon": "⚙️",
+    "description": "Mecha scrap hammered into armor plates. Grants +90 HP and +10 Combat Attack.",
+    "stats": {
+      "bonusHp": 90,
+      "bonusAttack": 10
+    },
+    "costResources": {
+      "scrap": 12,
+      "stone": 20
+    }
   }
 ]

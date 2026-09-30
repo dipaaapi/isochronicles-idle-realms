@@ -56,7 +56,7 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
     return null;
   };
 
-  const checkSummon = (cls: 'GOLEM' | 'WAYFARER' | 'CHRONO' | 'NECROMANCER', title: string) => {
+  const checkSummon = (cls: 'GOLEM' | 'LAVA_GARGOYLE' | 'SUCCUBUS' | 'NECROMANCER', title: string) => {
     const count = state.roster.filter(u => u.unitClass === cls).length;
     if (count >= 2) return null;
 
@@ -68,11 +68,11 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
         reqNexus = 1; reqRefinery = 1;
         costShards = 30 + count * 20; costStone = 20 + count * 15;
         break;
-      case 'WAYFARER':
+      case 'LAVA_GARGOYLE':
         reqNexus = 2; reqRefinery = 1;
         costShards = 40 + count * 25; costWood = 30 + count * 20;
         break;
-      case 'CHRONO':
+      case 'SUCCUBUS':
         reqNexus = 2; reqRefinery = 2;
         costShards = 70 + count * 40; costStone = 45 + count * 25; costWood = 35 + count * 20;
         break;
@@ -102,8 +102,8 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
 
   const allPrompts = [
     checkSummon('GOLEM', 'Earth Golem'),
-    checkSummon('WAYFARER', 'Aerial Fire Wayvern'),
-    checkSummon('CHRONO', 'Arch-Demon'),
+    checkSummon('LAVA_GARGOYLE', 'Lava Gargoyle'),
+    checkSummon('SUCCUBUS', 'Succubus'),
     checkSummon('NECROMANCER', 'Lich Necromancer'),
     checkTech('golemSpeedLevel', 'Servant Speed'),
     checkTech('golemCapacityLevel', 'Servant Capacity'),

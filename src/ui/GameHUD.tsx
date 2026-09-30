@@ -444,6 +444,21 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 ))}
               </div>
             )}
+            {activeTab === 'resources' && (
+              <div className="mt-2 grid grid-cols-4 gap-1.5">
+                {([
+                  ['obsidianShard', '🌋', 'Obsidian'],
+                  ['soulFragments', '💀', language === 'TL' ? 'Kaluluwa' : 'Souls'],
+                  ['abyssalPearl', '🔮', language === 'TL' ? 'Perlas' : 'Pearl'],
+                  ['scrapMetal', '⚙️', 'Scrap'],
+                ] as const).map(([key, icon, label]) => (
+                  <div key={key} title={label} className="rounded-lg border border-slate-800 bg-slate-900/60 px-1.5 py-1 text-center">
+                    <div className="text-sm leading-none">{icon}</div>
+                    <div className="mt-0.5 font-mono text-[11px] font-bold text-slate-200">{(resources[key] ?? 0).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 4. FOOTER CONTROLS */}

@@ -7,9 +7,12 @@ import { useGameStore } from '../state/useGameStore';
 import { teamBonuses } from '../state/skillTree';
 import { TileRect, isLandTile } from '../state/buildingLayout';
 import { towerStats, TowerStats } from '../state/defenseStats';
-import type { ResourceBuildingId } from '../types/state';
+import type { TowerId } from '../types/state';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
+import { ECONOMY_CONFIG } from '../state/economy';
+import { isModActive } from './skills/combatMods';
+import { INVADER_CONFIGS } from '../types/game';
 import { createSaplingSprite, faceCharacterSprite, playCharacterAttack } from './sprites/CharacterSprites';
 
 type Tower = ReturnType<StructureManager['getTowers']>[number];
@@ -49,9 +52,10 @@ const inZone = (zone: TileRect, x: number, y: number): boolean => {
  *  - Grove: summons mini saplings (5 summons per wave)
  *  - Mine: metal-spike volley (one spike per invader)
  *  - Mystic Cave: hellfire flamethrower (cone + burn)
+ *  - Crystal Spire: aether arc (a bolt that chains between invaders)
  */
 export class TowerSystem {
-  private cooldowns = new Map<ResourceBuildingId, number>();
+  private cooldowns = new Map<TowerId, number>();
   private saplings: Sapling[] = [];
   private groveCharges = 0;
   private wasActive = false;
@@ -74,7 +78,9 @@ export class TowerSystem {
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
     const store = useGameStore.getState();
-    const active = store.invasion.isActive && store.defense.castleHp > 0;
+    // Towers also wake up for raiding scouts between waves
+    const raiders = this.invasion.getInvaders().some((i) => i.isScout && !i.isDead && !i.isRetreating);
+    const active = (store.invasion.isActive || raiders) && store.defense.castleHp > 0;
 
     if (active && !this.wasActive) {
       this.groveCharges = towerStats('WOOD', 1).charges;
@@ -93,11 +99,13 @@ export class TowerSystem {
     const aegis = (store.activeGodBlessings?.AEGIS_WRATH || 0) > 0;
     const team = teamBonuses(store);
     const damageMultiplier = team.turret;
-    const invaders = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isScout && !i.isRetreating && !(i.emerge && i.emerge > 0));
+    const invaders = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isRetreating && !(i.emerge && i.emerge > 0));
 
     for (const tower of this.structures.getTowers()) {
       const stats = towerStats(tower.id, tower.towerLevel, damageMultiplier);
-      const cd = (this.cooldowns.get(tower.id) ?? 0.8) - dt * (aegis ? 2 : 1);
+      // Eagle Eye (Perch) and Arcane Overcharge (Spire) double the fire rate
+      const boosted = (tower.id === 'PERCH' && isModActive('eagleEye')) || (tower.id === 'SPIRE' && isModActive('spireOvercharge'));
+      const cd = (this.cooldowns.get(tower.id) ?? 0.8) - dt * (aegis ? 2 : 1) * (boosted ? 2 : 1);
       this.cooldowns.set(tower.id, cd);
       if (cd > 0) continue;
       const inRange = invaders.filter((i) => inZone(tower.zone, i.container.x, i.container.y));
@@ -114,7 +122,30 @@ export class TowerSystem {
       case 'saplings': return this.summonSaplings(tower, stats);
       case 'spikes': return this.fireSpikes(tower, stats, targets);
       case 'flamethrower': return this.fireFlames(tower, stats, targets);
+      case 'aetherArc': return this.fireAetherArc(tower, stats, targets);
     }
+  }
+
+  /**
+   * One tower hit, with Armory munitions applied: armor-piercing rounds against
+   * Mecha, incendiary rounds set targets burning, and anti-air bonus vs flyers.
+   * Returns the damage dealt.
+   */
+  private hit(inv: ActiveInvader, damage: number, quiet = false, flyingMultiplier = 1): number {
+    const { munitions } = useGameStore.getState();
+    const cfg = INVADER_CONFIGS[inv.type];
+    let dealt = damage;
+    if (cfg.category === 'MECHA') dealt *= 1 + ECONOMY_CONFIG.munitions.armorPiercing.perLevel * (munitions?.armorPiercing ?? 0);
+    if (cfg.flying) dealt *= flyingMultiplier;
+    if (inv.type === 'HUMAN_KNIGHT') dealt *= 0.4; // Shield Wall blocks ranged fire
+    dealt = Math.round(dealt);
+    this.invasion.damageInvader(inv, dealt, undefined, quiet);
+    const incendiary = munitions?.incendiary ?? 0;
+    if (incendiary > 0) {
+      const { burnDpsPerLevel, burnSeconds } = ECONOMY_CONFIG.munitions.incendiary;
+      this.invasion.applyBurn(inv, burnDpsPerLevel * incendiary, burnSeconds);
+    }
+    return dealt;
   }
 
   private credit(tower: Tower, damage: number): void {
@@ -127,10 +158,10 @@ export class TowerSystem {
     const c = Navigation.toGrid(x, y);
     let total = 0;
     for (const inv of this.invasion.getInvaders()) {
-      if (inv.isDead || inv.isScout || (inv.emerge ?? 0) > 0) continue;
+      if (inv.isDead || (inv.emerge ?? 0) > 0) continue;
       const g = Navigation.toGrid(inv.container.x, inv.container.y);
       if (Math.hypot(g.x - c.x, g.y - c.y) > radiusTiles) continue;
-      this.invasion.damageInvader(inv, damage, undefined, quiet);
+      this.hit(inv, damage, quiet);
       total += damage;
     }
     return total;
@@ -251,12 +282,12 @@ export class TowerSystem {
             shard.destroy();
             this.iceSplash(p.x, p.y);
             for (const inv of this.invasion.getInvaders()) {
-              if (inv.isDead || inv.isScout) continue;
+              if (inv.isDead) continue;
               const ig = Navigation.toGrid(inv.container.x, inv.container.y);
               const sg = Navigation.toGrid(p.x, p.y);
               if (Math.hypot(ig.x - sg.x, ig.y - sg.y) > 0.4) continue;
               this.invasion.applySlow(inv, stats.slowFactor, stats.slowSeconds);
-              this.invasion.damageInvader(inv, stats.damage, undefined, true);
+              this.hit(inv, stats.damage, true);
               dealt += stats.damage;
             }
             if (i === stats.shards - 1) this.credit(tower, dealt);
@@ -284,8 +315,12 @@ export class TowerSystem {
   // ── Mine: metal spike volley ────────────────────────────────────────────────
 
   private fireSpikes(tower: Tower, stats: TowerStats, targets: ActiveInvader[]): boolean {
+    // Flak Barrage: anti-air launchers pick flying targets first
+    const antiAir = stats.flyingMultiplier > 1;
+    const flyRank = (i: ActiveInvader) => (antiAir && INVADER_CONFIGS[i.type].flying ? 0 : 1);
     const picks = [...targets]
-      .sort((a, b) => Math.hypot(a.container.x - tower.x, a.container.y - tower.y) - Math.hypot(b.container.x - tower.x, b.container.y - tower.y))
+      .sort((a, b) => flyRank(a) - flyRank(b) ||
+        Math.hypot(a.container.x - tower.x, a.container.y - tower.y) - Math.hypot(b.container.x - tower.x, b.container.y - tower.y))
       .slice(0, stats.volley);
     this.structures.playAttack(tower.id);
     let dealt = 0;
@@ -317,8 +352,7 @@ export class TowerSystem {
             spike.destroy();
             landed++;
             if (!target.isDead) {
-              this.invasion.damageInvader(target, stats.damage);
-              dealt += stats.damage;
+              dealt += this.hit(target, stats.damage, false, stats.flyingMultiplier);
             }
             if (landed >= stats.volley) this.credit(tower, dealt);
           },
@@ -326,6 +360,69 @@ export class TowerSystem {
       });
     }
     return true;
+  }
+
+  // ── Crystal Spire: aether arc ───────────────────────────────────────────────
+
+  private fireAetherArc(tower: Tower, stats: TowerStats, targets: ActiveInvader[]): boolean {
+    // First strike: the invader nearest the spire; each jump goes to the nearest
+    // invader not yet hit within `chainTiles` (it may leave the zone).
+    const distTo = (a: { x: number; y: number }, b: ActiveInvader) => Math.hypot(b.container.x - a.x, b.container.y - a.y);
+    const origin = { x: tower.muzzleX, y: tower.muzzleY };
+    const chain: ActiveInvader[] = [[...targets].sort((a, b) => distTo(tower, a) - distTo(tower, b))[0]];
+    const pool = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isRetreating && (i.emerge ?? 0) <= 0);
+    while (chain.length < stats.chains) {
+      const last = chain[chain.length - 1];
+      const lg = Navigation.toGrid(last.container.x, last.container.y);
+      const next = pool
+        .filter((i) => !chain.includes(i))
+        .map((i) => {
+          const g = Navigation.toGrid(i.container.x, i.container.y);
+          return { i, d: Math.hypot(g.x - lg.x, g.y - lg.y) };
+        })
+        .filter((c) => c.d <= stats.chainTiles)
+        .sort((a, b) => a.d - b.d)[0];
+      if (!next) break;
+      chain.push(next.i);
+    }
+
+    this.structures.playAttack(tower.id);
+    soundFx.playHarvest('crystal');
+    let dealt = 0;
+    let from = origin;
+    chain.forEach((target, k) => {
+      const to = { x: target.container.x, y: target.container.y - 14 };
+      const start = from;
+      this.scene.time.delayedCall(180 + k * 90, () => {
+        this.lightning(start.x, start.y, target.isDead ? start.x : target.container.x, target.isDead ? start.y : target.container.y - 14);
+        if (!target.isDead) {
+          // Each jump loses a little power
+          const damage = Math.max(1, Math.round(stats.damage * Math.pow(0.85, k)));
+          this.hit(target, damage, true);
+          dealt += damage;
+          this.iceSplash(target.container.x, target.container.y - 10);
+        }
+        if (k === chain.length - 1) this.credit(tower, dealt);
+      });
+      from = to;
+    });
+    return true;
+  }
+
+  /** A jagged, fading bolt between two points. */
+  private lightning(x0: number, y0: number, x1: number, y1: number): void {
+    const gfx = this.add(this.scene.add.graphics());
+    const segments = 6;
+    const points = Array.from({ length: segments + 1 }, (_, i) => {
+      const t = i / segments;
+      const jitter = i === 0 || i === segments ? 0 : Phaser.Math.Between(-7, 7);
+      return { x: x0 + (x1 - x0) * t + jitter, y: y0 + (y1 - y0) * t + jitter * 0.5 };
+    });
+    gfx.lineStyle(5, 0x22d3ee, 0.35);
+    gfx.strokePoints(points, false);
+    gfx.lineStyle(2, 0xecfeff, 1);
+    gfx.strokePoints(points, false);
+    this.scene.tweens.add({ targets: gfx, alpha: 0, duration: 260, ease: 'Quad.easeIn', onComplete: () => gfx.destroy() });
   }
 
   // ── Mystic Cave: hellfire flamethrower ──────────────────────────────────────
@@ -346,7 +443,7 @@ export class TowerSystem {
       flame.left -= dt;
       flame.tick += dt;
       // Track the nearest invader still in the zone
-      const live = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isScout && inZone(flame.tower.zone, i.container.x, i.container.y));
+      const live = this.invasion.getInvaders().filter((i) => !i.isDead && inZone(flame.tower.zone, i.container.x, i.container.y));
       if (live.length) {
         const nearest = live.sort((a, b) =>
           Math.hypot(a.container.x - flame.origin.x, a.container.y - flame.origin.y) - Math.hypot(b.container.x - flame.origin.x, b.container.y - flame.origin.y))[0];
@@ -370,7 +467,7 @@ export class TowerSystem {
           const cos = (vx * dirX + vy * dirY) / (Math.max(1, d) * len);
           if (cos < Math.cos(half) && d > 24) continue;
           const dmg = Math.max(1, Math.round(flame.stats.damage * 0.1));
-          this.invasion.damageInvader(inv, dmg, undefined, true);
+          this.hit(inv, dmg, true);
           this.invasion.applyBurn(inv, flame.stats.burnDps, flame.stats.burnSeconds);
           dealt += dmg;
         }
@@ -524,7 +621,7 @@ export class TowerSystem {
       // Hunt invaders inside the grove's zone only
       if (!s.target || s.target.isDead || !inZone(s.zone, s.target.container.x, s.target.container.y)) {
         s.target = invaders
-          .filter((i) => !i.isDead && !i.isScout && (i.emerge ?? 0) <= 0 && inZone(s.zone, i.container.x, i.container.y))
+          .filter((i) => !i.isDead && (i.emerge ?? 0) <= 0 && inZone(s.zone, i.container.x, i.container.y))
           .sort((a, b) => Math.hypot(a.container.x - s.container.x, a.container.y - s.container.y) - Math.hypot(b.container.x - s.container.x, b.container.y - s.container.y))[0];
       }
       const tx = s.target ? s.target.container.x : s.homeX;
@@ -536,7 +633,7 @@ export class TowerSystem {
         if (s.cooldown <= 0) {
           s.cooldown = 0.9;
           if (s.sprite) playCharacterAttack(s.sprite);
-          this.invasion.damageInvader(s.target, s.damage);
+          this.hit(s.target, s.damage);
           logMessage('towerStrike', { building: this.structures.displayName('WOOD') }, { mergeKey: 'tower:WOOD', amount: s.damage });
         }
       } else if (dist > 3) {

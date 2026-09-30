@@ -60,6 +60,20 @@ export interface ActiveInvader extends NavAgent {
   burnTimer?: number;
   burnDps?: number;
   burnTick?: number;
+  /** High Priest: seconds until the next healing prayer. */
+  healTimer?: number;
+  // Skill status effects (seconds left)
+  /** Frozen / stunned: cannot move or attack. */
+  frozenTimer?: number;
+  /** Armor shredded: takes 30% more damage. */
+  vulnTimer?: number;
+  /** Sanctified Aegis: immune to all damage. */
+  invulnTimer?: number;
+  /** Charmed by a Succubus: fights its own allies. */
+  charmTimer?: number;
+  /** Taunted by a Golem: must attack it. */
+  tauntTimer?: number;
+  tauntBy?: WorkerInstance;
   target?: InvaderTarget;
   retargetTimer?: number;
   structPath?: GridPoint[];

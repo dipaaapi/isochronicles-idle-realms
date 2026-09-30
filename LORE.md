@@ -26,3 +26,12 @@ Each realm culminates in a series of intense sieges. The Demon Lord must conquer
 Conquering the 100th wave and claiming the 4th realm is not the end, but a new beginning. Realizing that the human spirit is a weed that always grows back, and that his own power has barely scratched its true potential, the Demon Lord performs a grand ritual of **Regression**. 
 
 He sacrifices his conquered territories to absorb their ambient magical essence, resetting time and sending himself back to his ruined castle. However, he retains core fragments of his harnessed power, unique artifacts, and elite monster bloodlines. With each Regression, his base power multiplies, allowing him to push further, build faster, and become a truly unstoppable force of nature in his eternal quest for absolute dominion.
+
+## The Demon Lord's Forces
+The horde is led by two **Rulers**. The **Ancient Ent** raises the castle, the Crystal Spire and every establishment from the ruins, and the **Slime Lord** heals the wounded and summons the rest of the horde. Eight **Fighters** answer the call: the **Golem**, a tank and fortress guardian; the **Merman**, a marine lancer; the **Necromancer**, who summons the dead and collects souls; the **Kraken**, an abyssal horror that grapples whole squads; the **Demon Hound**, an infernal flanker whose bite burns; the **Succubus**, a disruptor who charms and weakens; the **Lava Gargoyle**, an aerial brute with volcanic splash; and the **Harpy**, a high-speed anti-air scout.
+
+## The Landmarks of the Island
+Four landmarks house the new beasts. The **Abyssal Trench** is home to the Kraken and yields water, fish and abyssal pearls. The **Crypt of Souls** gathers soul fragments from every repelled wave and calls the Necromancer. The **Brimstone Perch** is the Harpy's roost; it forges obsidian and shoots flying Mecha out of the sky. The **Infernal Kennel** raises the Demon Hounds and drives every beast faster while a wave is under way.
+
+## The Invading Coalition
+The Human & Mecha Alliance is also led by two **Rulers**: the **High Priest**, a holy healer who mends the soldiers around him, and the **Mecha Valkyrie**, the steel-winged commander of the machine legions. They lead the boss waves. Their eight **Fighters** are the frontline **Human Knight**, the sniping **Human Archer**, the fast **Mecha Scout**, the armored **Mecha Titan**, the twin-bladed **Assassin**, swarms of laser-firing **Mecha Drones**, the long-range **Mecha Siege Tank**, and **Chrono**, the time mage who warps and slows the battlefield.

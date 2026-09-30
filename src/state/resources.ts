@@ -3,7 +3,8 @@ import type { Resources } from '../types/state';
 /** Every resource key, in display order. */
 export const RESOURCE_KEYS: readonly (keyof Resources)[] = [
   'aetherShards', 'wood', 'stone', 'arcaneEssence', 'fish', 'water',
-  'metal', 'charcoal', 'coal', 'minerals', 'coins',
+  'metal', 'charcoal', 'coal', 'minerals',
+  'obsidianShard', 'soulFragments', 'abyssalPearl', 'scrapMetal', 'coins',
 ];
 
 const amountOf = (resources: Partial<Resources>, key: keyof Resources): number => resources[key] ?? 0;
