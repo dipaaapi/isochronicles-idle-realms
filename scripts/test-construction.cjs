@@ -75,19 +75,41 @@ Object.assign(worker.container, IsometricHelper.gridToScreen(spireSite.x, spireS
 manager.updateConstruction(worker, state(), 4, 65);
 assert.equal(state().spireBuilt, true, 'Ent completes the Crystal Spire');
 assert.equal(state().resources.wood, 15, 'spire supplies are deducted once');
-store.setState({ resources: { ...state().resources, wood: 0 } });
-Object.assign(worker.container, IsometricHelper.gridToScreen(8, 8));
-manager.updateConstruction(worker, state(), 20, 65);
-assert.equal(state().resourceBuildings.WOOD.level, 0, 'Ent waits for supplies');
-store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
-for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT', 'FOUNDRY', 'PAVILION', 'VOIDGATE', 'OSSUARY']) {
-  const site = nextConstruction(state());
-  assert.equal(site.id, id);
-  Object.assign(worker.container, IsometricHelper.gridToScreen(site.x, site.y));
-  manager.updateConstruction(worker, state(), 4, 65);
-  assert.equal(state().resourceBuildings[id].level, 1);
+assert.equal(manager.updateConstruction(worker, state(), 4, 65), false, 'the Ent builds only the castle and spire');
+
+// Next the Ent summons every General (free founding summon); each General builds its own establishment.
+const { updateGeneralSummoning } = load('src/game/workers/treant.ts');
+const { updateGeneralConstruction } = load('src/game/workers/generalConstruction.ts');
+const { nextGeneralToSummon } = load('src/state/constructionProgress.ts');
+const { crewGeneralOf } = load('src/state/establishmentCrews.ts');
+manager.nexusGridPos = { x: 10, y: 10 };
+Object.assign(worker.container, IsometricHelper.gridToScreen(10, 10));
+const order = ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT', 'FOUNDRY', 'PAVILION', 'VOIDGATE', 'OSSUARY'];
+for (const id of order) {
+  const next = nextGeneralToSummon(state());
+  assert.equal(next.buildingId, id, 'Generals are summoned in construction order');
+  assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), true);
+  assert.ok(state().roster.some((u) => u.unitClass === crewGeneralOf(id)), `${id} General summoned before its home stands`);
+  assert.equal(state().resourceBuildings[id].level, 0, 'the Ent does not build establishments');
 }
-assert.equal(manager.updateConstruction(worker, state(), 4, 65), false, 'normal duties resume after construction');
+assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), false, 'Ent moves on once all Generals stand');
+
+const general = (id) => {
+  const unit = state().roster.find((u) => u.unitClass === crewGeneralOf(id));
+  const spot = load('src/state/buildingLayout.ts').BUILDING_SITES[id].workSpot;
+  return { id: unit.id, name: unit.name, unitClass: unit.unitClass, container: { ...IsometricHelper.gridToScreen(spot.x, spot.y), setDepth() {} } };
+};
+store.setState({ resources: { ...state().resources, wood: 0, coins: 0 } });
+const woodGeneral = general('WOOD');
+updateGeneralConstruction(manager, woodGeneral, state(), 20, 65);
+assert.equal(state().resourceBuildings.WOOD.level, 0, 'General waits for supplies');
+store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
+for (const id of order) {
+  const g = general(id);
+  assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), true);
+  assert.equal(state().resourceBuildings[id].level, 1, `${id} built by its General`);
+  assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), false, 'General resumes duties once home stands');
+}
 console.log('Construction progression checks passed.');
 const beforePurchase = { ...state().resources };
 for (const amount of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {

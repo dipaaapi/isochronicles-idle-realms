@@ -1,5 +1,7 @@
-import { ResourceBuildingId, ResourceBuildingsState } from '../types/state';
+import type { UnitClass } from '../types/game';
+import { ResourceBuildingId, ResourceBuildingsState, UnitRosterItem } from '../types/state';
 import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, SPIRE_WORK_SPOT } from './buildingLayout';
+import { crewGeneralOf } from './establishmentCrews';
 
 const SITE_LABELS: Record<ResourceBuildingId, string> = {
   WOOD: 'Wood Grove',
@@ -34,11 +36,13 @@ export interface ConstructionStatus {
 /** Establishments that must stand before recruiting and invasions begin (the Mystic Cave is a later bonus). */
 export const CORE_BUILDINGS: ResourceBuildingId[] = ['WOOD', 'QUARRY', 'MINE', 'PORT'];
 
-/** Ancient Ent builds Citadel Castle, Spire, and all Realm Establishments in sequence */
+/**
+ * The Ancient Ent builds only the Citadel Castle and the Crystal Spire; each
+ * establishment is raised by its own General (see nextChampionConstruction).
+ */
 export const nextEntConstruction = (state: {
   castleBuilt: boolean;
   spireBuilt?: boolean;
-  resourceBuildings?: ResourceBuildingsState;
 }) => {
   if (!state.castleBuilt) return { id: 'CASTLE' as const, x: CASTLE_GATE.x, y: CASTLE_GATE.y, label: 'Citadel Castle' };
 
@@ -46,17 +50,28 @@ export const nextEntConstruction = (state: {
     return { id: 'SPIRE' as const, x: SPIRE_WORK_SPOT.x, y: SPIRE_WORK_SPOT.y, label: 'Crystal Spire' };
   }
 
-  if (state.resourceBuildings) {
-    for (const id of BUILDING_IDS) {
-      if ((state.resourceBuildings[id]?.level ?? 0) < 1) {
-        const spot = BUILDING_SITES[id]?.workSpot;
-        if (spot) {
-          return { id, x: spot.x, y: spot.y, label: SITE_LABELS[id] || id };
-        }
-      }
+  return undefined;
+};
+
+const isGeneralUnit = (u: UnitRosterItem) => !u.parentBuildingId && !u.id.startsWith('tenant_');
+
+/**
+ * The next General the Ent must summon, in construction order: once castle and
+ * spire stand, the Ent's first duty is to call every establishment's General
+ * (who then builds that establishment), until all thirteen are present.
+ */
+export const nextGeneralToSummon = (state: {
+  castleBuilt: boolean;
+  spireBuilt?: boolean;
+  roster: UnitRosterItem[];
+}): { buildingId: ResourceBuildingId; unitClass: UnitClass } | undefined => {
+  if (nextEntConstruction(state)) return undefined;
+  for (const buildingId of BUILDING_IDS) {
+    const unitClass = crewGeneralOf(buildingId);
+    if (unitClass && !state.roster.some((u) => u.unitClass === unitClass && isGeneralUnit(u))) {
+      return { buildingId, unitClass };
     }
   }
-
   return undefined;
 };
 

@@ -19,6 +19,7 @@ import { renderCargoGraphics, renderWorkerGraphics } from './workers/legacyWorke
 import { computeWorkerFrame } from './workers/modifiers';
 import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
+import { generalHomeSite, updateGeneralConstruction } from './workers/generalConstruction';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
@@ -610,7 +611,8 @@ export class WorkerManager implements WorkerContext {
       if (isGeneral) {
         if (worker.status === 'COMBAT') {
           updateCombat(this, worker, frame);
-        } else {
+        } else if (!updateGeneralConstruction(this, worker, store, frame.deltaSec, frame.effectiveSpeed)) {
+          // Each General raises its own establishment first, then guards and scouts
           this.updateGeneralScouting(worker, frame);
         }
         continue;
@@ -928,14 +930,23 @@ export class WorkerManager implements WorkerContext {
     worker.pathIndex = 0;
   }
 
-  /** The Ent's current construction job (null once everything is built). */
-  public getConstructionStatus(): ConstructionStatus | null {
-    const site = nextConstruction(useGameStore.getState());
-    if (!site) return null;
-    const ent = this.workers.find((w) => w.unitClass === 'TREANT');
-    const progress = Phaser.Math.Clamp((ent?.constructionTimer ?? 0) / CONSTRUCTION_SECONDS, 0, 1);
-    const phase = !ent ? 'waiting' : ent.status === 'MOVING_TO_NODE' ? 'arriving' : ent.status === 'HARVESTING' ? 'building' : 'waiting';
-    return { siteId: site.id, phase, progress };
+  /** Active construction jobs: the Ent's castle/spire site and every General building its home. */
+  public getConstructionStatus(): ConstructionStatus[] {
+    const store = useGameStore.getState();
+    const jobs: ConstructionStatus[] = [];
+    const statusOf = (w: WorkerInstance | undefined, siteId: ConstructionStatus['siteId']): ConstructionStatus => ({
+      siteId,
+      phase: !w ? 'waiting' : w.status === 'MOVING_TO_NODE' ? 'arriving' : w.status === 'HARVESTING' ? 'building' : 'waiting',
+      progress: Phaser.Math.Clamp((w?.constructionTimer ?? 0) / CONSTRUCTION_SECONDS, 0, 1),
+    });
+    const entSite = nextConstruction(store);
+    if (entSite) jobs.push(statusOf(this.workers.find((w) => w.unitClass === 'TREANT'), entSite.id));
+    for (const w of this.workers) {
+      if (w.parentBuildingId || w.id.startsWith('tenant_') || w.unitClass === 'TREANT') continue;
+      const site = generalHomeSite(w, store);
+      if (site) jobs.push(statusOf(w, site.id));
+    }
+    return jobs;
   }
 
   public getWorkers(): WorkerInstance[] {

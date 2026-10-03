@@ -1,10 +1,10 @@
 import { CRAFTABLE_ITEMS, TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES, type EquipmentSlot } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, ResourceBuildingState, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
-import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST, getUnitSummonCost, maxUnitsOfClass } from '../../state/economy';
+import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../../state/economy';
 import { canAfford } from '../../state/resources';
-import { FIGHTER_CLASSES, craftingCost, summonLock } from '../../state/store/rosterSlice';
-import { CONSTRUCTION_SECONDS, nextEntConstruction } from '../../state/constructionProgress';
+import { craftingCost } from '../../state/store/rosterSlice';
+import { CONSTRUCTION_SECONDS, nextEntConstruction, nextGeneralToSummon } from '../../state/constructionProgress';
 import { BUILDING_IDS, BUILDING_SITES, SPIRE_WORK_SPOT } from '../../state/buildingLayout';
 import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
 import { logMessage } from '../../state/activityLog';
@@ -43,7 +43,7 @@ const towerLabel = (id: TowerId, tl: boolean): { name: string; icon: string } =>
 };
 
 /**
- * Walks the Ent to the next unbuilt structure and builds it once supplies allow.
+ * Walks the Ent to the castle or spire site and builds it once supplies allow.
  * Returns true while there is still construction to do (other duties wait).
  */
 export function updateConstruction(
@@ -67,14 +67,7 @@ export function updateConstruction(
     return true;
   }
 
-  let cost: Partial<typeof store.resources> = {};
-  if (site.id === 'CASTLE') {
-    cost = CASTLE_CONSTRUCTION_COST;
-  } else if (site.id === 'SPIRE') {
-    cost = SPIRE_CONSTRUCTION_COST;
-  } else {
-    cost = RESOURCE_BUILDING_CONFIG[site.id]?.costs[0] ?? {};
-  }
+  const cost: Partial<typeof store.resources> = site.id === 'CASTLE' ? CASTLE_CONSTRUCTION_COST : SPIRE_CONSTRUCTION_COST;
 
   // Auto-buy missing shortfall materials if gold coins allow
   if (!canAfford(store.resources, cost)) {
@@ -92,21 +85,12 @@ export function updateConstruction(
         ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 14);
         ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent built Citadel Castle! 🏰`, '#86efac');
       }
-    } else if (site.id === 'SPIRE') {
+    } else {
       const built = store.buildSpire();
       if (built) {
         ctx.spawnHarvestBurst(target.x, target.y - 15, 0x38bdf8, 16);
         ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent raised Crystal Spire! 💎`, '#38bdf8');
         soundFx.playFanfare();
-      }
-    } else {
-      const built = store.upgradeResourceBuilding(site.id);
-      if (built) {
-        (ctx.scene as any).paveEstablishment?.(site.id, true);
-        ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 14);
-        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent established ${site.label}! 🏛️`, '#86efac');
-        soundFx.playFanfare();
-        store.summonTenant(site.id);
       }
     }
   }
@@ -326,51 +310,44 @@ function autoForgeAndEquipByAncientEnt(
 }
 
 /**
- * Mother Ancient Ent: Life Giver & General Summoner:
- * The Ancient Ent acts as the mother of the realm who spawns and summons Generals/Champions.
- * When the needed materials are complete (or auto-bought), the Ancient Ent summons them
- * one by one with a visible motherly emergence animation.
+ * Mother Ancient Ent: Life Giver & General Summoner.
+ * After the castle and spire, the Ent's first duty is to call forth every
+ * establishment's General, one at a time, in construction order. The founding
+ * summon is free (the Ent gives life; it does not buy it), and the General then
+ * builds its own establishment. Returns true while Generals are still missing.
  */
-function autoSummonGeneralsByAncientEnt(
+export function updateGeneralSummoning(
   ctx: WorkerContext,
   worker: WorkerInstance,
-  store: GameStoreState
-): void {
-  // Only summon generals once the Citadel Castle stands
-  if (!store.castleBuilt) return;
+  store: GameStoreState,
+  deltaSec: number,
+  effectiveSpeed: number
+): boolean {
+  const next = nextGeneralToSummon(store);
+  if (!next) return false;
 
-  // Tenants are not summoned here: every standing establishment raises its own five (DefenderSystem)
-  for (const unitClass of FIGHTER_CLASSES) {
-    const count = store.roster.filter((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
-    if (count >= maxUnitsOfClass(unitClass)) continue;
-
-    // Check prerequisites / tech requirements
-    if (summonLock(store, unitClass)) continue;
-
-    const cost = getUnitSummonCost(unitClass, count);
-
-    // If needed materials have a shortfall but realm has sufficient surplus gold coins, auto-buy shortfall
-    if (!canAfford(store.resources, cost)) {
-      store.buyShortfall(cost);
-    }
-
-    // Check if needed materials are complete
-    if (!canAfford(store.resources, cost)) {
-      continue; // Materials not yet complete for this general
-    }
-
-    // Mother Ent channels life-giving nature magic to birth the General!
-    worker.overrideEmote = '🌳';
-    worker.overrideEmoteTimer = 2200;
-    ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0x22c55e, 24);
-    ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0xfbbf24, 16);
-
-    const summoned = store.summonUnit(unitClass, undefined, false);
-    if (summoned) {
-      soundFx.playGolemCheer();
-      return; // Summon 1 general at a time when materials are complete
-    }
+  // The ritual happens at the citadel gate
+  const target = IsometricHelper.gridToScreen(ctx.nexusGridPos.x, ctx.nexusGridPos.y);
+  const distance = Math.hypot(target.x - worker.container.x, target.y - worker.container.y);
+  worker.overrideEmote = '🌳';
+  worker.overrideEmoteTimer = 400;
+  if (distance > 35) {
+    worker.status = 'MOVING_TO_NODE';
+    ctx.moveToward(worker, target.x, target.y, effectiveSpeed * 1.1 * deltaSec, deltaSec);
+    return true;
   }
+
+  worker.status = 'HARVESTING';
+  worker.autoSummonTimer = (worker.autoSummonTimer ?? 2.5) - deltaSec;
+  if (worker.autoSummonTimer > 0) return true;
+  worker.autoSummonTimer = 2.5;
+
+  // Mother Ent channels life-giving nature magic to birth the General!
+  worker.overrideEmoteTimer = 2200;
+  ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0x22c55e, 24);
+  ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0xfbbf24, 16);
+  if (store.summonUnit(next.unitClass, undefined, true)) soundFx.playGolemCheer();
+  return true;
 }
 
 /** Ancient Ent AI: invulnerable builder that constructs, repairs, fortifies, crafts gear, enriches and mothers/summons generals. */
@@ -382,13 +359,6 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
 
   const profile = TREANT_EVOLUTION[clampLevel(worker.treantEvolutionLevel)];
 
-  // ── Mother Ancient Ent: Summon Generals When Needed Materials Are Complete ──
-  worker.autoSummonTimer = (worker.autoSummonTimer ?? 2.5) - deltaSec;
-  if (worker.autoSummonTimer <= 0) {
-    worker.autoSummonTimer = 3.0 + Math.random() * 1.5;
-    autoSummonGeneralsByAncientEnt(ctx, worker, store);
-  }
-
   // ── Ancient Ent Auto-Forge & Armory Check ──
   worker.entGearTimer = (worker.entGearTimer ?? 3.0) - deltaSec;
   if (worker.entGearTimer <= 0) {
@@ -396,7 +366,9 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
     autoForgeAndEquipByAncientEnt(ctx, worker, store);
   }
 
+  // Duties in order: castle & spire, then summon every General, then care for the realm
   if (updateConstruction(ctx, worker, store, deltaSec, effectiveSpeed)) return;
+  if (updateGeneralSummoning(ctx, worker, store, deltaSec, effectiveSpeed)) return;
 
   if (worker.treantActionTimer === undefined) {
     worker.treantActionTimer = 5.0; // Initial check countdown

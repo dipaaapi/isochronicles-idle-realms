@@ -153,6 +153,7 @@
     ["\\+(\\d+) Castle HP 🏰 \\(Lv\\.(\\d+)\\)", "+$1 HP ng Kastilyo 🏰 (Lv.$2)"],
     ["Ancient Ent built Citadel Castle!", "Itinayo ng Sinaunang Ent ang Kastilyo ng Kuta!"],
     ["Ancient Ent established (.+)!", "Itinayo ng Sinaunang Ent ang $1!"],
+    ["(.+) established (.+)! 🏛️", "Itinayo ni $1 ang $2! 🏛️"],
     ["Ancient Ent raised Crystal Spire!", "Itinaas ng Sinaunang Ent ang Crystal Spire!"],
     ["Ent equipped (.+)!", "Isinuot ng Ent ang $1!"],
     ["Ent forged (.+)!", "Pinanday ng Ent ang $1!"],

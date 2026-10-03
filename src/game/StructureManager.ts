@@ -92,7 +92,7 @@ export class StructureManager {
   private views = new Map<StructureId, StructureView>();
   private zoneGfx: Phaser.GameObjects.Graphics;
   private invaderProvider: () => Provokable[] = () => [];
-  private constructionProvider: () => ConstructionStatus | null = () => null;
+  private constructionProvider: () => ConstructionStatus[] = () => [];
   private elapsed = 0;
   private beaconTimer = 4;
   private beaconActive = 0;
@@ -124,7 +124,7 @@ export class StructureManager {
   }
 
   /** Where the Ent is building, so only that site shows its construction animation. */
-  setConstructionProvider(provider: () => ConstructionStatus | null): void {
+  setConstructionProvider(provider: () => ConstructionStatus[]): void {
     this.constructionProvider = provider;
   }
 
@@ -401,10 +401,10 @@ export class StructureManager {
         if (finished) this.playBuiltFlourish(view);
       }
 
-      // Pre-construction: only the site the Ent is working on shows its scaffold;
-      // later plots stay bare paved foundations until their turn comes.
+      // Pre-construction: only sites being built (by the Ent or a General) show a scaffold;
+      // other plots stay bare paved foundations until their General arrives.
       if (state === 'site') {
-        const active = construction?.siteId === view.id ? construction : null;
+        const active = construction.find((c) => c.siteId === view.id) ?? null;
         view.container.setVisible(!!active);
         if (!active) continue;
         this.animateConstructionSite(view, active, dt);

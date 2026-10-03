@@ -2,61 +2,80 @@
 
 > Rebuild the ruined citadel. Raise an army. Conquer the four realms.
 
-IsoChronicle: Idle Realms is an offline-first isometric idle strategy game about resource automation, castle reconstruction, monster summoning, and wave-based defense.
+IsoChronicle: Idle Realms is an offline-first isometric idle strategy game about castle reconstruction, monster summoning, resource automation and wave-based defense. It runs entirely in the browser, with no backend, and can be installed as a PWA. It is fully playable in **English** and **Tagalog**.
 
-You play as a weakened Demon Lord awakening in the ruins of a former citadel. Your only starting ally is a Support Slime. Gather enough resources to summon an Ancient Ent, rebuild the castle, establish resource areas, and grow an army capable of surviving 100 invasion waves.
+You play as a weakened Demon Lord who wakes in the ruins of a former citadel. Your only ally is a Support Slime. The Slime calls forth an Ancient Ent, the Ent rebuilds the castle and summons the realm's Generals, and the Generals raise the establishments and their tenants. Together they have to survive 100 invasion waves across four realms.
+
+Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 
 ## Game Loop
 
-1. Start on Day 1 with ruins, no active castle, and one Support Slime.
-2. Let the Slime summon the Ancient Ent when the required resources are available.
-3. Use the Ent to construct the castle and resource areas.
-4. Upgrade each area to unlock better materials.
-5. Assign minions, gather resources, craft equipment, and defend against human and mecha invasions.
-6. Every 5 waves you clear earns skill points — spend them in the Skill Tree right away.
-7. Reach Wave 100 (or regress any time) to restart with permanent team boosts and rebuild again.
+1. **Day 1:** you start with ruins, no castle and one Support Slime.
+2. The Slime summons the **Ancient Ent** for free.
+3. The Ent builds the **Citadel Castle**, then the **Crystal Spire**. It waits whenever supplies run short and auto-buys any shortfall with coins.
+4. Next, the Ent summons the **thirteen Generals** one by one, in construction order, until every one of them stands.
+5. **Each General builds its own establishment.** Once it stands, five **tenants** of the same kind move in and start working.
+6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Ent repairs, enriches the soil and forges gear.
+7. Defend against human and mecha invasions. Every **5 waves** cleared earns skill points for the Skill Tree.
+8. Reach Wave 100 (or regress at any time) to restart with permanent team boosts.
 
-## Resource Areas
+There is no build button. Construction runs on autopilot, and you steer the realm through the market, upgrades, skills and battle actions.
 
-Resource buildings begin at level 0 and are constructed through Citadel Command.
+## Establishments, Generals and Tenants
 
-| Area | Level 1 | Level 2 |
-| --- | --- | --- |
-| Wood Grove | Wood | Charcoal |
-| Metal Mine | Metal | Coal |
-| Stone Quarry | Stone | Minerals |
-| Water Port | Water | Fish |
+Each realm places the thirteen establishments at random (`layoutSeed`). The castle, gate, Crystal Spire and the four corner rifts stay in fixed positions. Every establishment has one General and five tenants of the General's kind:
 
-The Water Port and Metal Mine use explicit isometric grid coordinates. Enable **Tile Coordinates** in Settings to see chessboard-style tile names on every tile: letters **A–T** run along the grid X axis and numbers **1–20** along the Y axis, so grid `(4,5)` is **E6**. Large rank and file markers line the island's front edges.
+| # | Establishment | General | Tenants work… | Expeditions |
+| --- | --- | --- | --- | --- |
+| 1 | Wood Grove | Thornwood Dryad | grass and the grove: wood, charcoal | — |
+| 2 | Stone Quarry | Watchtower Minotaur | roads and the quarry: stone, minerals | — |
+| 3 | Metal Mine | Ember Imp | the mine: metal, coal | ✓ |
+| 4 | Water Port | Water Merman | the ocean: fish, water | — |
+| 5 | Mystic Cave | Lava Gargoyle | rifts and the cave: essence, aether shards | — |
+| 6 | Infernal Kennel | Demon Hound | grass: charcoal | ✓ |
+| 7 | Brimstone Perch | Harpy | the perch: obsidian | ✓ |
+| 8 | Abyssal Trench | Kraken | the ocean: fish, water, abyssal pearls | — |
+| 9 | Crypt of Souls | Lich Necromancer | rifts: soul fragments | ✓ |
+| 10 | Golem Foundry | Earth Golem | the foundry: metal, minerals | ✓ |
+| 11 | Shadow Pavilion | Succubus | the pavilion: coins | ✓ |
+| 12 | Void Gate | Void Wraith | rifts: aether shards, essence | ✓ |
+| 13 | Bone Crypt | Bone Knight | roads: stone | ✓ |
+
+- **Generals** are unique roster units. They don't gather; they build their home, then guard it and the citadel, scout the island and fight.
+- **Tenants** are spawned by the world itself and are never stored in the roster. They garrison their home during waves.
+- **Expeditions:** some tenants slip through a rift into the human realm and come back with loot. Every return stirs **vengeance**, which adds extra invaders to the next wave.
+- Establishments level up for by-products and stronger output, and each has its own active skills.
+
+Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 
 ## Features
 
-- Procedural Phaser isometric 20x20 floating island, painted per tile as 2.5D pixel art (raised land, sunken water, rocky underside) and rendered at the display's native pixel density.
-- Autonomous minions with movement, gathering, combat, healing, and task states.
-- Invaders drawn as 8-direction animated pixel-art sprites (walk and attack cycles) rendered from voxel models in a background Web Worker.
-- Living tiles: grass sways and water wakes follow whoever walks through, fish leap from the water, pixel clouds drift overhead, and lightning strikes at random during rain.
-- EasyStar.js grid pathfinding.
-- Day 1 reconstruction phase with Slime-led Ent and building progression.
-- Four resource areas with upgradeable output chains.
-- 100 invasion waves with live counts displayed as `remaining / total`. Some invaders are **rushers** that ignore everything else and charge the citadel.
-- Procedural battle audio: sword clangs, monster bashes, and walls being battered.
-- Castle, shield, turret, and wall upgrades.
-- Equipment crafting, purchasing, and unit equipment management.
-- Support Slime and Ent evolution systems.
-- Day/night cycle, weather, procedural effects, audio, and camera pan/zoom.
-- Local-first IndexedDB persistence and offline progression.
-- JSON save export and import.
-- PWA service-worker generation for offline-ready deployment.
+- A 20×20 procedural floating island, painted tile by tile as 2.5D pixel art (raised land, sunken water, rocky underside) and rendered at the display's native pixel density.
+- Minions, Generals and invaders drawn as 8-direction animated pixel-art sprites, ray-cast from jointed voxel models in background Web Workers.
+- Structures rendered from voxel models that follow the Codex art, with construction, idle, firing, hit and destroyed states.
+- Autonomous units with movement, gathering, combat, healing, construction and expedition states, plus EasyStar.js pathfinding.
+- 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel.
+- Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's lightning strike.
+- Support Slime and Ancient Ent evolution (five forms each), God Blessings, research upgrades and equipment crafting/buying.
 - Skill Tree with ranked skills earned by clearing waves, plus a free respec.
-- Regression prestige system with permanent team-only stat boosts.
-- Default-on tile coordinate overlay for placement debugging.
+- Regression prestige with permanent team-only boosts.
+- Easy / Normal / Hard difficulty.
+- Day/night cycle, seasons and weather: rain (sometimes stormy, with lightning and camera shake), snow and heat haze.
+- Living world: grass sways and water wakes follow units, fish leap, clouds drift, and the sun and moon arc over the island.
+- **Activity log tray** that narrates days, weather, waves, construction, roster changes, achievements and skills. There is no floating text over the map.
+- **Atlas:** Guide, Lore, and a Structures tab that compares each structure's art with its in-game render.
+- Bestiary of discovered minions and invaders, with portraits.
+- Procedural Web Audio for battle sounds, fanfares and ambience.
+- Local-first IndexedDB persistence, offline progression, and JSON save export/import.
+- PWA service worker for offline play.
+- Tile Coordinates overlay with chess-style names: columns **A–T** for grid X, rows **1–20** for grid Y, so `(4,5)` is **E6**.
 
 ## Skill Tree
 
-Skill points come from clearing waves — no Regression needed.
+Skill points come from clearing waves; you don't need to regress to earn them.
 
 - Every **5 waves** cleared grants **2 skill points** (40 points by Wave 100).
-- Four branches, each a chain where a skill needs at least one rank in the one before it:
+- There are four branches. Each branch is a chain: a skill needs at least one rank in the skill before it.
 
 | Branch | Skills |
 | --- | --- |
@@ -66,26 +85,26 @@ Skill points come from clearing waves — no Regression needed.
 | ✨ Mystic | Arcane Attunement (longer God Blessings), Ley Line Surge (cheaper God Blessings) |
 
 - Click a skill to add a rank; it takes effect immediately. **Reset skills** refunds every point for free.
-- Skills belong to the current realm: Regression refunds them and you earn points again from Wave 1.
+- Skills belong to the current realm. Regression refunds them, and you earn the points again from Wave 1.
 - Numbers and EN/TL text live in `src/data/skillTree.json`.
 
-## Regression Rebuild
+## Regression
 
-Regression resets the active realm while preserving long-term progression.
+Regression resets the active realm and keeps your long-term progression.
 
-After Regression:
+- The realm returns to ruins with a new random establishment layout. Only the Support Slime remains.
+- The Slime summons the Ent again. The Ent rebuilds the castle and spire and summons the Generals, and each General rebuilds its establishment.
+- Regression bonuses, Support Slime evolution and regression history are kept. Skill ranks are refunded.
+- Each Regression tier permanently boosts **your team only**; enemies never get stronger from it:
+  - +5% minion attack
+  - +3% minion speed
+  - 3% less damage taken by minions
+  - +5% tower damage
+  - +5% harvest
+  - +100 castle max HP
+  - bonus starting coins and shards
 
-- Only the Support Slime remains available.
-- Existing minions, castle, and resource buildings reset.
-- The world returns to ruins and resource areas return to level 0.
-- The Slime can summon the Ent.
-- The Ent can construct available resource areas and the castle.
-- Normal minion summons, Market, and Forge access return after the castle is rebuilt.
-- Regression bonuses, Support Slime evolution, and regression history are retained.
-- Each Regression tier permanently boosts **your team only** — enemies never get stronger from it: +5% minion attack, +3% minion speed, 3% less minion damage taken, +5% tower damage, +5% harvest, and +100 castle max HP, plus bonus starting coins and shards.
-- Skill ranks are refunded; clear waves again to re-earn the points.
-
-To execute a Regression, type the current realm name in the confirmation field. To erase Regression tier and history, type:
+To regress, type the current realm name in the confirmation field. To erase your Regression tier and history, type:
 
 ```text
 RESET REGRESSIONS
@@ -95,14 +114,16 @@ RESET REGRESSIONS
 
 ### World
 
-- **Left-click and drag:** Pan the island camera (the island always stays inside the frame).
-- **Mouse wheel:** Zoom the island between 0.65x and 2.2x.
-- **Click an active invader:** Strike it with the Demon Lord's lightning.
-- **Click a resource badge:** Open quick trade for that resource. Turn the **quantity knob** (drag, scroll — hold Shift for ×10 — or arrow keys), use **− / +**, or pick 25% / 50% / 75% / MAX. The total always uses the market's real buy/sell price.
+- **Left-click and drag:** pan the camera. The island always stays inside the frame.
+- **Mouse wheel:** zoom between 0.65× and 2.2×.
+- **Click an invader:** strike it with the Demon Lord's lightning.
+- **Click a building:** open its establishment panel. **Hold** an establishment to move it (not during a wave).
+- **Click a resource badge:** open quick trade for that resource. To set the amount:
+  - turn the **quantity knob** (drag, or scroll with Shift held for ×10, or use the arrow keys),
+  - use **− / +**,
+  - or pick 25% / 50% / 75% / MAX.
 
-### Game HUD
-
-- **Play / Pause (one button), 2×, 3×:** Control simulation speed.
+  The total always uses the market's real buy and sell price.
 
 ### Keyboard
 
@@ -112,13 +133,17 @@ RESET REGRESSIONS
 | `1` | 2× speed (press again for 1×) |
 | `2` | 3× speed (press again for 1×) |
 
-Shortcuts are ignored while typing in a text field.
-- **Servants:** Open the minion roster and command panel.
-- **Citadel Command:** Manage reconstruction, minions, market, forge, research, and defenses.
-- **Guide / Codex:** Open gameplay help and world information.
-- **Bestiary:** Review discovered minions and invaders.
-- **Regression:** Open prestige progression and reset controls.
-- **Settings:** Configure audio, blood & gore effects (saved with your realm), performance, saves, lore, and tile coordinates.
+Shortcuts are ignored while you type in a text field.
+
+### Game HUD
+
+- **Play / Pause, 2×, 3×:** control simulation speed.
+- **Servants:** minion roster and commands.
+- **Citadel Command:** reconstruction status, minions, market, forge, research and defenses.
+- **Atlas:** Guide, Lore and Structures.
+- **Bestiary:** discovered minions and invaders.
+- **Skill Tree** and **Regression:** skills, prestige and reset controls.
+- **Settings:** language (EN/TL), audio, blood & gore, difficulty, FPS and performance, saves, and the tile coordinate overlay.
 
 ## Run Locally
 
@@ -137,119 +162,119 @@ Open [http://localhost:5173](http://localhost:5173).
 ### Production Build
 
 ```bash
-npm run build
+npm run build     # tsc type-check + Vite production bundle
 npm run preview
 ```
 
-The build runs TypeScript checking followed by the Vite production bundle.
+### Tests
 
-## Run with Docker
+```bash
+npm test
+```
 
-Docker Compose starts the development server with volume mounting and polling-based HMR:
+`npm test` runs `scripts/test-construction.cjs` and `scripts/test-invasions.cjs`. The scripts transpile the TypeScript sources inside a Node VM, with Phaser, audio and storage stubbed. They cover:
+
+- construction order: Ent → castle/spire → Generals → establishments
+- the economy, purchases and realm reset
+- difficulty, regression and the skill tree
+- saves and migrations
+- crews, expeditions and invasions
+
+### Docker
+
+Docker Compose starts the dev server with volume mounting and polling-based HMR:
 
 ```bash
 docker compose up --build
-```
-
-Open [http://localhost:5173](http://localhost:5173), then stop the container with:
-
-```bash
 docker compose down
 ```
 
 ## Persistence and Saves
 
-- Browser state is stored locally using Zustand and LocalForage/IndexedDB.
-- The game calculates offline progression when you return.
-- Settings can export a JSON save or import one from another browser/device.
-- Reset Realm clears the active realm and returns to the title screen.
-- Regression reset is separate from Reset Realm and requires typed confirmation.
+- State is stored locally with Zustand and LocalForage (IndexedDB).
+- Offline progression is calculated when you return.
+- Settings can export a JSON save or import one from another browser or device.
+- **Reset Realm** clears the active realm and returns to the title screen.
+- Regression reset is separate from Reset Realm and needs typed confirmation.
 
 ## Technology
 
-- **React 18** and **TypeScript** for the application and reactive UI.
-- **Phaser 3** for the isometric game world and simulation rendering.
-- **Vite** for development and production bundling.
-- **Tailwind CSS** and **DaisyUI** for the interface.
-- **Zustand** for game state and actions.
-- **LocalForage** for IndexedDB persistence.
+- **React 18** + **TypeScript** for the app and HUD.
+- **Phaser 3** for the isometric world canvas.
+- **Vite 5** + **vite-plugin-pwa** for bundling and the service worker.
+- **Tailwind CSS** + **DaisyUI** for the interface.
+- **Zustand** + **LocalForage** for state and IndexedDB persistence.
 - **EasyStar.js** for grid pathfinding.
-- **Lucide React** for interface icons.
-- **vite-plugin-pwa** for service-worker generation.
+- **Lucide React** for icons.
+
+Phaser owns the world canvas and React owns the HUD and modals. They communicate only through the Zustand store.
 
 ## Project Structure
 
 ```text
 public/
-├── backgrounds/                    Phase, title, victory/defeat art and bestiary icons
-├── pwa-192x192.png, pwa-512x512.png  PWA app icons
-└── robots.txt
+├── backgrounds/           Phase, title, victory/defeat art and bestiary icons
+├── portraits/             General portraits rendered from their voxel models
+├── structures/            Codex art for every structure (design source for structure models)
+└── pwa-*.png, robots.txt
 scripts/
-├── test-construction.cjs           Construction, purchasing, reset, difficulty, regression checks
-└── test-invasions.cjs              Invasion and regression wave checks
+├── test-construction.cjs  Construction, economy, reset, difficulty, regression, crew checks
+└── test-invasions.cjs     Invasion and wave checks
 src/
-├── App.tsx                         Screen coordinator (Title → Story → Game) and modal state
-├── main.tsx                        React entry point
-├── index.css                       Global styles and visual effects
+├── App.tsx                Screen coordinator (Title → Story → Game) and modal state
+├── data/                  Lookup tables: economy, establishmentCrews, buildingLayout, skillTree,
+│                          seasons, evolutions, blessings, items, wave pool, units, invaders…
 ├── game/
-│   ├── MainScene.ts                Phaser world, tiles, buildings, camera, lighting
-│   ├── PhaserGame.tsx              React-to-Phaser wrapper
-│   ├── PixelTileArt.ts             Per-tile 2.5D pixel-art painter
-│   ├── ProceduralRenderer.ts       Tile palettes and structure artwork
-│   ├── WorkerManager.ts            Minion simulation and task state machine
-│   ├── InvasionManager.ts          Invasion waves and enemy behavior
-│   ├── WorldEffects.ts             Tile reactions, fish, clouds, lightning
-│   ├── sprites/                    Voxel models, 8-direction sprite baker (Web Worker), Phaser glue
-│   ├── PathfindingService.ts       EasyStar pathfinding adapter
-│   ├── IsometricHelper.ts          Grid and screen coordinate conversion
-│   ├── FPSController.ts            FPS tracking and quality tiers
-│   ├── bestiaryPortraits.ts        Embedded bestiary portrait images
-│   └── audio/soundFx.ts            Procedural Web Audio effects
-├── i18n/
-│   ├── faqTranslations.ts          FAQ text per language
-│   └── useLanguage.ts              Language selection hook
+│   ├── MainScene.ts       World, tiles, camera, lighting
+│   ├── PhaserGame.tsx     React ↔ Phaser wrapper (remounts on regression / new layout)
+│   ├── PixelTileArt.ts    Pixel-art tile atlas painter
+│   ├── WorkerManager.ts   Minion lifecycle, movement, visuals
+│   ├── workers/           Per-role behaviour: supportSlime, treant (Ent), generalConstruction,
+│   │                      combat, gathering, modifiers, summonRitual
+│   ├── DefenderSystem.ts  Establishment tenants: gathering, expeditions, garrisons
+│   ├── InvasionManager.ts Waves and enemies (invaders/: movement, targeting, wave pool)
+│   ├── StructureManager.ts, TowerSystem.ts, PortalManager.ts, GroundLootManager.ts
+│   ├── skills/            Establishment skill system and cast effects
+│   ├── sprites/           Voxel models, 8-direction sprite baker (Web Worker), Phaser glue
+│   ├── WorldEffects.ts    Sky, weather, lightning, fish, tile reactions
+│   ├── PathfindingService.ts, IsometricHelper.ts, FPSController.ts
+│   └── audio/soundFx.ts   Procedural Web Audio
+├── i18n/                  uiStrings.json, activityMessages.json, atlasGuide.json,
+│                          structureAtlas.json, FAQ, useLanguage / useTranslation
 ├── state/
-│   ├── useGameStore.ts             Persistent Zustand store and game actions
-│   ├── constructionProgress.ts     Reconstruction order (castle, then resource areas)
-│   ├── difficulty.ts               Easy / Normal / Hard configuration
-│   ├── skillTree.ts                Skill tree logic (ranks, wave-set points, team bonuses)
-│   ├── offlineProgression.ts       Return-from-away progression calculation
-│   └── storageAdapter.ts           LocalForage storage adapter
-├── types/
-│   ├── game.ts                     Tasks, units, buildings, waves, and configs
-│   └── state.ts                    Store contracts and save state types
-└── ui/
-    ├── TitleScreen.tsx             Title screen
-    ├── IntroNarrativeModal.tsx     New realm story and game creation
-    ├── GameHUD.tsx                 In-game sidebar HUD and controls
-    ├── CitadelCommandModal.tsx     Reconstruction and command center
-    ├── UnitRosterModal.tsx         Minion roster
-    ├── EquipmentWorkshopModal.tsx  Equipment crafting (Forge)
-    ├── MerchantModal.tsx           Market
-    ├── QuickTradePopover.tsx       Quick resource trade
-    ├── QuantityKnob.tsx            Rotary quantity knob for trading
-    ├── UpgradesModal.tsx           Research upgrades
-    ├── CastleDefenseModal.tsx      Castle, shield, turret, and wall upgrades
-    ├── CastleBreachedModal.tsx     Victory / defeat screen
-    ├── InvasionBanner.tsx          Active wave status
-    ├── SkillTreeModal.tsx          Skill tree
-    ├── RegressionModal.tsx         Prestige and typed reset controls
-    ├── BestiaryModal.tsx           Discovered minions and invaders
-    ├── CodexModal.tsx              World information
-    ├── FAQModal.tsx                Gameplay FAQ
-    ├── AutoEnhancePrompt.tsx       Construction / enhancement prompt
-    ├── WelcomeBackModal.tsx        Offline progress summary
-    └── SettingsDrawer.tsx          Settings, saves, lore, and tile overlay
+│   ├── useGameStore.ts    Persistent Zustand store composed from store/ slices
+│   ├── store/             world, economy, roster, buildings, defense, progression, persistence
+│   ├── constructionProgress.ts  Build order (Ent: castle → spire → summon Generals)
+│   ├── buildingLayout.ts  20×20 grid and seeded random establishment layout
+│   ├── establishmentCrews.ts, economy.ts, resources.ts, difficulty.ts, skillTree.ts
+│   ├── activityLog.ts, activityWatcher.ts  Activity log store and narration
+│   └── offlineProgression.ts, storageAdapter.ts
+├── types/                 game.ts (shared types), state.ts (store and save shape)
+└── ui/                    GameHUD, ActivityLogTray, Atlas (+ StructureAtlas), CitadelCommand,
+                           EstablishmentModal, UnitRoster, Merchant, Equipment, Research,
+                           Fortifications, SkillTree, Regression, Bestiary, Settings, …
 ```
 
-## Development Notes
+## Contributing
 
-- The game is local-first and does not require a backend.
-- Phaser owns the world canvas; React owns HUD and modal interfaces.
-- Grid positions use `IsometricHelper.gridToScreen()` and `screenToGrid()`.
-- Verify structure placement with Tile Coordinates before changing coordinates.
-- The main validation commands are `npm run build` and `npm test`.
+- Run `npm run build` and `npm test` before pushing.
+- Never hardcode grid bounds; use `GRID_SIZE` from `src/state/buildingLayout.ts`. Verify placement with the Tile Coordinates overlay.
+- Every player-visible string needs both **EN** and **TL**:
+  - UI strings go in `src/i18n/uiStrings.json`.
+  - Log wording goes in `src/i18n/activityMessages.json`.
+  - Data tables use `name` / `nameEn` pairs.
+- Put repeated text and lookup tables in JSON and reference them by key; don't hardcode them inline.
+- Never draw floating text over the map; narrate events in the activity log with `logMessage(key, vars)`.
+- Character sprites follow `public/backgrounds/bestiary-icons/`, and structure models follow `public/structures/`.
+- When mechanics change, update the Atlas Guide, the FAQ, [LORE.md](LORE.md) and [LORE.tl.md](LORE.tl.md).
+- Commit messages use the `ft:` prefix followed by the areas touched.
+
+See [CLAUDE.md](CLAUDE.md) for detailed architecture notes.
 
 ## Lore
 
-The full setting and four-realm campaign background are documented in [LORE.md](LORE.md). The same file is loaded into the in-game Lore tab through Vite's raw Markdown import.
+The setting and four-realm campaign are told in [LORE.md](LORE.md), with a Tagalog version in [LORE.tl.md](LORE.tl.md). Both files are loaded into the in-game Atlas Lore tab through Vite's raw Markdown import.
+
+## License
+
+No license has been chosen yet. Until one is added, all rights are reserved.

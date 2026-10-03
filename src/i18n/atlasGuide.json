@@ -18,10 +18,10 @@
     {
       "icon": "🌳",
       "color": "emerald",
-      "title": { "en": "The Ent Builds Everything", "tl": "Ang Ent ang Nagtatayo ng Lahat" },
+      "title": { "en": "The Ent and the Generals Build", "tl": "Ang Ent at ang mga Heneral ang Nagtatayo" },
       "body": {
-        "en": "There is no build button. The Ent raises the **Citadel**, then the **Crystal Spire**, then each establishment in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. It waits when supplies are short, then repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
-        "tl": "Walang build button. Itatayo ng Ent ang **Kuta**, pagkatapos ang **Tore ng Kristal**, at isa-isa ang mga pasilidad: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Buto. Naghihintay ito kapag kulang ang supply, at pagkatapos ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
+        "en": "There is no build button. The Ent raises the **Citadel** and the **Crystal Spire**, then summons every establishment's **General** in order, and each General builds its own home: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders wait when supplies are short. Once all Generals stand, the Ent repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
+        "tl": "Walang build button. Itatayo ng Ent ang **Kuta** at ang **Tore ng Kristal**, saka isa-isang tatawagin ang **Heneral** ng bawat pasilidad, at bawat Heneral ang magtatayo ng sariling tahanan: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Buto. Naghihintay ang nagtatayo kapag kulang ang supply. Kapag kumpleto na ang mga Heneral, ang Ent ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
       }
     },
     {
