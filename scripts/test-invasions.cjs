@@ -17,13 +17,14 @@ const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts',
 }).outputText;
 vm.runInNewContext(source, {
   exports: exportsObject,
-  require(name) {
+  require: function stubRequire(name) {
+    if (name.endsWith('.json')) return JSON.parse(fs.readFileSync(`src/${name.replace(/^(\.\.\/)+/, '')}`, 'utf8'));
     // Pure helpers split out of InvasionManager load for real
     if (name.startsWith('./invaders/')) {
       const exports = {};
       vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/game/${name.slice(2)}.ts`, 'utf8'), {
         compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-      }).outputText, { exports, require: () => ({}) });
+      }).outputText, { exports, require: stubRequire });
       return exports;
     }
     if (name.includes('types/game')) return { INVADER_CONFIGS: new Proxy({}, {

@@ -4,7 +4,7 @@ import { RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES } from '../state/useGameStore
 import { BUILDING_IDS } from '../state/buildingLayout';
 import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../data/establishmentSkills';
-import { useTranslation } from '../data/translations';
+import { useTranslation } from '../i18n/translations';
 import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
 import { UNIT_CLASSES } from '../data/units';
 import { RESEARCH_CATEGORIES, ResearchNodeConfig } from '../data/researchConfig';

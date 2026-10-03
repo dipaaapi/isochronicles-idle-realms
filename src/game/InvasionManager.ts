@@ -23,36 +23,12 @@ import type { PortalManager, PortalState } from './PortalManager';
 import { CASTLE_FOOTPRINT, PORTAL_SITES, rectCenter } from '../state/buildingLayout';
 import { invaderWeather, type ActiveInvader, type InvaderBlocker, type InvaderTarget } from './invaders/types';
 import { renderInvaderBody } from './invaders/legacyInvaderArt';
+import type { InvaderContext } from './invaders/context';
+import { approachStructure, chase, EMERGE_SECONDS, ENTER_SECONDS, followPath, stepToward, updatePortalTransit } from './invaders/movement';
+import { chooseTarget, isTargetValid } from './invaders/targeting';
+import { pickWaveInvader } from './invaders/wavePool';
 
 export type { ActiveInvader, InvaderBlocker } from './invaders/types';
-
-const EMERGE_SECONDS = 0.7;
-const ENTER_SECONDS = 0.55;
-/** Invaders only break off toward a defender or sapling this close (world px). */
-const AGGRO_RADIUS = 110;
-
-/** Which fighters join the waves, from which wave, and how often (relative weight). */
-const WAVE_POOL: Array<{ type: InvaderType; fromWave: number; weight: number }> = [
-  { type: 'HUMAN_KNIGHT', fromWave: 1, weight: 4 },
-  { type: 'HUMAN_ARCHER', fromWave: 2, weight: 3 },
-  { type: 'ASSASSIN', fromWave: 3, weight: 2 },
-  { type: 'MECHA_DRONE', fromWave: 4, weight: 3 },
-  { type: 'MECHA_SCOUT', fromWave: 6, weight: 3 },
-  { type: 'CHRONO', fromWave: 8, weight: 2 },
-  { type: 'MECHA_TITAN', fromWave: 10, weight: 2 },
-  { type: 'MECHA_SIEGE_TANK', fromWave: 14, weight: 1.5 },
-];
-
-const pickWaveInvader = (waveNumber: number): InvaderType => {
-  const pool = WAVE_POOL.filter((e) => waveNumber >= e.fromWave);
-  let roll = Math.random() * pool.reduce((sum, e) => sum + e.weight, 0);
-  for (const entry of pool) {
-    roll -= entry.weight;
-    if (roll <= 0) return entry.type;
-  }
-  return 'HUMAN_KNIGHT';
-};
-
 export class InvasionManager {
   private scene: Phaser.Scene;
   private pathfinder: PathfindingService;
@@ -74,6 +50,21 @@ export class InvasionManager {
   private autoSmiteTimer: number = 0;
   private lastSmiteTime: number = 0;
   private wasInvasionActive: boolean = false;
+
+  /** Hands the movement / targeting helpers (invaders/) access to this manager. */
+  private readonly ctx: InvaderContext = (() => {
+    const m = this;
+    return {
+      get nav() { return m.nav; },
+      get structures() { return m.structures; },
+      getInvaders: () => m.invaders,
+      getBlockers: () => m.blockerProvider(),
+      castleCenter: () => m.castleCenter(),
+      faceInvader: (invader, dx, dy, moving) => m.faceInvader(invader, dx, dy, moving),
+      damageInvader: (invader, rawDamage, popupText) => m.damageInvader(invader, rawDamage, popupText),
+      despawnEscaped: (invader) => m.despawnEscaped(invader),
+    };
+  })();
 
   constructor(
     scene: Phaser.Scene,
@@ -823,147 +814,6 @@ export class InvasionManager {
     useGameStore.getState().setEnemiesRemaining(this.invaders.length);
   }
 
-  // ── Movement helpers ────────────────────────────────────────────────────────
-
-  /** Moves toward a world point, sliding around solid footprints. */
-  private stepToward(invader: ActiveInvader, tx: number, ty: number, step: number): void {
-    const c = invader.container;
-    const dx = tx - c.x;
-    const dy = ty - c.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 0.001) return;
-    const move = Math.min(step, dist);
-    let nx = c.x + (dx / dist) * move;
-    let ny = c.y + (dy / dist) * move;
-    if (this.nav) ({ x: nx, y: ny } = this.nav.pushOut(nx, ny));
-    this.faceInvader(invader, nx - c.x, ny - c.y, true);
-    c.x = nx;
-    c.y = ny;
-    const grid = Navigation.tileOf(c.x, c.y);
-    invader.gridX = grid.x;
-    invader.gridY = grid.y;
-    c.setDepth(IsometricHelper.getDepth(grid.x, grid.y, 7));
-  }
-
-  /** Chases a moving world point, detouring around buildings when the line is blocked. */
-  private chase(invader: ActiveInvader, tx: number, ty: number, step: number, deltaSec: number): void {
-    const next = this.nav ? this.nav.steer(invader, invader.container.x, invader.container.y, tx, ty, deltaSec) : { x: tx, y: ty };
-    this.stepToward(invader, next.x, next.y, step);
-  }
-
-  /** Follows `currentPath` (grid waypoints); returns true once the path is finished. */
-  private followPath(invader: ActiveInvader, step: number): boolean {
-    if (invader.pathIndex >= invader.currentPath.length) return true;
-    const targetGrid = invader.currentPath[invader.pathIndex];
-    const targetIso = IsometricHelper.gridToScreen(targetGrid.x, targetGrid.y);
-    const dist = Math.hypot(targetIso.x - invader.container.x, targetIso.y - invader.container.y);
-    if (dist <= step) {
-      this.faceInvader(invader, targetIso.x - invader.container.x, targetIso.y - invader.container.y, true);
-      invader.container.x = targetIso.x;
-      invader.container.y = targetIso.y;
-      invader.gridX = targetGrid.x;
-      invader.gridY = targetGrid.y;
-      invader.pathIndex++;
-      invader.container.setDepth(IsometricHelper.getDepth(invader.gridX, invader.gridY, 7));
-    } else {
-      this.stepToward(invader, targetIso.x, targetIso.y, step);
-    }
-    return invader.pathIndex >= invader.currentPath.length;
-  }
-
-  // ── Targeting ───────────────────────────────────────────────────────────────
-
-  /** Fallback citadel target when no StructureManager is attached. */
-  private fallbackCastle(): StructureTarget | undefined {
-    const store = useGameStore.getState();
-    if (!store.castleBuilt && store.defense.castleHp <= 0) return undefined;
-    const c = this.castleCenter();
-    return { id: 'CASTLE', rect: CASTLE_FOOTPRINT, x: c.x, y: c.y };
-  }
-
-  private isTargetValid(target: InvaderTarget | undefined): boolean {
-    if (!target) return false;
-    if (target.kind === 'worker') {
-      const w = target.worker;
-      return w.hp > 0 && w.status === 'COMBAT' && !!w.container?.active;
-    }
-    if (target.kind === 'blocker') return !target.blocker.dead && target.blocker.container.active;
-    const id = target.structure.id;
-    const alive = this.structures ? this.structures.getTargets() : [this.fallbackCastle()].filter(Boolean) as StructureTarget[];
-    return alive.some((s) => s.id === id);
-  }
-
-  /**
-   * Provoked invaders, rushers and raiding scouts go for the citadel. Otherwise they fight whatever is
-   * nearest: a defending minion or sapling that gets close, else the closest
-   * standing structure (establishment or citadel).
-   */
-  private chooseTarget(invader: ActiveInvader, defenders: WorkerInstance[]): InvaderTarget | undefined {
-    // Charmed: turns on the nearest fellow invader
-    if ((invader.charmTimer ?? 0) > 0) {
-      const victim = this.invaders
-        .filter((o) => o !== invader && !o.isDead && (o.emerge ?? 0) <= 0)
-        .sort((a, b) => Math.hypot(a.container.x - invader.container.x, a.container.y - invader.container.y) -
-          Math.hypot(b.container.x - invader.container.x, b.container.y - invader.container.y))[0];
-      if (victim) return { kind: 'blocker', blocker: this.asBlocker(victim) };
-    }
-    // Taunted: must fight the Golem
-    const taunter = invader.tauntBy;
-    if ((invader.tauntTimer ?? 0) > 0 && taunter && taunter.hp > 0 && taunter.container?.active) {
-      return { kind: 'worker', worker: taunter };
-    }
-
-    const structures = this.structures ? this.structures.getTargets() : [this.fallbackCastle()].filter(Boolean) as StructureTarget[];
-    const castle = structures.find((s) => s.id === 'CASTLE');
-    if (((invader.provokedTimer ?? 0) > 0 || invader.isRusher || invader.isScout) && castle) return { kind: 'structure', structure: castle };
-
-    const x = invader.container.x;
-    const y = invader.container.y;
-    let best: InvaderTarget | undefined;
-    let bestDist = AGGRO_RADIUS;
-    for (const worker of defenders) {
-      if (!worker.container?.active) continue;
-      const d = Math.hypot(worker.container.x - x, worker.container.y - y);
-      if (d < bestDist) {
-        bestDist = d;
-        best = { kind: 'worker', worker };
-      }
-    }
-    for (const blocker of this.blockerProvider()) {
-      if (blocker.dead || !blocker.container.active) continue;
-      const d = Math.hypot(blocker.container.x - x, blocker.container.y - y);
-      if (d < bestDist) {
-        bestDist = d;
-        best = { kind: 'blocker', blocker };
-      }
-    }
-    if (best) return best;
-
-    let bestTiles = Infinity;
-    let structure: StructureTarget | undefined;
-    for (const s of structures) {
-      const tiles = this.nav ? this.nav.distanceToRect(x, y, s.rect) : Math.hypot(s.x - x, s.y - y) / 40;
-      // Slight bias toward the citadel so ties go to the main keep
-      const score = tiles - (s.id === 'CASTLE' ? 0.5 : 0);
-      if (score < bestTiles) {
-        bestTiles = score;
-        structure = s;
-      }
-    }
-    return structure ? { kind: 'structure', structure } : undefined;
-  }
-
-  /** Lets a charmed invader attack another invader through the blocker interface. */
-  private asBlocker(victim: ActiveInvader): InvaderBlocker {
-    const manager = this;
-    return {
-      container: victim.container,
-      get hp() { return victim.hp; },
-      get dead() { return victim.isDead; },
-      takeHit: (damage: number) => manager.damageInvader(victim, damage, '💘'),
-    };
-  }
-
   private updateInvaders(deltaSec: number): void {
     const workers = this.workerProvider ? this.workerProvider() : [];
     // Active defenders: only workers that have actively rallied to COMBAT
@@ -974,7 +824,7 @@ export class InvasionManager {
 
     for (const invader of [...this.invaders]) {
       if (invader.isDead) continue;
-      if (this.updatePortalTransit(invader, deltaSec)) continue;
+      if (updatePortalTransit(this.ctx, invader, deltaSec)) continue;
 
       this.tickStatus(invader, deltaSec);
       if (invader.isDead) continue;
@@ -987,7 +837,7 @@ export class InvasionManager {
 
       // When castle is crushed (HP = 0) or invader is in retreat mode, they march off the platform with their loot
       if (invader.isRetreating) {
-        const done = this.followPath(invader, invader.speed * (invader.isScout ? 1 : 1.5) * slow * deltaSec);
+        const done = followPath(this.ctx, invader, invader.speed * (invader.isScout ? 1 : 1.5) * slow * deltaSec);
         if (done) this.leavePlatform(invader);
         continue;
       }
@@ -999,9 +849,9 @@ export class InvasionManager {
       invader.retargetTimer = (invader.retargetTimer ?? 0) - deltaSec;
       const provoked = (invader.provokedTimer ?? 0) > 0 || !!invader.isRusher;
       const lockedOnCastle = invader.target?.kind === 'structure' && invader.target.structure.id === 'CASTLE';
-      if (invader.retargetTimer <= 0 || !this.isTargetValid(invader.target) || (provoked && !lockedOnCastle)) {
+      if (invader.retargetTimer <= 0 || !isTargetValid(this.ctx, invader.target) || (provoked && !lockedOnCastle)) {
         invader.retargetTimer = 0.45 + Math.random() * 0.2;
-        invader.target = this.chooseTarget(invader, availableDefenders);
+        invader.target = chooseTarget(this.ctx, invader, availableDefenders);
       }
       const target = invader.target;
       if (!target) continue;
@@ -1016,45 +866,6 @@ export class InvasionManager {
     }
   }
 
-  /**
-   * Stepping out of a portal onto its exit tile, or slipping back into one
-   * (looters and scouts). Returns true while the invader is in transit.
-   */
-  private updatePortalTransit(invader: ActiveInvader, deltaSec: number): boolean {
-    if ((invader.emerge ?? 0) > 0) {
-      invader.emerge = (invader.emerge ?? 0) - deltaSec;
-      const from = invader.portal;
-      const exit = IsometricHelper.gridToScreen(invader.spawnGrid.x, invader.spawnGrid.y);
-      const t = Phaser.Math.Clamp(1 - (invader.emerge ?? 0) / EMERGE_SECONDS, 0, 1);
-      const ease = Phaser.Math.Easing.Cubic.Out(t);
-      if (from) invader.container.setPosition(from.x + (exit.x - from.x) * ease, from.y + (exit.y - from.y) * ease);
-      invader.container.setScale(invader.baseScale * (0.3 + 0.7 * ease));
-      invader.container.setAlpha(Math.min(1, t * 1.6));
-      this.faceInvader(invader, exit.x - (from?.x ?? exit.x), exit.y - (from?.y ?? exit.y), true);
-      if ((invader.emerge ?? 0) <= 0) {
-        invader.container.setPosition(exit.x, exit.y);
-        invader.container.setScale(invader.baseScale);
-        invader.container.setAlpha(1);
-      }
-      return true;
-    }
-
-    if ((invader.enter ?? 0) > 0) {
-      invader.enter = (invader.enter ?? 0) - deltaSec;
-      const into = invader.exitPortal;
-      if (into) {
-        const t = Phaser.Math.Clamp(1 - (invader.enter ?? 0) / ENTER_SECONDS, 0, 1);
-        invader.container.x += (into.x - invader.container.x) * Math.min(1, deltaSec * 8);
-        invader.container.y += (into.y - 20 - invader.container.y) * Math.min(1, deltaSec * 8);
-        invader.container.setScale(invader.baseScale * (1 - 0.75 * t));
-        invader.container.setAlpha(1 - t);
-      }
-      if ((invader.enter ?? 0) <= 0) this.despawnEscaped(invader);
-      return true;
-    }
-    return false;
-  }
-
   /** Chase a defender or sapling into range, then strike it every 1.1s. */
   private fightUnit(
     invader: ActiveInvader,
@@ -1066,7 +877,7 @@ export class InvasionManager {
     const tc = target.kind === 'worker' ? target.worker.container : target.blocker.container;
     const dist = Math.hypot(tc.x - invader.container.x, tc.y - invader.container.y);
     if (dist > INVADER_CONFIGS[invader.type].attackRange) {
-      this.chase(invader, tc.x, tc.y, speed * 1.15 * deltaSec, deltaSec);
+      chase(this.ctx, invader, tc.x, tc.y, speed * 1.15 * deltaSec, deltaSec);
       return;
     }
     this.faceInvader(invader, tc.x - invader.container.x, tc.y - invader.container.y, false);
@@ -1100,7 +911,7 @@ export class InvasionManager {
       ? this.nav.distanceToRect(invader.container.x, invader.container.y, structure.rect)
       : Math.hypot(structure.x - invader.container.x, structure.y - invader.container.y) / 36 - 1;
     if (distTiles > reachTiles) {
-      this.approachStructure(invader, structure, speed * deltaSec, deltaSec);
+      approachStructure(this.ctx, invader, structure, speed * deltaSec, deltaSec);
       return false;
     }
 
@@ -1121,35 +932,6 @@ export class InvasionManager {
     if (this.structures) this.structures.damage(structure, damage);
     else useGameStore.getState().damageCastle(damage);
     return useGameStore.getState().defense.castleHp <= 0;
-  }
-
-  /** Follows a breadth-first path to the nearest tile touching the structure. */
-  private approachStructure(invader: ActiveInvader, structure: StructureTarget, step: number, deltaSec: number): void {
-    const allowed = INVADER_CONFIGS[invader.type].flying ? [0, 1] : [0];
-    invader.structTimer = (invader.structTimer ?? 0) - deltaSec;
-    const here = Navigation.tileOf(invader.container.x, invader.container.y);
-    if (!invader.structPath || invader.structGoal !== structure.id || invader.structTimer <= 0) {
-      invader.structGoal = structure.id;
-      invader.structTimer = 1.5;
-      invader.structPath = (this.nav?.pathToRect(here, structure.rect, allowed) ?? undefined) || undefined;
-      if (invader.structPath && invader.structPath.length > 1) invader.structPath.shift(); // drop the start tile
-    }
-    const path = invader.structPath;
-    if (path && path.length > 0) {
-      const wp = IsometricHelper.gridToScreen(path[0].x, path[0].y);
-      if (Math.hypot(wp.x - invader.container.x, wp.y - invader.container.y) <= Math.max(3, step)) {
-        path.shift();
-        if (path.length === 0) {
-          // Standing beside the footprint — close the last gap toward its centre (pushOut keeps us outside)
-          this.chase(invader, structure.x, structure.y, step, deltaSec);
-          return;
-        }
-      }
-      const next = IsometricHelper.gridToScreen(path[0].x, path[0].y);
-      this.stepToward(invader, next.x, next.y, step);
-      return;
-    }
-    this.chase(invader, structure.x, structure.y, step, deltaSec);
   }
 
   /** Human blades clang; mecha weapons slam. */
