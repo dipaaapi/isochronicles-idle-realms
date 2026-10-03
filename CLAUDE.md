@@ -29,6 +29,7 @@ React 18 + TypeScript, Phaser 3 (world canvas), Vite 5 + vite-plugin-pwa, Tailwi
 - `docker compose up --build` — dev server in Docker with polling HMR
 - `/security-audit` — project skill (`.claude/skills/security-audit/`) for auditing save import, persisted state, PWA config, dependencies and Docker
 - `/voxel-model` — project skill for editing minion/enemy/structure voxel models cheaply: `node .claude/skills/voxel-model/model-tool.mjs list|show|stats|render <key>` prints one model or renders only the frames you need (with `--ref` art beside it)
+- `/lore` — project skill for story/lore/flavour text: canon sheet in `.claude/skills/lore/SKILL.md` plus `node .claude/skills/lore/lore-tool.mjs sections|section|entity|find|check` to pull only the text you need and verify EN/TL pairs
 
 ## Architecture
 
