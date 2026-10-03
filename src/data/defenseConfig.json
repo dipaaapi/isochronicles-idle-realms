@@ -439,6 +439,168 @@
           "coal": 50
         }
       ]
+    },
+    "FOUNDRY": {
+      "attack": "catapult",
+      "icon": "⚒️",
+      "name": {
+        "en": "Rune Hammer",
+        "tl": "Martilyo ng Rune"
+      },
+      "desc": {
+        "en": "The golem hurls a rune-forged hammer that crushes every invader in the splash.",
+        "tl": "Inihahagis ng golem ang martilyong may rune na dumudurog sa lahat ng kalaban sa tatamaan."
+      },
+      "damage": 34,
+      "damagePerLevel": 14,
+      "cooldown": 3.4,
+      "cooldownPerLevel": -0.25,
+      "splashTiles": 0.8,
+      "costs": [
+        {
+          "coins": 70,
+          "stone": 40,
+          "metal": 15
+        },
+        {
+          "coins": 140,
+          "stone": 80,
+          "metal": 30
+        },
+        {
+          "coins": 250,
+          "stone": 130,
+          "metal": 50,
+          "minerals": 20
+        },
+        {
+          "coins": 420,
+          "stone": 200,
+          "metal": 80,
+          "minerals": 45
+        }
+      ]
+    },
+    "PAVILION": {
+      "attack": "spikes",
+      "icon": "🗡️",
+      "name": {
+        "en": "Shadow Daggers",
+        "tl": "Punyal ng Anino"
+      },
+      "desc": {
+        "en": "Flings shadow daggers, each at a different invader.",
+        "tl": "Naghahagis ng mga punyal ng anino, bawat isa sa ibang kalaban."
+      },
+      "damage": 14,
+      "damagePerLevel": 6,
+      "cooldown": 2.6,
+      "cooldownPerLevel": -0.15,
+      "volley": 3,
+      "costs": [
+        {
+          "coins": 80,
+          "wood": 40,
+          "arcaneEssence": 8
+        },
+        {
+          "coins": 150,
+          "wood": 70,
+          "arcaneEssence": 16
+        },
+        {
+          "coins": 260,
+          "wood": 110,
+          "arcaneEssence": 30
+        },
+        {
+          "coins": 440,
+          "wood": 160,
+          "arcaneEssence": 50
+        }
+      ]
+    },
+    "VOIDGATE": {
+      "attack": "aetherArc",
+      "icon": "🌀",
+      "name": {
+        "en": "Void Lance",
+        "tl": "Sibat ng Kawalan"
+      },
+      "desc": {
+        "en": "Fires a lance of void energy that leaps from invader to invader.",
+        "tl": "Nagpapaputok ng sibat ng kawalan na tumatalon mula kalaban sa kalaban."
+      },
+      "damage": 18,
+      "damagePerLevel": 8,
+      "cooldown": 3.2,
+      "cooldownPerLevel": -0.2,
+      "chains": 3,
+      "chainsPerLevel": 1,
+      "chainTiles": 1.6,
+      "costs": [
+        {
+          "coins": 80,
+          "stone": 40,
+          "aetherShards": 40
+        },
+        {
+          "coins": 150,
+          "stone": 70,
+          "aetherShards": 80
+        },
+        {
+          "coins": 260,
+          "stone": 110,
+          "aetherShards": 140,
+          "arcaneEssence": 15
+        },
+        {
+          "coins": 440,
+          "stone": 160,
+          "aetherShards": 220,
+          "arcaneEssence": 35
+        }
+      ]
+    },
+    "OSSUARY": {
+      "attack": "spikes",
+      "icon": "🦴",
+      "name": {
+        "en": "Bone Shards",
+        "tl": "Piraso ng Buto"
+      },
+      "desc": {
+        "en": "Splinters skulls into shards, each at a different invader.",
+        "tl": "Binabasag ang mga bungo at inihahagis ang piraso, bawat isa sa ibang kalaban."
+      },
+      "damage": 14,
+      "damagePerLevel": 6,
+      "cooldown": 2.6,
+      "cooldownPerLevel": -0.15,
+      "volley": 3,
+      "costs": [
+        {
+          "coins": 70,
+          "stone": 50,
+          "arcaneEssence": 6
+        },
+        {
+          "coins": 140,
+          "stone": 80,
+          "soulFragments": 4
+        },
+        {
+          "coins": 250,
+          "stone": 120,
+          "soulFragments": 10
+        },
+        {
+          "coins": 420,
+          "stone": 170,
+          "soulFragments": 18
+        }
+      ]
     }
   },
   "castle": {

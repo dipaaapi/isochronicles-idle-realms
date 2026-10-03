@@ -2,6 +2,7 @@ import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
 import { DEFENSE_CONFIG, beaconLevelOf, castleUpgradeCost } from '../defenseStats';
 import { ECONOMY_CONFIG, enemiesInWave } from '../economy';
+import { vengeanceExtraInvaders } from '../establishmentCrews';
 import { lootResources } from '../resources';
 import { availableSkillPoints, teamBonuses } from '../skillTree';
 import { restoreWreckedBuildings, restoreWreckedSpire } from './buildingsSlice';
@@ -113,7 +114,9 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
   startInvasion: () => {
     const state = get();
     if (!isConstructionReady(state) || state.invasion.isActive) return;
-    const totalEnemies = enemiesInWave(state.invasion.waveNumber);
+    // Human gatherers come along to avenge the demons' raids into their realm
+    const vengeanceExtra = vengeanceExtraInvaders(state.invasion.vengeance ?? 0);
+    const totalEnemies = enemiesInWave(state.invasion.waveNumber) + vengeanceExtra;
     set((prev) => ({
       invasion: {
         ...prev.invasion,
@@ -121,9 +124,15 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         enemiesRemaining: totalEnemies,
         totalEnemiesInWave: totalEnemies,
         countdown: 0,
+        vengeance: 0,
+        vengeanceExtra,
       },
     }));
     soundFx.playCastleHit();
+  },
+
+  stirVengeance: (amount: number) => {
+    set((prev) => ({ invasion: { ...prev.invasion, vengeance: (prev.invasion.vengeance ?? 0) + amount } }));
   },
 
   setEnemiesRemaining: (count: number) => {

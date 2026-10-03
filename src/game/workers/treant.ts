@@ -339,12 +339,7 @@ function autoSummonGeneralsByAncientEnt(
   // Only summon generals once the Citadel Castle stands
   if (!store.castleBuilt) return;
 
-  // Each built establishment whose General stands fills up to its tenant cap, one tenant per cycle
-  for (const buildingId of Object.keys(store.resourceBuildings ?? {}) as ResourceBuildingId[]) {
-    if ((store.resourceBuildings[buildingId]?.level ?? 0) < 1) continue;
-    if (store.summonTenant(buildingId)) break;
-  }
-
+  // Tenants are not summoned here: every standing establishment raises its own five (DefenderSystem)
   for (const unitClass of FIGHTER_CLASSES) {
     const count = store.roster.filter((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
     if (count >= maxUnitsOfClass(unitClass)) continue;

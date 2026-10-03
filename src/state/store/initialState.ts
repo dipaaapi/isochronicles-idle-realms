@@ -47,6 +47,10 @@ export const perBuilding = <T>(value: () => T): Record<ResourceBuildingId, T> =>
   PERCH: value(),
   KENNEL: value(),
   CAVE: value(),
+  FOUNDRY: value(),
+  PAVILION: value(),
+  VOIDGATE: value(),
+  OSSUARY: value(),
 });
 
 export const INITIAL_RESOURCE_BUILDINGS: ResourceBuildingsState = perBuilding(() => ({ level: 0, unlockedOutputs: [] }));
@@ -76,6 +80,8 @@ export const INITIAL_INVASION: InvasionState = {
   totalEnemiesInWave: 0,
   invasionsRepelled: 0,
   invaderKills: 0,
+  vengeance: 0,
+  vengeanceExtra: 0,
 };
 
 export const INITIAL_AUTO_SETTINGS: AutoSettings = {
@@ -236,7 +242,7 @@ export const createInitialProgress = () => {
     isWave100VictoryCelebration: false,
 
     // Silhouette Discovery: Starting beasts are pre-discovered
-    discoveredBeasts: ['GOLEM', 'LAVA_GARGOYLE'] as UnitClass[],
+    discoveredBeasts: ['DRYAD', 'MINOTAUR'] as UnitClass[],
     discoveredInvaders: [] as InvaderType[],
     promptedUpgrades: {},
     dynamicResourceNodes: createInitialResourceNodes(),

@@ -751,11 +751,368 @@ const sapling = (): VoxelModel => {
   };
 };
 
+// ── Thornwood Dryad (DRYAD) — bark-skinned grove spirit, leaf crown, thorn staff ─
+
+const dryad = (): VoxelModel => {
+  const M = { bark: 0, barkDark: 1, leaf: 2, leafLight: 3, eye: 4, bloom: 5, skin: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    ...pair('Leg', [13.3, 15, 9], [
+      box(12, 13.8, 1.5, 14.6, 16.2, 9, M.bark),
+      box(11.6, 13.2, 0, 15, 17.4, 1.6, M.barkDark),              // root feet
+    ], cx),
+    {
+      name: 'torso', pivot: [15, 15, 9], shapes: [
+        box(11.5, 12.5, 8, 18.5, 17.5, 11, M.leaf),               // leaf skirt
+        box(11, 12, 6.5, 19, 18, 8.5, M.leafLight),
+        box(12, 13, 11, 18, 17, 20, M.skin),
+        box(12.6, 16.8, 12, 17.4, 17.6, 19, M.bark),              // bark bodice
+        box(14.6, 17.4, 13, 15.4, 18, 18, M.barkDark),
+        box(11.5, 12.6, 17, 18.5, 17.4, 20.5, M.bark),            // shoulders
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 20], shapes: [
+        box(12.7, 13.2, 20, 17.3, 17.4, 25.5, M.skin),
+        box(13.3, 17.2, 22.4, 14.6, 17.9, 23.6, M.eye),
+        box(15.4, 17.2, 22.4, 16.7, 17.9, 23.6, M.eye),
+        ell(15, 14.6, 26, 4, 3.6, 2.2, M.leaf),                   // leaf crown / hair
+        ell(15, 12.4, 22.5, 3.6, 1.8, 4.2, M.leaf),               // hair down the back
+        box(11.8, 15, 25.5, 12.8, 16, 29, M.barkDark),            // twig antlers
+        box(17.2, 15, 25.5, 18.2, 16, 29, M.barkDark),
+        ball(12.2, 16.8, 26.6, 1, M.bloom),
+        ball(17.8, 16.8, 26.6, 1, M.bloom),
+      ],
+    },
+    ...pair('Arm', [11, 15, 19], [
+      box(9.8, 14, 12, 11.8, 16, 19.5, M.skin),
+      box(9.6, 13.8, 10.5, 12, 16.2, 12, M.bark),                 // bark bracer
+    ], cx, 'torso'),
+    {
+      name: 'staff', parent: 'rightArm', pivot: [20, 15, 11], shapes: [
+        box(19.5, 14.5, 0, 20.5, 15.5, 27, M.barkDark),
+        box(18.5, 14.5, 26, 19.5, 15.5, 29, M.barkDark),         // forked thorn head
+        box(20.5, 14.5, 26, 21.5, 15.5, 30, M.barkDark),
+        ell(20, 15, 28.5, 1.8, 1.8, 1.8, M.leafLight),
+        ball(20, 16, 29, 0.9, M.bloom),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.45 * s },
+    rightLeg: { pitch: -0.45 * s },
+    leftArm: { pitch: -0.35 * s },
+    rightArm: { pitch: 0.2 * s },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 1.9 }, staff: { pitch: -0.4 }, leftArm: { pitch: 0.6 } },
+    { rightArm: { pitch: 1.2 }, staff: { pitch: 0.3 }, leftArm: { pitch: 1.1 }, torso: { pitch: 0.1 } },
+    { rightArm: { pitch: 0.6 }, staff: { pitch: 0.5 }, leftArm: { pitch: 0.8 }, torso: { pitch: 0.15, offset: [0, 1, 0] } },
+  ];
+  return {
+    size: [30, 30, 34],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0x7c5a3a }, { color: 0x4a3423 }, { color: 0x4d7c0f }, { color: 0x84cc16 },
+      { color: 0xfde047, emissive: true }, { color: 0xf472b6, emissive: true }, { color: 0xa3b18a },
+    ],
+    parts,
+    animations: { walk, attack, idle: breathe('torso') },
+  };
+};
+
+// ── Watchtower Minotaur (MINOTAUR) — bull-headed brute with a great pick-hammer ─
+
+const minotaur = (): VoxelModel => {
+  const M = { hide: 0, hideDark: 1, horn: 2, eye: 3, iron: 4, haft: 5, leather: 6, ring: 7 };
+  const cx = 17;
+  const parts: Part[] = [
+    ...pair('Leg', [14, 16, 10], [
+      box(12, 13.5, 3, 16, 18.5, 10, M.hideDark),
+      box(11.6, 13, 0, 16.4, 19, 3, M.horn),                      // hooves
+    ], cx),
+    {
+      name: 'torso', pivot: [17, 16, 10], shapes: [
+        box(11.5, 12.5, 9, 22.5, 19.5, 13, M.leather),            // kilt
+        box(12, 13, 13, 22, 19, 19, M.hide),
+        box(9.5, 12, 19, 24.5, 20.5, 28, M.hide),                 // huge chest
+        box(11, 20, 21, 16.5, 21, 27, M.hideDark),
+        box(17.5, 20, 21, 23, 21, 27, M.hideDark),
+        box(10, 12.5, 25, 24, 13.5, 28, M.leather),               // strap across the back
+        box(16.5, 20.2, 13.5, 17.5, 21, 26, M.leather),           // chest strap
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [17, 17, 28], shapes: [
+        box(14, 15, 27.5, 20, 21, 33.5, M.hide),
+        box(14.8, 20.5, 27.5, 19.2, 23.5, 31, M.hideDark),        // bull muzzle
+        box(16.4, 23.3, 28, 17.6, 23.8, 29, M.ring),              // nose ring
+        box(14.4, 20.8, 31.5, 15.8, 21.6, 32.6, M.eye),
+        box(18.2, 20.8, 31.5, 19.6, 21.6, 32.6, M.eye),
+        box(10, 17, 32, 14, 19, 34, M.horn),                      // horns sweep out and up
+        box(9, 17, 33.5, 10.5, 19, 37, M.horn),
+        box(20, 17, 32, 24, 19, 34, M.horn),
+        box(23.5, 17, 33.5, 25, 19, 37, M.horn),
+      ],
+    },
+    ...pair('Arm', [8.5, 16, 26], [
+      box(5.5, 13.5, 18, 10, 18.5, 27, M.hide),
+      box(5.2, 13.2, 14, 10.3, 18.8, 18, M.leather),             // bracer
+      box(5.5, 14, 10, 10, 18.5, 14, M.hideDark),                 // fist
+    ], cx, 'torso'),
+    {
+      name: 'hammer', parent: 'rightArm', pivot: [26.5, 16, 12], shapes: [
+        box(26, 15.5, 0, 27, 16.5, 30, M.haft),
+        box(23, 13.5, 28, 30, 18.5, 33, M.iron),                  // pick-hammer head
+        box(30, 15, 29, 33, 17, 32, M.iron),                      // pick spike
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.4 * s },
+    rightLeg: { pitch: -0.4 * s },
+    leftArm: { pitch: -0.3 * s },
+    rightArm: { pitch: 0.15 * s },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0], roll: 0.05 * s },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 2.5 }, hammer: { pitch: 0.2 }, torso: { pitch: -0.1, yaw: 0.2 } },
+    { rightArm: { pitch: 1.3 }, hammer: { pitch: 0.4 }, torso: { pitch: 0.1 } },
+    { rightArm: { pitch: 0.4 }, hammer: { pitch: 0.6 }, torso: { pitch: 0.22, yaw: -0.15, offset: [0, 2, -1] } },
+  ];
+  return {
+    size: [36, 34, 40],
+    foot: [17, 16, 0],
+    materials: [
+      { color: 0x8b5a2b }, { color: 0x5c3a1a }, { color: 0xe7dcc4 }, { color: 0xef4444, emissive: true },
+      { color: 0x6b7280 }, { color: 0x4a3423 }, { color: 0x3f2a1a }, { color: 0xfbbf24 },
+    ],
+    parts,
+    animations: { walk, attack, idle: breathe('torso') },
+  };
+};
+
+// ── Ember Imp (EMBER_IMP) — small red imp with a pick and an ember lantern ───
+
+const emberImp = (): VoxelModel => {
+  const M = { skin: 0, skinDark: 1, horn: 2, eye: 3, iron: 4, haft: 5, ember: 6, apron: 7 };
+  const cx = 14;
+  const parts: Part[] = [
+    ...pair('Leg', [12.5, 14, 6], [
+      box(11.5, 13, 1, 13.5, 15, 6.5, M.skinDark),
+      box(11.2, 12.5, 0, 13.8, 16, 1.2, M.skinDark),
+    ], cx),
+    {
+      name: 'torso', pivot: [14, 14, 6], shapes: [
+        box(10.5, 11.5, 6, 17.5, 16.5, 14, M.skin),               // pot belly
+        box(11, 16.2, 6, 17, 17, 13, M.apron),                    // soot apron
+        box(13.5, 8.5, 6, 14.5, 11.5, 7, M.skinDark),             // tail
+        box(13.2, 6.5, 6, 14.8, 8.5, 8, M.skinDark),              // spade tip
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [14, 14, 14], shapes: [
+        box(10.5, 11, 14, 17.5, 17, 20.5, M.skin),                // big head
+        box(11.4, 16.8, 17, 13, 17.6, 18.5, M.eye),
+        box(15, 16.8, 17, 16.6, 17.6, 18.5, M.eye),
+        box(12.5, 16.8, 14.8, 15.5, 17.4, 15.6, M.skinDark),      // grin
+        box(8.5, 13, 18, 10.5, 15, 19.5, M.skin),                 // pointed ears
+        box(17.5, 13, 18, 19.5, 15, 19.5, M.skin),
+        box(11, 13, 20.5, 12.5, 14.5, 23.5, M.horn),
+        box(15.5, 13, 20.5, 17, 14.5, 23.5, M.horn),
+      ],
+    },
+    ...pair('Arm', [9.8, 14, 13], [
+      box(8.8, 13, 7.5, 10.8, 15, 13.5, M.skin),
+    ], cx, 'torso'),
+    {
+      name: 'pick', parent: 'rightArm', pivot: [19.2, 14, 8], shapes: [
+        box(18.7, 13.5, 2, 19.7, 14.5, 18, M.haft),
+        box(16, 13.5, 17, 23, 14.5, 18.5, M.iron),                // pick head
+        box(15, 13.5, 16, 16.2, 14.5, 17.2, M.iron),
+        box(22.8, 13.5, 16, 24, 14.5, 17.2, M.iron),
+      ],
+    },
+    {
+      name: 'lantern', parent: 'leftArm', pivot: [8.8, 14, 8], shapes: [
+        box(8.3, 14.6, 4, 9.3, 15.4, 7.5, M.iron),
+        box(7.3, 14, 1.5, 10.3, 16, 4.5, M.iron),
+        box(7.8, 14.4, 2, 9.8, 15.6, 4, M.ember),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.55 * s },
+    rightLeg: { pitch: -0.55 * s },
+    leftArm: { pitch: -0.3 * s },
+    rightArm: { pitch: 0.3 * s },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0], roll: 0.08 * s },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 2.4 }, pick: { pitch: 0.3 }, torso: { pitch: -0.1 } },
+    { rightArm: { pitch: 1.2 }, pick: { pitch: 0.6 }, torso: { pitch: 0.15 } },
+    { rightArm: { pitch: 0.3 }, pick: { pitch: 0.8 }, torso: { pitch: 0.25, offset: [0, 1, 0] } },
+  ];
+  return {
+    size: [28, 28, 26],
+    foot: [14, 14, 0],
+    materials: [
+      { color: 0xdc2626 }, { color: 0x991b1b }, { color: 0x292524 }, { color: 0xfde047, emissive: true },
+      { color: 0x71717a }, { color: 0x78350f }, { color: 0xfb923c, emissive: true }, { color: 0x44403c },
+    ],
+    parts,
+    animations: { walk, attack, idle: breathe('torso') },
+  };
+};
+
+// ── Void Wraith (VOID_WRAITH) — hooded violet shade that floats, void scythe ─
+
+const voidWraith = (): VoxelModel => {
+  const M = { shroud: 0, shroudDark: 1, void: 2, eye: 3, blade: 4, haft: 5, wisp: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    {
+      name: 'shroud', pivot: [15, 15, 8], shapes: [
+        box(12.5, 12.5, 2, 17.5, 17.5, 5, M.shroudDark),          // ragged tail (no feet)
+        box(13.5, 13.5, 0, 16.5, 16.5, 2, M.wisp),
+        box(11.5, 11.5, 5, 18.5, 18.5, 10, M.shroudDark),
+        box(10.8, 11, 10, 19.2, 19, 20, M.shroud),
+        box(14.5, 18.6, 11, 15.5, 19.4, 19, M.void),              // rift seam down the front
+      ],
+    },
+    {
+      name: 'head', parent: 'shroud', pivot: [15, 15, 20], shapes: [
+        box(11.5, 11.5, 20, 18.5, 17.5, 27.5, M.shroud),          // hood
+        box(13, 10, 24, 17, 12, 30, M.shroudDark),                // hood point
+        box(12.6, 16.8, 21, 17.4, 18, 26, M.void),                // empty face
+        box(13.4, 17.6, 23.2, 14.6, 18.3, 24.4, M.eye),
+        box(15.4, 17.6, 23.2, 16.6, 18.3, 24.4, M.eye),
+      ],
+    },
+    ...pair('Arm', [10.5, 15, 19], [
+      box(8.8, 13.5, 12, 11.4, 16.5, 19.5, M.shroud),
+      ball(10.1, 15.6, 11.5, 1.2, M.void),                         // shadow hand
+    ], cx, 'shroud'),
+    {
+      name: 'scythe', parent: 'rightArm', pivot: [19.9, 15, 11.5], shapes: [
+        box(19.4, 14.5, 0, 20.4, 15.5, 31, M.haft),
+        box(20.4, 14.5, 29, 26, 15.5, 31, M.blade),               // curved blade
+        box(25, 14.5, 26, 26.5, 15.5, 29.5, M.blade),
+        box(24, 14.5, 24.5, 25.5, 15.5, 26.5, M.blade),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    shroud: { offset: [0, 0, 3 + (s === 0 ? 1 : 0)], pitch: 0.08 },
+    leftArm: { pitch: -0.2 * s },
+    rightArm: { pitch: 0.15 * s },
+  }));
+  const attack: Pose[] = [
+    { shroud: { offset: [0, 0, 3] }, rightArm: { pitch: 2.4 }, scythe: { pitch: 0.2 }, head: { pitch: -0.1 } },
+    { shroud: { offset: [0, 1, 3] }, rightArm: { pitch: 1.4 }, scythe: { pitch: 0.7 } },
+    { shroud: { offset: [0, 2, 2], pitch: 0.15 }, rightArm: { pitch: 0.5 }, scythe: { pitch: 1.0 } },
+  ];
+  const idle: Pose[] = [
+    { shroud: { offset: [0, 0, 3] } },
+    { shroud: { offset: [0, 0, 4] }, head: { pitch: 0.05 } },
+  ];
+  return {
+    size: [30, 30, 38],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0x4c1d95 }, { color: 0x2e1065 }, { color: 0x0b0418 }, { color: 0xe879f9, emissive: true },
+      { color: 0xc4b5fd }, { color: 0x1f2937 }, { color: 0xa855f7, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── Bone Knight (BONE_KNIGHT) — skeletal knight, bone tower-shield, greatsword ─
+
+const boneKnight = (): VoxelModel => {
+  const M = { bone: 0, boneDark: 1, rust: 2, rustDark: 3, eye: 4, cloth: 5, blade: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    ...pair('Leg', [13, 15, 10], [
+      box(12.2, 14.2, 2, 13.8, 15.8, 10, M.bone),
+      box(11.4, 13.4, 5, 14.6, 16.6, 7.5, M.rust),                 // knee guard
+      box(11.5, 13, 0, 14.5, 17, 2, M.rustDark),                  // sabatons
+    ], cx),
+    {
+      name: 'torso', pivot: [15, 15, 10], shapes: [
+        box(12, 13, 9, 18, 17, 11.5, M.boneDark),                 // pelvis
+        box(12.5, 16.6, 6, 17.5, 17.2, 12, M.cloth),              // tattered loincloth
+        box(14.2, 14.2, 11.5, 15.8, 15.8, 15.5, M.boneDark),      // spine
+        box(11.5, 12.5, 15.5, 18.5, 17.5, 22.5, M.bone),          // ribcage
+        box(12, 17.4, 16, 18, 18, 17, M.boneDark),                // rib gaps
+        box(12, 17.4, 18, 18, 18, 19, M.boneDark),
+        box(12, 17.4, 20, 18, 18, 21, M.boneDark),
+        box(14.6, 17.6, 15.5, 15.4, 18.2, 22.5, M.bone),          // sternum
+        box(9.5, 12.5, 21, 12.5, 17.5, 24, M.rust),               // rusted pauldrons
+        box(17.5, 12.5, 21, 20.5, 17.5, 24, M.rust),
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 23], shapes: [
+        ell(15, 16, 26, 3.2, 3.2, 3.4, M.bone),                   // skull
+        box(13.4, 18.7, 25.8, 14.8, 19.4, 27.2, M.eye),
+        box(15.2, 18.7, 25.8, 16.6, 19.4, 27.2, M.eye),
+        box(13.8, 18.6, 23.4, 16.2, 19.2, 24.2, M.boneDark),      // teeth
+        box(11.8, 12.6, 28.5, 18.2, 18, 30.5, M.rust),            // rusted skullcap
+        box(14.5, 12, 30.5, 15.5, 16.5, 33, M.cloth),             // crest
+      ],
+    },
+    ...pair('Arm', [10.5, 15, 22], [
+      box(9.8, 14.2, 14, 11.2, 15.8, 22, M.bone),
+      box(9.4, 13.8, 13, 11.6, 16.2, 15.5, M.rust),               // gauntlet
+    ], cx, 'torso'),
+    {
+      name: 'shield', parent: 'leftArm', pivot: [10.5, 15, 15], shapes: [
+        box(6, 16, 9, 10, 18, 23, M.boneDark),                    // bone tower-shield
+        box(6.5, 17.8, 10, 9.5, 18.6, 22, M.bone),
+        box(7.6, 18.4, 14.5, 8.4, 19, 18.5, M.rustDark),          // boss
+      ],
+    },
+    {
+      name: 'sword', parent: 'rightArm', pivot: [20.5, 15, 13], shapes: [
+        box(20, 14.5, 9, 21, 15.5, 14, M.rustDark),                // grip
+        box(18.5, 14.3, 13.5, 22.5, 15.7, 14.5, M.rust),          // crossguard
+        box(19.8, 14.6, 14.5, 21.2, 15.4, 30, M.blade),           // greatsword blade
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.42 * s },
+    rightLeg: { pitch: -0.42 * s },
+    leftArm: { pitch: -0.15 * s },
+    rightArm: { pitch: 0.3 * s },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 2.3 }, sword: { pitch: 0.1 }, leftArm: { pitch: 0.6 }, torso: { yaw: 0.2 } },
+    { rightArm: { pitch: 1.3 }, sword: { pitch: 0.4 }, leftArm: { pitch: 0.7 } },
+    { rightArm: { pitch: 0.4 }, sword: { pitch: 0.7 }, leftArm: { pitch: 0.5 }, torso: { pitch: 0.18, yaw: -0.2, offset: [0, 1, 0] } },
+  ];
+  return {
+    size: [30, 30, 36],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0xe7e5e4 }, { color: 0xa8a29e }, { color: 0x9a5b34 }, { color: 0x5c3317 },
+      { color: 0x38bdf8, emissive: true }, { color: 0x4b1d1d }, { color: 0xcbd5e1 },
+    ],
+    parts,
+    animations: { walk, attack, idle: breathe('torso') },
+  };
+};
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type MinionSpriteKey =
   | 'golem' | 'slime' | 'treant' | 'merman' | 'necromancer' | 'sapling'
-  | 'lavaGargoyle' | 'succubus' | 'demonHound' | 'harpy' | 'kraken';
+  | 'lavaGargoyle' | 'succubus' | 'demonHound' | 'harpy' | 'kraken'
+  | 'dryad' | 'minotaur' | 'emberImp' | 'voidWraith' | 'boneKnight';
 
 export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   golem,
@@ -769,6 +1126,11 @@ export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   demonHound,
   harpy,
   kraken,
+  dryad,
+  minotaur,
+  emberImp,
+  voidWraith,
+  boneKnight,
 };
 
 export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
@@ -782,4 +1144,9 @@ export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
   SUCCUBUS: 'succubus',
   LAVA_GARGOYLE: 'lavaGargoyle',
   HARPY: 'harpy',
+  DRYAD: 'dryad',
+  MINOTAUR: 'minotaur',
+  EMBER_IMP: 'emberImp',
+  VOID_WRAITH: 'voidWraith',
+  BONE_KNIGHT: 'boneKnight',
 };

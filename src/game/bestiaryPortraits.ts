@@ -14,6 +14,12 @@ export const BEAST_PORTRAITS: Record<string, string> = {
   KRAKEN: portrait('kraken'),
   DEMON_HOUND: portrait('demon-hound'),
   HARPY: portrait('harpy'),
+  // Rendered from the voxel models (front idle frame)
+  DRYAD: portrait('dryad'),
+  MINOTAUR: portrait('minotaur'),
+  EMBER_IMP: portrait('ember-imp'),
+  VOID_WRAITH: portrait('void-wraith'),
+  BONE_KNIGHT: portrait('bone-knight'),
 };
 
 export const INVADER_PORTRAITS: Record<string, string> = {

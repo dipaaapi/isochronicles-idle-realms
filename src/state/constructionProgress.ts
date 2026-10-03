@@ -11,6 +11,10 @@ const SITE_LABELS: Record<ResourceBuildingId, string> = {
   CRYPT: 'Crypt of Souls',
   PERCH: 'Brimstone Perch',
   KENNEL: 'Infernal Kennel',
+  FOUNDRY: 'Golem Foundry',
+  PAVILION: 'Shadow Pavilion',
+  VOIDGATE: 'Void Gate',
+  OSSUARY: 'Bone Crypt',
 };
 
 /** Seconds of Ent work at a site before the structure is finished. */

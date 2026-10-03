@@ -28,7 +28,9 @@ export type BattleEffect = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'SHI
 export type ResourceBuildingId =
   | 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE'
   // Landmarks: homes of the new beasts
-  | 'TRENCH' | 'CRYPT' | 'PERCH' | 'KENNEL';
+  | 'TRENCH' | 'CRYPT' | 'PERCH' | 'KENNEL'
+  // Codex landmarks: Golem Foundry, Shadow Pavilion, Void Gate, Bone Crypt
+  | 'FOUNDRY' | 'PAVILION' | 'VOIDGATE' | 'OSSUARY';
 
 export interface ResourceBuildingState {
   level: number;
@@ -116,6 +118,10 @@ export interface InvasionState {
   totalEnemiesInWave: number;
   invasionsRepelled: number;
   invaderKills: number;
+  /** Raids into the human realm (portal expeditions) since the last wave; each few adds an invader. */
+  vengeance?: number;
+  /** Extra invaders the current/last wave brought for that vengeance. */
+  vengeanceExtra?: number;
 }
 
 export interface Achievement {
@@ -346,6 +352,8 @@ export interface GameStoreState {
   tickDefenseTimers: (deltaSec: number) => void;
   tickInvasionCountdown: (deltaSeconds: number) => void;
   startInvasion: () => void;
+  /** A tenant came back from a portal expedition: the humans grow vengeful. */
+  stirVengeance: (amount: number) => void;
   setEnemiesRemaining: (count: number) => void;
   resolveInvasionVictory: (bountyCoins: number) => void;
   resolveCastleBreach: () => void;

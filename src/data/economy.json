@@ -320,6 +320,89 @@
           "coins": 140
         }
       ]
+    },
+    "FOUNDRY": {
+      "label": "Pandayan ng Golem",
+      "labelEn": "Golem Foundry",
+      "icon": "⚒️",
+      "outputs": [
+        "metal",
+        "minerals"
+      ],
+      "costs": [
+        {
+          "stone": 70,
+          "metal": 20,
+          "coins": 80
+        },
+        {
+          "stone": 100,
+          "metal": 40,
+          "coins": 140
+        }
+      ]
+    },
+    "PAVILION": {
+      "label": "Tolda ng Anino",
+      "labelEn": "Shadow Pavilion",
+      "icon": "🎪",
+      "outputs": [
+        "coins"
+      ],
+      "costs": [
+        {
+          "wood": 60,
+          "arcaneEssence": 15,
+          "coins": 60
+        },
+        {
+          "wood": 90,
+          "arcaneEssence": 30,
+          "coins": 120
+        }
+      ]
+    },
+    "VOIDGATE": {
+      "label": "Tarangkahan ng Kawalan",
+      "labelEn": "Void Gate",
+      "icon": "🌀",
+      "outputs": [
+        "aetherShards",
+        "arcaneEssence"
+      ],
+      "costs": [
+        {
+          "stone": 80,
+          "aetherShards": 15,
+          "coins": 90
+        },
+        {
+          "stone": 120,
+          "aetherShards": 30,
+          "coins": 160
+        }
+      ]
+    },
+    "OSSUARY": {
+      "label": "Kripta ng mga Buto",
+      "labelEn": "Bone Crypt",
+      "icon": "🦴",
+      "outputs": [
+        "stone",
+        "soulFragments"
+      ],
+      "costs": [
+        {
+          "stone": 70,
+          "arcaneEssence": 10,
+          "coins": 70
+        },
+        {
+          "stone": 100,
+          "arcaneEssence": 25,
+          "coins": 130
+        }
+      ]
     }
   },
   "castleConstructionCost": {
@@ -432,6 +515,64 @@
           "wood": 18,
           "stone": 8
         }
+      },
+      "DRYAD": {
+        "base": {
+          "aetherShards": 25,
+          "wood": 20
+        },
+        "perUnit": {
+          "aetherShards": 15,
+          "wood": 12
+        }
+      },
+      "MINOTAUR": {
+        "base": {
+          "aetherShards": 25,
+          "stone": 20,
+          "wood": 10
+        },
+        "perUnit": {
+          "aetherShards": 15,
+          "stone": 12,
+          "wood": 6
+        }
+      },
+      "EMBER_IMP": {
+        "base": {
+          "aetherShards": 30,
+          "wood": 15,
+          "stone": 15
+        },
+        "perUnit": {
+          "aetherShards": 18,
+          "wood": 10,
+          "stone": 10
+        }
+      },
+      "VOID_WRAITH": {
+        "base": {
+          "aetherShards": 80,
+          "arcaneEssence": 20,
+          "stone": 40
+        },
+        "perUnit": {
+          "aetherShards": 40,
+          "arcaneEssence": 12,
+          "stone": 25
+        }
+      },
+      "BONE_KNIGHT": {
+        "base": {
+          "aetherShards": 60,
+          "stone": 45,
+          "soulFragments": 3
+        },
+        "perUnit": {
+          "aetherShards": 30,
+          "stone": 25,
+          "soulFragments": 2
+        }
       }
     }
   },
@@ -501,6 +642,21 @@
     },
     "CRYPT": {
       "soulFragmentsPerWave": 3
+    },
+    "FOUNDRY": {
+      "metal": 2,
+      "minerals": 1
+    },
+    "PAVILION": {
+      "coins": 3
+    },
+    "VOIDGATE": {
+      "aetherShards": 1,
+      "arcaneEssence": 1
+    },
+    "OSSUARY": {
+      "stone": 2,
+      "soulFragments": 0.5
     }
   },
   "kennelWaveSpeedBonus": 0.15,
@@ -554,7 +710,7 @@
       "name": "Void Flak Cannonade",
       "nameTl": "Kanyon na Void Flak",
       "icon": "🔮",
-      "flakRadius": 2.0,
+      "flakRadius": 2,
       "airBonusPerLevel": 0.3,
       "cost": {
         "soulFragments": 4,

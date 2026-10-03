@@ -99,12 +99,13 @@ export type WorkerStatus =
 
 export type HarvestTask = 'AETHER' | 'WOOD' | 'STONE' | 'METAL' | 'ESSENCE' | 'FISH' | 'WATER' | 'HEAL' | 'BUILD';
 
-/** Team Beasts: 2 rulers (Treant, Slime) and 8 fighters. */
+/** Team Beasts: 2 rulers (Treant, Slime) and 13 fighters, one General per establishment. */
 export type UnitClass =
   | 'TREANT' | 'AQUA_SLIME'
-  | 'GOLEM' | 'MERMAN' | 'NECROMANCER' | 'KRAKEN' | 'DEMON_HOUND' | 'SUCCUBUS' | 'LAVA_GARGOYLE' | 'HARPY';
+  | 'GOLEM' | 'MERMAN' | 'NECROMANCER' | 'KRAKEN' | 'DEMON_HOUND' | 'SUCCUBUS' | 'LAVA_GARGOYLE' | 'HARPY'
+  | 'DRYAD' | 'MINOTAUR' | 'EMBER_IMP' | 'VOID_WRAITH' | 'BONE_KNIGHT';
 
-/** Each team has 2 rulers and 8 fighters. */
+/** Each team has 2 rulers and one fighter General per establishment. */
 export type UnitRole = 'RULER' | 'FIGHTER';
 
 export interface SlimeSupportProfile {

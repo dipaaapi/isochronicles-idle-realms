@@ -21,6 +21,7 @@ import {
   History,
   Search,
   Award,
+  Castle,
 } from 'lucide-react';
 import {
   UNIT_CLASSES,
@@ -42,8 +43,10 @@ import {
   TEAM_STATS,
 } from '../state/skillTree';
 import { gameConfirm } from './GameDialog';
+import { StructureAtlas } from './StructureAtlas';
+import STRUCTURE_TEXT from '../i18n/structureAtlas.json';
 
-export type AtlasTab = 'GUIDE' | 'BESTIARY' | 'REGRESSION' | 'FAQ' | 'LORE';
+export type AtlasTab = 'GUIDE' | 'BESTIARY' | 'STRUCTURES' | 'REGRESSION' | 'FAQ' | 'LORE';
 
 interface AtlasModalProps {
   isOpen: boolean;
@@ -257,7 +260,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
 
         {/* NAVIGATION BAR & SEARCH */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-5 py-2.5 border-b border-slate-800/80 bg-slate-900/40">
-          <div className="grid grid-cols-5 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
             {/* TAB 1: GUIDE */}
             <button
               onClick={() => {
@@ -288,6 +291,22 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
             >
               <Flame className="w-3.5 h-3.5 text-amber-300" />
               <span>{isTL ? 'Talaan' : 'Bestiary'}</span>
+            </button>
+
+            {/* TAB 3: STRUCTURES */}
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                setActiveTab('STRUCTURES');
+              }}
+              className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeTab === 'STRUCTURES'
+                  ? 'bg-amber-700 text-white shadow-md shadow-amber-700/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Castle className="w-3.5 h-3.5 text-amber-300" />
+              <span>{t(STRUCTURE_TEXT.tab)}</span>
             </button>
 
             {/* TAB 3: REGRESSION */}
@@ -339,7 +358,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
             </button>
           </div>
 
-          {(activeTab === 'FAQ' || activeTab === 'LORE' || activeTab === 'BESTIARY') && (
+          {(activeTab === 'FAQ' || activeTab === 'LORE' || activeTab === 'BESTIARY' || activeTab === 'STRUCTURES') && (
             <div className="relative flex items-center">
               <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 pointer-events-none" />
               <input
@@ -678,6 +697,8 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
           )}
 
           {/* ================= TAB 3: REGRESSION ================= */}
+          {activeTab === 'STRUCTURES' && <StructureAtlas isTL={isTL} searchQuery={searchQuery} />}
+
           {activeTab === 'REGRESSION' && (
             <div className="space-y-4">
               {/* Wave 100 Victory Banner if completed */}

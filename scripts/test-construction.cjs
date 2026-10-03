@@ -18,7 +18,7 @@ function load(file) {
       if (name === 'zustand/middleware') return { persist: (fn) => fn, createJSONStorage() {} };
       if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
       if (name.includes('storageAdapter')) return {};
-      if (name.includes('activityLog')) return new Proxy({}, { get: () => () => undefined });
+      if (name.includes('activityLog')) return new Proxy({}, { get: (_, fn) => (fn === 'resourceName' ? (k) => ({ en: k, tl: k }) : () => undefined) });
       if (name.includes('CharacterSprites')) return new Proxy({}, {
         get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),
       });
@@ -40,14 +40,15 @@ const nodesBefore = state().dynamicResourceNodes;
 state().replenishResourceNode('WOOD', { x: 8, y: 8, qualityMultiplier: 2 });
 assert.equal(state().dynamicResourceNodes, nodesBefore, 'unbuilt sites cannot be enriched');
 store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
-assert.equal(state().summonUnit('GOLEM'), false);
-assert.equal(state().summonUnit('GOLEM', 'AETHER', true), false, 'free summons also wait');
+assert.equal(state().summonUnit('MINOTAUR'), false);
+assert.equal(state().summonUnit('MINOTAUR', 'STONE', true), false, 'free summons also wait');
 assert.equal(state().summonUnit('TREANT', 'BUILD', true), true, 'builder must remain available');
 assert.equal(state().buildCastle(), true);
 for (const id of ['WOOD', 'QUARRY', 'MINE']) assert.equal(state().upgradeResourceBuilding(id), true);
 const countdown = state().invasion.countdown;
 assert.equal(state().upgradeResourceBuilding('PORT'), true);
-assert.equal(state().summonUnit('GOLEM'), true, 'the castle unlocks recruits');
+assert.equal(state().summonUnit('MINOTAUR'), true, 'the castle unlocks recruits');
+assert.equal(state().summonUnit('GOLEM'), false, 'the Golem waits for its Golem Foundry');
 state().tickInvasionCountdown(1);
 assert.equal(state().invasion.countdown, countdown - 1);
 state().startInvasion();
@@ -79,7 +80,7 @@ Object.assign(worker.container, IsometricHelper.gridToScreen(8, 8));
 manager.updateConstruction(worker, state(), 20, 65);
 assert.equal(state().resourceBuildings.WOOD.level, 0, 'Ent waits for supplies');
 store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
-for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT']) {
+for (const id of ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT', 'FOUNDRY', 'PAVILION', 'VOIDGATE', 'OSSUARY']) {
   const site = nextConstruction(state());
   assert.equal(site.id, id);
   Object.assign(worker.container, IsometricHelper.gridToScreen(site.x, site.y));
@@ -433,4 +434,113 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   const b = IsometricHelper.gridToScreen(layout.CASTLE_FOOTPRINT.x + layout.CASTLE_FOOTPRINT.w + 1, row);
   assert.equal(nav.hasLineOfSight(a.x, a.y, b.x, b.y), false, 'the citadel blocks line of sight');
   console.log('Tower, beacon, portal, save-migration and obstacle checks passed.');
+}
+
+// Establishment crews: one General per establishment, tenants share its kind, gather/expedition yields are real resources
+{
+  const crews = load('src/state/establishmentCrews.ts');
+  const { UNIT_CLASSES } = load('src/data/units.ts');
+  const { BUILDING_IDS } = load('src/state/buildingLayout.ts');
+  const { generalOf } = load('src/state/store/rosterSlice.ts');
+  const resourceKeys = new Set(Object.keys(state().resources));
+  const generals = new Set();
+  for (const id of BUILDING_IDS) {
+    const crew = crews.ESTABLISHMENT_CREWS[id];
+    assert.ok(crew, `${id} has a crew`);
+    assert.equal(UNIT_CLASSES[crew.general]?.requiredBuilding, id, `${crew.general} is the General of ${id}`);
+    assert.equal(generalOf(id), crew.general, `tenants of ${id} share the General's kind`);
+    assert.ok(!generals.has(crew.general), `${crew.general} heads only one establishment`);
+    generals.add(crew.general);
+    assert.ok(crew.gather.length > 0, `${id} tenants have a gather job`);
+    for (const job of [...crew.gather, ...(crew.expedition ? [crew.expedition] : [])]) {
+      for (const key of Object.keys(job.yield)) assert.ok(resourceKeys.has(key), `${id} yields a real resource (${key})`);
+    }
+  }
+  const fighters = Object.keys(UNIT_CLASSES).filter((c) => UNIT_CLASSES[c].role === 'FIGHTER');
+  assert.equal(fighters.length, BUILDING_IDS.length, 'one fighter General per establishment');
+  assert.ok(Object.values(crews.ESTABLISHMENT_CREWS).some((c) => c.gather.some((g) => g.source === 'OCEAN')), 'someone fishes the ocean');
+  assert.ok(Object.values(crews.ESTABLISHMENT_CREWS).some((c) => c.expedition), 'someone raids the human realm');
+
+  // Expeditions stir human vengeance: the next wave brings extra invaders, then it resets
+  state().resetRealm();
+  const per = crews.CREW_CONFIG.expedition.vengeancePerExtraInvader;
+  store.setState({ castleBuilt: true, spireBuilt: true, resourceBuildings: Object.fromEntries(Object.entries(state().resourceBuildings).map(([k, b]) => [k, { ...b, level: 1 }])) });
+  const base = load('src/state/economy.ts').enemiesInWave(state().invasion.waveNumber);
+  state().stirVengeance(per * 2);
+  state().startInvasion();
+  assert.equal(state().invasion.totalEnemiesInWave, base + 2, 'raids add avenging invaders');
+  assert.equal(state().invasion.vengeance, 0, 'vengeance is spent on the wave');
+  assert.equal(state().invasion.vengeanceExtra, 2);
+
+  // Old saves: roster tenants are dropped (tenants live in the world now), Generals stay
+  const save = JSON.parse(state().exportSave());
+  const data = save.data ?? save;
+  data.roster = [
+    { id: 'unit_golem_1', name: 'Earth Golem 1', unitClass: 'GOLEM', assignedTask: 'METAL' },
+    { id: 'tenant_quarry_1', name: 'Earth Golem Tenant 1', unitClass: 'GOLEM', assignedTask: 'STONE', parentBuildingId: 'QUARRY' },
+  ];
+  assert.equal(state().importSave(JSON.stringify(save)), true);
+  assert.equal(JSON.stringify(state().roster.filter((u) => u.unitClass === 'GOLEM').map((u) => u.id)), '["unit_golem_1"]', 'roster tenants are migrated away');
+  console.log('Establishment crew, expedition vengeance and tenant migration checks passed.');
+}
+
+// Headless DefenderSystem run: crews spawn as their General's kind, fish in the ocean, raid through the rifts
+{
+  const { DefenderSystem } = load('src/game/DefenderSystem.ts');
+  const layout = load('src/state/buildingLayout.ts');
+  const crews = load('src/state/establishmentCrews.ts');
+  const isoMod = load('src/game/IsometricHelper.ts');
+  const iso = isoMod.IsometricHelper;
+  state().resetRealm();
+  store.setState({
+    castleBuilt: true, spireBuilt: true,
+    defense: { ...state().defense, castleHp: state().defense.castleMaxHp },
+    resourceBuildings: Object.fromEntries(Object.entries(state().resourceBuildings).map(([k, b]) => [k, { ...b, level: 1 }])),
+  });
+  const gfx = () => new Proxy({}, { get: () => () => {} });
+  const container = (x, y) => ({ x, y, active: true, visible: true, scale: 1,
+    setPosition(nx, ny) { this.x = nx; this.y = ny; return this; }, setVisible(v) { this.visible = v; return this; },
+    setScale() { return this; }, add() { return this; }, destroy() { this.active = false; } });
+  const scene = { add: { container, ellipse: gfx, graphics: gfx }, tweens: { add() {} }, time: { delayedCall() {} } };
+  const towers = layout.BUILDING_IDS.map((id) => {
+    const rect = layout.BUILDING_SITES[id].footprint;
+    const c = iso.gridToScreen(rect.x + rect.w / 2, rect.y + rect.h / 2);
+    return { id, rect, x: c.x, y: c.y };
+  });
+  const structures = { getTowers: () => towers, getCastleTarget: () => null };
+  const invasion = { getInvaders: () => [], damageInvader() {} };
+  const nav = { steer: (_a, _x, _y, tx, ty) => ({ x: tx, y: ty }), pushOut: (x, y) => ({ x, y }), isSolidTile: () => false };
+  const sys = new DefenderSystem(scene, { add() {} }, structures, invasion, nav);
+
+  const metalBefore = state().resources.metal ?? 0;
+  const fishBefore = state().resources.fish;
+  let sawOcean = false, sawAway = false;
+  for (let t = 0; t < 6000; t++) {
+    sys.update(100);
+    for (const d of sys.defenders) {
+      if (d.home === 'PORT' && d.targetNodePos) {
+        // Nearest tile centre (screenToGrid floors, but tiles are centred on whole coordinates)
+        const g = iso.screenToGrid(d.targetNodePos.x, d.targetNodePos.y + isoMod.TILE_HEIGHT / 2);
+        if (!layout.isLandTile(g.x, g.y)) sawOcean = true;
+        else assert.fail(`Port tenants wade into the ocean, not onto land (${g.x},${g.y})`);
+      }
+      if (d.state === 'IN_HUMAN_REALM') {
+        sawAway = true;
+        assert.equal(d.container.visible, false, 'raiders vanish into the rift');
+        assert.ok(!sys.getBlockers().includes(d), 'raiders across the rift cannot be attacked');
+      }
+    }
+  }
+  for (const id of layout.BUILDING_IDS) {
+    const crew = sys.defenders.filter((d) => d.home === id);
+    assert.equal(crew.length, 5, `${id} raises five tenants`);
+    assert.ok(crew.every((d) => d.unitClass === crews.ESTABLISHMENT_CREWS[id].general), `${id} tenants share their General's kind`);
+  }
+  assert.ok(!sys.defenders.some((d) => d.home === 'SPIRE'), 'the Crystal Spire is not an establishment crew');
+  assert.ok(sawOcean, 'Port tenants fish out in the ocean');
+  assert.ok(sawAway, 'some tenants raid the human realm');
+  assert.ok(state().resources.fish > fishBefore, 'fish reach the citadel');
+  assert.ok((state().resources.metal ?? 0) > metalBefore, 'metal reaches the citadel');
+  assert.ok((state().invasion.vengeance ?? 0) > 0, 'raids stir human vengeance');
+  console.log('Headless tenant gathering and expedition checks passed.');
 }

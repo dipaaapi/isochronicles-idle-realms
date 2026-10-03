@@ -24,6 +24,9 @@ function diff(state: GameStoreState, prev: GameStoreState): void {
   // Invasions
   if (state.invasion.isActive && !prev.invasion.isActive) {
     logMessage('waveAttack', { wave: state.invasion.waveNumber });
+    if ((state.invasion.vengeanceExtra ?? 0) > 0) {
+      logMessage('waveVengeance', { wave: state.invasion.waveNumber, extra: state.invasion.vengeanceExtra ?? 0 });
+    }
   } else if (!state.invasion.isActive && prev.invasion.isActive) {
     if (state.invasion.invasionsRepelled > prev.invasion.invasionsRepelled) {
       logMessage('waveRepelled', { wave: prev.invasion.waveNumber });

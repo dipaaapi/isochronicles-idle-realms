@@ -179,7 +179,7 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
     if (!state.castleBuilt) return;
     const yields = ECONOMY_CONFIG.landmarkYields as Record<string, Record<string, number>>;
     const delta: Partial<Resources> = {};
-    for (const id of ['TRENCH', 'PERCH', 'KENNEL'] as ResourceBuildingId[]) {
+    for (const id of ['TRENCH', 'PERCH', 'KENNEL', 'FOUNDRY', 'PAVILION', 'VOIDGATE', 'OSSUARY'] as ResourceBuildingId[]) {
       const building = state.resourceBuildings[id];
       if (!isBuildingOperational(building)) continue;
       for (const [key, perMinute] of Object.entries(yields[id] ?? {})) {

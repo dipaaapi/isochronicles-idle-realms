@@ -4,15 +4,21 @@ import { Navigation, NavAgent } from './Navigation';
 import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionManager';
 import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
-import { CASTLE_GATE, TileRect, expandRect, isLandTile } from '../state/buildingLayout';
-import type { TowerId, Resources } from '../types/state';
-import { TASK_NODE_LOCATIONS, type UnitClass, type HarvestTask } from '../types/game';
+import { CASTLE_GATE, GRID_SIZE, PORTAL_SITES, ROAD_TILES, TileRect, expandRect, isLandTile, rectCenter, type PortalSite } from '../state/buildingLayout';
+import type { ResourceBuildingId, TowerId, Resources } from '../types/state';
+import { UNIT_CLASSES, type UnitClass, type HarvestTask } from '../types/game';
 import { createMinionSprite, faceCharacterSprite, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
 import { soundFx } from './audio/soundFx';
 import { useTenantCounts, type TenantCount } from '../state/tenantCounts';
-import { logFloatingText } from '../state/activityLog';
+import { logFloatingText, logMessage, resourceName } from '../state/activityLog';
+import { CREW_CONFIG, ESTABLISHMENT_CREWS, vengeanceExtraInvaders, type GatherJob, type GatherSource } from '../state/establishmentCrews';
 
-export type DefenderState = 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT';
+export type DefenderState =
+  | 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT'
+  // Portal expedition: walk into a rift, gather in the human realm, come back loaded
+  | 'TO_PORTAL' | 'IN_HUMAN_REALM';
+
+type GridPoint = { x: number; y: number };
 
 /** A tenant summoned by an establishment, or a temporary summon ally (skeletons). */
 export interface Defender extends InvaderBlocker, NavAgent {
@@ -39,31 +45,42 @@ export interface Defender extends InvaderBlocker, NavAgent {
   isDetached?: boolean;
   // Harvesting fields
   harvestTask: HarvestTask;
+  /** The gather job (tiles + yield) of the current trip. */
+  job?: GatherJob;
   targetNodePos?: { x: number; y: number };
   workTimer: number;
   cargo: Partial<Resources>;
+  /** Rift the tenant is using for a human-realm expedition. */
+  portal?: PortalSite;
+  /** Seconds left gathering in the human realm. */
+  awayTimer?: number;
   takeHit: (damage: number) => void;
 }
 
 const MAX_PER_ESTABLISHMENT = 5;
-const BASE_SPAWN_INTERVAL = 18; // base seconds between tenant spawns
+const BASE_SPAWN_INTERVAL = CREW_CONFIG.spawnIntervalSeconds; // base seconds between tenant spawns
 const DEFENDER_HP = 80;
 const DEFENDER_DAMAGE = 16;
 const DEFENDER_SPEED = 72;
 const DEFENDER_REACH = 28;
 const IDLE_REGEN = 4;
 
-const GUARD_CONFIG: Record<TowerId, { unitClass: UnitClass; task: HarvestTask; yieldRes: Partial<Resources>; resIcon: string }> = {
-  WOOD: { unitClass: 'LAVA_GARGOYLE', task: 'WOOD', yieldRes: { wood: 2 }, resIcon: '🌲' },
-  MINE: { unitClass: 'DEMON_HOUND', task: 'WOOD', yieldRes: { metal: 2, coal: 1 }, resIcon: '⛏️' },
-  QUARRY: { unitClass: 'GOLEM', task: 'STONE', yieldRes: { stone: 2 }, resIcon: '🪨' },
-  PORT: { unitClass: 'MERMAN', task: 'FISH', yieldRes: { fish: 2, water: 2 }, resIcon: '🐟' },
-  CAVE: { unitClass: 'NECROMANCER', task: 'ESSENCE', yieldRes: { arcaneEssence: 2 }, resIcon: '🔮' },
-  SPIRE: { unitClass: 'SUCCUBUS', task: 'ESSENCE', yieldRes: { arcaneEssence: 2, aetherShards: 1 }, resIcon: '✨' },
-  TRENCH: { unitClass: 'KRAKEN', task: 'FISH', yieldRes: { abyssalPearl: 1, fish: 2 }, resIcon: '🐙' },
-  CRYPT: { unitClass: 'NECROMANCER', task: 'ESSENCE', yieldRes: { soulFragments: 1 }, resIcon: '💀' },
-  PERCH: { unitClass: 'HARPY', task: 'AETHER', yieldRes: { aetherShards: 1, wood: 2 }, resIcon: '🦅' },
-  KENNEL: { unitClass: 'DEMON_HOUND', task: 'WOOD', yieldRes: { obsidianShard: 1 }, resIcon: '🐺' },
+/** Harvest task (for the work animation / Slime logic) that best matches a gather source. */
+const SOURCE_TASK: Record<GatherSource, HarvestTask> = {
+  OCEAN: 'FISH',
+  GRASS: 'WOOD',
+  PAVEMENT: 'STONE',
+  ESTABLISHMENT: 'METAL',
+  PORTAL: 'ESSENCE',
+};
+
+/** "3 Metal, 1 Scrap Metal" in both languages. */
+const describeLoot = (loot: Partial<Resources>): { en: string; tl: string } => {
+  const parts = Object.entries(loot).filter(([, n]) => (n ?? 0) > 0).map(([key, n]) => ({ n, name: resourceName(key) }));
+  return {
+    en: parts.map((p) => `${p.n} ${p.name.en}`).join(', '),
+    tl: parts.map((p) => `${p.n} ${p.name.tl}`).join(', '),
+  };
 };
 
 export interface SummonOptions {
@@ -92,7 +109,7 @@ export class DefenderSystem {
   /** Raises a temporary ally at a world point (Necromancer skeletons, Raise the Dead). */
   summon(x: number, y: number, opts: SummonOptions): void {
     const pos = this.nav.pushOut(x, y, 0.18);
-    this.createUnit('SUMMON', opts.unitClass, pos, opts.hp, opts.damage, 'WOOD', { wood: 1 }, '💀', opts);
+    this.createUnit('SUMMON', opts.unitClass, pos, opts.hp, opts.damage, 'WOOD', opts);
   }
 
   /** Living summons with this tag. */
@@ -100,14 +117,14 @@ export class DefenderSystem {
     return this.defenders.filter((d) => !d.dead && d.tag === tag).length;
   }
 
-  /** Living defenders / tenants list */
+  /** Living defenders / tenants on the island (not those away in the human realm). */
   getDefenders(): Defender[] {
-    return this.defenders;
+    return this.defenders.filter((d) => d.state !== 'IN_HUMAN_REALM');
   }
 
   /** Invaders fight defenders that get in their way. */
   getBlockers(): InvaderBlocker[] {
-    return this.defenders;
+    return this.getDefenders();
   }
 
   /** Number of living garrisoned tenants tethered at an establishment. */
@@ -165,7 +182,7 @@ export class DefenderSystem {
     // ── Wave End Check: Re-anchor surviving detached tenants ──
     if (this.wasWaveActive && !isWaveActive) {
       for (const d of this.defenders) {
-        if (!d.dead && d.home !== 'SUMMON') {
+        if (!d.dead && d.home !== 'SUMMON' && d.state !== 'IN_HUMAN_REALM') {
           d.isDetached = false;
           d.state = 'HARVESTING';
           d.target = undefined;
@@ -179,8 +196,8 @@ export class DefenderSystem {
     // Fallen tenants wait until post-wave / peace cooldown to be re-summoned with zero cost
     for (const tower of this.structures.getTowers()) {
       if (!castleAlive) continue;
-      const cfg = GUARD_CONFIG[tower.id];
-      if (!cfg) continue;
+      const crew = ESTABLISHMENT_CREWS[tower.id as ResourceBuildingId];
+      if (!crew) continue;
 
       const livingGuards = this.getLivingTenantsCount(tower.id);
       if (livingGuards >= MAX_PER_ESTABLISHMENT) {
@@ -191,7 +208,7 @@ export class DefenderSystem {
       // If in wave, killed tenants must wait until wave finish or pure cooldown
       const timer = (this.spawnTimers.get(tower.id) ?? spawnInterval) - dt;
       if (timer <= 0) {
-        this.spawn(tower.id, tower.rect, cfg, DEFENDER_HP + researchHpBonus, Math.round(DEFENDER_DAMAGE * researchAtkBonus));
+        this.spawn(tower.id, tower.rect, crew.general, DEFENDER_HP + researchHpBonus, Math.round(DEFENDER_DAMAGE * researchAtkBonus));
         this.spawnTimers.set(tower.id, spawnInterval);
       } else {
         this.spawnTimers.set(tower.id, timer);
@@ -201,7 +218,7 @@ export class DefenderSystem {
     // Live counts for the Citadel Command / establishment windows
     const counts: Record<string, TenantCount> = {};
     for (const tower of this.structures.getTowers()) {
-      if (!GUARD_CONFIG[tower.id]) continue;
+      if (!ESTABLISHMENT_CREWS[tower.id as ResourceBuildingId]) continue;
       counts[tower.id] = {
         living: this.getLivingTenantsCount(tower.id),
         garrisoned: this.getGarrisonCount(tower.id),
@@ -245,6 +262,12 @@ export class DefenderSystem {
       }
       const slimeAtkMult = d.activeSlimeBuff?.attackMultiplier ?? 1.0;
       const slimeSpdMult = d.activeSlimeBuff?.speedMultiplier ?? 1.0;
+
+      // ── Human-realm expedition: out of reach of the fight until they come back ──
+      if (d.state === 'IN_HUMAN_REALM') {
+        this.updateExpedition(d, dt, isWaveActive);
+        continue;
+      }
 
       // ── Establishment Tenant Logic ──
       const homeTower = this.structures.getTowers().find((t) => t.id === d.home);
@@ -362,33 +385,31 @@ export class DefenderSystem {
           d.workTimer = 0;
         }
 
-        if (d.state === 'HARVESTING') {
-          // Find harvest target point
-          if (!d.targetNodePos) {
-            const nodeTile = TASK_NODE_LOCATIONS[d.harvestTask] ?? { x: 16, y: 16 };
-            const jitterX = Math.sin(parseInt(d.id, 36) || 0) * 1.5;
-            const jitterY = Math.cos(parseInt(d.id, 36) || 0) * 1.5;
-            d.targetNodePos = IsometricHelper.gridToScreen(nodeTile.x + jitterX, nodeTile.y + jitterY);
-          }
-
-          const distToNode = Math.hypot(d.targetNodePos.x - d.container.x, d.targetNodePos.y - d.container.y);
-
-          if (distToNode > 20) {
-            this.step(d, d.targetNodePos.x, d.targetNodePos.y, dt, DEFENDER_SPEED);
+        if (d.state === 'TO_PORTAL' && d.portal) {
+          // Rifts sit on the ocean corners: step onto the exit tile and vanish into the swirl
+          const rift = IsometricHelper.gridToScreen(d.portal.exit.x, d.portal.exit.y);
+          if (Math.hypot(rift.x - d.container.x, rift.y - d.container.y) > 10) {
+            this.step(d, rift.x, rift.y, dt, DEFENDER_SPEED);
           } else {
-            // At node: Work / Harvest
-            d.workTimer += dt;
-            if (d.sprite && Math.floor(d.workTimer * 4) % 2 === 0) {
-              playCharacterWork(d.sprite);
-            }
-
-            if (d.workTimer >= 3.0) {
-              // Collected goods!
-              const cfg = GUARD_CONFIG[d.home as TowerId];
-              d.cargo = { ...(cfg?.yieldRes ?? { wood: 1 }) };
-              d.workTimer = 0;
-              d.state = 'HAULING_TO_CASTLE';
-              this.spawnFloatingPopup(d.container.x, d.container.y - 25, `${cfg?.resIcon ?? '📦'} Collected!`, '#a7f3d0');
+            this.enterHumanRealm(d);
+          }
+        } else if (d.state === 'HARVESTING' || d.state === 'TO_PORTAL') {
+          d.state = 'HARVESTING';
+          // Pick the next trip: a rift expedition, or a gather job on its own kind of tiles
+          if (!d.targetNodePos) this.planTrip(d);
+          if (d.state === 'HARVESTING' && d.targetNodePos) {
+            const distToNode = Math.hypot(d.targetNodePos.x - d.container.x, d.targetNodePos.y - d.container.y);
+            if (distToNode > 12) {
+              this.step(d, d.targetNodePos.x, d.targetNodePos.y, dt, DEFENDER_SPEED);
+            } else {
+              // At the spot: work / harvest
+              d.workTimer += dt;
+              if (d.sprite && Math.floor(d.workTimer * 4) % 2 === 0) playCharacterWork(d.sprite);
+              if (d.workTimer >= CREW_CONFIG.gatherSeconds) {
+                d.cargo = { ...(d.job?.yield ?? { wood: 1 }) };
+                d.workTimer = 0;
+                d.state = 'HAULING_TO_CASTLE';
+              }
             }
           }
         } else if (d.state === 'HAULING_TO_CASTLE') {
@@ -398,15 +419,20 @@ export class DefenderSystem {
           if (distToGate > 28) {
             this.step(d, castleGatePos.x, castleGatePos.y, dt, DEFENDER_SPEED * 0.9);
           } else {
-            // Deposit cargo into player's stockpile!
+            // Deposit cargo into player's stockpile, narrated per resource in the activity log
             if (Object.keys(d.cargo).length > 0) {
               useGameStore.getState().addResources(d.cargo);
-              const cfg = GUARD_CONFIG[d.home as TowerId];
-              this.spawnFloatingPopup(castleGatePos.x + (Math.random() - 0.5) * 20, castleGatePos.y - 35, `+${cfg?.resIcon ?? '💎'} Deposited!`, '#38bdf8');
+              const source = d.job ? CREW_CONFIG.sources[d.job.source] : CREW_CONFIG.sources.HUMAN_REALM;
+              for (const [key, amount] of Object.entries(d.cargo)) {
+                if (!amount) continue;
+                logMessage('tenantGathered', { resource: resourceName(key), source: { en: source.en.toLowerCase(), tl: source.tl.toLowerCase() } },
+                  { mergeKey: `tenant:${key}:${source.en}`, amount, icon: source.icon });
+              }
               soundFx.playClick();
               d.cargo = {};
             }
             d.targetNodePos = undefined;
+            d.job = undefined;
             d.state = 'HARVESTING';
           }
         }
@@ -487,24 +513,154 @@ export class DefenderSystem {
     d.container.setPosition(moved.x, moved.y);
   }
 
-  private spawn(
-    home: TowerId,
-    rect: TileRect,
-    cfg: { unitClass: UnitClass; task: HarvestTask; yieldRes: Partial<Resources>; resIcon: string },
-    hp: number = DEFENDER_HP,
-    damage: number = DEFENDER_DAMAGE
-  ): void {
+  /** Walkable land tiles hugging an establishment's footprint. */
+  private ringAround(rect: TileRect): GridPoint[] {
     const ringRect = expandRect(rect, 1);
-    const ring: Array<{ x: number; y: number }> = [];
+    const ring: GridPoint[] = [];
     for (let y = ringRect.y; y < ringRect.y + ringRect.h; y++) {
       for (let x = ringRect.x; x < ringRect.x + ringRect.w; x++) {
         const inside = x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
         if (!inside && !this.nav.isSolidTile(x, y) && isLandTile(x, y)) ring.push({ x, y });
       }
     }
+    return ring;
+  }
+
+  private spawn(home: TowerId, rect: TileRect, unitClass: UnitClass, hp: number = DEFENDER_HP, damage: number = DEFENDER_DAMAGE): void {
+    const ring = this.ringAround(rect);
     const spot = ring[Math.floor(Math.random() * ring.length)] ?? { x: rect.x - 1, y: rect.y };
     const pos = IsometricHelper.gridToScreen(spot.x + (Math.random() - 0.5) * 0.4, spot.y + (Math.random() - 0.5) * 0.4);
-    this.createUnit(home, cfg.unitClass, pos, hp, damage, cfg.task, cfg.yieldRes, cfg.resIcon);
+    this.createUnit(home, unitClass, pos, hp, damage, UNIT_CLASSES[unitClass]?.preferredTask ?? 'WOOD');
+  }
+
+  // ── Gathering trips ─────────────────────────────────────────────────────────
+
+  /** Chooses the next trip: a rift expedition when a slot is free, otherwise one of the crew's gather jobs. */
+  private planTrip(d: Defender): void {
+    const crew = ESTABLISHMENT_CREWS[d.home as ResourceBuildingId];
+    const homeTower = this.structures.getTowers().find((t) => t.id === d.home);
+    if (!crew || !homeTower) return;
+
+    const exp = crew.expedition;
+    if (exp) {
+      const away = this.defenders.filter((o) => !o.dead && o.home === d.home && (o.state === 'TO_PORTAL' || o.state === 'IN_HUMAN_REALM')).length;
+      if (away < exp.slots && Math.random() < CREW_CONFIG.expedition.chance) {
+        d.portal = this.nearestPortal(homeTower.rect);
+        d.job = undefined;
+        d.targetNodePos = undefined;
+        d.state = 'TO_PORTAL';
+        return;
+      }
+    }
+
+    const job = crew.gather[Math.floor(Math.random() * crew.gather.length)];
+    const tile = this.pickGatherTile(job.source, homeTower.rect);
+    d.job = job;
+    d.harvestTask = SOURCE_TASK[job.source];
+    d.workTimer = 0;
+    d.targetNodePos = IsometricHelper.gridToScreen(tile.x + (Math.random() - 0.5) * 0.5, tile.y + (Math.random() - 0.5) * 0.5);
+  }
+
+  private nearestPortal(rect: TileRect): PortalSite {
+    const c = rectCenter(rect);
+    return PORTAL_SITES.slice().sort((a, b) => Math.hypot(a.tile.x - c.x, a.tile.y - c.y) - Math.hypot(b.tile.x - c.x, b.tile.y - c.y))[0];
+  }
+
+  /** A tile of the job's terrain near the establishment (falls back to its own doorstep). */
+  private pickGatherTile(source: GatherSource, rect: TileRect): GridPoint {
+    const c = rectCenter(rect);
+    const dist = (p: GridPoint) => Math.hypot(p.x - c.x, p.y - c.y);
+    const pickNear = (tiles: GridPoint[], take: number): GridPoint | undefined => {
+      const nearest = tiles.slice().sort((a, b) => dist(a) - dist(b)).slice(0, take);
+      return nearest[Math.floor(Math.random() * nearest.length)];
+    };
+    const radius = CREW_CONFIG.searchRadius;
+    const roads = new Set(ROAD_TILES.map((t) => `${t.x},${t.y}`));
+    const last = GRID_SIZE - 1;
+    let tile: GridPoint | undefined;
+
+    switch (source) {
+      case 'OCEAN': {
+        // Wade out into the ocean ring (never onto the corner rifts); the ±0.25 trip jitter stays in the water tile
+        const ocean: GridPoint[] = [];
+        for (let i = 1; i < last; i++) ocean.push({ x: i, y: 0.05 }, { x: i, y: last - 0.05 }, { x: 0.05, y: i }, { x: last - 0.05, y: i });
+        tile = pickNear(ocean, 6);
+        break;
+      }
+      case 'GRASS':
+      case 'PAVEMENT': {
+        const wantRoad = source === 'PAVEMENT';
+        const tiles: GridPoint[] = [];
+        for (let y = 1; y < last; y++) {
+          for (let x = 1; x < last; x++) {
+            if (!isLandTile(x, y) || this.nav.isSolidTile(x, y)) continue;
+            if (roads.has(`${x},${y}`) !== wantRoad || dist({ x, y }) > radius + 2) continue;
+            tiles.push({ x, y });
+          }
+        }
+        tile = pickNear(tiles, 8);
+        break;
+      }
+      case 'PORTAL': {
+        const rift = this.nearestPortal(rect);
+        const around: GridPoint[] = [];
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const p = { x: rift.exit.x + dx, y: rift.exit.y + dy };
+            if (isLandTile(p.x, p.y) && !this.nav.isSolidTile(p.x, p.y)) around.push(p);
+          }
+        }
+        tile = around[Math.floor(Math.random() * around.length)];
+        break;
+      }
+      case 'ESTABLISHMENT':
+        break;
+    }
+    if (tile) return tile;
+    const ring = this.ringAround(rect);
+    return ring[Math.floor(Math.random() * ring.length)] ?? { x: rect.x - 1, y: rect.y };
+  }
+
+  /** The tenant steps through the rift and vanishes into the human realm. */
+  private enterHumanRealm(d: Defender): void {
+    const { minSeconds, maxSeconds } = CREW_CONFIG.expedition;
+    d.state = 'IN_HUMAN_REALM';
+    d.awayTimer = minSeconds + Math.random() * (maxSeconds - minSeconds);
+    d.target = undefined;
+    d.container.setVisible(false);
+    const portal = d.portal ?? PORTAL_SITES[0];
+    logMessage('expeditionDeparts', { name: this.tenantName(d), portal: portal.name });
+  }
+
+  /** Counts down the trip; comes back through the same rift with loot once no wave is raging. */
+  private updateExpedition(d: Defender, dt: number, isWaveActive: boolean): void {
+    d.awayTimer = Math.max(0, (d.awayTimer ?? 0) - dt);
+    if (d.awayTimer > 0 || isWaveActive) return; // they wait out a battle on the other side
+
+    const crew = ESTABLISHMENT_CREWS[d.home as ResourceBuildingId];
+    const portal = d.portal ?? PORTAL_SITES[0];
+    const exit = IsometricHelper.gridToScreen(portal.exit.x, portal.exit.y);
+    d.container.setPosition(exit.x, exit.y);
+    d.lastX = exit.x;
+    d.lastY = exit.y;
+    d.container.setVisible(true);
+    d.cargo = { ...(crew?.expedition?.yield ?? {}) };
+    d.job = undefined;
+    d.portal = undefined;
+    d.state = 'HAULING_TO_CASTLE';
+    logMessage('expeditionReturns', { name: this.tenantName(d), loot: describeLoot(d.cargo) }, { icon: crew?.expedition?.icon });
+
+    // The humans notice: every few raids, one more of them joins the next wave
+    const store = useGameStore.getState();
+    const before = vengeanceExtraInvaders(store.invasion.vengeance ?? 0);
+    store.stirVengeance(CREW_CONFIG.expedition.vengeancePerTrip);
+    const after = vengeanceExtraInvaders(useGameStore.getState().invasion.vengeance ?? 0);
+    if (after > before) logMessage('vengeanceStirs', { extra: after });
+  }
+
+  private tenantName(d: Defender): { en: string; tl: string } {
+    const cfg = UNIT_CLASSES[d.unitClass];
+    return { en: `${cfg?.nameEn ?? d.unitClass} tenant`, tl: `tenant na ${cfg?.name ?? d.unitClass}` };
   }
 
   private createUnit(
@@ -514,8 +670,6 @@ export class DefenderSystem {
     hp: number,
     damage: number,
     task: HarvestTask,
-    yieldRes: Partial<Resources>,
-    resIcon: string,
     summon?: SummonOptions
   ): void {
     const container = this.scene.add.container(pos.x, pos.y);

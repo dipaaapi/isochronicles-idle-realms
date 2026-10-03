@@ -1,0 +1,115 @@
+{
+  "_comment": "One General and five tenants per establishment. Tenants share their General's kind (drawn smaller). Each gather entry is a job a tenant rotates through; 'source' says which tiles it works: OCEAN (wades into the ocean ring), GRASS (open land), PAVEMENT (road tiles), ESTABLISHMENT (beside its own building), PORTAL (around the nearest rift). 'expedition' sends up to 'slots' tenants through a rift into the human realm for materials the platform lacks; every trip stirs human vengeance (bigger next wave).",
+  "spawnIntervalSeconds": 18,
+  "gatherSeconds": 3,
+  "searchRadius": 5,
+  "expedition": {
+    "minSeconds": 30,
+    "maxSeconds": 55,
+    "chance": 0.4,
+    "vengeancePerTrip": 1,
+    "vengeancePerExtraInvader": 3,
+    "maxExtraInvaders": 4
+  },
+  "sources": {
+    "OCEAN": { "icon": "🌊", "en": "Ocean", "tl": "Karagatan" },
+    "GRASS": { "icon": "🌿", "en": "Grassland", "tl": "Damuhan" },
+    "PAVEMENT": { "icon": "🧱", "en": "Pavement", "tl": "Lansangan" },
+    "ESTABLISHMENT": { "icon": "🏛️", "en": "Establishment", "tl": "Pasilidad" },
+    "PORTAL": { "icon": "🌀", "en": "Near the rifts", "tl": "Malapit sa lagusan" },
+    "HUMAN_REALM": { "icon": "🏰", "en": "Human realm (through a rift)", "tl": "Kaharian ng tao (sa lagusan)" }
+  },
+  "crews": {
+    "WOOD": {
+      "general": "DRYAD",
+      "gather": [
+        { "source": "GRASS", "icon": "🌲", "yield": { "wood": 2 } },
+        { "source": "ESTABLISHMENT", "icon": "🪵", "yield": { "wood": 1, "charcoal": 1 } }
+      ]
+    },
+    "QUARRY": {
+      "general": "MINOTAUR",
+      "gather": [
+        { "source": "PAVEMENT", "icon": "🪨", "yield": { "stone": 2 } },
+        { "source": "ESTABLISHMENT", "icon": "💎", "yield": { "stone": 1, "minerals": 1 } }
+      ]
+    },
+    "MINE": {
+      "general": "EMBER_IMP",
+      "gather": [
+        { "source": "ESTABLISHMENT", "icon": "⛏️", "yield": { "coal": 1, "metal": 1 } }
+      ],
+      "expedition": { "slots": 2, "icon": "⛏️", "yield": { "metal": 3, "scrapMetal": 1 } }
+    },
+    "PORT": {
+      "general": "MERMAN",
+      "gather": [
+        { "source": "OCEAN", "icon": "🐟", "yield": { "fish": 2 } },
+        { "source": "OCEAN", "icon": "💧", "yield": { "water": 2 } }
+      ]
+    },
+    "CAVE": {
+      "general": "LAVA_GARGOYLE",
+      "gather": [
+        { "source": "PORTAL", "icon": "🔮", "yield": { "arcaneEssence": 2 } },
+        { "source": "ESTABLISHMENT", "icon": "✨", "yield": { "aetherShards": 1 } }
+      ]
+    },
+    "TRENCH": {
+      "general": "KRAKEN",
+      "gather": [
+        { "source": "OCEAN", "icon": "🐙", "yield": { "fish": 2, "water": 1 } },
+        { "source": "OCEAN", "icon": "🦪", "yield": { "abyssalPearl": 1 } }
+      ]
+    },
+    "CRYPT": {
+      "general": "NECROMANCER",
+      "gather": [
+        { "source": "PORTAL", "icon": "💀", "yield": { "soulFragments": 1 } }
+      ],
+      "expedition": { "slots": 2, "icon": "⚰️", "yield": { "soulFragments": 3 } }
+    },
+    "PERCH": {
+      "general": "HARPY",
+      "gather": [
+        { "source": "ESTABLISHMENT", "icon": "🌋", "yield": { "obsidianShard": 1 } }
+      ],
+      "expedition": { "slots": 1, "icon": "🦅", "yield": { "coins": 5, "wood": 3 } }
+    },
+    "KENNEL": {
+      "general": "DEMON_HOUND",
+      "gather": [
+        { "source": "GRASS", "icon": "🐺", "yield": { "charcoal": 1 } }
+      ],
+      "expedition": { "slots": 2, "icon": "🍖", "yield": { "charcoal": 2, "coins": 4 } }
+    },
+    "FOUNDRY": {
+      "general": "GOLEM",
+      "gather": [
+        { "source": "ESTABLISHMENT", "icon": "⚒️", "yield": { "metal": 1, "minerals": 1 } }
+      ],
+      "expedition": { "slots": 2, "icon": "⚙️", "yield": { "metal": 3, "scrapMetal": 2 } }
+    },
+    "PAVILION": {
+      "general": "SUCCUBUS",
+      "gather": [
+        { "source": "ESTABLISHMENT", "icon": "🎪", "yield": { "coins": 2 } }
+      ],
+      "expedition": { "slots": 2, "icon": "🪙", "yield": { "coins": 8 } }
+    },
+    "VOIDGATE": {
+      "general": "VOID_WRAITH",
+      "gather": [
+        { "source": "PORTAL", "icon": "🌀", "yield": { "aetherShards": 1, "arcaneEssence": 1 } }
+      ],
+      "expedition": { "slots": 1, "icon": "✨", "yield": { "aetherShards": 3 } }
+    },
+    "OSSUARY": {
+      "general": "BONE_KNIGHT",
+      "gather": [
+        { "source": "PAVEMENT", "icon": "🦴", "yield": { "stone": 2 } }
+      ],
+      "expedition": { "slots": 1, "icon": "💀", "yield": { "soulFragments": 2 } }
+    }
+  }
+}

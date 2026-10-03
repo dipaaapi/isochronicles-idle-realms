@@ -12,16 +12,34 @@ The Demon Lord wakes in the ruins of his throne room with only a fraction of his
 The Slime's first act is to call a **Sprout Ent** out of the dead soil, free of charge. The Ent is the realm's only builder. Stone by stone it raises the **Citadel**, then the **Crystal Spire**, then each establishment in turn, waiting patiently whenever the stores run short. When there is nothing left to build it repairs whatever the invaders broke, enriches the soil so harvests grow richer, forges and buys gear for itself, and tends the castle walls. It too evolves through five forms, from Sprout Ent to an ancient guardian of the grove.
 
 ## The Floating Island
-The citadel stands at the centre of a floating island with the Crystal Spire beside it. Around them the Ent raises nine establishments, placed anew in every realm: the **Wood Grove**, **Stone Quarry**, **Metal Mine**, **Water Port**, **Mystic Cave**, **Infernal Kennel**, **Brimstone Perch**, **Abyssal Trench** and **Crypt of Souls**. Each one is a home, a workshop and a fortress at once. It produces its own materials, guards the ground around it with its own tower, and calls on three skills of its own — two techniques and an ultimate. The Demon Lord may lift an establishment and set it down elsewhere, though never while an invasion is under way.
+The citadel stands at the centre of a floating island with the Crystal Spire beside it. Around them the Ent raises thirteen establishments, placed anew in every realm: the **Wood Grove**, **Stone Quarry**, **Metal Mine**, **Water Port**, **Mystic Cave**, **Infernal Kennel**, **Brimstone Perch**, **Abyssal Trench**, **Crypt of Souls**, **Golem Foundry**, **Shadow Pavilion**, **Void Gate** and **Bone Crypt**. Each one is a home, a workshop and a fortress at once. It produces its own materials, guards the ground around it with its own tower, and calls on three skills of its own — two techniques and an ultimate. The Demon Lord may lift an establishment and set it down elsewhere, though never while an invasion is under way.
 
-## Champions and Tenants
-Every establishment is home to one **Champion**: the **Earth Golem** of the Quarry, the **Lava Gargoyle** of the Grove, the **Succubus** of the Crystal Spire, the **Water Merman** of the Port, the **Demon Hound** of the Kennel, the **Harpy** of the Perch, the **Kraken** of the Trench and the **Lich Necromancer** of the Crypt. A Champion can be summoned once the citadel stands and its home is built, and it gathers, fights and leads. Behind each Champion come up to five **tenants** of the same kind. They garrison their home and each one holds part of its defences; when the line breaks they tear free and strike back.
+## Generals and Tenants
+Every establishment is home to one **General** and five **tenants** of the same kind:
+
+- the **Thornwood Dryad** of the Wood Grove, warden of the Tree of Life
+- the **Watchtower Minotaur** of the Stone Quarry
+- the **Ember Imp** of the Metal Mine and its ore furnace
+- the **Water Merman** of the Port
+- the **Lava Gargoyle** of the Mystic Cave, born of its magma
+- the **Kraken** of the Abyssal Trench
+- the **Lich Necromancer** of the Crypt of Souls
+- the **Harpy** of the Brimstone Perch
+- the **Demon Hound** of the Infernal Kennel
+- the **Earth Golem** of the Golem Foundry
+- the **Succubus** of the Shadow Pavilion
+- the **Void Wraith** of the Void Gate
+- the **Bone Knight** of the Bone Crypt
+
+A General can be summoned once the citadel stands and its home is built. It does not gather: it scouts the whole island, guards its home and the citadel, and leads in battle. The tenants are the hands. Each kind works the ground that suits it. Mermen and Krakens wade into the ocean for fish, water and pearls. Dryads cut on the open grass and Minotaurs break stone from the paved roads. Imps, Golems, Harpies and Succubi work beside their own halls. Gargoyles, Liches and Wraiths draw essence from the air around the rifts. In war the tenants garrison their home, and each one holds part of its defences; when the line breaks they tear free and strike back.
 
 ## The Citadel and Its Beacon
 The rebuilt citadel no longer fights with its own hands. Its towers have gone quiet; the establishments do the killing now. Instead the citadel burns a **Provoke Beacon**, a taunting light that drags nearby invaders away from the establishments and onto the walls. Thick walls, a shield that soaks the first blows and a strong beacon keep the rest of the island safe.
 
 ## The Crusades
 Once the citadel stands, the Human & Mecha Alliance notices. Every few minutes a new wave of invaders tears open the four **rifts** at the corners of the island and pours through them. The Demon Lord's minions can smash an open rift: it stops spawning for the rest of the wave and pays a bounty, and once every rift is sealed no more invaders arrive. Some invaders are **rushers** that ignore everything and charge straight for the citadel. Between waves, lone **scouts** wander the island; striking one down yields easy loot. Slain invaders scatter materials on the ground for the minions to collect, and the Demon Lord can strike any invader with a bolt of lightning.
+
+Not everything the horde needs grows on the island. Metal, scrap, souls and coin come from the human realm, so some tenants walk into the rifts and gather on the other side, returning loaded a minute later. The humans notice. Every few raids, another of their own gatherers joins the next wave to take revenge, and that is why the crusades never stop coming. A raider caught across the rift when a wave begins waits there until the fighting is over.
 
 If the citadel falls, the invaders loot half of everything in its stores and flee back through the rifts. The walls are raised again at once, and the war goes on.
 

@@ -1,0 +1,184 @@
+{
+  "tab": {
+    "en": "Structures",
+    "tl": "Gusali"
+  },
+  "intro": {
+    "en": "Each structure as the game draws it (same baked voxel sprite, animations and effects), next to the Codex art it is modelled on. The art is the design reference.",
+    "tl": "Bawat gusali kung paano ito iginuguhit ng laro (parehong voxel sprite, animasyon at epekto), katabi ng Codex art na batayan nito. Ang art ang batayan ng disenyo."
+  },
+  "baking": {
+    "en": "Baking sprite…",
+    "tl": "Ginagawa ang sprite…"
+  },
+  "footprint": {
+    "en": "Footprint",
+    "tl": "Sukat"
+  },
+  "portalName": {
+    "en": "Invader Portal",
+    "tl": "Portal ng Mananakop"
+  },
+  "states": {
+    "build": {
+      "en": "Under construction",
+      "tl": "Ginagawa pa"
+    },
+    "idle": {
+      "en": "Standing (idle)",
+      "tl": "Nakatayo (idle)"
+    },
+    "attack": {
+      "en": "Firing / skill",
+      "tl": "Umaatake / skill"
+    },
+    "hit": {
+      "en": "Taking hits",
+      "tl": "Tinatamaan"
+    },
+    "destroyed": {
+      "en": "Destroyed",
+      "tl": "Nawasak"
+    }
+  },
+  "stateNotes": {
+    "build": {
+      "en": "Scaffold pose; sways with dust while the Ent works, progress bar above.",
+      "tl": "Scaffold; umuuga at may alikabok habang ginagawa ng Ent, may progress bar sa itaas."
+    },
+    "idle": {
+      "en": "Looping idle animation.",
+      "tl": "Paulit-ulit na idle na animasyon."
+    },
+    "attack": {
+      "en": "Plays when its tower fires.",
+      "tl": "Lumalabas kapag pumuputok ang tore nito."
+    },
+    "hit": {
+      "en": "Red flash, shudder and debris on each hit; HP bar drops.",
+      "tl": "Pulang kislap, pagyanig at kalat sa bawat tama; bumababa ang HP bar."
+    },
+    "destroyed": {
+      "en": "Final blow: big shake and debris burst, then the wreck smoulders.",
+      "tl": "Huling tama: malakas na yanig at sabog ng kalat, saka umuusok ang guho."
+    }
+  },
+  "structures": {
+    "castle": {
+      "en": "Nexus Castle — the Demon Lord's citadel (3×3, centre): a gothic keep of red spires and lava-lit windows on a crag streaked with lava. Its Provoke Beacon pulses during waves, forcing nearby invaders to attack it instead of the establishments. If it falls, the realm is breached.",
+      "tl": "Nexus Castle — kuta ng Demon Lord (3×3, gitna): gotikong tore na may pulang tuktok at bintanang may liwanag ng lava, nakatayo sa batong may agos ng lava. Pumipintig ang Provoke Beacon nito tuwing wave para piliting atakihin ito ng mga kalaban. Kapag bumagsak, nasakop ang kaharian."
+    },
+    "spire": {
+      "en": "Aether Spire — a great cyan crystal ringed by floating shards on a rune-lit stone dais. Produces aether and arcane essence and fires crystal bolts that leap between invaders.",
+      "tl": "Aether Spire — malaking kristal na cyan na pinalilibutan ng lumulutang na piraso, sa ibabaw ng batong may kumikinang na rune. Nagbibigay ng aether at arcane essence at nagpapaputok ng kidlat na tumatalon sa mga kalaban."
+    },
+    "portal": {
+      "en": "Invasion Rift Portal — a gothic stone arch around a pink-and-blue spiral rift, one in each corner. Dormant between waves; invaders pour out while it swirls. Minions can destroy it during a wave.",
+      "tl": "Invasion Rift Portal — gotikong arko ng bato na may pink at asul na umiikot na lagusan, isa sa bawat sulok. Tulog sa pagitan ng wave; dito lumalabas ang mga kalaban. Kayang wasakin ng mga alagad habang may wave."
+    },
+    "quarry": {
+      "en": "Watchtower (Stone Quarry) — a timber tower with an iron cab and a field cannon, ammo crates at its feet. Produces stone and minerals; the cannon shells invaders.",
+      "tl": "Watchtower (Kwartel) — toreng kahoy na may bakal na silid at kanyon, may mga kahon ng bala sa paanan. Nagbibigay ng bato at mineral; binobomba ng kanyon ang mga kalaban."
+    },
+    "mine": {
+      "en": "Ore Furnace (Metal Mine) — a brick furnace roaring with fire, molten ore spilling from its mouth, broken columns behind. Produces metal and coal; its fire blasts invaders.",
+      "tl": "Ore Furnace (Minahan) — pugong ladrilyo na naglalagablab, umaapaw ang tunaw na mineral, may sirang haligi sa likod. Nagbibigay ng metal at karbon; sinusunog ng apoy nito ang mga kalaban."
+    },
+    "grove": {
+      "en": "Tree of Life (Wood Grove) — a giant twisting tree with a glowing green heart and a bright canopy. Produces wood and charcoal; defends with sapling summons.",
+      "tl": "Tree of Life (Kagubatan) — higanteng punong pilipit na may kumikinang na berdeng puso at maliwanag na dahon. Nagbibigay ng kahoy at uling; nagtatanggol sa pamamagitan ng mga sapling."
+    },
+    "port": {
+      "en": "Wellspring (Water Port) — a tiered fountain in a lily pool on a tiled plaza with flower hedges. Produces water and fish; its surging jet freezes invaders.",
+      "tl": "Wellspring (Pantalan) — patong-patong na fountain sa pool na may lily, sa plaza na may tisa at halamang may bulaklak. Nagbibigay ng tubig at isda; pinapalamig ng sumisirit na tubig ang mga kalaban."
+    },
+    "cave": {
+      "en": "Magma Cavern (Mystic Cave) — a dark volcano cone veined with lava rivers, fires at its foot. Produces arcane essence and aether; erupts fire at invaders.",
+      "tl": "Magma Cavern (Yungib ng Hiwaga) — madilim na bulkan na may agos ng lava at apoy sa paanan. Nagbibigay ng arcane essence at aether; bumubuga ng apoy sa mga kalaban."
+    },
+    "trench": {
+      "en": "Deepwater Basin (Abyssal Trench) — a kraken rising from a coral pool. Landmark: yields water, fish and abyssal pearls; its tentacles slam invaders.",
+      "tl": "Deepwater Basin (Bangin ng Kailaliman) — kraken na umaahon sa pool na may coral. Landmark: nagbibigay ng tubig, isda at abyssal pearl; hinahampas ng galamay nito ang mga kalaban."
+    },
+    "crypt": {
+      "en": "Bone Mausoleum (Crypt of Souls) — a gabled stone tomb ringed by skull piles, green soul flames and ghosts. Landmark: gathers soul fragments every wave; hurls bone volleys.",
+      "tl": "Bone Mausoleum (Libingan ng mga Kaluluwa) — batong puntod na pinalilibutan ng bungo, berdeng apoy ng kaluluwa at multo. Landmark: nag-iipon ng soul fragment bawat wave; naghahagis ng buto."
+    },
+    "perch": {
+      "en": "Obsidian Spire (Brimstone Perch) — a jagged black crag veined with lava. Landmark: yields obsidian shards; spews lava at invaders.",
+      "tl": "Obsidian Spire (Dapuan ng Asupre) — matulis na itim na bato na may ugat ng lava. Landmark: nagbibigay ng obsidian shard; bumubuga ng lava sa mga kalaban."
+    },
+    "kennel": {
+      "en": "Infernal Kennel — iron cages, a lava channel and a prowling hellhound. Landmark: yields charcoal; its howl gives beasts +15% speed during waves, and the hound breathes fire.",
+      "tl": "Infernal Kennel — bakal na kulungan, daluyan ng lava at gumagalang hellhound. Landmark: nagbibigay ng uling; +15% bilis ng mga halimaw tuwing wave dahil sa alulong nito, at bumubuga ng apoy ang aso."
+    },
+    "foundry": {
+      "en": "Golem Foundry — rune anvils and a forge fire, with a stone golem at work. Landmark: yields metal and minerals; the golem hurls rune hammers.",
+      "tl": "Golem Foundry (Pandayan ng Golem) — palihang may rune at apoy ng pandayan, may batong golem na nagtatrabaho. Landmark: nagbibigay ng metal at mineral; naghahagis ng martilyo ang golem."
+    },
+    "pavilion": {
+      "en": "Shadow Pavilion — a striped violet tent with gold trim and lanterns. Landmark: earns coins; flings shadow daggers.",
+      "tl": "Shadow Pavilion (Tolda ng Anino) — lilang tolda na may guhit, gintong palamuti at mga parol. Landmark: kumikita ng coins; naghahagis ng punyal ng anino."
+    },
+    "voidgate": {
+      "en": "Void Gate — a runed obsidian obelisk with violet eyes, orbs drifting around it. Landmark: yields aether and arcane essence; fires void lances.",
+      "tl": "Void Gate (Tarangkahan ng Kawalan) — obsidian na obelisk na may rune at lilang mata, may lumulutang na bilog sa paligid. Landmark: nagbibigay ng aether at arcane essence; nagpapaputok ng sibat ng kawalan."
+    },
+    "ossuary": {
+      "en": "Bone Crypt — skull-lined niche walls, two sarcophagi and a fallen skeleton. Landmark: yields stone and soul fragments; splinters bones at invaders.",
+      "tl": "Bone Crypt (Kripta ng mga Buto) — mga pader na puno ng bungo, dalawang kabaong at nakahandusay na kalansay. Landmark: nagbibigay ng bato at soul fragment; naghahagis ng piraso ng buto."
+    }
+  },
+  "portalStates": {
+    "build": {
+      "en": "Dormant (between waves)",
+      "tl": "Tulog (pagitan ng wave)"
+    },
+    "idle": {
+      "en": "Open (wave active)",
+      "tl": "Bukas (may wave)"
+    },
+    "attack": {
+      "en": "Spawning invaders",
+      "tl": "Naglalabas ng kalaban"
+    },
+    "hit": {
+      "en": "Hit by minions",
+      "tl": "Tinatamaan ng alagad"
+    },
+    "destroyed": {
+      "en": "Destroyed",
+      "tl": "Nawasak"
+    }
+  },
+  "portalStateNotes": {
+    "build": {
+      "en": "Dim ember ring at 75% opacity.",
+      "tl": "Malamlam na singsing, 75% opacity."
+    },
+    "idle": {
+      "en": "Swirling rift loop.",
+      "tl": "Umiikot na lagusan."
+    },
+    "attack": {
+      "en": "Rift flares and sparks fly out as an invader steps through.",
+      "tl": "Lumalaki ang lagusan at may kislap habang lumalabas ang kalaban."
+    },
+    "hit": {
+      "en": "White flash on each hit; purple HP bar.",
+      "tl": "Puting kislap bawat tama; lilang HP bar."
+    },
+    "destroyed": {
+      "en": "Shakes and bursts into blue and gold shards; re-forms next wave.",
+      "tl": "Yumayanig at sumasabog sa asul at gintong piraso; bumabalik sa susunod na wave."
+    }
+  },
+  "reference": {
+    "en": "Design reference",
+    "tl": "Batayang disenyo"
+  },
+  "inGame": {
+    "en": "In game",
+    "tl": "Sa laro"
+  }
+}

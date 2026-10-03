@@ -76,9 +76,10 @@ interface StructureView {
   lastHpKey: string;
 }
 
-const FALLBACK_COLORS: Record<StructureKey, number> = {
-  castle: 0x4b4468, quarry: 0x8b93a1, mine: 0x6b6b75, grove: 0x2f8f3a, port: 0xa87b4f, cave: 0x4a3d52, spire: 0x22d3ee, portal: 0x78716c,
-  trench: 0x0c4a6e, crypt: 0x3f4a3c, perch: 0x2b1d1a, kennel: 0x7f1d1d,
+export const FALLBACK_COLORS: Record<StructureKey, number> = {
+  castle: 0x45414f, quarry: 0x5b6470, mine: 0x6b6560, grove: 0x22a34a, port: 0xd6d3d1, cave: 0x2f2a28, spire: 0x22d3ee, portal: 0x6b6475,
+  trench: 0x334155, crypt: 0x52605a, perch: 0x231d2e, kennel: 0x3a2a26,
+  foundry: 0x4b5563, pavilion: 0x6d28d9, voidgate: 0x2a2438, ossuary: 0x3f4d4a,
 };
 
 /**
@@ -818,20 +819,23 @@ export class StructureManager {
 
 /**
  * Where each establishment's weapon sits, as a world offset from the sprite
- * anchor (projected from the voxel models: catapult bucket, obelisk crystal,
- * grove canopy, spike launcher, Hellfire Maw).
+ * anchor, projected from the voxel models (a model voxel moves 1.41 units
+ * across / 0.71 down per step in x or y, and 1.73 up per step in z).
  */
 const MUZZLES: Record<Exclude<TowerId, 'SPIRE'>, { x: number; y: number }> = {
-  QUARRY: { x: 19, y: -72 },
-  PORT: { x: 4, y: -77 },
-  WOOD: { x: 0, y: -80 },
-  MINE: { x: 4, y: -16 },
-  CAVE: { x: 23, y: -18 },
-  // Landmarks reuse their base model, so they share its muzzle
-  TRENCH: { x: 4, y: -77 },
-  CRYPT: { x: 23, y: -18 },
-  PERCH: { x: 19, y: -72 },
-  KENNEL: { x: 4, y: -16 },
+  QUARRY: { x: 44, y: -57 },   // watchtower cannon mouth
+  PORT: { x: 0, y: -55 },      // fountain jet
+  WOOD: { x: 0, y: -80 },      // tree canopy
+  MINE: { x: 0, y: -53 },      // furnace fire
+  CAVE: { x: 0, y: -66 },      // volcano crater
+  TRENCH: { x: 0, y: -26 },    // kraken
+  CRYPT: { x: 0, y: -51 },     // mausoleum
+  PERCH: { x: 0, y: -92 },     // obsidian summit
+  KENNEL: { x: 14, y: -2 },    // hellhound jaws
+  FOUNDRY: { x: 38, y: -57 },  // golem
+  PAVILION: { x: 0, y: -71 },  // tent finial
+  VOIDGATE: { x: 0, y: -66 },  // obelisk eyes
+  OSSUARY: { x: 3, y: -22 },   // sarcophagi
 };
 
 const ZONE_COLORS: Record<TowerId, number> = {
@@ -845,4 +849,8 @@ const ZONE_COLORS: Record<TowerId, number> = {
   CRYPT: 0x4ade80,
   PERCH: 0xfb923c,
   KENNEL: 0xef4444,
+  FOUNDRY: 0x38bdf8,
+  PAVILION: 0xa855f7,
+  VOIDGATE: 0xc084fc,
+  OSSUARY: 0xe7dcc0,
 };

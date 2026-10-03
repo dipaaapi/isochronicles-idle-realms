@@ -20,8 +20,8 @@
       "color": "emerald",
       "title": { "en": "The Ent Builds Everything", "tl": "Ang Ent ang Nagtatayo ng Lahat" },
       "body": {
-        "en": "There is no build button. The Ent raises the **Citadel**, then the **Crystal Spire**, then each establishment in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench and Crypt of Souls. It waits when supplies are short, then repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
-        "tl": "Walang build button. Itatayo ng Ent ang **Kuta**, pagkatapos ang **Tore ng Kristal**, at isa-isa ang mga pasilidad: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman at Libingan ng mga Kaluluwa. Naghihintay ito kapag kulang ang supply, at pagkatapos ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
+        "en": "There is no build button. The Ent raises the **Citadel**, then the **Crystal Spire**, then each establishment in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. It waits when supplies are short, then repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
+        "tl": "Walang build button. Itatayo ng Ent ang **Kuta**, pagkatapos ang **Tore ng Kristal**, at isa-isa ang mga pasilidad: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Buto. Naghihintay ito kapag kulang ang supply, at pagkatapos ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
       }
     },
     {
@@ -36,10 +36,10 @@
     {
       "icon": "👹",
       "color": "purple",
-      "title": { "en": "Champions & Tenants", "tl": "Mga Kampeon at Umuupa" },
+      "title": { "en": "Generals & Tenants", "tl": "Mga Heneral at Umuupa" },
       "body": {
-        "en": "Click an establishment to open it. Once the citadel stands, summon its **Champion** there (some need a higher Nexus or Refinery level). A Champion lets you add up to **5 tenants** that garrison the building, each holding part of its defence, and break out to counter-attack when it falls.",
-        "tl": "I-click ang isang pasilidad para buksan ito. Kapag nakatayo na ang kuta, tawagin doon ang **Kampeon** nito (may ilan na kailangan ng mas mataas na antas ng Nexus o Refinery). Kapag may Kampeon, makakadagdag ka ng hanggang **5 umuupa** na nagbabantay sa gusali, may hawak na bahagi ng depensa nito, at kumakawala para gumanti kapag nasira ito."
+        "en": "Every establishment has **1 General** and **5 tenants** of the same kind. Click an establishment to summon its **General** once the citadel stands (some need a higher Nexus or Refinery level); it scouts the island and leads in battle. The **tenants** arrive on their own and gather on their own ground: the **ocean**, **grass**, **roads**, their **building** or the **rifts**. Some slip through a rift to raid the **human realm** for metal, souls and coin, and each few raids add an avenging invader to the next wave. In battle the tenants garrison the building and break out to counter-attack when it falls.",
+        "tl": "Bawat pasilidad ay may **1 Heneral** at **5 umuupa** na kauri nito. I-click ang pasilidad para tawagin ang **Heneral** nito kapag nakatayo na ang kuta (may ilan na kailangan ng mas mataas na antas ng Nexus o Refinery); binabantayan nito ang isla at namumuno sa labanan. Kusang dumarating ang mga **umuupa** at nangangalap sa sarili nilang lupa: sa **dagat**, **damuhan**, **lansangan**, sa kanilang **gusali** o sa mga **lagusan**. May ilang pumapasok sa lagusan para nakawan ang **kaharian ng tao** ng bakal, kaluluwa at barya, at bawat ilang pagnanakaw ay nagdadagdag ng isang naghihiganting kalaban sa susunod na alon. Sa labanan, nagbabantay ang mga umuupa sa gusali at kumakawala para gumanti kapag nasira ito."
       }
     },
     {

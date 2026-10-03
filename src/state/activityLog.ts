@@ -183,8 +183,8 @@ const EPIC_COLORS = new Set(rules.epicColors);
 const RESOURCE_NAMES = catalog.resourceNames as Record<string, { en: string; tl: string }>;
 const PHRASES = catalog.phrases.map(([en, tl]) => [new RegExp(`^${en}$`, 'iu'), tl] as const);
 
-/** A resource label from a popup ("Wood", "Kristal", …) in both languages. */
-const resourceName = (label: string): { en: string; tl: string } =>
+/** A resource label from a popup ("Wood", "Kristal", …) or a resource key ("aetherShards") in both languages. */
+export const resourceName = (label: string): { en: string; tl: string } =>
   RESOURCE_NAMES[label.toLowerCase()] ?? { en: label, tl: label };
 
 /** Tagalog for a free-form popup line, via the phrase table (falls back to the English). */

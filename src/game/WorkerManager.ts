@@ -476,13 +476,13 @@ export class WorkerManager implements WorkerContext {
         sprite.setPosition(worker.body.x, worker.body.y);
         sprite.setScale(baseScale * (1 + breathe), baseScale * (1 - breathe));
       }
-    } else if (worker.unitClass === 'LAVA_GARGOYLE' || worker.unitClass === 'SUCCUBUS' || worker.unitClass === 'HARPY') {
+    } else if (worker.unitClass === 'LAVA_GARGOYLE' || worker.unitClass === 'SUCCUBUS' || worker.unitClass === 'HARPY' || worker.unitClass === 'VOID_WRAITH') {
       // Floating aerial elevation hover
       const hover = Math.sin(time / 220 + offset) * 3.5;
       sprite.setPosition(worker.body.x, worker.body.y - hover);
       const sway = Math.sin(time / 300 + offset) * 0.02;
       sprite.setScale(baseScale * (1 + sway), baseScale * (1 - sway));
-    } else if (worker.unitClass === 'TREANT' || worker.unitClass === 'GOLEM') {
+    } else if (worker.unitClass === 'TREANT' || worker.unitClass === 'GOLEM' || worker.unitClass === 'MINOTAUR') {
       // Heavy impactful grounded cadence
       if (moving) {
         const stepCycle = (time / 150 + offset) % Math.PI;

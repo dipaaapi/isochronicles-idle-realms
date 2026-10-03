@@ -42,7 +42,11 @@
     "KENNEL",
     "PERCH",
     "TRENCH",
-    "CRYPT"
+    "CRYPT",
+    "FOUNDRY",
+    "PAVILION",
+    "VOIDGATE",
+    "OSSUARY"
   ],
   "portals": [
     {

@@ -12,16 +12,34 @@ Nagising ang Demon Lord sa guho ng kanyang trono na kakaunti na lang ang natitir
 Ang unang ginawa ng Slime ay tawagin nang libre ang isang **Sprout Ent** mula sa patay na lupa. Ang Ent lang ang tagapagtayo ng kaharian. Bato sa bato, itinatayo nito ang **Kuta**, pagkatapos ang **Tore ng Kristal**, at isa-isa ang bawat pasilidad — matiyagang naghihintay kapag kulang ang imbak. Kapag wala nang itatayo, inaayos nito ang anumang sinira ng mga kalaban, pinatataba ang lupa para lumaki ang ani, nagpapanday at bumibili ng sariling gamit, at binabantayan ang pader ng kastilyo. Nag-e-evolve din ito sa limang anyo, mula Sprout Ent hanggang sa sinaunang bantay ng kagubatan.
 
 ## Ang Lumulutang na Isla
-Nakatayo ang kuta sa gitna ng lumulutang na isla, katabi ang Tore ng Kristal. Sa paligid nila, itinatayo ng Ent ang siyam na pasilidad na iba-iba ang puwesto sa bawat kaharian: ang **Kagubatan**, **Kwartel ng Bato**, **Minahan**, **Pantalan**, **Yungib ng Hiwaga**, **Kulungan ng Impiyerno**, **Dapuan ng Asupre**, **Bangin ng Kailaliman** at **Libingan ng mga Kaluluwa**. Bawat isa ay tahanan, pagawaan at tanggulan. Gumagawa ito ng sariling materyales, binabantayan ang paligid gamit ang sariling tore, at may tatlong sariling kakayahan — dalawang teknik at isang ultimate. Maaaring buhatin ng Demon Lord ang isang pasilidad at ilipat sa ibang puwesto, pero hindi habang may pagsalakay.
+Nakatayo ang kuta sa gitna ng lumulutang na isla, katabi ang Tore ng Kristal. Sa paligid nila, itinatayo ng Ent ang labintatlong pasilidad na iba-iba ang puwesto sa bawat kaharian: ang **Kagubatan**, **Kwartel ng Bato**, **Minahan**, **Pantalan**, **Yungib ng Hiwaga**, **Kulungan ng Impiyerno**, **Dapuan ng Asupre**, **Bangin ng Kailaliman**, **Libingan ng mga Kaluluwa**, **Pandayan ng Golem**, **Tolda ng Anino**, **Tarangkahan ng Kawalan** at **Kripta ng mga Buto**. Bawat isa ay tahanan, pagawaan at tanggulan. Gumagawa ito ng sariling materyales, binabantayan ang paligid gamit ang sariling tore, at may tatlong sariling kakayahan — dalawang teknik at isang ultimate. Maaaring buhatin ng Demon Lord ang isang pasilidad at ilipat sa ibang puwesto, pero hindi habang may pagsalakay.
 
-## Mga Kampeon at Umuupa
-Bawat pasilidad ay tahanan ng isang **Kampeon**: ang **Batong Golem** ng Kwartel, ang **Lava Gargoyle** ng Kagubatan, ang **Succubus** ng Tore ng Kristal, ang **Merman ng Tubig** ng Pantalan, ang **Demon Hound** ng Kulungan, ang **Harpy** ng Dapuan, ang **Kraken** ng Bangin at ang **Lich Necromancer** ng Libingan. Matatawag ang Kampeon kapag nakatayo na ang kuta at ang tahanan nito. Nag-iipon ito, lumalaban at namumuno. Kasunod ng bawat Kampeon ang hanggang limang **umuupa** na kauri nito. Nagbabantay sila sa kanilang tahanan at hawak ng bawat isa ang bahagi ng depensa nito; kapag nasira ang depensa, kumakawala sila at gumaganti.
+## Mga Heneral at Umuupa
+Bawat pasilidad ay tahanan ng isang **Heneral** at limang **umuupa** na kauri nito:
+
+- ang **Diwata ng Tinik** ng Kagubatan, bantay ng Puno ng Buhay
+- ang **Minotauro ng Bantayan** ng Kwartel
+- ang **Imp ng Hurno** ng Minahan
+- ang **Merman ng Tubig** ng Pantalan
+- ang **Lava Gargoyle** ng Yungib ng Hiwaga, isinilang sa magma nito
+- ang **Kraken** ng Bangin ng Kailaliman
+- ang **Lich Necromancer** ng Libingan ng mga Kaluluwa
+- ang **Harpy** ng Dapuan ng Asupre
+- ang **Demon Hound** ng Kulungan ng Impiyerno
+- ang **Batong Golem** ng Pandayan ng Golem
+- ang **Succubus** ng Tolda ng Anino
+- ang **Multo ng Kawalan** ng Tarangkahan ng Kawalan
+- ang **Kabalyerong Buto** ng Kripta ng mga Buto
+
+Matatawag ang Heneral kapag nakatayo na ang kuta at ang tahanan nito. Hindi ito nag-iipon: binabantayan nito ang buong isla, ipinagtatanggol ang tahanan nito at ang kuta, at namumuno sa labanan. Ang mga umuupa ang mga kamay. Bawat uri ay may sariling lupang pinagtatrabahuhan. Lumulusong sa dagat ang mga Merman at Kraken para sa isda, tubig at perlas. Pumuputol ang mga Diwata sa damuhan at bumabasag ng bato ang mga Minotauro sa mga lansangan. Sa tabi ng sarili nilang bulwagan nagtatrabaho ang mga Imp, Golem, Harpy at Succubus. Humihigop naman ng mahika sa paligid ng mga lagusan ang mga Gargoyle, Lich at Multo. Sa digmaan, nagbabantay ang mga umuupa sa kanilang tahanan at hawak ng bawat isa ang bahagi ng depensa nito; kapag nasira ang depensa, kumakawala sila at gumaganti.
 
 ## Ang Kuta at ang Liwanag Nito
 Hindi na lumalaban ang muling itinayong kuta gamit ang sariling kamay. Tahimik na ang mga tore nito; ang mga pasilidad na ang pumapatay ngayon. Sa halip, nagliliyab ang **Liwanag ng Panunukso**, isang nanunuksong ilaw na humihila sa mga kalaban palayo sa mga pasilidad at papunta sa pader. Ang makapal na pader, ang kalasag na sumasalo sa mga unang tama at ang malakas na liwanag ang nagpapanatiling ligtas sa buong isla.
 
 ## Ang mga Krusada
 Kapag nakatayo na ang kuta, mapapansin ito ng Alyansa ng Tao at Mecha. Bawat ilang minuto, may bagong alon ng kalaban na bumubukas sa apat na **lagusan** sa mga sulok ng isla at dumadagsa mula roon. Kayang wasakin ng mga alagad ang isang bukas na lagusan: titigil ito sa paglalabas ng kalaban sa natitirang bahagi ng alon at magbibigay ng gantimpala, at kapag sarado na ang lahat ng lagusan, wala nang darating na kalaban. May mga **rusher** na hindi pumapansin sa iba at diretsong sumusugod sa kuta. Sa pagitan ng mga alon, may mga nag-iisang **espiya** na gumagala sa isla; madaling nakawan ang mapapatay mo sa kanila. Nagkakalat ng materyales sa lupa ang mga napatay na kalaban para pulutin ng mga alagad, at kayang tamaan ng Demon Lord ang sinumang kalaban ng kidlat.
+
+Hindi lahat ng kailangan ng hukbo ay tumutubo sa isla. Sa kaharian ng tao nanggagaling ang bakal, kalawang, kaluluwa at barya, kaya may mga umuupang pumapasok sa mga lagusan at nangangalap sa kabilang panig, at bumabalik na may dala makalipas ang isang minuto. Napapansin ito ng mga tao. Bawat ilang pagnanakaw, may isa pa sa kanilang mga mangangalap na sumasama sa susunod na alon upang maghiganti, kaya hindi tumitigil ang mga krusada. Ang mangangalap na nasa kabilang panig pa nang magsimula ang alon ay naghihintay doon hanggang matapos ang labanan.
 
 Kapag bumagsak ang kuta, nanakawin ng mga kalaban ang kalahati ng lahat ng nasa imbakan at tatakas pabalik sa mga lagusan. Agad na itinatayo muli ang pader, at nagpapatuloy ang digmaan.
 

@@ -18,7 +18,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
     entries: [
       {
         question: '🌳 Who builds the castle and buildings?',
-        answer: 'Your starting Slime summons the Ent for free — the realm\'s only builder. It raises the Castle first, then the Crystal Spire, then the establishments in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench and Crypt of Souls. It walks to each site and builds once you have the supplies. There is no build button — it\'s all on autopilot.',
+        answer: 'Your starting Slime summons the Ent for free — the realm\'s only builder. It raises the Castle first, then the Crystal Spire, then the establishments in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. It walks to each site and builds once you have the supplies. There is no build button — it\'s all on autopilot.',
       },
       {
         question: '🎁 How do I get supplies early on?',
@@ -26,11 +26,11 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '⚔️ When do minions and waves unlock?',
-        answer: 'As soon as the Castle stands. The wave countdown starts, and each establishment can summon its Champion once it is built (some Champions also need a higher Nexus or Refinery level). Open an establishment by clicking it on the map.',
+        answer: 'As soon as the Castle stands. The wave countdown starts, and each establishment can summon its General once it is built (some Generals also need a higher Nexus or Refinery level). Open an establishment by clicking it on the map.',
       },
       {
         question: '🏠 What are tenants?',
-        answer: 'Once an establishment has its Champion, you can add up to 5 tenants of the same kind. They garrison the building and each one holds part of its defence. When the building is battered they break out and counter-attack.',
+        answer: 'Every establishment raises 5 tenants of its General\'s kind on its own. In peace they gather on their own ground: fishers wade into the ocean, others work the grass, the roads, their building or the air around the rifts, and some slip through a rift to raid the human realm for metal, souls and coin. Those raids anger the humans: every few of them add an avenging invader to the next wave. In battle tenants garrison the building, each holding part of its defence, and break out to counter-attack when it is battered.',
       },
       {
         question: '🛠️ What does the Ent do after construction?',
@@ -84,7 +84,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
     entries: [
       {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
-        answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent — ang tanging tagapagtayo ng kaharian. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, at saka ang mga pasilidad ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman at Libingan ng mga Kaluluwa. Lalakad ito sa bawat puwesto at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
+        answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent — ang tanging tagapagtayo ng kaharian. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, at saka ang mga pasilidad ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ito sa bawat puwesto at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',
@@ -92,11 +92,11 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '⚔️ Kailan magbubukas ang mga alagad at alon?',
-        answer: 'Kapag nakatayo na ang Kastilyo. Magsisimula ang countdown ng alon, at matatawag ng bawat pasilidad ang Kampeon nito kapag naitayo na ito (may ilang Kampeon na kailangan din ng mas mataas na antas ng Nexus o Refinery). Buksan ang pasilidad sa pag-click dito sa mapa.',
+        answer: 'Kapag nakatayo na ang Kastilyo. Magsisimula ang countdown ng alon, at matatawag ng bawat pasilidad ang Heneral nito kapag naitayo na ito (may ilang Heneral na kailangan din ng mas mataas na antas ng Nexus o Refinery). Buksan ang pasilidad sa pag-click dito sa mapa.',
       },
       {
         question: '🏠 Ano ang mga umuupa?',
-        answer: 'Kapag may Kampeon na ang pasilidad, makakadagdag ka ng hanggang 5 umuupa na kauri nito. Nagbabantay sila sa gusali at may hawak ang bawat isa na bahagi ng depensa nito. Kapag nabugbog ang gusali, kumakawala sila at gumaganti.',
+        answer: 'Kusang nagpapalabas ang bawat pasilidad ng 5 umuupa na kauri ng Heneral nito. Sa kapayapaan, nangangalap sila sa sarili nilang lupa: lumulusong sa dagat ang mga mangingisda, ang iba ay sa damuhan, lansangan, sa kanilang gusali o sa paligid ng mga lagusan, at may ilang pumapasok sa lagusan para nakawan ang kaharian ng tao ng bakal, kaluluwa at barya. Ikinagagalit ito ng mga tao: bawat ilang pagnanakaw ay nagdadagdag ng isang naghihiganting kalaban sa susunod na alon. Sa labanan, nagbabantay ang mga umuupa sa gusali, may hawak ang bawat isa na bahagi ng depensa nito, at kumakawala para gumanti kapag nabugbog ito.',
       },
       {
         question: '🛠️ Ano ang ginagawa ng Ent pagkatapos magtayo?',

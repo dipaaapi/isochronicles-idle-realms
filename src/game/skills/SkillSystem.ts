@@ -416,6 +416,93 @@ export class SkillSystem {
         }
         return;
       }
+      case 'DRYAD': {
+        const targets = near(5).filter((i) => !INVADER_CONFIGS[i.type].flying).slice(0, 4);
+        if (trySkill2 && this.ready(key2, 18)) {
+          for (const a of workers) if (tilesBetween(a.container, w.container) <= 4) a.hp = Math.min(a.maxHp, a.hp + 120);
+          this.ring(w.container, 4, 0x84cc16);
+          this.shout(w, 'Sap Mending');
+          return;
+        }
+        if (targets.length > 0 && this.ready(key1, 14)) {
+          for (const i of targets) this.invasion.applySlow(i, 0.2, 5);
+          this.ring(w.container, 5, 0x4d7c0f);
+          this.shout(w, 'Thorn Snare');
+          return;
+        }
+        return;
+      }
+      case 'MINOTAUR': {
+        const target = near(4)[0];
+        if (trySkill2 && this.ready(key2, 18)) {
+          w.armorShield = (w.armorShield || 0) + 150;
+          this.ring(w.container, 1.5, 0xd97706);
+          this.shout(w, 'Quarry Hide');
+          return;
+        }
+        if (target && this.ready(key1, 13)) {
+          this.scene.tweens.add({ targets: w.container, x: target.container.x - 12, y: target.container.y + 6, duration: 240, ease: 'Quad.easeIn' });
+          this.invasion.damageInvader(target, atk * 3, 'GORE');
+          this.invasion.knockback(target, w.container.x, w.container.y, TILE_PX * 2);
+          this.shout(w, 'Gore Charge');
+          return;
+        }
+        return;
+      }
+      case 'EMBER_IMP': {
+        const pool = near(5);
+        if (trySkill2 && pool.length > 0 && this.ready(key2, 18)) {
+          this.addZone('magma', { x: pool[0].container.x, y: pool[0].container.y }, 1.5, 5, 0xfb923c);
+          this.shout(w, 'Slag Pool');
+          return;
+        }
+        if (pool.length > 0 && this.ready(key1, 12)) {
+          for (const t of pool.slice(0, 3)) {
+            this.invasion.damageInvader(t, atk * 2, 'BURN');
+            this.beam(w.container, t.container, 0xf97316);
+          }
+          this.shout(w, 'Ember Toss');
+          return;
+        }
+        return;
+      }
+      case 'VOID_WRAITH': {
+        const target = near(6).sort((a, b) => b.hp - a.hp)[0];
+        if (trySkill2 && near(3).length > 0 && this.ready(key2, 17)) {
+          for (const i of near(3)) this.invasion.applySlow(i, 0.1, 4);
+          this.ring(w.container, 3, 0xa855f7);
+          this.shout(w, 'Null Shroud');
+          return;
+        }
+        if (target && this.ready(key1, 12)) {
+          w.container.setPosition(target.container.x + 10, target.container.y - 4);
+          this.invasion.damageInvader(target, atk * 3, 'VOID');
+          this.ring(target.container, 1, 0x7e22ce);
+          this.shout(w, 'Rift Step');
+          return;
+        }
+        return;
+      }
+      case 'BONE_KNIGHT': {
+        const targets = near(4).slice(0, 4);
+        if (trySkill2 && near(2).length > 0 && this.ready(key2, 16)) {
+          this.invasion.damageInvader(near(2)[0], atk * 3, 'CLEAVE');
+          this.shout(w, 'Grave Cleave');
+          return;
+        }
+        if (targets.length > 0 && this.ready(key1, 15)) {
+          for (const i of targets) {
+            i.tauntTimer = 6;
+            i.tauntBy = w;
+            i.retargetTimer = 0;
+          }
+          w.armorShield = (w.armorShield || 0) + 120;
+          this.ring(w.container, 2, 0xe2e8f0);
+          this.shout(w, 'Shield Wall');
+          return;
+        }
+        return;
+      }
     }
   }
 
@@ -706,6 +793,85 @@ export class SkillSystem {
   ): void {
 
     switch (id) {
+      // ── Codex landmarks ──
+      case 'FOUNDRY_RUNE_PLATING':
+        activateMod('fortress', 12);
+        this.ring(origin, 3, 0x38bdf8);
+        break;
+      case 'FOUNDRY_ANVIL_QUAKE':
+        for (const i of zoneInvaders) {
+          this.invasion.damageInvader(i, 110, '🔨');
+          this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 2);
+        }
+        this.ring(origin, 3, 0xf97316);
+        break;
+      case 'FOUNDRY_TITAN_FORGE':
+        for (let n = 0; n < 2; n++) {
+          this.defenders.summon(origin.x + (n ? 20 : -20), origin.y + 12, {
+            tag: 'forged_golem', unitClass: 'GOLEM', tint: 0xa5856e, hp: 320, damage: 30, life: 30,
+          });
+        }
+        break;
+      case 'PAVILION_SHADOW_VEIL':
+        for (const i of zoneInvaders) this.invasion.applySlow(i, 0.4, 6);
+        this.ring(origin, 3, 0xa855f7);
+        break;
+      case 'PAVILION_NIGHTMARE_ACT':
+        for (const i of nearest(4)) {
+          this.beam(origin, i.container, 0xc084fc);
+          this.invasion.damageInvader(i, 90, '🎭');
+        }
+        break;
+      case 'PAVILION_ECLIPSE':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 150, '🌘');
+          this.invasion.applySlow(i, 0.5, 8);
+        }
+        this.ring(origin, 8, 0x6d28d9);
+        break;
+      case 'VOIDGATE_GRAVITY_WELL':
+        for (const i of zoneInvaders) {
+          this.invasion.damageInvader(i, 60, '🕳️');
+          this.invasion.applySlow(i, 0.2, 4);
+        }
+        this.ring(origin, 3, 0xa855f7);
+        break;
+      case 'VOIDGATE_VOID_GAZE':
+        for (const i of nearest(3)) {
+          this.beam(origin, i.container, 0xf0abfc);
+          this.invasion.damageInvader(i, 140, '👁️');
+        }
+        break;
+      case 'VOIDGATE_SINGULARITY':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 250, '🌀');
+          i.frozenTimer = 3;
+        }
+        this.ring(origin, 8, 0x7e22ce);
+        break;
+      case 'OSSUARY_BONE_SPUR':
+        for (const i of zoneInvaders) {
+          this.invasion.damageInvader(i, 100, '🦴');
+          this.invasion.applySlow(i, 0.6, 4);
+        }
+        this.ring(origin, 3, 0xe7dcc0);
+        break;
+      case 'OSSUARY_RISEN_DEAD':
+        for (let n = 0; n < 2; n++) {
+          this.defenders.summon(origin.x + (n ? 18 : -18), origin.y + 10, {
+            tag: 'skeleton', unitClass: 'NECROMANCER', tint: 0xe7dcc0, hp: 90, damage: 12, life: 40,
+          });
+        }
+        break;
+      case 'OSSUARY_DANSE_MACABRE':
+        for (const i of invaders) this.invasion.damageInvader(i, 200, '☠️');
+        for (let n = 0; n < 4; n++) {
+          this.defenders.summon(origin.x + (n % 2 === 0 ? 24 : -24), origin.y + 8 + n * 4, {
+            tag: 'skeleton_champion', unitClass: 'NECROMANCER', tint: 0x5eead4, hp: 180, damage: 25, life: 30,
+          });
+        }
+        this.ring(origin, 7, 0x14b8a6);
+        break;
       case 'QUARRY_SEISMIC_SHATTER':
         for (const i of zoneInvaders) this.invasion.damageInvader(i, 120, '💥');
         this.ring(origin, 3, 0xf59e0b);

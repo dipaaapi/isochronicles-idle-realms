@@ -13,6 +13,7 @@ import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { EquipmentItem, EquipmentSlot, HarvestTask, InvaderType, UnitClass } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import type { SliceArgs } from './types';
+import { crewGeneralOf } from '../establishmentCrews';
 
 /** Castle (Nexus) / Refinery levels and required establishment a paid summon still needs, or null when unlocked. */
 export const summonLock = (
@@ -36,10 +37,7 @@ export const summonLock = (
 };
 
 /** The General whose home is this establishment (one per establishment), or undefined if none lives there. */
-export const generalOf = (buildingId: ResourceBuildingId): UnitClass | undefined =>
-  (Object.keys(UNIT_CLASSES) as UnitClass[]).find(
-    (c) => UNIT_CLASSES[c].role === 'FIGHTER' && UNIT_CLASSES[c].requiredBuilding === buildingId
-  );
+export const generalOf = (buildingId: ResourceBuildingId): UnitClass | undefined => crewGeneralOf(buildingId);
 
 /** Fighters the Slime can summon (rulers are unique and arrive on their own). */
 export const FIGHTER_CLASSES = (Object.keys(UNIT_CLASSES) as UnitClass[]).filter((c) => UNIT_CLASSES[c].role === 'FIGHTER');

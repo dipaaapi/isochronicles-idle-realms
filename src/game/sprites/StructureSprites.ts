@@ -55,6 +55,11 @@ export function prepareStructureSprites(scene: Phaser.Scene, onReady?: (key: Str
   scene.events.once(Phaser.Scenes.Events.DESTROY, () => listeners.delete(onStrip));
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => listeners.delete(onStrip));
 
+  startStructureBake();
+}
+
+/** Starts the background bake once per page (also used by the Atlas, which has no scene). */
+function startStructureBake(): void {
   if (workers.length > 0) return;
   const missing = (Object.keys(STRUCTURE_MODELS) as StructureKey[]).filter((k) => !baked.has(k));
   // Two workers, alternating keys, so the first few (citadel, portals, spire) land together
@@ -70,6 +75,18 @@ export function prepareStructureSprites(scene: Phaser.Scene, onReady?: (key: Str
       worker.postMessage(batch);
       return worker;
     });
+}
+
+/**
+ * The exact strips the game draws, for previews outside Phaser (the Atlas).
+ * Calls back with every strip already baked and each one as it lands;
+ * returns an unsubscribe.
+ */
+export function subscribeStructureStrips(listener: (strip: BakedStrip) => void): () => void {
+  for (const strip of baked.values()) listener(strip);
+  listeners.add(listener);
+  startStructureBake();
+  return () => listeners.delete(listener);
 }
 
 export const isStructureReady = (scene: Phaser.Scene, key: StructureKey): boolean =>

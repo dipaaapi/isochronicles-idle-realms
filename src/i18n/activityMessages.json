@@ -65,6 +65,11 @@
     "gathered": { "category": "economy", "tone": "neutral", "icon": "⛏️", "en": "+{total} {resource} gathered", "tl": "+{total} {resource} naipon" },
     "bounty": { "category": "economy", "tone": "epic", "icon": "🪙", "en": "+{total} coins in bounties", "tl": "+{total} barya mula sa gantimpala" },
     "looted": { "category": "economy", "tone": "good", "icon": "🎁", "en": "+{total} {resource} looted from invaders", "tl": "+{total} {resource} nakuha sa kalaban" },
+    "tenantGathered": { "category": "economy", "tone": "neutral", "icon": "⛏️", "en": "+{total} {resource} gathered from the {source}", "tl": "+{total} {resource} naipon mula sa {source}" },
+    "expeditionDeparts": { "category": "minions", "tone": "neutral", "icon": "🌀", "en": "{name} slipped through the {portal} into the human realm", "tl": "Pumasok ang {name} sa {portal} patungo sa kaharian ng tao" },
+    "expeditionReturns": { "category": "economy", "tone": "good", "icon": "🏰", "en": "{name} came back from the human realm with {loot}", "tl": "Bumalik ang {name} mula sa kaharian ng tao dala ang {loot}" },
+    "vengeanceStirs": { "category": "combat", "tone": "bad", "icon": "😠", "en": "The humans noticed the raids: {extra} more will come to avenge them", "tl": "Napansin ng mga tao ang pagnanakaw: {extra} pa ang darating upang maghiganti" },
+    "waveVengeance": { "category": "combat", "tone": "bad", "icon": "🔥", "en": "{extra} human gatherers join Wave {wave} to avenge the raids", "tl": "{extra} taong mangangalap ang sumama sa Alon {wave} upang maghiganti" },
 
     "unitJoins": { "category": "minions", "tone": "good", "icon": "✨", "en": "{name} the {unitClass} joins your army", "tl": "Sumali si {name} ({unitClass}) sa hukbo" },
     "healed": { "category": "minions", "tone": "good", "icon": "💚", "en": "Servants healed +{total} HP", "tl": "Napagaling ang mga alagad +{total} HP" },
@@ -111,7 +116,13 @@
     "coal": {"en": "Coal", "tl": "Karbon"},
     "karbon": {"en": "Coal", "tl": "Karbon"},
     "minerals": {"en": "Minerals", "tl": "Mineral"},
-    "mineral": {"en": "Minerals", "tl": "Mineral"}
+    "mineral": {"en": "Minerals", "tl": "Mineral"},
+    "aethershards": {"en": "Crystals", "tl": "Kristal"},
+    "arcaneessence": {"en": "Essence", "tl": "Mahika"},
+    "soulfragments": {"en": "Souls", "tl": "Kaluluwa"},
+    "abyssalpearl": {"en": "Pearl", "tl": "Perlas"},
+    "obsidianshard": {"en": "Obsidian", "tl": "Obsidian"},
+    "scrapmetal": {"en": "Scrap Metal", "tl": "Kalawang na Bakal"}
   },
 
   "phrases": [

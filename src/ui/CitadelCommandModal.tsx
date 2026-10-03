@@ -11,6 +11,8 @@ import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../stat
 import { soundFx } from '../game/audio/soundFx';
 import { useTranslation, unitName, type TranslationKey } from '../i18n/translations';
 import { useTenantCounts } from '../state/tenantCounts';
+import { BUILDING_IDS } from '../state/buildingLayout';
+import { ESTABLISHMENT_CREWS, crewSourceLabels } from '../state/establishmentCrews';
 import {
   UnitClass,
   UNIT_CLASSES,
@@ -413,16 +415,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                    {[
-                      { estabId: 'SPIRE' as const, cls: 'SUCCUBUS' as const, icon: '💎' },
-                      { estabId: 'QUARRY' as const, cls: 'GOLEM' as const, icon: '🪨' },
-                      { estabId: 'WOOD' as const, cls: 'LAVA_GARGOYLE' as const, icon: '🌲' },
-                      { estabId: 'PORT' as const, cls: 'MERMAN' as const, icon: '⚓' },
-                      { estabId: 'CRYPT' as const, cls: 'NECROMANCER' as const, icon: '💀' },
-                      { estabId: 'TRENCH' as const, cls: 'KRAKEN' as const, icon: '🐙' },
-                      { estabId: 'KENNEL' as const, cls: 'DEMON_HOUND' as const, icon: '🐺' },
-                      { estabId: 'PERCH' as const, cls: 'HARPY' as const, icon: '🦅' },
-                    ].map(({ estabId, cls, icon }) => {
+                    {BUILDING_IDS.map((estabId) => ({ estabId, cls: ESTABLISHMENT_CREWS[estabId].general, icon: RESOURCE_BUILDING_CONFIG[estabId].icon })).map(({ estabId, cls, icon }) => {
                       const cfg = UNIT_CLASSES[cls];
                       const estab = (RESOURCE_BUILDING_CONFIG as Record<string, { label: string; labelEn: string } | undefined>)[estabId];
                       const estabLabel = estab ? (isTL ? estab.label : estab.labelEn) : estabId;
@@ -468,6 +461,9 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
                             <p className="mt-2 text-[10px] text-slate-400 leading-snug">
                               {isTL ? cfg.subtitle : (cfg.subtitleEn || cfg.subtitle)}
+                            </p>
+                            <p className="mt-1 text-[10px] text-emerald-300/80 leading-snug">
+                              {crewSourceLabels(estabId, isTL)}
                             </p>
                           </div>
 

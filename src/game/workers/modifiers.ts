@@ -107,8 +107,8 @@ export function computeWorkerFrame(
     worker.buffTimer -= delta;
     motivationMult = 1.25;
   }
-  // Wayfarer speed bonus on woodcutting
-  const taskSpecialtySpeed = worker.unitClass === 'LAVA_GARGOYLE' && worker.assignedTask === 'WOOD' ? 1.2 : 1;
+  // Each General works its own establishment's trade faster
+  const taskSpecialtySpeed = worker.assignedTask === UNIT_CLASSES[worker.unitClass]?.preferredTask ? 1.2 : 1;
   const weather = WEATHER_EFFECTS[store.weather] ?? WEATHER_EFFECTS.CLEAR;
   const slimeMovementBonus = worker.unitClass === 'AQUA_SLIME'
     ? 1 + SUPPORT_SLIME_EVOLUTION[clampLevel(worker.supportEvolutionLevel)].speedBonusPercent / 100

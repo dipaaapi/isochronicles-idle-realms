@@ -29,13 +29,13 @@ const RENAMED_BEASTS: Record<string, UnitClass> = { WAYFARER: 'LAVA_GARGOYLE', C
 
 const migrateBeast = (id: string): string => RENAMED_BEASTS[id] ?? id;
 
-/** Old saves: renamed beasts get their new class; unknown classes and mismatched tenants are dropped. */
+/** Old saves: renamed beasts get their new class; unknown classes and roster tenants are dropped. */
 const migrateRoster = (roster: UnitRosterItem[]): UnitRosterItem[] =>
   roster
     .map((unit) => ({ ...unit, unitClass: migrateBeast(unit.unitClass) as UnitClass }))
     .filter((unit) => unit.unitClass in UNIT_CLASSES)
-    // Tenants must match their establishment's General (older saves put Hounds in the Mine, Liches in the Cave)
-    .filter((unit) => !unit.parentBuildingId || UNIT_CLASSES[unit.unitClass].requiredBuilding === unit.parentBuildingId);
+    // Tenants now live only in the world (DefenderSystem spawns five per establishment), never in the roster
+    .filter((unit) => !unit.parentBuildingId && !unit.id.startsWith('tenant_'));
 
 /** Codex discoveries limited to entries that still exist (the Deep One left the invaders). */
 const migrateDiscovered = <K extends string>(list: unknown, known: Record<K, unknown>, fallback: K[]): K[] =>
@@ -187,7 +187,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         ambientDarkness: data.ambientDarkness || 0,
         isAudioMuted: data.isAudioMuted || false,
         isGoreEnabled: data.isGoreEnabled || false,
-        discoveredBeasts: migrateDiscovered<UnitClass>(data.discoveredBeasts, UNIT_CLASSES, ['GOLEM', 'LAVA_GARGOYLE']),
+        discoveredBeasts: migrateDiscovered<UnitClass>(data.discoveredBeasts, UNIT_CLASSES, ['DRYAD', 'MINOTAUR']),
         discoveredInvaders: migrateDiscovered<InvaderType>(data.discoveredInvaders, INVADER_CONFIGS, []),
         lastSavedTimestamp: Date.now(),
         screen: data.hasCompletedIntro ? 'GAME' : 'TITLE',

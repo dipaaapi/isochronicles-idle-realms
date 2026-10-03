@@ -129,14 +129,41 @@ export interface LayoutResult {
   roadsByBuilding: Record<ResourceBuildingId | 'SPIRE', GridPoint[]>;
 }
 
+/**
+ * Seeded establishment layout. Thirteen 2×2 sites only just fit the platform,
+ * so an unlucky seed can paint itself into a corner. Then the sites already
+ * placed are kept (so earlier buildings never move) and only the rest are
+ * re-rolled with derived seeds — still deterministic per seed — with a little
+ * more room each time. Sites always keep at least a one-tile gap so every
+ * work spot stays free and reachable.
+ */
 export function generateLayout(
   seed: number,
   positions: BuildingPositions = {}
 ): LayoutResult {
-  const { size, edgeMargin } = layout.establishments;
-  const castleClearance = 3;
-  const preferredGap = 2;
-  const fallbackGap = 1;
+  let fixed = positions;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    // The first pass uses the classic spacing (so earlier layouts never change);
+    // re-rolls may sit closer to the citadel and then nearer the shore.
+    const room = attempt === 0 ? { clearance: 3, margin: layout.establishments.edgeMargin }
+      : attempt < 30 ? { clearance: 2, margin: layout.establishments.edgeMargin }
+      : { clearance: 2, margin: 1 };
+    const result = tryLayout(seed + attempt * 7919, fixed, [2, 1], room);
+    if ('roads' in result) return result;
+    fixed = result.placed;
+  }
+  throw new Error('No room to place every establishment');
+}
+
+function tryLayout(
+  seed: number,
+  positions: BuildingPositions,
+  gaps: number[],
+  room: { clearance: number; margin: number }
+): LayoutResult | { placed: BuildingPositions } {
+  const { size } = layout.establishments;
+  const castleClearance = room.clearance;
+  const edgeMargin = room.margin;
   const random = seededRandom(seed);
   const key = (x: number, y: number) => `${x},${y}`;
 
@@ -177,13 +204,13 @@ export function generateLayout(
     }
 
     let spot: GridPoint | null = null;
-    for (const gap of [preferredGap, fallbackGap]) {
+    for (const gap of gaps) {
       const { blocked, block } = createBlocked(gap);
       for (const pr of placedRects) block(expandRect(pr, gap));
 
       const fits = (x: number, y: number) => {
         for (let dy = 0; dy < size.h; dy++) for (let dx = 0; dx < size.w; dx++) {
-          if (blocked.has(key(x + dx, y + dy))) return false;
+          if (blocked.has(key(x + dx, y + dy)) || !isLandTile(x + dx, y + dy)) return false;
         }
         return true;
       };
@@ -218,7 +245,11 @@ export function generateLayout(
       if (spot) break;
     }
 
-    if (!spot) throw new Error(`No room to place ${id}`);
+    if (!spot) {
+      const placed: BuildingPositions = {};
+      for (const [placedId, site] of Object.entries(sites)) placed[placedId as MovableId] = { x: site.footprint.x, y: site.footprint.y };
+      return { placed };
+    }
 
     const footprint: TileRect = { ...spot, ...size };
     const workSpot = workSpotFor(footprint);

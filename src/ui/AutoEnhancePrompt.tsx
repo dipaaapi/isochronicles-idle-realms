@@ -7,6 +7,10 @@ import { soundFx } from '../game/audio/soundFx';
 import { Coins, Zap, X, ArrowRight } from 'lucide-react';
 
 import { CitadelTab } from './CitadelCommandModal';
+import { FIGHTER_CLASSES, summonLock } from '../state/store/rosterSlice';
+import { getUnitSummonCost, maxUnitsOfClass } from '../state/economy';
+import { canAfford as canAffordResources } from '../state/resources';
+import { UNIT_CLASSES, type UnitClass } from '../types/game';
 
 interface AutoEnhancePromptProps {
   onOpenCitadel: (tab: CitadelTab) => void;
@@ -72,62 +76,29 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
     return null;
   };
 
-  const checkSummon = (cls: 'GOLEM' | 'LAVA_GARGOYLE' | 'SUCCUBUS' | 'NECROMANCER', title: string, titleTl: string) => {
-    const count = state.roster.filter(u => u.unitClass === cls).length;
-    if (count >= 2) return null;
-
-    let reqNexus = 2, reqRefinery = 1;
-    let costShards = 0, costWood = 0, costStone = 0;
-
-    switch(cls) {
-      case 'GOLEM':
-        reqNexus = 1; reqRefinery = 1;
-        costShards = 30 + count * 20; costStone = 20 + count * 15;
-        break;
-      case 'LAVA_GARGOYLE':
-        reqNexus = 2; reqRefinery = 1;
-        costShards = 40 + count * 25; costWood = 30 + count * 20;
-        break;
-      case 'SUCCUBUS':
-        reqNexus = 2; reqRefinery = 2;
-        costShards = 70 + count * 40; costStone = 45 + count * 25; costWood = 35 + count * 20;
-        break;
-      case 'NECROMANCER':
-        reqNexus = 3; reqRefinery = 2;
-        costShards = 60 + count * 30; costStone = 30 + count * 20;
-        break;
-    }
-
-    if (state.upgrades.nexusLevel < reqNexus || state.upgrades.refineryLevel < reqRefinery) {
-      return null;
-    }
-
-    if (state.resources.aetherShards >= costShards && state.resources.wood >= costWood && state.resources.stone >= costStone) {
-      const prompted = state.promptedUpgrades[`summon_${cls}`] || 0;
-      if (count + 1 > prompted) {
-        let costDisplay = '';
-        if (costShards) costDisplay += `${costShards}💎 `;
-        if (costWood) costDisplay += `${costWood}🌲 `;
-        if (costStone) costDisplay += `${costStone}🪨`;
-
-        return {
-          key: `summon_${cls}`,
-          type: 'summon' as const,
-          title: isTL ? titleTl : title,
-          level: count + 1,
-          costDisplay: costDisplay.trim(),
-          currency: 'shards' as const,
-        };
-      }
-    }
-    return null;
+  // A General whose establishment stands and whose summon the stockpile covers (one General per establishment)
+  const checkSummon = (cls: UnitClass) => {
+    const count = state.roster.filter((u) => u.unitClass === cls && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
+    const max = maxUnitsOfClass(cls);
+    if (count >= max || summonLock(state, cls)) return null;
+    const cost = getUnitSummonCost(cls, count);
+    if (!canAffordResources(state.resources, cost)) return null;
+    const prompted = state.promptedUpgrades[`summon_${cls}`] || 0;
+    if (count + 1 <= prompted) return null;
+    const cfg = UNIT_CLASSES[cls];
+    return {
+      key: `summon_${cls}`,
+      type: 'summon' as const,
+      title: isTL ? cfg.name : (cfg.nameEn ?? cfg.name),
+      level: count + 1,
+      max,
+      costDisplay: formatCost(cost),
+      currency: 'shards' as const,
+    };
   };
 
   const allPrompts = [
-    checkSummon('GOLEM', 'Earth Golem', 'Batong Golem'),
-    checkSummon('LAVA_GARGOYLE', 'Lava Gargoyle', 'Lava Gargoyle'),
-    checkSummon('SUCCUBUS', 'Succubus', 'Succubus'),
-    checkSummon('NECROMANCER', 'Lich Necromancer', 'Lich Necromancer'),
+    ...FIGHTER_CLASSES.map(checkSummon),
     checkTech('golemSpeedLevel', 'Minion Speed', 'Bilis ng Alagad'),
     checkTech('golemCapacityLevel', 'Minion Capacity', 'Kapasidad ng Alagad'),
     checkDefense('wallLevel', 'Castle Wall', 'Pader ng Kastilyo'),
@@ -138,6 +109,7 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
     type: 'tech' | 'defense' | 'summon';
     title: string;
     level: number;
+    max?: number;
     costDisplay: string;
     currency: 'shards' | 'coins';
   }>;
@@ -188,7 +160,7 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
               </h3>
               <p className="text-slate-200 mt-0.5 text-xs font-medium leading-tight">
                 {prompt.type === 'summon' 
-                  ? (isTL ? `Kasyang ipatawag: ${prompt.title} (${prompt.level}/2)` : `Can afford ${prompt.title} (${prompt.level}/2)`)
+                  ? (isTL ? `Kasyang ipatawag: ${prompt.title} (${prompt.level}/${prompt.max ?? 1})` : `Can afford ${prompt.title} (${prompt.level}/${prompt.max ?? 1})`)
                   : (isTL ? `Kasyang i-upgrade: ${prompt.title} Lv.${prompt.level}` : `Can afford ${prompt.title} Lv.${prompt.level}`)
                 }
               </p>

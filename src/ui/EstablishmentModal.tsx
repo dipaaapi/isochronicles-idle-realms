@@ -17,6 +17,7 @@ import type { UnitClass, HarvestTask } from '../types/game';
 import { TASK_CONFIG } from '../data/tasks';
 import { summonLock } from '../state/store/rosterSlice';
 import { useTenantCounts } from '../state/tenantCounts';
+import { ESTABLISHMENT_CREWS } from '../state/establishmentCrews';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -42,15 +43,9 @@ const ESTABLISHMENTS_LIST: { id: StructureId; label: string; labelEn: string; ic
   })),
 ];
 
+// One General per establishment (its tenants share its kind); the castle hosts the two rulers
 const ESTABLISHMENT_CHAMPIONS: Partial<Record<StructureId, UnitClass[]>> = {
-  SPIRE: ['SUCCUBUS'],
-  QUARRY: ['GOLEM'],
-  WOOD: ['LAVA_GARGOYLE'],
-  PORT: ['MERMAN'],
-  CRYPT: ['NECROMANCER'],
-  TRENCH: ['KRAKEN'],
-  KENNEL: ['DEMON_HOUND'],
-  PERCH: ['HARPY'],
+  ...Object.fromEntries(Object.entries(ESTABLISHMENT_CREWS).map(([id, crew]) => [id, [crew.general]])),
   CASTLE: ['TREANT', 'AQUA_SLIME'],
 };
 
