@@ -27,6 +27,7 @@ React 18 + TypeScript, Phaser 3 (world canvas), Vite 5 + vite-plugin-pwa, Tailwi
 - `npx tsc --noEmit` — type-check only
 - `node scripts/test-construction.cjs` / `node scripts/test-invasions.cjs` — logic tests (transpile TS in a Node VM with Phaser/audio/storage stubbed)
 - `docker compose up --build` — dev server in Docker with polling HMR
+- `/security-audit` — project skill (`.claude/skills/security-audit/`) for auditing save import, persisted state, PWA config, dependencies and Docker
 
 ## Architecture
 
