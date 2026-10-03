@@ -135,8 +135,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     });
 
     get().discoverEntry('beast', unitClass);
-    if (unitClass === 'SUCCUBUS') soundFx.playFanfare();
-    else soundFx.playGolemCheer();
+    soundFx.playSummon();
     return true;
   },
 
@@ -199,7 +198,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
       ),
       lastSavedTimestamp: Date.now(),
     });
-    soundFx.playFanfare();
+    soundFx.playEvolve();
     return true;
   },
 
@@ -222,7 +221,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
       ),
       lastSavedTimestamp: Date.now(),
     });
-    soundFx.playFanfare();
+    soundFx.playEvolve();
     return true;
   },
 
@@ -237,7 +236,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
       lastSavedTimestamp: Date.now(),
     }));
 
-    soundFx.playFanfare();
+    soundFx.playUpgrade();
     get().unlockAchievement(
       'master_smith',
       'Arcane Blacksmith',

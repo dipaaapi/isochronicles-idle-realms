@@ -1,3 +1,4 @@
+import { recommendedFps } from './deviceProfile';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { soundFx } from '../game/audio/soundFx';
@@ -29,7 +30,7 @@ const createPreferences = () => ({
   language: 'EN' as const,
   isAudioMuted: soundFx.getIsMuted(),
   isGoreEnabled: false,
-  targetFps: (Number(localStorage.getItem(TARGET_FPS_STORAGE_KEY)) || 60) as 30 | 60 | 90,
+  targetFps: (Number(localStorage.getItem(TARGET_FPS_STORAGE_KEY)) || recommendedFps()) as 30 | 60 | 90,
   showFpsDebug: false,
   showTileCoordinates: true,
   measuredFps: 60,

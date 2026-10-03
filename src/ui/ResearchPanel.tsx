@@ -33,7 +33,7 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
 
     const cost = techUpgradeCost(node.key, currentLevel);
     if (!canAfford(resources, cost)) {
-      soundFx.playCastleHit();
+      soundFx.playError();
       return;
     }
 

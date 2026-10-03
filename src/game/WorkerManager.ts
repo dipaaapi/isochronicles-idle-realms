@@ -1,3 +1,4 @@
+import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
 import { GridPoint, UnitClass, UNIT_CLASSES, TASK_NODE_LOCATIONS, TASK_CONFIG } from '../types/game';
 import { ResourceBuildingId, UnitRosterItem } from '../types/state';
@@ -207,7 +208,7 @@ export class WorkerManager implements WorkerContext {
     const lanternGfx = this.scene.add.graphics();
 
     // Ground shadow
-    const shadow = this.scene.add.ellipse(0, 4, 20, 10, 0x000000, 0.4);
+    const shadow = markShadow(this.scene.add.ellipse(0, 4, 20, 10, 0x000000, 0.4));
 
     // Unit body graphics (dynamically tailored to unitClass AND appointed task!)
     const body = this.scene.add.graphics();

@@ -1,3 +1,4 @@
+import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
 import { IsometricHelper } from './IsometricHelper';
 import { Navigation, SolidArea } from './Navigation';
@@ -134,7 +135,11 @@ export class StructureManager {
     const container = this.scene.add.container(pos.x, pos.y);
     const fallback = this.scene.add.graphics();
     const hpBar = this.scene.add.graphics();
-    container.add([fallback, hpBar]);
+    // Soft ground shadow, nudged toward the lower right as if lit from the upper left
+    const fw = rect.w * 72 * 0.85;
+    const fh = rect.h * 36 * 0.85;
+    const shadow = markShadow(this.scene.add.ellipse(fw * 0.06, fh * 0.12, fw, fh, 0x000000, 0.28));
+    container.add([shadow, fallback, hpBar]);
     this.layer.add(container);
     const view: StructureView = { id, key, rect, x: pos.x, y: pos.y, container, fallback, hpBar, attacking: false, smokeTimer: 0, lastHpKey: '' };
     this.drawFallback(view);
@@ -164,7 +169,7 @@ export class StructureManager {
     const sprite = createStructureSprite(this.scene, view.key, 'idle');
     if (!sprite) return;
     view.sprite = sprite;
-    view.container.addAt(sprite, 0);
+    view.container.addAt(sprite, 1); // above the ground shadow
     view.fallback.setVisible(false);
     view.state = undefined; // force the state animation to re-apply
     sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {

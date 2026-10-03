@@ -120,7 +120,7 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
     ) as Partial<Resources>;
     if (!get().spendResources(cost)) return false;
     set((prev) => ({ munitions: { ...prev.munitions, [kind]: level + 1 }, lastSavedTimestamp: Date.now() }));
-    soundFx.playFanfare();
+    soundFx.playUpgrade();
     return true;
   },
 

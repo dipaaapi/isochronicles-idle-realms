@@ -1,3 +1,4 @@
+import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
 import { IsometricHelper } from './IsometricHelper';
 import { Navigation, NavAgent } from './Navigation';
@@ -673,7 +674,7 @@ export class DefenderSystem {
     summon?: SummonOptions
   ): void {
     const container = this.scene.add.container(pos.x, pos.y);
-    const shadow = this.scene.add.ellipse(0, 3, 14, 6, 0x000000, 0.35);
+    const shadow = markShadow(this.scene.add.ellipse(0, 3, 14, 6, 0x000000, 0.35));
     const hpBar = this.scene.add.graphics();
     const garrisonBadge = this.scene.add.graphics();
     const sprite = createMinionSprite(this.scene, unitClass) ?? undefined;

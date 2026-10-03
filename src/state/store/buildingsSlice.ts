@@ -100,7 +100,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
         defense: { ...prev.defense, castleHp: prev.defense.castleMaxHp, shieldHp: prev.defense.shieldMaxHp },
         lastSavedTimestamp: Date.now(),
       }));
-      soundFx.playFanfare();
+      soundFx.playBuildComplete();
       return true;
     },
 
@@ -109,7 +109,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       if (state.spireBuilt || !state.castleBuilt) return false;
       if (!get().spendResources(SPIRE_CONSTRUCTION_COST)) return false;
       set({ spireBuilt: true, spireTower: { ...INITIAL_SPIRE_TOWER }, lastSavedTimestamp: Date.now() });
-      soundFx.playFanfare();
+      soundFx.playBuildComplete();
       return true;
     },
 
@@ -133,7 +133,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
           towerLevel: nextLevel,
           hp: Math.min(buildingMaxHp(nextLevel), (state.spireTower.hp ?? 0) + (buildingMaxHp(nextLevel) - buildingMaxHp(currentLevel))),
         });
-        soundFx.playFanfare();
+        soundFx.playUpgrade();
         return true;
       }
 
@@ -157,7 +157,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
         // A new establishment starts at full health; production upgrades keep damage as-is
         hp: nextLevel === 1 ? buildingMaxHp(towerLevel) : buildingHpOf(previous),
       });
-      soundFx.playFanfare();
+      soundFx.playUpgrade();
       return true;
     },
 
@@ -179,7 +179,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       const current = towerBuildingOf(get(), buildingId);
       const hp = buildingHpOf(current) + (buildingMaxHp(nextTower) - buildingMaxHp(towerLevel));
       patchTower(buildingId, { towerLevel: nextTower, hp });
-      soundFx.playFanfare();
+      soundFx.playUpgrade();
       return true;
     },
 
@@ -190,7 +190,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       if (buildingHpOf(building) >= max) return false;
       if (!get().spendResources(buildingRepairCost())) return false;
       get().restoreBuildingHp(buildingId, Math.round(max * DEFENSE_CONFIG.building.repairFraction));
-      soundFx.playClick();
+      soundFx.playHeal();
       return true;
     },
 

@@ -162,15 +162,15 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           onClick={() => handleStartGame(onStartNewRealm)}
           className={`w-full group relative overflow-hidden flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-black tracking-wider uppercase transition-all duration-150 cursor-pointer border-2 ${
             clickedBtn === 'NEW'
-              ? 'scale-95 bg-cyan-300 border-white text-slate-950 shadow-[0_0_35px_rgba(34,211,238,0.9)] brightness-125'
-              : 'bg-gradient-to-r from-sky-500 via-cyan-500 to-sky-600 border-cyan-300/80 text-white shadow-[0_6px_0_#0284c7,0_10px_20px_rgba(6,182,212,0.4)] hover:-translate-y-1 hover:shadow-[0_8px_0_#0284c7,0_15px_30px_rgba(6,182,212,0.6)] active:translate-y-1 active:shadow-none'
+              ? 'scale-95 bg-amber-400 border-amber-100 text-red-950 shadow-[0_0_35px_rgba(251,191,36,0.8)] brightness-110'
+              : 'bg-gradient-to-b from-red-600 via-red-700 to-red-900 border-amber-400/80 text-amber-50 shadow-[0_6px_0_#450a0a,0_10px_24px_rgba(220,38,38,0.45)] hover:-translate-y-1 hover:from-red-500 hover:border-amber-300 hover:shadow-[0_8px_0_#450a0a,0_14px_30px_rgba(245,158,11,0.5)] active:translate-y-1 active:shadow-none'
           }`}
         >
-          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-amber-200/25 to-transparent pointer-events-none" />
           
           <Play className="w-5 h-5 fill-current transition-transform group-hover:scale-125" />
           <span className="text-base drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-            {language === 'TL' ? 'MAGSIMULA NG LARO ▶' : 'START NEW REALM ▶'}
+            {language === 'TL' ? 'MAGSIMULA NG LARO' : 'START NEW REALM'}
           </span>
         </button>
 
@@ -182,14 +182,14 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           className={`w-full group relative overflow-hidden flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl font-bold tracking-wide transition-all duration-150 border-2 ${
             canContinue && !checkingSave
               ? clickedBtn === 'CONTINUE'
-                ? 'scale-95 bg-sky-400 border-white text-slate-950 shadow-[0_0_25px_rgba(56,189,248,0.9)]'
-                : 'bg-slate-900/90 border-sky-500/50 text-sky-200 shadow-[0_5px_0_#0f172a,0_8px_16px_rgba(0,0,0,0.6)] hover:-translate-y-0.5 hover:border-sky-300 hover:text-white active:translate-y-1 active:shadow-none cursor-pointer'
-              : 'bg-slate-950/70 border-slate-800 text-slate-600 cursor-not-allowed shadow-none'
+                ? 'scale-95 bg-amber-400 border-amber-100 text-red-950 shadow-[0_0_25px_rgba(251,191,36,0.8)]'
+                : 'bg-gradient-to-b from-stone-900/95 to-red-950/95 border-amber-500/60 text-amber-100 shadow-[0_5px_0_#1c0a0a,0_8px_16px_rgba(0,0,0,0.6)] hover:-translate-y-0.5 hover:border-amber-300 hover:text-white active:translate-y-1 active:shadow-none cursor-pointer'
+              : 'bg-stone-950/75 border-red-950/80 text-stone-500 cursor-not-allowed shadow-none'
           }`}
         >
-          <RotateCcw className={`w-4 h-4 ${canContinue ? 'text-sky-400 group-hover:rotate-180 transition-transform duration-500' : 'text-slate-600'}`} />
+          <RotateCcw className={`w-4 h-4 ${canContinue ? 'text-amber-400 group-hover:-rotate-180 transition-transform duration-500' : 'text-stone-600'}`} />
           <span className="text-sm">
-            {language === 'TL' ? 'ITULOY ANG LARO 🔄' : 'CONTINUE REALM 🔄'}
+            {language === 'TL' ? 'ITULOY ANG LARO' : 'CONTINUE REALM'}
           </span>
         </button>
 
@@ -200,12 +200,12 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             onClick={handleSettingsClick}
             className={`w-full group flex items-center justify-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-bold tracking-wider uppercase transition-all duration-150 border ${
               clickedBtn === 'SETTINGS'
-                ? 'scale-95 bg-slate-700 text-white border-amber-400'
-                : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-red-500/50 hover:text-white hover:bg-slate-900 shadow-[0_4px_0_#050811] active:translate-y-0.5 active:shadow-none cursor-pointer'
+                ? 'scale-95 bg-red-900 text-white border-amber-400'
+                : 'bg-stone-950/85 border-red-900/70 text-amber-200/80 hover:border-amber-500/60 hover:text-amber-100 hover:bg-red-950/80 shadow-[0_4px_0_#1c0a0a] active:translate-y-0.5 active:shadow-none cursor-pointer'
             }`}
           >
-            <Sliders className="w-4 h-4 text-red-400 group-hover:rotate-45 transition-transform" />
-            <span>{language === 'TL' ? 'MGA SETTING ⚙️' : 'SETTINGS ⚙️'}</span>
+            <Sliders className="w-4 h-4 text-amber-500 group-hover:rotate-45 transition-transform" />
+            <span>{language === 'TL' ? 'MGA SETTING' : 'SETTINGS'}</span>
           </button>
         )}
 

@@ -116,7 +116,7 @@ export const QuantityKnob: React.FC<QuantityKnobProps> = ({ value, min, max, onC
         onPointerMove={onPointerMove}
         onWheel={onWheel}
         onKeyDown={onKeyDown}
-        className={`relative h-32 w-32 touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+        className={`keep-round relative h-32 w-32 touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
           disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
         }`}
       >
@@ -128,10 +128,10 @@ export const QuantityKnob: React.FC<QuantityKnobProps> = ({ value, min, max, onC
         </svg>
         {/* Knob cap with a pointer notch */}
         <div
-          className="absolute inset-[18%] rounded-full border border-slate-600 bg-gradient-to-b from-slate-700 to-slate-900 shadow-lg"
+          className="keep-round absolute inset-[18%] rounded-full border border-slate-600 bg-gradient-to-b from-slate-700 to-slate-900 shadow-lg"
           style={{ transform: `rotate(${angle}deg)` }}
         >
-          <span className="absolute left-1/2 top-1.5 h-3 w-1 -translate-x-1/2 rounded-full" style={{ background: color }} />
+          <span className="absolute left-1/2 top-1.5 keep-round h-3 w-1 -translate-x-1/2 rounded-full" style={{ background: color }} />
         </div>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-mono text-xl font-black text-white">{value}</span>

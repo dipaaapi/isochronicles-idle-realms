@@ -31,7 +31,7 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
       skillPoints: availableSkillPoints(state.invasion.invasionsRepelled, skillRanks),
       lastSavedTimestamp: Date.now(),
     });
-    soundFx.playFanfare();
+    soundFx.playSkillLearn();
     return true;
   },
 
@@ -56,7 +56,7 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
       upgrades: { ...state.upgrades, [techKey]: currentLevel + 1 },
       lastSavedTimestamp: Date.now(),
     });
-    soundFx.playFanfare();
+    soundFx.playUpgrade();
     return true;
   },
 

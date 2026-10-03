@@ -1,3 +1,4 @@
+import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
 import {
   GridPoint,
@@ -260,7 +261,7 @@ export class InvasionManager {
     const container = this.scene.add.container(startIso.x, startIso.y);
     container.setSize(24, 24);
 
-    const shadow = this.scene.add.ellipse(0, 4, 14, 7, 0x000000, 0.45);
+    const shadow = markShadow(this.scene.add.ellipse(0, 4, 14, 7, 0x000000, 0.45));
     const bodyGfx = this.scene.add.graphics();
     const hpBarGfx = this.scene.add.graphics(); // Hidden hp bar for scouts
 
@@ -358,7 +359,7 @@ export class InvasionManager {
     const container = this.scene.add.container(startIso.x, startIso.y);
     container.setSize(32, 32);
 
-    const shadow = this.scene.add.ellipse(0, 4, 18, 9, 0x000000, 0.45);
+    const shadow = markShadow(this.scene.add.ellipse(0, 4, 18, 9, 0x000000, 0.45));
     const bodyGfx = this.scene.add.graphics();
     const hpBarGfx = this.scene.add.graphics();
 
@@ -769,7 +770,8 @@ export class InvasionManager {
     }
 
     invader.isDead = true;
-    soundFx.playExplosion();
+    if (invader.name.startsWith('BOSS')) soundFx.playExplosion();
+    else soundFx.playEnemyDeath();
     logMessage(invader.name.startsWith('BOSS') ? 'bossSlain' : 'invaderSlain', { name: this.logName(invader) }, { mergeKey: `kill:${invader.name}` });
 
     // Reward bounty (Plunder Tax skill)

@@ -208,7 +208,7 @@ export const QuickTradePopover: React.FC<QuickTradePopoverProps> = ({
               onClick={() => setAmount(Math.max(minAmount, tradeAmount - 1))}
               disabled={tradeAmount <= minAmount}
               aria-label={language === 'TL' ? 'Bawasan' : 'Decrease'}
-              className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 text-lg font-black text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+              className="keep-round h-9 w-9 rounded-full bg-slate-800 border border-slate-700 text-lg font-black text-slate-200 hover:bg-slate-700 disabled:opacity-40"
             >
               −
             </button>
@@ -226,7 +226,7 @@ export const QuickTradePopover: React.FC<QuickTradePopoverProps> = ({
               onClick={() => setAmount(Math.min(maxPossible, tradeAmount + 1))}
               disabled={tradeAmount >= maxPossible}
               aria-label={language === 'TL' ? 'Dagdagan' : 'Increase'}
-              className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 text-lg font-black text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+              className="keep-round h-9 w-9 rounded-full bg-slate-800 border border-slate-700 text-lg font-black text-slate-200 hover:bg-slate-700 disabled:opacity-40"
             >
               +
             </button>

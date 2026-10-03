@@ -1,3 +1,4 @@
+import { GraphicsFx } from './graphicsFx';
 import Phaser from 'phaser';
 import { TileInfo, TileType } from '../types/game';
 import { TimeOfDayPhase, WeatherType } from '../types/state';
@@ -81,6 +82,7 @@ export class MainScene extends Phaser.Scene {
   private invasionManager!: InvasionManager;
   private groundLoot!: GroundLootManager;
   private fpsController!: FPSController;
+  private graphicsFx!: GraphicsFx;
   private pavedStructures: Set<string> = new Set();
 
   // Island Root Container for gentle floating bobbing
@@ -203,6 +205,7 @@ export class MainScene extends Phaser.Scene {
 
     // Create FPS controller
     this.fpsController = new FPSController(this._cachedTargetFps);
+    this.graphicsFx = new GraphicsFx(this);
 
     // 1. Atmospheric floating motes (Inalis ang madilim na gradient rectangle)
     this.createAtmosphere();
@@ -1090,9 +1093,12 @@ export class MainScene extends Phaser.Scene {
     const isInvading = store.invasion.isActive;
     const weather = store.weather;
     if (isInvading) {
-      soundFx.playBackgroundMusic('BATTLE');
+      // Every 5th wave brings a boss: heavier battle theme
+      soundFx.playBackgroundMusic(store.invasion.waveNumber % 5 === 0 ? 'BOSS' : 'BATTLE');
     } else if (weather !== 'CLEAR') {
       soundFx.playBackgroundMusic(weather);
+    } else if (store.timeOfDay === 'NIGHT') {
+      soundFx.playBackgroundMusic('NIGHT');
     } else {
       soundFx.playBackgroundMusic('LIVELY');
     }

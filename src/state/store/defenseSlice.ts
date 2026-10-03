@@ -1,3 +1,4 @@
+import { DIFFICULTIES, normalizeDifficulty } from '../difficulty';
 import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
 import { DEFENSE_CONFIG, beaconLevelOf, castleUpgradeCost } from '../defenseStats';
@@ -40,7 +41,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
       return { defense: nextDef, lastSavedTimestamp: Date.now() };
     });
 
-    soundFx.playFanfare();
+    soundFx.playUpgrade();
     get().unlockAchievement(
       'citadel_fortified',
       'Citadel of Iron',
@@ -62,7 +63,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
       },
       lastSavedTimestamp: Date.now(),
     }));
-    soundFx.playClick();
+    soundFx.playHeal();
     return true;
   },
 
@@ -128,7 +129,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         vengeanceExtra,
       },
     }));
-    soundFx.playCastleHit();
+    soundFx.playWaveHorn();
   },
 
   stirVengeance: (amount: number) => {
@@ -140,7 +141,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
   },
 
   resolveInvasionVictory: (bountyCoins: number) => {
-    soundFx.playFanfare();
+    soundFx.playVictory();
     set((prev) => {
       const currentWave = prev.invasion.waveNumber;
       const nextWave = Math.min(INVASION.maxWave, currentWave + 1);
@@ -156,7 +157,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         // The Crypt of Souls gathers the fallen's souls after every repelled wave
         resources: {
           ...prev.resources,
-          coins: prev.resources.coins + bountyCoins,
+          coins: prev.resources.coins + Math.round(bountyCoins * DIFFICULTIES[normalizeDifficulty(prev.difficulty)].bountyMultiplier),
           soulFragments: (prev.resources.soulFragments ?? 0) +
             (prev.resourceBuildings.CRYPT?.level ?? 0) * ECONOMY_CONFIG.landmarkYields.CRYPT.soulFragmentsPerWave,
         },

@@ -7,6 +7,9 @@ import { canAfford as canAffordCost } from '../state/resources';
 import React, { useEffect, useState } from 'react';
 import { FortificationsPanel } from './FortificationsPanel';
 import { ResearchPanel } from './ResearchPanel';
+import { PowerOverviewPanel } from './PowerOverviewPanel';
+import { SkillTreePanel } from './SkillTreeModal';
+import { buildUpgradeSuggestions } from './upgradeSuggestions';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import { useTranslation, unitName, type TranslationKey } from '../i18n/translations';
@@ -36,9 +39,11 @@ import {
   Cpu,
   Compass,
   ChevronRight,
+  LayoutDashboard,
+  Sparkles,
 } from 'lucide-react';
 
-export type CitadelTab = 'MINIONS' | 'MARKET' | 'FORGE' | 'RESEARCH' | 'CASTLE';
+export type CitadelTab = 'OVERVIEW' | 'MINIONS' | 'SKILLS' | 'MARKET' | 'FORGE' | 'RESEARCH' | 'CASTLE';
 
 interface CitadelCommandModalProps {
   isOpen: boolean;
@@ -81,6 +86,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     castleBuilt,
     resourceBuildings,
     summonUnit,
+    skillPoints,
   } = useGameStore();
 
   const isTL = language === 'TL';
@@ -91,18 +97,27 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   const [selectedUnitId, setSelectedUnitId] = useState<string>(roster[0]?.id || '');
   const [slotFilter, setSlotFilter] = useState<'ALL' | EquipmentSlot>('ALL');
   const [marketMode, setMarketMode] = useState<'SELL' | 'BUY'>('BUY');
-  const [lastTradeMsg, setLastTradeMsg] = useState<string | null>(null);
+  const [lastTradeMsg, setLastTradeMsg] = useState<{ text: string; id: number } | null>(null);
+  const [tradeAmounts, setTradeAmounts] = useState<Partial<Record<TradeableResource, number>>>({});
 
   useEffect(() => {
     if (isOpen) {
+      soundFx.playPanel(true);
       setActiveTab(!castleBuilt && initialTab === 'CASTLE' ? 'MINIONS' : initialTab);
     }
   }, [isOpen, initialTab, castleBuilt]);
 
   if (!isOpen) return null;
 
+  // Badge counts: what the stockpile covers per tab (skill points count toward Skills)
+  const readyByTab: Partial<Record<CitadelTab, number>> = {};
+  buildUpgradeSuggestions(useGameStore.getState(), true).forEach((s) => {
+    readyByTab[s.tab] = (readyByTab[s.tab] ?? 0) + 1;
+  });
+  if (skillPoints > 0) readyByTab.SKILLS = skillPoints;
+
   const handleClose = () => {
-    soundFx.playClick();
+    soundFx.playPanel(false);
     onClose();
   };
 
@@ -134,15 +149,17 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     if (mode === 'BUY') {
       const ok = buyResource(key, amount);
       if (ok) {
-        setLastTradeMsg(`+${amount} ${label} (-${amount * cfg.buy} 🪙)`);
+        setLastTradeMsg({ text: `+${amount} ${label} (-${amount * cfg.buy} 🪙)`, id: Date.now() });
       }
     } else {
       const ok = sellResource(key, amount);
       if (ok) {
-        setLastTradeMsg(`-${amount} ${label} (+${amount * cfg.sell} 🪙)`);
+        setLastTradeMsg({ text: `-${amount} ${label} (+${amount * cfg.sell} 🪙)`, id: Date.now() });
       }
     }
-    setTimeout(() => setLastTradeMsg(null), 2500);
+    setTradeAmounts((prev) => ({ ...prev, [key]: 0 }));
+    const stamp = Date.now();
+    setTimeout(() => setLastTradeMsg((m) => (m && m.id <= stamp ? null : m)), 2500);
   };
 
   const filteredCraftItems = CRAFTABLE_ITEMS.filter(
@@ -230,6 +247,14 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
       <div className="relative w-full max-w-5xl h-[88vh] flex flex-col rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden">
+        {lastTradeMsg && (
+          <div
+            key={lastTradeMsg.id}
+            className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-xl bg-emerald-950/95 border border-emerald-500/50 text-emerald-300 text-xs font-mono font-bold shadow-lg shadow-emerald-900/40 animate-fade-in whitespace-nowrap"
+          >
+            ✓ {lastTradeMsg.text}
+          </div>
+        )}
         
         {/* TOP COMPACT HEADER */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800/90 bg-slate-900/60">
@@ -270,6 +295,8 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
           <div className="w-44 md:w-52 border-r border-slate-800/80 bg-slate-900/30 p-2.5 flex flex-col justify-between shrink-0">
             <div className="space-y-1">
               {[
+                { id: 'OVERVIEW' as CitadelTab, label: tr('hubTabOverview'), icon: <LayoutDashboard className="w-4 h-4" /> },
+                { id: 'SKILLS' as CitadelTab, label: tr('hubTabSkills'), icon: <Sparkles className="w-4 h-4" /> },
                 { id: 'MINIONS' as CitadelTab, label: isTL ? 'Mga Alagad' : 'Minions', icon: <Users className="w-4 h-4" /> },
                 { id: 'MARKET' as CitadelTab, label: isTL ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
                 { id: 'FORGE' as CitadelTab, label: isTL ? 'Pandayan & Sandata' : 'Armory & Gear', icon: <Hammer className="w-4 h-4" /> },
@@ -281,7 +308,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   <button
                     key={tab.id}
                     onClick={() => {
-                      soundFx.playClick();
+                      soundFx.playTab();
                       setActiveTab(tab.id);
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
@@ -294,7 +321,13 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                       {tab.icon}
                       <span>{tab.label}</span>
                     </div>
-                    {isActive && <ChevronRight className="w-3.5 h-3.5 text-purple-400" />}
+                    {readyByTab[tab.id] ? (
+                      <span className="min-w-[1.25rem] px-1 text-center text-[10px] font-mono font-bold bg-emerald-500 text-slate-950">
+                        {readyByTab[tab.id]}
+                      </span>
+                    ) : (
+                      isActive && <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
+                    )}
                   </button>
                 );
               })}
@@ -523,20 +556,14 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   </div>
                 </div>
 
-                {lastTradeMsg && (
-                  <div className="p-2 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold text-center animate-fade-in">
-                    {lastTradeMsg}
-                  </div>
-                )}
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {marketResources.map((key) => {
                     const cfg = RESOURCE_PRICES[key];
                     const stock = resources[key] ?? 0;
-                    const canAffordBuy1 = resources.coins >= cfg.buy;
-                    const canAffordBuy10 = resources.coins >= cfg.buy * 10;
-                    const canSell1 = stock >= 1;
-                    const canSell10 = stock >= 10;
+                    const isBuy = marketMode === 'BUY';
+                    const unitPrice = isBuy ? cfg.buy : cfg.sell;
+                    const maxAmount = isBuy ? Math.floor(resources.coins / Math.max(1, cfg.buy)) : Math.floor(stock);
+                    const amount = Math.min(tradeAmounts[key] ?? 0, maxAmount);
                     const resourceName = isTL ? cfg.label : (cfg.labelEn || cfg.label);
 
                     return (
@@ -554,50 +581,33 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Direct Trade Buttons */}
-                        <div className="flex items-center gap-1.5">
-                          {marketMode === 'BUY' ? (
-                            <>
-                              <button
-                                disabled={!canAffordBuy1}
-                                onClick={() => handleTrade(key, 1, 'BUY')}
-                                className="px-2.5 py-1 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-xs font-bold cursor-pointer transition"
-                              >
-                                +1
-                              </button>
-                              <button
-                                disabled={!canAffordBuy10}
-                                onClick={() => handleTrade(key, 10, 'BUY')}
-                                className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-xs font-bold cursor-pointer transition"
-                              >
-                                +10
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                disabled={!canSell1}
-                                onClick={() => handleTrade(key, 1, 'SELL')}
-                                className="px-2.5 py-1 rounded-xl bg-amber-600/80 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-xs font-bold cursor-pointer transition"
-                              >
-                                -1
-                              </button>
-                              <button
-                                disabled={!canSell10}
-                                onClick={() => handleTrade(key, 10, 'SELL')}
-                                className="px-2.5 py-1 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-xs font-bold cursor-pointer transition"
-                              >
-                                -10
-                              </button>
-                              <button
-                                disabled={stock <= 0}
-                                onClick={() => handleTrade(key, stock, 'SELL')}
-                                className="px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:text-slate-600 text-amber-300 text-xs font-bold cursor-pointer border border-amber-500/30 transition"
-                              >
-                                {isTL ? 'Lahat' : 'All'}
-                              </button>
-                            </>
-                          )}
+                        {/* Trade slider */}
+                        <div className="flex flex-col items-end gap-1.5 w-40 shrink-0">
+                          <div className="flex items-center gap-2 w-full">
+                            <input
+                              type="range"
+                              min={0}
+                              max={Math.max(0, maxAmount)}
+                              step={1}
+                              value={amount}
+                              disabled={maxAmount <= 0}
+                              onChange={(e) => setTradeAmounts((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                              className={`range range-xs flex-1 ${isBuy ? 'range-primary' : 'range-warning'}`}
+                              aria-label={resourceName}
+                            />
+                            <span className="w-9 text-right text-[11px] font-mono font-bold text-slate-200">{amount}</span>
+                          </div>
+                          <button
+                            disabled={amount <= 0}
+                            onClick={() => handleTrade(key, amount, marketMode)}
+                            className={`w-full px-2.5 py-1 rounded-xl text-white text-[11px] font-bold cursor-pointer transition disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed ${
+                              isBuy ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-amber-600 hover:bg-amber-500'
+                            }`}
+                          >
+                            {tr(isBuy ? 'marketBuyFor' : 'marketSellFor')
+                              .replace('{amount}', String(amount))
+                              .replace('{coins}', String(amount * unitPrice))}
+                          </button>
                         </div>
                       </div>
                     );
@@ -761,6 +771,10 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             )}
 
             {/* ================= TAB 4: RESEARCH TECH ================= */}
+            {activeTab === 'OVERVIEW' && <PowerOverviewPanel onNavigate={setActiveTab} />}
+
+            {activeTab === 'SKILLS' && <SkillTreePanel />}
+
             {activeTab === 'RESEARCH' && <ResearchPanel />}
 
             {/* ================= TAB 5: CASTLE FORTIFICATIONS ================= */}

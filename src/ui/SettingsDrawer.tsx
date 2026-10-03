@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
+import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
 import { gameAlert, gameConfirm } from './GameDialog';
 import { t as translate } from '../i18n/translations';
 import type { TranslationKey } from '../i18n/translations';
@@ -350,6 +351,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     </button>
                   </SettingRow>
 
+                  <AudioVolumeBlock />
+
                   <SettingRow
                     icon={<Droplet className="h-4 w-4" />}
                     title={isTL ? 'Dugo at Gore' : 'Blood & Gore Effects'}
@@ -398,36 +401,14 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                       </div>
                       <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
                         {isTL
-                          ? 'Pumili ng frame rate. Mas mataas ay mas smooth ngunit maaaring mas mabigat sa device.'
-                          : 'Choose your target frame rate. Higher FPS is smoother.'}
+                          ? 'Pumili ng preset: itinatakda nito ang FPS, anino at liwanag. Ang may "Rekomendado" ang angkop sa device mo.'
+                          : 'Pick a preset: it sets FPS, shadows and glow together. The "Recommended" one suits this device.'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {[30, 60, 90].map((fps) => {
-                      const isActive = targetFps === fps;
-
-                      return (
-                        <button
-                          key={fps}
-                          type="button"
-                          onClick={() => {
-                            soundFx.playClick();
-                            useGameStore
-                              .getState()
-                              .setTargetFps(fps as 30 | 60 | 90);
-                          }}
-                          className={`rounded-lg py-2 text-xs font-mono font-bold transition-all ${
-                            isActive
-                              ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                          }`}
-                        >
-                          {fps} FPS
-                        </button>
-                      );
-                    })}
+                  <div className="mt-3">
+                    <GraphicsSettingsBlock />
                   </div>
 
                   <div className="mt-3 flex items-center justify-between border-t border-slate-800/70 pt-3">

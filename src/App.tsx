@@ -13,7 +13,6 @@ import { CastleBreachedModal } from './ui/CastleBreachedModal';
 import { QuickTradePopover } from './ui/QuickTradePopover';
 import { RegressionModal } from './ui/RegressionModal';
 import { PhaserGame } from './game/PhaserGame';
-import { SkillTreeModal } from './ui/SkillTreeModal';
 import { EstablishmentModal } from './ui/EstablishmentModal';
 import { ActivityLogTray } from './ui/ActivityLogTray';
 import { BattleItemsToolbar } from './ui/BattleItemsToolbar';
@@ -39,7 +38,6 @@ export const App: React.FC = () => {
   const [atlasInitialSection, setAtlasInitialSection] = useState<AtlasTab>('GUIDE');
   const [isBestiaryOpen, setIsBestiaryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [quickTradeResource, setQuickTradeResource] = useState<
     'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water' | null
   >(null);
@@ -49,7 +47,6 @@ export const App: React.FC = () => {
       setCitadelTab(null);
       setIsAtlasOpen(false);
       setIsBestiaryOpen(false);
-      setIsSkillTreeOpen(false);
       setQuickTradeResource(null);
     }
   }, [screen]);
@@ -116,7 +113,7 @@ export const App: React.FC = () => {
               setIsAtlasOpen(true);
             }}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenSkillTree={() => setIsSkillTreeOpen(true)}
+            onOpenSkillTree={() => setCitadelTab('SKILLS')}
             onOpenRegression={() => {
               setAtlasInitialSection('REGRESSION');
               setIsAtlasOpen(true);
@@ -126,7 +123,6 @@ export const App: React.FC = () => {
 
           {/* Modal & Popover Layers */}
           <WelcomeBackModal />
-          {isSkillTreeOpen && <SkillTreeModal onClose={() => setIsSkillTreeOpen(false)} />}
 
           <CitadelCommandModal
             isOpen={citadelTab !== null}
@@ -138,6 +134,10 @@ export const App: React.FC = () => {
             isOpen={selectedEstablishmentId !== null}
             onClose={closeEstablishmentModal}
             selectedId={selectedEstablishmentId}
+            onOpenResearch={() => {
+              closeEstablishmentModal();
+              setCitadelTab('RESEARCH');
+            }}
           />
 
           <CastleBreachedModal />

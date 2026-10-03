@@ -73,6 +73,6 @@ Phaser owns the world canvas; React owns the HUD and modals; they communicate th
 
 ## Next-step candidates
 
-- Early-game economy: the starting supplies don't cover the castle plus the four core establishments (~120 wood / 105 stone / 160 coins needed vs 65 / 60 / 100), and minions can't be recruited until those stand, so early progress relies on tapping scouts and selling. Consider rebalancing.
+- Balance: `node scripts/balance-sim.cjs [EASY|NORMAL|HARD]` measures tenant income headless and models waves 1-100 (writes `reports/balance-report.md`). It leaves out Generals, Slime/Ent, skills and battle items; re-run it after changing economy or invader numbers.
 - Replace the placeholder PWA icons with final art if desired.
 - The PWA precache is ~12.9 MB, mostly `public/backgrounds/` JPEGs; compress or convert to WebP to shrink it.

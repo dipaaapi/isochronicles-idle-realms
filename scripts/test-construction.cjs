@@ -68,13 +68,21 @@ manager.updateConstruction(worker, state(), 3, 65);
 assert.equal(state().castleBuilt, false, 'construction takes time');
 manager.updateConstruction(worker, state(), 1, 65);
 assert.equal(state().castleBuilt, true, 'Ent automatically completes the castle');
-assert.equal(state().resources.wood, 30, 'castle supplies are deducted once');
+{
+  const { INITIAL_RESOURCES } = load('src/state/store/initialState.ts');
+  const { CASTLE_CONSTRUCTION_COST } = load('src/state/economy.ts');
+  assert.equal(state().resources.wood, INITIAL_RESOURCES.wood - CASTLE_CONSTRUCTION_COST.wood, 'castle supplies are deducted once');
+}
 const spireSite = nextConstruction(state());
 assert.equal(spireSite.id, 'SPIRE', 'the Ent raises the Crystal Spire right after the castle');
 Object.assign(worker.container, IsometricHelper.gridToScreen(spireSite.x, spireSite.y));
 manager.updateConstruction(worker, state(), 4, 65);
 assert.equal(state().spireBuilt, true, 'Ent completes the Crystal Spire');
-assert.equal(state().resources.wood, 15, 'spire supplies are deducted once');
+{
+  const { INITIAL_RESOURCES } = load('src/state/store/initialState.ts');
+  const { CASTLE_CONSTRUCTION_COST, SPIRE_CONSTRUCTION_COST } = load('src/state/economy.ts');
+  assert.equal(state().resources.wood, INITIAL_RESOURCES.wood - CASTLE_CONSTRUCTION_COST.wood - SPIRE_CONSTRUCTION_COST.wood, 'spire supplies are deducted once');
+}
 assert.equal(manager.updateConstruction(worker, state(), 4, 65), false, 'the Ent builds only the castle and spire');
 
 // Next the Ent summons every General (free founding summon); each General builds its own establishment.
@@ -185,11 +193,11 @@ console.log('Store slice regression checks passed.');
 
 const { InvasionManager } = load('src/game/InvasionManager.ts');
 const { INVADER_CONFIGS } = load('src/types/game.ts');
-const { normalizeDifficulty } = load('src/state/difficulty.ts');
+const { normalizeDifficulty, DIFFICULTIES } = load('src/state/difficulty.ts');
 assert.equal(normalizeDifficulty(undefined), 'NORMAL', 'old saves use normal difficulty');
 assert.equal(normalizeDifficulty('invalid'), 'NORMAL');
 const display = (x = 0, y = 0) => ({ x, y, setDepth() {}, add() {}, setSize() {}, setInteractive() {}, on() {} });
-for (const [difficulty, multiplier] of [['EASY', 0.7], ['NORMAL', 1], ['HARD', 1.4]]) {
+for (const [difficulty, multiplier] of Object.entries(DIFFICULTIES).map(([k, d]) => [k, d.enemyMultiplier])) {
   store.setState({ difficulty, invasion: { ...initial.invasion, isActive: true, totalEnemiesInWave: 6 } });
   const invasionManager = new InvasionManager({ add: { graphics: display, container: display, ellipse: display } }, { findPath: () => null });
   invasionManager.renderInvaderBody = () => {};

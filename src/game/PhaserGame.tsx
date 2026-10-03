@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useGraphicsSettings } from '../state/graphicsSettings';
 import Phaser from 'phaser';
 import { MainScene } from './MainScene';
 import { useGameStore } from '../state/useGameStore';
@@ -92,6 +93,8 @@ export const PhaserGame: React.FC = () => {
     };
   }, []);
 
+  const brightness = useGraphicsSettings((s) => s.brightness);
+
   useEffect(() => {
     if (!gameRef.current) return;
     gameRef.current.loop.targetFps = targetFps;
@@ -116,7 +119,10 @@ export const PhaserGame: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-slate-950">
+    <div
+      className="relative w-full h-full overflow-hidden bg-slate-950"
+      style={brightness !== 1 ? { filter: `brightness(${brightness})` } : undefined}
+    >
       {/* 1. Base Pixel Art Wallpaper */}
       <div
         aria-hidden="true"

@@ -119,6 +119,7 @@ export class PortalManager {
   /** Tears every portal open for a new wave (destroyed ones re-form). */
   open(wave: number, enemyMultiplier: number): void {
     const maxHp = portalMaxHp(wave, enemyMultiplier);
+    soundFx.playPortalOpen();
     for (const p of this.portals) {
       p.mode = 'open';
       p.maxHp = maxHp;

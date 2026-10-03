@@ -334,5 +334,237 @@
   "tenantsHint": {
     "en": "Tenants spawn for free and look like the Champion; they are the units you see on the map.",
     "tl": "Libreng lumilitaw ang mga umuupa at kamukha sila ng Kampeon; sila ang nakikita mo sa mapa."
+  },
+  "marketBuyFor": {
+    "en": "Buy {amount} · -{coins} 🪙",
+    "tl": "Bumili ng {amount} · -{coins} 🪙"
+  },
+  "marketSellFor": {
+    "en": "Sell {amount} · +{coins} 🪙",
+    "tl": "Magbenta ng {amount} · +{coins} 🪙"
+  },
+  "enhanceReadyTitle": {
+    "en": "Ready to upgrade",
+    "tl": "Handa nang i-upgrade"
+  },
+  "enhanceDismissAll": {
+    "en": "Hide all",
+    "tl": "Itago lahat"
+  },
+  "enhanceDismiss": {
+    "en": "Hide until next level",
+    "tl": "Itago hanggang sa susunod na level"
+  },
+  "enhanceUpgradeNow": {
+    "en": "Upgrade",
+    "tl": "I-upgrade"
+  },
+  "enhanceOpenHint": {
+    "en": "Open in Citadel Command",
+    "tl": "Buksan sa Citadel Command"
+  },
+  "enhanceCatSummon": {
+    "en": "General",
+    "tl": "Heneral"
+  },
+  "enhanceCatResearch": {
+    "en": "Research",
+    "tl": "Pagsasaliksik"
+  },
+  "enhanceCatDefense": {
+    "en": "Defense",
+    "tl": "Depensa"
+  },
+  "enhanceCatTower": {
+    "en": "Tower",
+    "tl": "Tore"
+  },
+  "enhanceCatBuilding": {
+    "en": "Establishment",
+    "tl": "Pasilidad"
+  },
+  "enhanceCatEvolution": {
+    "en": "Evolution",
+    "tl": "Ebolusyon"
+  },
+  "introTitle": {
+    "en": "Demon Lord Chronicle",
+    "tl": "Kwento ng Demon Lord"
+  },
+  "introSkip": {
+    "en": "Skip Dialogue",
+    "tl": "Laktawan ang Usapan"
+  },
+  "introNext": {
+    "en": "Next",
+    "tl": "Susunod"
+  },
+  "introContinueHint": {
+    "en": "Click or press Space to continue",
+    "tl": "I-click o pindutin ang Space para magpatuloy"
+  },
+  "introDifficulty": {
+    "en": "Choose your difficulty",
+    "tl": "Piliin ang antas ng hirap"
+  },
+  "introStatEnemy": {
+    "en": "Enemy HP & damage",
+    "tl": "Buhay at pinsala ng kalaban"
+  },
+  "introStatSupplies": {
+    "en": "Starting supplies",
+    "tl": "Panimulang supply"
+  },
+  "introStatBounty": {
+    "en": "Wave bounty",
+    "tl": "Gantimpala sa bawat alon"
+  },
+  "introBack": {
+    "en": "Back to Title",
+    "tl": "Bumalik sa Title"
+  },
+  "introBegin": {
+    "en": "Begin Ascendancy",
+    "tl": "Simulan ang Pagbangon"
+  },
+  "introFullscreen": {
+    "en": "Toggle fullscreen",
+    "tl": "Buong screen"
+  },
+  "introFullscreenError": {
+    "en": "Fullscreen is unavailable in this browser.",
+    "tl": "Hindi suportado ang fullscreen sa browser na ito."
+  },
+  "hubTabOverview": {
+    "en": "Overview",
+    "tl": "Buod"
+  },
+  "hubTabSkills": {
+    "en": "Skill Tree",
+    "tl": "Skill Tree"
+  },
+  "hubSkillPoints": {
+    "en": "Skill points",
+    "tl": "Skill points"
+  },
+  "hubReadyCount": {
+    "en": "Ready to buy",
+    "tl": "Kayang bilhin"
+  },
+  "hubWave": {
+    "en": "Wave",
+    "tl": "Alon"
+  },
+  "hubCastleHp": {
+    "en": "Citadel HP",
+    "tl": "Buhay ng Kuta"
+  },
+  "hubReadyTitle": {
+    "en": "Ready now",
+    "tl": "Handa na ngayon"
+  },
+  "hubNothingReady": {
+    "en": "Nothing affordable yet. Gather or trade at the Market to unlock the next upgrade.",
+    "tl": "Wala pang kayang bilhin. Mag-ipon o makipagkalakalan sa Pamilihan para sa susunod na upgrade."
+  },
+  "hubGuideTitle": {
+    "en": "Where to grow stronger",
+    "tl": "Saan lalakas"
+  },
+  "hubGuideMinionsTitle": {
+    "en": "Minions",
+    "tl": "Mga Alagad"
+  },
+  "hubGuideMinionsBody": {
+    "en": "Evolve the Slime and Ent, summon Generals, and assign work.",
+    "tl": "I-evolve ang Slime at Ent, ipatawag ang mga Heneral, at magtalaga ng trabaho."
+  },
+  "hubGuideSkillsTitle": {
+    "en": "Skill Tree",
+    "tl": "Skill Tree"
+  },
+  "hubGuideSkillsBody": {
+    "en": "Spend points earned from waves on team-wide bonuses. Free to reset.",
+    "tl": "Gastusin ang puntos mula sa mga alon sa bonus ng buong koponan. Libreng i-reset."
+  },
+  "hubGuideResearchTitle": {
+    "en": "Research",
+    "tl": "Pagsasaliksik"
+  },
+  "hubGuideResearchBody": {
+    "en": "Long-term upgrades for the Slime, Ent, citadel, establishments and tenants.",
+    "tl": "Pangmatagalang upgrade para sa Slime, Ent, kuta, pasilidad at umuupa."
+  },
+  "hubGuideCastleTitle": {
+    "en": "Fortifications",
+    "tl": "Tanggulan"
+  },
+  "hubGuideCastleBody": {
+    "en": "Walls, shield, beacon, and every establishment's tower and repairs.",
+    "tl": "Pader, kalasag, beacon, at tore at pagkukumpuni ng bawat pasilidad."
+  },
+  "hubGuideForgeTitle": {
+    "en": "Armory & Gear",
+    "tl": "Pandayan & Sandata"
+  },
+  "hubGuideForgeBody": {
+    "en": "Battle items, tower munitions, and equipment for your units.",
+    "tl": "Gamit sa labanan, bala ng tore, at kagamitan ng mga yunit."
+  },
+  "hubGuideMarketTitle": {
+    "en": "Market",
+    "tl": "Pamilihan"
+  },
+  "hubGuideMarketBody": {
+    "en": "Trade coins for missing materials, or sell extras.",
+    "tl": "Ipagpalit ang barya sa kulang na materyales, o ibenta ang sobra."
+  },
+  "estabResearchMoved": {
+    "en": "Establishment and tenant research now lives in Citadel Command, together with every other upgrade.",
+    "tl": "Nasa Citadel Command na ang pagsasaliksik ng pasilidad at umuupa, kasama ng lahat ng iba pang upgrade."
+  },
+  "estabOpenResearch": {
+    "en": "Open Research",
+    "tl": "Buksan ang Pagsasaliksik"
+  },
+  "gfxRecommended": {
+    "en": "Recommended",
+    "tl": "Rekomendado"
+  },
+  "gfxCustom": {
+    "en": "custom",
+    "tl": "binago"
+  },
+  "gfxStruggling": {
+    "en": "Running at {fps} FPS: try a lower preset for smoother play.",
+    "tl": "{fps} FPS lang ang takbo: subukan ang mas mababang preset para mas smooth."
+  },
+  "gfxShadows": {
+    "en": "Shadows",
+    "tl": "Mga anino"
+  },
+  "gfxShadowsHint": {
+    "en": "Ground shadows under units and buildings.",
+    "tl": "Anino sa ilalim ng mga yunit at gusali."
+  },
+  "gfxGlow": {
+    "en": "Glow (bloom)",
+    "tl": "Liwanag (bloom)"
+  },
+  "gfxGlowHint": {
+    "en": "Soft glow on magic, fire and lights. Heaviest option.",
+    "tl": "Malambot na liwanag sa mahika, apoy at ilaw. Pinakamabigat na opsyon."
+  },
+  "gfxBrightness": {
+    "en": "Brightness",
+    "tl": "Liwanag ng screen"
+  },
+  "audioMusicVolume": {
+    "en": "Music volume",
+    "tl": "Lakas ng musika"
+  },
+  "audioSfxVolume": {
+    "en": "Sound effects volume",
+    "tl": "Lakas ng sound effects"
   }
 }

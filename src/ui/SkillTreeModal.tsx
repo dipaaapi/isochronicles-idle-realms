@@ -98,10 +98,9 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
   );
 };
 
-export const SkillTreeModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+/** Skill tree body; used as a Citadel Command tab and inside the standalone modal. */
+export const SkillTreePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { skillPoints, skillRanks, learnSkill, resetSkills, regressionCount, invasion, language } = useGameStore();
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => { dialog.current?.showModal(); }, []);
 
   const t = (text: Localized) => (language === 'TL' ? text.tl : text.en);
   const wavesCleared = invasion.invasionsRepelled;
@@ -116,13 +115,7 @@ export const SkillTreeModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
   };
 
   return (
-    <dialog
-      ref={dialog}
-      onCancel={onClose}
-      onClose={onClose}
-      aria-labelledby="skill-tree-title"
-      className="m-auto max-h-[92vh] w-[min(64rem,96vw)] overflow-y-auto rounded-2xl border border-purple-500/40 bg-slate-950 p-4 text-slate-200 shadow-2xl backdrop:bg-black/75 sm:p-5"
-    >
+    <div className="text-slate-200">
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id="skill-tree-title" className="text-xl font-bold text-purple-200">{t(SKILL_TEXT.title)}</h2>
@@ -135,9 +128,11 @@ export const SkillTreeModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
             <div className="font-mono text-2xl font-black leading-none text-amber-300">{skillPoints}</div>
             <div className="text-[10px] uppercase tracking-wide text-amber-200/80">{t(SKILL_TEXT.points)}</div>
           </div>
-          <button autoFocus onClick={onClose} className="rounded-lg bg-slate-800 px-3 py-2 text-sm hover:bg-slate-700">
-            {t(SKILL_TEXT.close)}
-          </button>
+          {onClose && (
+            <button autoFocus onClick={onClose} className="rounded-lg bg-slate-800 px-3 py-2 text-sm hover:bg-slate-700">
+              {t(SKILL_TEXT.close)}
+            </button>
+          )}
         </div>
       </header>
 
@@ -216,6 +211,22 @@ export const SkillTreeModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
           ↺ {t(SKILL_TEXT.reset)}
         </button>
       </footer>
+    </div>
+  );
+};
+
+export const SkillTreeModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { dialog.current?.showModal(); }, []);
+  return (
+    <dialog
+      ref={dialog}
+      onCancel={onClose}
+      onClose={onClose}
+      aria-labelledby="skill-tree-title"
+      className="m-auto max-h-[92vh] w-[min(64rem,96vw)] overflow-y-auto rounded-2xl border border-purple-500/40 bg-slate-950 p-4 text-slate-200 shadow-2xl backdrop:bg-black/75 sm:p-5"
+    >
+      <SkillTreePanel onClose={onClose} />
     </dialog>
   );
 };

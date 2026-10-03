@@ -3,13 +3,21 @@ class SoundFxManager {
   private isMuted: boolean = false;
   private isBgmDisabled: boolean = false;
   private isSfxDisabled: boolean = false;
+  // SFX bus (every sound effect connects here); music has its own bus so the
+  // two toggles cut audio at the node level, not only when a sound starts.
   private masterGain: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private outGain: GainNode | null = null;
   private listeners: Set<(muted: boolean) => void> = new Set();
   
+  // 0..1 volume per bus, persisted like the on/off toggles
+  private musicVolume = 1;
+  private sfxVolume = 1;
+
   private bgmOscillators: OscillatorNode[] = [];
   private bgmGain: GainNode | null = null;
   private isBgmPlaying: boolean = false;
-  private currentBgmMode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'TITLE';
+  private currentBgmMode: 'LIVELY' | 'BATTLE' | 'BOSS' | 'NIGHT' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'TITLE';
   private bgmIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -21,6 +29,13 @@ class SoundFxManager {
     if (savedBgm !== null) {
       this.isBgmDisabled = savedBgm === 'true';
     }
+    const readVol = (key: string) => {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+      const v = raw === null ? NaN : Number(raw);
+      return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+    };
+    this.musicVolume = readVol('isochronicle_music_volume');
+    this.sfxVolume = readVol('isochronicle_sfx_volume');
     const savedSfx = typeof window !== 'undefined' ? localStorage.getItem('isochronicle_sfx_disabled') : null;
     if (savedSfx !== null) {
       this.isSfxDisabled = savedSfx === 'true';
@@ -36,9 +51,13 @@ class SoundFxManager {
       if (!AudioCtxClass) return null;
 
       this.ctx = new AudioCtxClass();
+      this.outGain = this.ctx.createGain();
+      this.outGain.connect(this.ctx.destination);
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, this.ctx.currentTime);
-      this.masterGain.connect(this.ctx.destination);
+      this.masterGain.connect(this.outGain);
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.connect(this.outGain);
+      this.applyBusGains();
     }
 
     if (this.ctx.state === 'suspended') {
@@ -46,6 +65,32 @@ class SoundFxManager {
     }
 
     return this.ctx;
+  }
+
+  private applyBusGains(): void {
+    if (!this.ctx || !this.outGain || !this.masterGain || !this.musicBus) return;
+    const now = this.ctx.currentTime;
+    this.outGain.gain.cancelScheduledValues(now);
+    this.outGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, now);
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(this.isSfxDisabled ? 0 : this.sfxVolume, now);
+    this.musicBus.gain.cancelScheduledValues(now);
+    this.musicBus.gain.setValueAtTime(this.isBgmDisabled ? 0 : this.musicVolume, now);
+  }
+
+  public getMusicVolume(): number { return this.musicVolume; }
+  public getSfxVolume(): number { return this.sfxVolume; }
+
+  public setMusicVolume(v: number): void {
+    this.musicVolume = Math.min(1, Math.max(0, v));
+    try { localStorage.setItem('isochronicle_music_volume', String(this.musicVolume)); } catch { /* storage off */ }
+    this.applyBusGains();
+  }
+
+  public setSfxVolume(v: number): void {
+    this.sfxVolume = Math.min(1, Math.max(0, v));
+    try { localStorage.setItem('isochronicle_sfx_volume', String(this.sfxVolume)); } catch { /* storage off */ }
+    this.applyBusGains();
   }
 
   public getIsMuted(): boolean {
@@ -65,6 +110,7 @@ class SoundFxManager {
     if (typeof window !== 'undefined') {
       localStorage.setItem('isochronicle_bgm_disabled', String(this.isBgmDisabled));
     }
+    this.applyBusGains();
     if (this.isBgmDisabled) {
       this.stopBackgroundMusic();
     } else if (!this.isMuted) {
@@ -79,6 +125,7 @@ class SoundFxManager {
     if (typeof window !== 'undefined') {
       localStorage.setItem('isochronicle_sfx_disabled', String(this.isSfxDisabled));
     }
+    this.applyBusGains();
     this.listeners.forEach((cb) => cb(this.isMuted));
     return this.isSfxDisabled;
   }
@@ -89,9 +136,7 @@ class SoundFxManager {
       localStorage.setItem('isochronicle_audio_muted', String(this.isMuted));
     }
 
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, this.ctx.currentTime);
-    }
+    this.applyBusGains();
     
     if (this.isMuted) {
       this.stopBackgroundMusic();
@@ -108,7 +153,7 @@ class SoundFxManager {
     return () => this.listeners.delete(callback);
   }
 
-  public playBackgroundMusic(mode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'LIVELY'): void {
+  public playBackgroundMusic(mode: 'LIVELY' | 'BATTLE' | 'BOSS' | 'NIGHT' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'LIVELY'): void {
     if (this.isMuted || this.isBgmDisabled) {
       this.currentBgmMode = mode;
       return;
@@ -121,12 +166,12 @@ class SoundFxManager {
     }
 
     const ctx = this.initContext();
-    if (!ctx || !this.masterGain) return;
+    if (!ctx || !this.musicBus) return;
 
     this.isBgmPlaying = true;
     this.currentBgmMode = mode;
     this.bgmGain = ctx.createGain();
-    this.bgmGain.connect(this.masterGain);
+    this.bgmGain.connect(this.musicBus);
 
     let step = 0;
 
@@ -145,7 +190,7 @@ class SoundFxManager {
       this.bgmOscillators.push(droneOsc);
 
       this.bgmIntervalId = setInterval(() => {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'triangle', 0.12, 0.45);
 
@@ -158,7 +203,7 @@ class SoundFxManager {
       const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'sine', 0.15, 0.5);
         
@@ -171,7 +216,7 @@ class SoundFxManager {
       const melody = [220.00, 261.63, 293.66, 329.63, 293.66, 261.63];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
         const note = melody[Math.floor(Math.random() * melody.length)];
         this.playPluck(note, 'triangle', 0.12, 0.3); 
         
@@ -180,11 +225,33 @@ class SoundFxManager {
         }
         step++;
       }, 220);
+    } else if (mode === 'BOSS') {
+      // Driving minor ostinato with a war-drum pulse on every beat
+      const melody = [110.0, 130.81, 146.83, 155.56, 146.83, 130.81, 123.47, 110.0];
+      if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
+      this.bgmIntervalId = setInterval(() => {
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
+        this.playPluck(melody[step % melody.length] * 2, 'sawtooth', 0.07, 0.25);
+        this.playPluck(55, 'square', 0.1, 0.18);
+        if (step % 4 === 2) this.playPluck(melody[(step + 3) % melody.length] * 4, 'triangle', 0.08, 0.4);
+        step++;
+      }, 190);
+    } else if (mode === 'NIGHT') {
+      // Sparse, low lullaby: slow arpeggio over a soft fifth drone
+      const melody = [220.0, 261.63, 329.63, 261.63, 196.0, 246.94, 293.66, 246.94];
+      if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
+      this.bgmIntervalId = setInterval(() => {
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
+        this.playPluck(melody[step % melody.length], 'sine', 0.09, 1.4);
+        if (step % 8 === 0) this.playPluck(110.0, 'triangle', 0.08, 3.0);
+        if (Math.random() < 0.15) this.playPluck(1760 + Math.random() * 600, 'sine', 0.015, 0.3);
+        step++;
+      }, 700);
     } else if (mode === 'RAIN') {
       const melody = [293.66, 349.23, 440.00, 523.25, 440.00, 349.23, 293.66, 261.63];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'sine', 0.10, 0.7);
         
@@ -201,7 +268,7 @@ class SoundFxManager {
       const melody = [523.25, 587.33, 659.25, 739.99, 783.99, 659.25, 523.25, 493.88];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'sine', 0.08, 1.0);
         
@@ -217,7 +284,7 @@ class SoundFxManager {
       const melody = [329.63, 349.23, 440.00, 415.30, 392.00, 349.23, 329.63, 311.13];
       if (this.bgmIntervalId) clearInterval(this.bgmIntervalId);
       this.bgmIntervalId = setInterval(() => {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBgmDisabled) return;
         const note = melody[step % melody.length];
         this.playPluck(note, 'triangle', 0.11, 0.45);
         
@@ -290,7 +357,7 @@ class SoundFxManager {
   }
 
   public playClick(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -313,7 +380,7 @@ class SoundFxManager {
   }
 
   public playGameStart(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -341,7 +408,7 @@ class SoundFxManager {
   }
 
   public playHarvest(nodeType: 'crystal' | 'wood' | 'stone' = 'crystal'): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -385,7 +452,7 @@ class SoundFxManager {
   }
 
   public playDeposit(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -412,7 +479,7 @@ class SoundFxManager {
   }
 
   public playFanfare(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -440,7 +507,7 @@ class SoundFxManager {
   }
 
   public playGolemCheer(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -464,7 +531,7 @@ class SoundFxManager {
   }
 
   public playCoin(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -490,7 +557,7 @@ class SoundFxManager {
   }
 
   public playLaser(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -513,7 +580,7 @@ class SoundFxManager {
   }
 
   public playExplosion(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -537,7 +604,7 @@ class SoundFxManager {
 
   /** Filtered white-noise burst — shared by thunder and splashes. */
   private playNoise(duration: number, filterFreq: number, volume: number, attack: number = 0.005): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -578,7 +645,7 @@ class SoundFxManager {
   private lastBattleSound: Record<string, number> = {};
 
   private battleReady(kind: string, gapMs: number): AudioContext | null {
-    if (this.isMuted) return null;
+    if (this.isMuted || this.isSfxDisabled) return null;
     const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (nowMs - (this.lastBattleSound[kind] ?? -Infinity) < gapMs) return null;
     this.lastBattleSound[kind] = nowMs;
@@ -641,7 +708,7 @@ class SoundFxManager {
   }
 
   public playCastleHit(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -664,7 +731,7 @@ class SoundFxManager {
   }
 
   public playBreach(): void {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();
     if (!ctx || !this.masterGain) return;
 
@@ -684,6 +751,113 @@ class SoundFxManager {
 
     osc.start(now);
     osc.stop(now + 1.5);
+  }
+
+  // ── UI & progression sounds ────────────────────────────────────────────────
+  /** Quick arpeggio of tones; the shared body of most UI / progression cues. */
+  private arp(kind: string, gapMs: number, notes: number[], step: number, type: OscillatorType, volume: number, decay: number): void {
+    const ctx = this.battleReady(kind, gapMs);
+    if (!ctx) return;
+    notes.forEach((freq, i) => {
+      const t = ctx.currentTime + i * step;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(volume, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(t);
+      osc.stop(t + decay + 0.02);
+    });
+  }
+
+  /** Soft tick for switching tabs. */
+  public playTab(): void { this.arp('tab', 40, [1320], 0, 'triangle', 0.08, 0.05); }
+
+  /** Two-note toggle: rising for on, falling for off. */
+  public playToggle(on: boolean): void {
+    this.arp('toggle', 60, on ? [660, 990] : [990, 660], 0.05, 'square', 0.05, 0.07);
+  }
+
+  /** Airy whoosh when a panel opens or closes. */
+  public playPanel(open: boolean): void {
+    if (!this.battleReady('panel', 120)) return;
+    this.playNoise(0.18, open ? 2400 : 1400, 0.05, 0.04);
+  }
+
+  /** Dull buzz when something can't be afforded or done. */
+  public playError(): void { this.arp('error', 150, [196, 147], 0.08, 'square', 0.07, 0.12); }
+
+  /** Sparkling rise for buying an upgrade or research rank. */
+  public playUpgrade(): void { this.arp('upgrade', 80, [523.25, 659.25, 783.99, 1046.5], 0.045, 'triangle', 0.12, 0.25); }
+
+  /** Bright chime for learning a skill rank. */
+  public playSkillLearn(): void { this.arp('skill', 80, [880, 1318.5, 1760], 0.06, 'sine', 0.12, 0.45); }
+
+  /** Dark swell for summoning a General. */
+  public playSummon(): void {
+    this.arp('summon', 200, [130.81, 196.0, 261.63, 392.0], 0.09, 'sawtooth', 0.07, 0.6);
+    this.playNoise(0.6, 900, 0.05, 0.3);
+  }
+
+  /** Shimmering cascade for Slime / Ent evolution. */
+  public playEvolve(): void {
+    this.arp('evolve', 300, [392, 523.25, 659.25, 783.99, 1046.5, 1318.5], 0.07, 'sine', 0.11, 0.7);
+  }
+
+  /** Gentle bell for heals and repairs. */
+  public playHeal(): void { this.arp('heal', 250, [783.99, 1174.66], 0.08, 'sine', 0.06, 0.4); }
+
+  /** Stone thud + chime when a building finishes. */
+  public playBuildComplete(): void {
+    if (!this.battleReady('built', 300)) return;
+    this.playNoise(0.25, 500, 0.15, 0.005);
+    this.arp('builtChime', 0, [659.25, 987.77, 1318.5], 0.08, 'triangle', 0.1, 0.5);
+  }
+
+  /** War horn at the start of a wave. */
+  public playWaveHorn(): void {
+    const ctx = this.battleReady('horn', 1500);
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    [110, 164.81].forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq * 0.94, now);
+      osc.frequency.linearRampToValueAtTime(freq, now + 0.25);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.09, now + 0.2);
+      gain.gain.setValueAtTime(0.09, now + 1.0);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.6);
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(now);
+      osc.stop(now + 1.7);
+    });
+  }
+
+  /** Triumphant phrase when a wave is cleared. */
+  public playVictory(): void {
+    this.arp('victory', 1500, [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5], 0.11, 'triangle', 0.13, 0.5);
+  }
+
+  /** Warbling hum when a rift portal opens. */
+  public playPortalOpen(): void {
+    if (!this.battleReady('portal', 800)) return;
+    this.arp('portalTone', 0, [98, 92.5, 103.8, 87.3], 0.12, 'sine', 0.1, 0.5);
+    this.playNoise(0.9, 600, 0.06, 0.3);
+  }
+
+  /** Short pop when an invader falls. */
+  public playEnemyDeath(): void {
+    const ctx = this.battleReady('enemyDeath', 60);
+    if (!ctx) return;
+    this.playNoise(0.12, 1800, 0.08, 0.002);
+    this.ring(ctx, 220 + Math.random() * 80, 0.06, 0.18, 'triangle');
   }
 }
 

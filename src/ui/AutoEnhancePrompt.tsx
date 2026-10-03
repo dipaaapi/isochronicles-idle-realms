@@ -1,16 +1,12 @@
 import { isConstructionReady } from '../state/constructionProgress';
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
-import { CastleUpgradeKey, beaconLevelOf, canAfford, castleUpgradeCost } from '../state/defenseStats';
 import { formatCost } from './costDisplay';
 import { soundFx } from '../game/audio/soundFx';
-import { Coins, Zap, X, ArrowRight } from 'lucide-react';
-
-import { CitadelTab } from './CitadelCommandModal';
-import { FIGHTER_CLASSES, summonLock } from '../state/store/rosterSlice';
-import { getUnitSummonCost, maxUnitsOfClass } from '../state/economy';
-import { canAfford as canAffordResources } from '../state/resources';
-import { UNIT_CLASSES, type UnitClass } from '../types/game';
+import { ArrowUpCircle, ChevronRight, Sparkles, X } from 'lucide-react';
+import type { CitadelTab } from './CitadelCommandModal';
+import { useTranslation } from '../i18n/translations';
+import { CATEGORY_STYLE, buildUpgradeSuggestions, type Suggestion } from './upgradeSuggestions';
 
 interface AutoEnhancePromptProps {
   onOpenCitadel: (tab: CitadelTab) => void;
@@ -22,158 +18,106 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
   embedded = false,
 }) => {
   const state = useGameStore();
-  const isTL = state.language === 'TL';
+  const { t: tr } = useTranslation();
+  const [collapsed, setCollapsed] = useState(false);
 
   if (!isConstructionReady(state)) return null;
 
-  const checkTech = (key: 'golemSpeedLevel' | 'golemCapacityLevel', title: string, titleTl: string) => {
-    const level = state.upgrades[key];
-    const nextLevel = level + 1;
-    const prompted = state.promptedUpgrades[key] || 0;
-    
-    if (nextLevel > prompted) {
-      const costShards = Math.floor(40 * Math.pow(1.6, level - 1));
-      const costWood = Math.floor(30 * Math.pow(1.5, level - 1));
-      const costStone = Math.floor(25 * Math.pow(1.5, level - 1));
+  const suggestions = buildUpgradeSuggestions(state);
 
-      if (
-        state.resources.aetherShards >= costShards &&
-        state.resources.wood >= costWood &&
-        state.resources.stone >= costStone
-      ) {
-        const costDisplay = `${costShards}💎 ${costWood}🌲 ${costStone}🪨`;
-        return {
-          key,
-          type: 'tech' as const,
-          title: isTL ? titleTl : title,
-          level: nextLevel,
-          costDisplay,
-          currency: 'shards' as const,
-        };
-      }
-    }
-    return null;
-  };
+  if (suggestions.length === 0) return null;
 
-  const checkDefense = (key: CastleUpgradeKey, title: string, titleTl: string) => {
-    const level = key === 'beaconLevel' ? beaconLevelOf(state.defense) : state.defense[key];
-    const nextLevel = level + 1;
-    const prompted = state.promptedUpgrades[key] || 0;
-
-    if (nextLevel > prompted) {
-      const cost = castleUpgradeCost(key, level);
-      if (cost && canAfford(state.resources, cost)) {
-        return {
-          key,
-          type: 'defense' as const,
-          title: isTL ? titleTl : title,
-          level: nextLevel,
-          costDisplay: formatCost(cost),
-          currency: 'coins' as const,
-        };
-      }
-    }
-    return null;
-  };
-
-  // A General whose establishment stands and whose summon the stockpile covers (one General per establishment)
-  const checkSummon = (cls: UnitClass) => {
-    const count = state.roster.filter((u) => u.unitClass === cls && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
-    const max = maxUnitsOfClass(cls);
-    if (count >= max || summonLock(state, cls)) return null;
-    const cost = getUnitSummonCost(cls, count);
-    if (!canAffordResources(state.resources, cost)) return null;
-    const prompted = state.promptedUpgrades[`summon_${cls}`] || 0;
-    if (count + 1 <= prompted) return null;
-    const cfg = UNIT_CLASSES[cls];
-    return {
-      key: `summon_${cls}`,
-      type: 'summon' as const,
-      title: isTL ? cfg.name : (cfg.nameEn ?? cfg.name),
-      level: count + 1,
-      max,
-      costDisplay: formatCost(cost),
-      currency: 'shards' as const,
-    };
-  };
-
-  const allPrompts = [
-    ...FIGHTER_CLASSES.map(checkSummon),
-    checkTech('golemSpeedLevel', 'Minion Speed', 'Bilis ng Alagad'),
-    checkTech('golemCapacityLevel', 'Minion Capacity', 'Kapasidad ng Alagad'),
-    checkDefense('wallLevel', 'Castle Wall', 'Pader ng Kastilyo'),
-    checkDefense('beaconLevel', 'Provoke Beacon', 'Tore ng Beacon'),
-    checkDefense('shieldLevel', 'Arcane Shield', 'Kalasag ng Kuta'),
-  ].filter(Boolean) as Array<{
-    key: string;
-    type: 'tech' | 'defense' | 'summon';
-    title: string;
-    level: number;
-    max?: number;
-    costDisplay: string;
-    currency: 'shards' | 'coins';
-  }>;
-
-  if (allPrompts.length === 0) return null;
-
-  const handleDismiss = (e: React.MouseEvent, key: string, level: number) => {
+  const dismiss = (e: React.MouseEvent, s: Suggestion) => {
     e.stopPropagation();
     soundFx.playClick();
-    state.setPromptedUpgrade(key, level);
+    state.setPromptedUpgrade(s.key, s.level);
   };
 
-  const handleClick = (type: 'tech' | 'defense' | 'summon') => {
+  const dismissAll = () => {
     soundFx.playClick();
-    if (type === 'tech') {
-      onOpenCitadel('RESEARCH');
-    } else if (type === 'defense') {
-      onOpenCitadel('CASTLE');
-    } else if (type === 'summon') {
-      onOpenCitadel('MINIONS');
-    }
+    suggestions.forEach((s) => state.setPromptedUpgrade(s.key, s.level));
+  };
+
+  const applyNow = (e: React.MouseEvent, s: Suggestion) => {
+    e.stopPropagation();
+    if (!s.apply()) soundFx.playError();
+  };
+
+  const open = (s: Suggestion) => {
+    soundFx.playClick();
+    onOpenCitadel(s.tab);
   };
 
   return (
-    <div className={embedded ? 'flex flex-col gap-2 pointer-events-none' : 'absolute top-20 right-3 md:right-5 z-[9999] flex max-h-[calc(100vh-12rem)] w-[min(18rem,calc(100vw-1.5rem))] flex-col gap-2 overflow-y-auto pointer-events-none'}>
-      {allPrompts.map((prompt) => (
-        <div 
-          key={prompt.key} 
-          onClick={() => handleClick(prompt.type)}
-          className="pointer-events-auto bg-slate-900/95 border border-slate-700/50 backdrop-blur-md rounded-xl p-3 shadow-2xl w-full relative overflow-hidden group animate-in slide-in-from-right-4 fade-in duration-300 cursor-pointer hover:border-emerald-500/50 transition-colors"
+    <div
+      className={
+        embedded
+          ? 'flex flex-col gap-1.5'
+          : 'absolute top-20 right-3 md:right-5 z-[9999] flex max-h-[calc(100vh-12rem)] w-[min(18rem,calc(100vw-1.5rem))] flex-col gap-1.5 overflow-y-auto'
+      }
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-2 py-1.5 bg-emerald-950/60 border border-emerald-500/40">
+        <button
+          onClick={() => { soundFx.playClick(); setCollapsed((c) => !c); }}
+          className="flex items-center gap-1.5 min-w-0 cursor-pointer text-left"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          
-          <button 
-            onClick={(e) => handleDismiss(e, prompt.key, prompt.level)}
-            className="absolute top-2 right-2 text-slate-500 hover:text-white transition-colors z-10 p-1"
-          >
-            <X size={14} />
-          </button>
+          <Sparkles className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-300 truncate">
+            {tr('enhanceReadyTitle')}
+          </span>
+          <span className="px-1.5 text-[10px] font-mono font-bold bg-emerald-500 text-slate-950">{suggestions.length}</span>
+          <ChevronRight className={`w-3 h-3 text-emerald-400 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
+        </button>
+        <button
+          onClick={dismissAll}
+          className="text-[9px] text-slate-400 hover:text-white cursor-pointer shrink-0"
+        >
+          {tr('enhanceDismissAll')}
+        </button>
+      </div>
 
-          <div className="flex items-center gap-2 pr-6">
-            <div className="p-1.5 bg-emerald-500/20 rounded-lg text-emerald-400 shrink-0">
-              {prompt.currency === 'shards' ? <Zap size={16} /> : <Coins size={16} />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-emerald-400 font-bold text-[10px] tracking-wide uppercase truncate">
-                {isTL ? 'May Bagong Upgrade!' : 'Enhancement Available'}
-              </h3>
-              <p className="text-slate-200 mt-0.5 text-xs font-medium leading-tight">
-                {prompt.type === 'summon' 
-                  ? (isTL ? `Kasyang ipatawag: ${prompt.title} (${prompt.level}/${prompt.max ?? 1})` : `Can afford ${prompt.title} (${prompt.level}/${prompt.max ?? 1})`)
-                  : (isTL ? `Kasyang i-upgrade: ${prompt.title} Lv.${prompt.level}` : `Can afford ${prompt.title} Lv.${prompt.level}`)
-                }
-              </p>
-              <div className="mt-1 text-slate-400 text-[10px] font-mono truncate">
-                {isTL ? 'Halaga:' : 'Cost:'} <span className="text-emerald-300 ml-1">{prompt.costDisplay}</span>
+      {!collapsed && (
+        <div className="flex flex-col gap-1 max-h-80 overflow-y-auto pr-0.5">
+          {suggestions.map((s) => {
+            const style = CATEGORY_STYLE[s.category];
+            return (
+              <div
+                key={s.key}
+                onClick={() => open(s)}
+                title={tr('enhanceOpenHint')}
+                className="group flex items-center gap-2 p-1.5 bg-slate-900/90 border border-slate-700/60 hover:border-emerald-500/60 cursor-pointer transition-colors animate-in fade-in duration-200"
+              >
+                <span className="w-7 h-7 shrink-0 flex items-center justify-center text-base bg-slate-950 border border-slate-800">
+                  {s.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className={`px-1 text-[8px] font-bold uppercase border ${style.chip}`}>{tr(style.label)}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-100 leading-tight truncate">{s.title}</p>
+                  <p className="text-[9px] font-mono text-emerald-300/90 truncate">{formatCost(s.cost)}</p>
+                </div>
+                <button
+                  onClick={(e) => applyNow(e, s)}
+                  title={tr('enhanceUpgradeNow')}
+                  className="shrink-0 flex items-center gap-1 px-1.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold cursor-pointer"
+                >
+                  <ArrowUpCircle className="w-3 h-3" />
+                  {tr('enhanceUpgradeNow')}
+                </button>
+                <button
+                  onClick={(e) => dismiss(e, s)}
+                  title={tr('enhanceDismiss')}
+                  className="shrink-0 p-0.5 text-slate-500 hover:text-white cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
               </div>
-            </div>
-            <div className="shrink-0 text-slate-500 group-hover:text-emerald-400 transition-colors">
-              <ArrowRight size={16} />
-            </div>
-          </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 };

@@ -18,10 +18,12 @@ import type {
 import { buildingMaxHp } from '../defenseStats';
 import type { GodBlessingId, InvaderType, UnitClass } from '../../types/game';
 
+// Enough for the castle, Crystal Spire and the four core establishments (135 wood, 125 stone,
+// 160 coins; see scripts/balance-sim.cjs) with a small cushion, so the opening needs no grinding.
 export const INITIAL_RESOURCES: Resources = {
   aetherShards: 50,
-  wood: 65,
-  stone: 60,
+  wood: 145,
+  stone: 135,
   arcaneEssence: 0,
   fish: 0,
   water: 0,
@@ -33,7 +35,7 @@ export const INITIAL_RESOURCES: Resources = {
   soulFragments: 0,
   abyssalPearl: 0,
   scrapMetal: 0,
-  coins: 100,
+  coins: 180,
 };
 
 /** Builds a per-establishment record with the same starting value. */

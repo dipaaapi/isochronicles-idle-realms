@@ -1,3 +1,4 @@
+import { BUILDING_SPRITE, STRUCTURE_ART } from '../game/sprites/structureModels';
 import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES } from '../state/useGameStore';
@@ -7,7 +8,6 @@ import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../data/establ
 import { useTranslation, unitName } from '../i18n/translations';
 import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
 import { UNIT_CLASSES } from '../data/units';
-import { RESEARCH_CATEGORIES, ResearchNodeConfig } from '../data/researchConfig';
 import { techUpgradeCost, getUnitSummonCost } from '../state/economy';
 import { canAfford } from '../state/resources';
 import { soundFx } from '../game/audio/soundFx';
@@ -28,6 +28,8 @@ interface EstablishmentModalProps {
   onClose: () => void;
   selectedId: StructureId | null;
   initialTab?: EstabTab;
+  /** Jumps to Citadel Command → Research (where every upgrade lives) */
+  onOpenResearch?: () => void;
 }
 
 // ── Helpers & Constants ────────────────────────────────────────────────────────
@@ -147,11 +149,12 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
   isOpen,
   onClose,
   selectedId,
+  onOpenResearch,
   initialTab = 'ESTABLISHMENT',
 }) => {
   const [activeTab, setActiveTab] = useState<EstabTab>(initialTab);
   const [activeEstab, setActiveEstab] = useState<StructureId>(selectedId ?? 'CASTLE');
-  const { isTL } = useTranslation();
+  const { isTL, t: tr } = useTranslation();
   const tenantCount = useTenantCounts((s) => s.counts[activeEstab as string]);
 
   const {
@@ -219,27 +222,11 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
   // Allowed tasks for generals (General fighters CANNOT do BUILD)
   const availableHarvestTasks: HarvestTask[] = ['WOOD', 'STONE', 'METAL', 'FISH', 'AETHER', 'ESSENCE'];
 
-  // Research categories for General Upgrades tab
-  const activeResearchCategory = activeEstab === 'CASTLE' ? 'CASTLE' : 'ESTABLISHMENTS';
-  const primaryCategory = RESEARCH_CATEGORIES.find((c) => c.id === activeResearchCategory) || RESEARCH_CATEGORIES[3];
-  const tenantCategory = RESEARCH_CATEGORIES.find((c) => c.id === 'TENANTS') || RESEARCH_CATEGORIES[4];
 
   // Living tenants calculations for this establishment
   const tenantAttackBonus = 1 + ((upgrades.tenantAttackCounter ?? 1) - 1) * 0.25;
   const tenantHpBonus = ((upgrades.tenantDefenseBar ?? 1) - 1) * 40;
   const tenantCdBonus = Math.min(0.6, ((upgrades.tenantCooldownSummon ?? 1) - 1) * 0.12);
-
-  const handleTechUpgrade = (node: ResearchNodeConfig) => {
-    const currentLevel = (upgrades[node.key] as number) ?? 1;
-    if (currentLevel >= node.maxLevel) return;
-    const cost = techUpgradeCost(node.key, currentLevel);
-    if (!canAfford(resources, cost)) {
-      soundFx.playCastleHit();
-      return;
-    }
-    const success = upgradeTech(node.key);
-    if (success) soundFx.playFanfare();
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none" onClick={onClose}>
@@ -271,25 +258,39 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
         </div>
 
         {/* ── Top Establishment Switcher ── */}
-        <div className="flex overflow-x-auto gap-2 px-4 py-2.5 bg-slate-900/60 border-b border-slate-800/70 shrink-0 custom-scrollbar">
+        <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5 px-4 py-2.5 bg-slate-900/60 border-b border-slate-800/70 shrink-0">
           {ESTABLISHMENTS_LIST.map(({ id, label, labelEn, icon }) => {
             const active = id === activeEstab;
             const isBuilt = id === 'CASTLE' ? castleBuilt : id === 'SPIRE' ? spireBuilt : (resourceBuildings[id]?.level ?? 0) >= 1;
+            const artKey = id === 'CASTLE' ? 'castle' : id === 'SPIRE' ? 'spire' : BUILDING_SPRITE[id as ResourceBuildingId];
+            const art = artKey ? STRUCTURE_ART[artKey] : undefined;
+            const name = isTL ? label : labelEn;
             return (
               <button
                 key={id}
+                title={name}
                 onClick={() => {
                   soundFx.playClick();
                   setActiveEstab(id);
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs shrink-0 border transition-all cursor-pointer ${
+                className={`group relative flex flex-col items-stretch overflow-hidden border-2 transition-all cursor-pointer ${
                   active
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-400 text-white font-bold shadow-lg shadow-indigo-500/20 scale-102'
-                    : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                } ${!isBuilt ? 'opacity-40' : ''}`}
+                    ? 'border-indigo-400 bg-indigo-950 shadow-lg shadow-indigo-500/20'
+                    : 'border-slate-800 bg-slate-900/80 hover:border-slate-500'
+                } ${!isBuilt ? 'opacity-45 grayscale' : ''}`}
               >
-                <span className="text-base">{icon}</span>
-                <span className="font-semibold text-xs whitespace-nowrap">{isTL ? label : labelEn}</span>
+                {art ? (
+                  <img src={`/structures/${art}.jpg`} alt="" loading="lazy" className="w-full h-11 object-cover object-center" />
+                ) : (
+                  <span className="h-11 flex items-center justify-center text-xl">{icon}</span>
+                )}
+                <span
+                  className={`px-1 py-0.5 text-[9px] leading-tight truncate text-center ${
+                    active ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950/90 text-slate-400 group-hover:text-slate-200'
+                  }`}
+                >
+                  {name}
+                </span>
               </button>
             );
           })}
@@ -347,8 +348,9 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
             <button
               key={tab.id}
               onClick={() => {
-                soundFx.playClick();
-                setActiveTab(tab.id);
+                soundFx.playTab();
+                if (tab.id === 'GENERAL_UPGRADES' && onOpenResearch) onOpenResearch();
+                else setActiveTab(tab.id);
               }}
               className={`flex-1 py-3 px-2 text-xs md:text-sm font-bold transition-all border-b-2 cursor-pointer flex flex-col items-center gap-0.5 ${
                 activeTab === tab.id
@@ -844,140 +846,16 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
 
           {/* ═════════ TAB 3: GENERAL UPGRADES ═════════ */}
           {activeTab === 'GENERAL_UPGRADES' && (
-            <div className="space-y-4">
-              {/* Primary Category Nodes */}
-              <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{primaryCategory.icon}</span>
-                  <div>
-                    <h3 className="text-xs md:text-sm font-bold text-white">
-                      {isTL ? primaryCategory.titleTagalog : primaryCategory.titleEnglish}
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      {isTL ? primaryCategory.descriptionTagalog : primaryCategory.descriptionEnglish}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
-                  {primaryCategory.nodes.map((node) => {
-                    const currentLevel = (upgrades[node.key] as number) ?? 1;
-                    const isMax = currentLevel >= node.maxLevel;
-                    const cost = techUpgradeCost(node.key, currentLevel);
-                    const canAffordThis = canAfford(resources, cost);
-
-                    return (
-                      <div
-                        key={node.key}
-                        className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between gap-3 hover:border-indigo-500/30 transition-all"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg">{node.icon}</span>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 font-bold border border-indigo-500/30">
-                              Lv. {currentLevel} / {node.maxLevel}
-                            </span>
-                          </div>
-                          <h4 className="text-xs font-bold text-white mt-1.5">
-                            {isTL ? node.nameTagalog : node.nameEnglish}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-                            {isTL ? node.descriptionTagalog : node.descriptionEnglish}
-                          </p>
-                        </div>
-
-                        <div>
-                          {!isMax && (
-                            <div className="text-[10px] font-mono text-slate-400 mb-2">
-                              {Object.entries(cost).map(([k, amt]) => `${k === 'coins' ? '🪙' : RESOURCE_PRICES[k as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${amt}`).join(' ')}
-                            </div>
-                          )}
-                          <button
-                            disabled={isMax || !canAffordThis}
-                            onClick={() => handleTechUpgrade(node)}
-                            className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              isMax
-                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                : canAffordThis
-                                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 active:scale-95'
-                                  : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                            }`}
-                          >
-                            {isMax ? (isTL ? 'PINAKAMATAAS' : 'MAX') : `⬆️ ${isTL ? 'I-Upgrade' : 'Upgrade'}`}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Tenant Upgrades Category Nodes */}
-              <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{tenantCategory.icon}</span>
-                  <div>
-                    <h3 className="text-xs md:text-sm font-bold text-white">
-                      {isTL ? tenantCategory.titleTagalog : tenantCategory.titleEnglish}
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      {isTL ? tenantCategory.descriptionTagalog : tenantCategory.descriptionEnglish}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
-                  {tenantCategory.nodes.map((node) => {
-                    const currentLevel = (upgrades[node.key] as number) ?? 1;
-                    const isMax = currentLevel >= node.maxLevel;
-                    const cost = techUpgradeCost(node.key, currentLevel);
-                    const canAffordThis = canAfford(resources, cost);
-
-                    return (
-                      <div
-                        key={node.key}
-                        className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between gap-3 hover:border-cyan-500/30 transition-all"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg">{node.icon}</span>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/30">
-                              Lv. {currentLevel} / {node.maxLevel}
-                            </span>
-                          </div>
-                          <h4 className="text-xs font-bold text-white mt-1.5">
-                            {isTL ? node.nameTagalog : node.nameEnglish}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-                            {isTL ? node.descriptionTagalog : node.descriptionEnglish}
-                          </p>
-                        </div>
-
-                        <div>
-                          {!isMax && (
-                            <div className="text-[10px] font-mono text-slate-400 mb-2">
-                              {Object.entries(cost).map(([k, amt]) => `${k === 'coins' ? '🪙' : RESOURCE_PRICES[k as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${amt}`).join(' ')}
-                            </div>
-                          )}
-                          <button
-                            disabled={isMax || !canAffordThis}
-                            onClick={() => handleTechUpgrade(node)}
-                            className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              isMax
-                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                : canAffordThis
-                                  ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-600/30 active:scale-95'
-                                  : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                            }`}
-                          >
-                            {isMax ? (isTL ? 'PINAKAMATAAS' : 'MAX') : `⬆️ ${isTL ? 'I-Upgrade' : 'Upgrade'}`}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="p-6 text-center border border-indigo-500/30 bg-indigo-950/20 space-y-3">
+              <p className="text-xs text-slate-300">{tr('estabResearchMoved')}</p>
+              {onOpenResearch && (
+                <button
+                  onClick={() => { soundFx.playClick(); onOpenResearch(); }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"
+                >
+                  {tr('estabOpenResearch')} →
+                </button>
+              )}
             </div>
           )}
 

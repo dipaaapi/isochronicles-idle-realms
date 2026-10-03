@@ -30,7 +30,8 @@ vm.runInNewContext(source, {
     if (name.includes('types/game')) return { INVADER_CONFIGS: new Proxy({}, {
       get: () => ({ category: 'HUMAN', attackRange: 30, color: 0, speed: 60 }),
     }) };
-    if (name.includes('soundFx')) return { soundFx: { playExplosion() {} } };
+    if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
+    if (name.includes('graphicsFx')) return { markShadow: (o) => o };
     if (name.includes('activityLog')) return new Proxy({}, { get: () => () => undefined });
     if (name.includes('CharacterSprites')) return new Proxy({}, {
       get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),

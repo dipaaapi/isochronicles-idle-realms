@@ -613,14 +613,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div className="space-y-2">
               {/* Main Citadel Command Opener */}
               <button
-                onClick={() => { soundFx.playClick(); onOpenCitadel('MINIONS'); }}
+                onClick={() => { soundFx.playClick(); onOpenCitadel('OVERVIEW'); }}
                 className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 border border-purple-500/40 hover:border-purple-400 flex items-center justify-between transition cursor-pointer shadow-md"
               >
                 <div className="flex items-center gap-2.5">
                   <span className="text-2xl">🏰</span>
                   <div className="text-left">
                     <div className="text-xs font-bold text-white">{isTL ? 'Sentro ng Kuta' : 'Citadel Command'}</div>
-                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Minions, Pamilihan, Pandayan, Agham' : 'Minions, Market, Armory, Research'}</div>
+                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Lahat ng upgrade: Skill, Agham, Tanggulan, Pandayan' : 'Every upgrade: Skills, Research, Defenses, Armory'}</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-purple-400" />

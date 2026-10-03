@@ -1,0 +1,39 @@
+{
+  "speakers": {
+    "NARRATOR": { "en": "The Chronicle", "tl": "Ang Salaysay", "portrait": null, "color": "#fca5a5" },
+    "SLIME": { "en": "Support Slime", "tl": "Support Slime", "portrait": "/portraits/slime.png", "color": "#7dd3fc" },
+    "ENT": { "en": "Ancient Ent", "tl": "Sinaunang Ent", "portrait": "/portraits/ancient-ent.png", "color": "#86efac" }
+  },
+  "lines": [
+    {
+      "speaker": "NARRATOR",
+      "en": "Centuries after your fall, the gate to the Nether Realm cracks open. Above the void, a ruined citadel stirs.",
+      "tl": "Ilang siglo matapos ang iyong pagbagsak, nabiyak ang lagusan ng Nether Realm. Sa ibabaw ng kawalan, gumagalaw ang isang gumuhong kuta."
+    },
+    {
+      "speaker": "SLIME",
+      "en": "Awaken, Great Demon Lord! It's me, your loyal Slime. Your power is faint, but the Citadel of Darkness still answers you.",
+      "tl": "Gising na, Dakilang Demon Lord! Ako ito, ang tapat mong Slime. Mahina pa ang iyong kapangyarihan, ngunit tumutugon pa rin sa iyo ang Kuta ng Kadiliman."
+    },
+    {
+      "speaker": "ENT",
+      "en": "I will raise the castle and the Crystal Spire. Then I shall call your Generals, one for every establishment, to build and guard their halls.",
+      "tl": "Itatayo ko ang kastilyo at ang Crystal Spire. Pagkatapos ay tatawagin ko ang iyong mga Heneral, isa sa bawat pasilidad, upang itayo at bantayan ang kanilang mga tahanan."
+    },
+    {
+      "speaker": "SLIME",
+      "en": "Gather wood, stone, crystals and more. Trade at the market, research upgrades, and strengthen the walls.",
+      "tl": "Mag-ipon ng kahoy, bato, kristal at iba pa. Makipagkalakalan sa pamilihan, magsaliksik ng mga upgrade, at palakasin ang mga pader."
+    },
+    {
+      "speaker": "NARRATOR",
+      "en": "Through the corner rifts, Humans and Mechas will come in waves. Survive one hundred of them, and the realm is yours again.",
+      "tl": "Mula sa mga lagusan sa sulok, darating nang paalon-alon ang mga Tao at Mecha. Malampasan ang isandaan nito, at muling magiging iyo ang kaharian."
+    },
+    {
+      "speaker": "SLIME",
+      "en": "Before we begin, my Lord: how fierce shall this return be?",
+      "tl": "Bago tayo magsimula, aking Panginoon: gaano kabangis ang pagbabalik na ito?"
+    }
+  ]
+}
