@@ -12,6 +12,8 @@ import { INVADER_CONFIGS } from '../../types/game';
 import { isBuildingOperational } from '../../state/defenseStats';
 import { soundFx } from '../audio/soundFx';
 import { activateMod, advanceCombatClock, auras, isModActive, resetCombatMods } from './combatMods';
+import { SkillCastFx, skillDef } from './skillCastFx';
+import { logMessage } from '../../state/activityLog';
 
 /** Screen pixels per grid tile along one axis (for knockbacks and visuals). */
 const TILE_PX = (() => {
@@ -56,6 +58,7 @@ export class SkillSystem {
   private zones: Zone[] = [];
   private repairCarry = 0;
   private auraTick = 0;
+  private castFx: SkillCastFx;
 
   constructor(
     private scene: Phaser.Scene,
@@ -66,6 +69,7 @@ export class SkillSystem {
     private defenders: DefenderSystem
   ) {
     resetCombatMods();
+    this.castFx = new SkillCastFx(scene, layer, TILE_PX);
     invasion.onInvaderKilled = (inv) => this.onInvaderKilled(inv);
   }
 
@@ -88,6 +92,7 @@ export class SkillSystem {
     this.rulerPassives(dt, workers);
     for (const cast of store.takeSkillCasts()) this.castStructureSkill(cast, invaders, workers);
     this.updateZones(dt, invaders, workers);
+    this.castFx.update(dt);
 
     if (!store.invasion.isActive || invaders.length === 0) return;
     for (const w of workers) if ((w.stunTimer ?? 0) <= 0) this.beastSkill(w, invaders, workers);
@@ -97,6 +102,7 @@ export class SkillSystem {
   destroy(): void {
     for (const z of this.zones) z.gfx.destroy();
     this.zones = [];
+    this.castFx.destroy();
     this.invasion.onInvaderKilled = undefined;
     resetCombatMods();
   }
@@ -665,6 +671,39 @@ export class SkillSystem {
     const zoneInvaders = invaders.filter(inZone);
     const nearest = (n: number) => [...invaders].sort(byDistanceTo(origin)).slice(0, n);
     soundFx.playFanfare();
+
+    // Cast visuals + log; invaders are snapshotted so the ones the skill touched get a hit spark
+    const def = skillDef(id);
+    const before = new Map(invaders.map((i) => [i, { hp: i.hp, frozen: i.frozenTimer ?? 0, slow: i.slowTimer ?? 0 }]));
+    this.castFx.cast(id, origin, {
+      minions: () => this.workers.getWorkers().filter((w) => w.hp > 0 && w.container?.active).map((w) => w.container),
+      structures: () => [...this.structures.getTowers(), ...(castle ? [castle] : [])],
+    });
+    if (def) {
+      const tl = useGameStore.getState().language === 'TL';
+      const caster = building === 'CASTLE' || building === 'SPIRE' || tower ? this.structures.displayName(building as Parameters<StructureManager["displayName"]>[0]) : building;
+      logMessage(def.isUltimate ? 'ultimateCast' : 'skillCast', { building: caster, skill: tl ? def.nameTl : def.nameEn }, { icon: def.icon });
+    }
+    try {
+      this.applyStructureSkill(id, origin, castle, zoneInvaders, nearest, invaders, workers);
+    } finally {
+      for (const [inv, prev] of before) {
+        if (inv.hp < prev.hp || (inv.frozenTimer ?? 0) > prev.frozen || (inv.slowTimer ?? 0) > prev.slow) {
+          this.castFx.hit(inv.container, def?.activeColor);
+        }
+      }
+    }
+  }
+
+  private applyStructureSkill(
+    id: string,
+    origin: Point,
+    castle: Point | undefined,
+    zoneInvaders: ActiveInvader[],
+    nearest: (n: number) => ActiveInvader[],
+    invaders: ActiveInvader[],
+    workers: WorkerInstance[]
+  ): void {
 
     switch (id) {
       case 'QUARRY_SEISMIC_SHATTER':

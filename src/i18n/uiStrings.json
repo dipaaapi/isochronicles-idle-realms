@@ -126,5 +126,213 @@
   "english": {
     "en": "English",
     "tl": "English"
+  },
+  "dialogTitle": {
+    "en": "Demon Lord's Decree",
+    "tl": "Utos ng Demon Lord"
+  },
+  "dialogConfirm": {
+    "en": "Confirm",
+    "tl": "Ituloy"
+  },
+  "dialogCancel": {
+    "en": "Cancel",
+    "tl": "Kanselahin"
+  },
+  "dialogOk": {
+    "en": "OK",
+    "tl": "Sige"
+  },
+  "resetRealmConfirm": {
+    "en": "This will permanently erase your entire Realm progress, including buildings, minions, resources, upgrades, achievements, days, waves, and regression history. This cannot be undone. Continue?",
+    "tl": "Ire-reset ang buong Realm at mabubura ang lahat ng progress, buildings, minions, resources, upgrades, achievements, days, waves, at regression history. Hindi na ito maibabalik. Ituloy?"
+  },
+  "importSuccess": {
+    "en": "Realm successfully restored!",
+    "tl": "Matagumpay na na-restore ang Realm!"
+  },
+  "importFailed": {
+    "en": "Failed to read the save file. Please select a valid IsoChronicle JSON export.",
+    "tl": "Hindi mabasa ang save file. Siguraduhing valid na IsoChronicle JSON file ito."
+  },
+  "hudPhase": {
+    "en": "Phase {n} of 4",
+    "tl": "Yugto {n} ng 4"
+  },
+  "hudWeatherClear": {
+    "en": "☀️ Clear",
+    "tl": "☀️ Maaliwalas"
+  },
+  "hudWeatherRain": {
+    "en": "🌧️ Raining",
+    "tl": "🌧️ Umuulan"
+  },
+  "hudWeatherSnow": {
+    "en": "❄️ Snowing",
+    "tl": "❄️ Nagniniyebe"
+  },
+  "hudWeatherHeat": {
+    "en": "🔥 Heatwave",
+    "tl": "🔥 Matinding Init"
+  },
+  "hudTabCommand": {
+    "en": "Command 🏰",
+    "tl": "Utos 🏰"
+  },
+  "hudTabStatus": {
+    "en": "Status 🛡️",
+    "tl": "Kalagayan 🛡️"
+  },
+  "hudTabResources": {
+    "en": "Resources 💎",
+    "tl": "Yaman 💎"
+  },
+  "hudSkills": {
+    "en": "Skills",
+    "tl": "Kasanayan"
+  },
+  "hudAtlas": {
+    "en": "Atlas 🧭",
+    "tl": "Atlas 🧭"
+  },
+  "hudCitadel": {
+    "en": "Citadel",
+    "tl": "Kuta"
+  },
+  "hudWave": {
+    "en": "Wave {n}/100",
+    "tl": "Alon {n}/100"
+  },
+  "hudPlay": {
+    "en": "Play ( ` )",
+    "tl": "Ituloy ( ` )"
+  },
+  "hudPause": {
+    "en": "Pause ( ` )",
+    "tl": "I-pause ( ` )"
+  },
+  "hudSpeed": {
+    "en": "{speed}× speed ({key})",
+    "tl": "{speed}× bilis ({key})"
+  },
+  "hudMusicOn": {
+    "en": "Music: ON",
+    "tl": "Musika: BUKAS"
+  },
+  "hudMusicOff": {
+    "en": "Music: OFF",
+    "tl": "Musika: SARADO"
+  },
+  "hudSfxOn": {
+    "en": "SFX: ON",
+    "tl": "Tunog: BUKAS"
+  },
+  "hudSfxOff": {
+    "en": "SFX: OFF",
+    "tl": "Tunog: SARADO"
+  },
+  "hudFullscreen": {
+    "en": "Fullscreen",
+    "tl": "Buong Screen"
+  },
+  "hudExitFullscreen": {
+    "en": "Exit Fullscreen",
+    "tl": "Lumabas sa Buong Screen"
+  },
+  "resObsidian": {
+    "en": "Obsidian",
+    "tl": "Obsidian"
+  },
+  "resSouls": {
+    "en": "Souls",
+    "tl": "Kaluluwa"
+  },
+  "resPearl": {
+    "en": "Pearl",
+    "tl": "Perlas"
+  },
+  "resScrap": {
+    "en": "Scrap Metal",
+    "tl": "Scrap na Bakal"
+  },
+  "evolve": {
+    "en": "Evolve",
+    "tl": "I-evolve"
+  },
+  "maxLevelShort": {
+    "en": "Max Level",
+    "tl": "Pinakamataas na Antas"
+  },
+  "statusActive": {
+    "en": "Active",
+    "tl": "Aktibo"
+  },
+  "statusUnsummoned": {
+    "en": "Unsummoned",
+    "tl": "Hindi pa Natatawag"
+  },
+  "slotAll": {
+    "en": "All",
+    "tl": "Lahat"
+  },
+  "slotTool": {
+    "en": "Weapon",
+    "tl": "Sandata"
+  },
+  "slotArmor": {
+    "en": "Armor",
+    "tl": "Baluti"
+  },
+  "slotRelic": {
+    "en": "Relic",
+    "tl": "Agimat"
+  },
+  "credits": {
+    "en": "Credits",
+    "tl": "Pagkilala"
+  },
+  "creatorRole": {
+    "en": "Software Engineer · Philippines",
+    "tl": "Software Engineer · Pilipinas"
+  },
+  "techStack": {
+    "en": "Tech Stack",
+    "tl": "Mga Teknolohiya"
+  },
+  "techPhaser": {
+    "en": "Isometric 2.5D Canvas Engine",
+    "tl": "Isometric 2.5D na canvas engine"
+  },
+  "techReact": {
+    "en": "Modular HUD & UI Overlays",
+    "tl": "Modular na HUD at UI"
+  },
+  "techZustand": {
+    "en": "State & Local Persistence",
+    "tl": "Estado at lokal na pag-save"
+  },
+  "techEasystar": {
+    "en": "A* Grid Pathfinding",
+    "tl": "A* na paghahanap ng daan"
+  },
+  "hudCost": {
+    "en": "Cost:",
+    "tl": "Halaga:"
+  },
+  "generalActive": {
+    "en": "General active",
+    "tl": "Aktibo ang Heneral"
+  },
+  "generalNotSummoned": {
+    "en": "General not summoned",
+    "tl": "Wala pang Heneral"
+  },
+  "tenantsLabel": {
+    "en": "Tenants",
+    "tl": "Umuupa"
+  },
+  "tenantsHint": {
+    "en": "Tenants spawn for free and look like the Champion; they are the units you see on the map.",
+    "tl": "Libreng lumilitaw ang mga umuupa at kamukha sila ng Kampeon; sila ang nakikita mo sa mapa."
   }
 }

@@ -36,6 +36,15 @@ export class InvasionManager {
   private invaders: ActiveInvader[] = [];
   public groundLoot?: GroundLootManager;
 
+  /** Invader name for the activity log in both languages ("BOSS " prefix kept). */
+  private logName(invader: ActiveInvader): { en: string; tl: string } {
+    const cfg = INVADER_CONFIGS[invader.type];
+    if (invader.isScout) return { en: invader.name, tl: 'Palaboy na Espiya' };
+    if (!cfg) return { en: invader.name, tl: invader.name };
+    const boss = invader.name.startsWith('BOSS ') ? 'BOSS ' : '';
+    return { en: invader.name, tl: `${boss}${cfg.name}` };
+  }
+
   public setGroundLoot(loot: GroundLootManager): void {
     this.groundLoot = loot;
   }
@@ -369,7 +378,7 @@ export class InvasionManager {
     const invader: ActiveInvader = {
       id: `invader_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       type,
-      name: isBoss ? `BOSS ${cfg.name}` : cfg.name,
+      name: isBoss ? `BOSS ${cfg.nameEn ?? cfg.name}` : (cfg.nameEn ?? cfg.name),
       container,
       shadow,
       bodyGfx,
@@ -406,8 +415,8 @@ export class InvasionManager {
     if (portal) this.beginEmerge(invader, portal);
     this.invaders.push(invader);
     soundFx.playCastleHit();
-    if (isBoss) logMessage('bossArrives', { name: invader.name });
-    if (isRusher) logMessage('rusherCharges', { name: invader.name });
+    if (isBoss) logMessage('bossArrives', { name: this.logName(invader) });
+    if (isRusher) logMessage('rusherCharges', { name: this.logName(invader) });
     return true;
   }
 
@@ -761,7 +770,7 @@ export class InvasionManager {
 
     invader.isDead = true;
     soundFx.playExplosion();
-    logMessage(invader.name.startsWith('BOSS') ? 'bossSlain' : 'invaderSlain', { name: invader.name }, { mergeKey: `kill:${invader.name}` });
+    logMessage(invader.name.startsWith('BOSS') ? 'bossSlain' : 'invaderSlain', { name: this.logName(invader) }, { mergeKey: `kill:${invader.name}` });
 
     // Reward bounty (Plunder Tax skill)
     const bounty = Math.round(invader.bountyCoins * teamBonuses(useGameStore.getState()).bounty);

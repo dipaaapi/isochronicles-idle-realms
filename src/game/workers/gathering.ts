@@ -265,7 +265,7 @@ function updateHarvesting(ctx: WorkerContext, worker: WorkerInstance, frame: Wor
   else soundFx.playHarvest('crystal');
 
   ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 12, taskCfg.color, 8);
-  ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 20, `+${worker.cargo} ${taskCfg.label}`, taskCfg.hexColor);
+  ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 20, `+${worker.cargo} ${taskCfg.labelEn}`, taskCfg.hexColor);
   ctx.dispatchToNexus(worker);
 }
 
@@ -314,7 +314,7 @@ function depositCargo(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerF
     ctx.spawnFloatingPopup(x, y - 36, `⚡ Auto-Sold ${AUTO_SELL_AMOUNT} ⇄ Coins`, '#fbbf24');
   }
 
-  ctx.spawnFloatingPopup(x, y - 20, `+${harvested} ${taskCfg.label} Delivered`, taskCfg.hexColor);
+  ctx.spawnFloatingPopup(x, y - 20, `+${harvested} ${taskCfg.labelEn} Delivered`, taskCfg.hexColor);
 
   // Drain stamina for this expedition (reduced by armor/relic, increased by weather)
   const drain = worker.staminaDrain * (1 - frame.drainReduction / 100) * frame.weatherDrainMult;

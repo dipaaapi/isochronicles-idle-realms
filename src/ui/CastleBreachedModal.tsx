@@ -173,7 +173,7 @@ export const CastleBreachedModal: React.FC = () => {
 
           <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-2">
             <div className="rounded-full border border-rose-300/20 bg-black/55 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-rose-100 backdrop-blur-md">
-              {isTl ? 'Realm Breached' : 'Realm Breached'}
+              {isTl ? 'Napasok ang Kaharian' : 'Realm Breached'}
             </div>
 
             <div className="flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-black/55 px-3 py-1.5 text-[9px] font-bold text-rose-100 backdrop-blur-md">
@@ -213,7 +213,7 @@ export const CastleBreachedModal: React.FC = () => {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                  {isTl ? 'Battle Report' : 'Battle Report'}
+                  {isTl ? 'Ulat ng Labanan' : 'Battle Report'}
                 </div>
                 <div className="mt-0.5 text-[9px] text-slate-600">
                   {isTl
@@ -278,7 +278,7 @@ export const CastleBreachedModal: React.FC = () => {
                 <div className="mb-2.5 flex items-end justify-between px-1">
                   <div>
                     <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                      {isTl ? 'Resource Report' : 'Resource Report'}
+                      {isTl ? 'Ulat ng Yaman' : 'Resource Report'}
                     </h3>
                     <p className="mt-0.5 text-[9px] text-slate-600">
                       {isTl
@@ -351,7 +351,7 @@ export const CastleBreachedModal: React.FC = () => {
                 <div className="space-y-2">
                   <div className="rounded-xl bg-slate-950/60 p-2.5">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-rose-400">
-                      01 · {isTl ? 'Raid' : 'Raid'}
+                      01 · {isTl ? 'Pagsalakay' : 'Raid'}
                     </div>
                     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                       {isTl
@@ -362,7 +362,7 @@ export const CastleBreachedModal: React.FC = () => {
 
                   <div className="rounded-xl bg-slate-950/60 p-2.5">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-400">
-                      02 · {isTl ? 'Rebuild' : 'Rebuild'}
+                      02 · {isTl ? 'Muling Pagtayo' : 'Rebuild'}
                     </div>
                     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                       {isTl
@@ -373,7 +373,7 @@ export const CastleBreachedModal: React.FC = () => {
 
                   <div className="rounded-xl bg-slate-950/60 p-2.5">
                     <div className="text-[9px] font-bold uppercase tracking-wider text-sky-400">
-                      03 · {isTl ? 'Prepare' : 'Prepare'}
+                      03 · {isTl ? 'Paghahanda' : 'Prepare'}
                     </div>
                     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                       {isTl

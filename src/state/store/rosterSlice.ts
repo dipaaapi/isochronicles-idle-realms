@@ -4,6 +4,7 @@ import {
   ECONOMY_CONFIG,
   getUnitSummonCost,
   maxUnitsOfClass,
+  TENANTS_PER_ESTABLISHMENT,
   slimeEvolutionCost,
   slimeEvolutionKillsRequired,
 } from '../economy';
@@ -33,6 +34,12 @@ export const summonLock = (
   }
   return null;
 };
+
+/** The General whose home is this establishment (one per establishment), or undefined if none lives there. */
+export const generalOf = (buildingId: ResourceBuildingId): UnitClass | undefined =>
+  (Object.keys(UNIT_CLASSES) as UnitClass[]).find(
+    (c) => UNIT_CLASSES[c].role === 'FIGHTER' && UNIT_CLASSES[c].requiredBuilding === buildingId
+  );
 
 /** Fighters the Slime can summon (rulers are unique and arrive on their own). */
 export const FIGHTER_CLASSES = (Object.keys(UNIT_CLASSES) as UnitClass[]).filter((c) => UNIT_CLASSES[c].role === 'FIGHTER');
@@ -115,7 +122,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     const newUnitId = `unit_${unitClass.toLowerCase()}_${Date.now()}`;
     const newUnit: UnitRosterItem = {
       id: newUnitId,
-      name: `${config.name} ${countOfClass + 1}`,
+      name: `${config.nameEn} ${countOfClass + 1}`,
       unitClass,
       assignedTask: initialTask || config.preferredTask,
       treantEvolutionLevel: unitClass === 'TREANT' ? 1 : undefined,
@@ -144,29 +151,23 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
 
   summonTenant: (buildingId: ResourceBuildingId): boolean => {
     const state = get();
-    const tenantMap: Record<ResourceBuildingId, { name: string; task: HarvestTask; unitClass: UnitClass }> = {
-      WOOD: { name: 'Woodland Tenant', task: 'WOOD', unitClass: 'LAVA_GARGOYLE' },
-      QUARRY: { name: 'Quarry Tenant', task: 'STONE', unitClass: 'GOLEM' },
-      MINE: { name: 'Miner Tenant', task: 'METAL', unitClass: 'DEMON_HOUND' },
-      PORT: { name: 'Harbor Tenant', task: 'FISH', unitClass: 'MERMAN' },
-      CAVE: { name: 'Cavern Tenant', task: 'ESSENCE', unitClass: 'NECROMANCER' },
-      TRENCH: { name: 'Abyssal Tenant', task: 'FISH', unitClass: 'KRAKEN' },
-      CRYPT: { name: 'Crypt Tenant', task: 'AETHER', unitClass: 'NECROMANCER' },
-      PERCH: { name: 'Perch Tenant', task: 'AETHER', unitClass: 'HARPY' },
-      KENNEL: { name: 'Kennel Tenant', task: 'WOOD', unitClass: 'DEMON_HOUND' },
-    };
-    const info = tenantMap[buildingId] || { name: 'Realm Tenant', task: 'AETHER', unitClass: 'GOLEM' as UnitClass };
+    // Tenants share the look of their establishment's General; each General has one home, so no two establishments share a kind
+    const unitClass = generalOf(buildingId);
+    if (!unitClass) return false;
+    const config = UNIT_CLASSES[unitClass];
+    const hasGeneral = state.roster.some((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_'));
+    if (!hasGeneral) return false;
     const count = state.roster.filter(
       (u) => u.parentBuildingId === buildingId || (u.id.startsWith(`tenant_${buildingId.toLowerCase()}`))
     ).length;
-    if (count >= 2) return false;
+    if (count >= TENANTS_PER_ESTABLISHMENT) return false;
 
     const newUnitId = `tenant_${buildingId.toLowerCase()}_${Date.now()}`;
     const newUnit: UnitRosterItem = {
       id: newUnitId,
-      name: `${info.name} ${count + 1}`,
-      unitClass: info.unitClass,
-      assignedTask: info.task,
+      name: `${config.nameEn} Tenant ${count + 1}`,
+      unitClass,
+      assignedTask: config.preferredTask,
       parentBuildingId: buildingId,
     };
     const nextRoster = [...state.roster, newUnit];

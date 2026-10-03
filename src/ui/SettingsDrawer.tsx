@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
+import { gameAlert, gameConfirm } from './GameDialog';
+import { t as translate } from '../i18n/translations';
+import type { TranslationKey } from '../i18n/translations';
 import {
   X,
   Download,
@@ -85,6 +88,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   if (!isOpen) return null;
 
   const isTL = language === 'TL';
+  const tr = (key: TranslationKey) => translate(key, language);
 
   const handleExport = () => {
     soundFx.playClick();
@@ -120,19 +124,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       const success = importSave(content);
 
       if (success) {
-        alert(
-          isTL
-            ? 'Matagumpay na na-restore ang Realm!'
-            : 'Realm successfully restored!'
-        );
+        void gameAlert(tr('importSuccess'));
 
         onClose();
       } else {
-        alert(
-          isTL
-            ? 'Hindi mabasa ang save file. Siguraduhing valid na IsoChronicle JSON file ito.'
-            : 'Failed to read the save file. Please select a valid IsoChronicle JSON export.'
-        );
+        void gameAlert(tr('importFailed'));
       }
     };
 
@@ -142,12 +138,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     e.target.value = '';
   };
 
-  const handleReset = () => {
-    const confirmed = window.confirm(
-      isTL
-        ? 'Ire-reset ang buong Realm at mabubura ang lahat ng progress, buildings, minions, resources, upgrades, achievements, days, waves, at regression history. Hindi na ito maibabalik. Ituloy?'
-        : 'This will permanently erase your entire Realm progress, including buildings, minions, resources, upgrades, achievements, days, waves, and regression history. This cannot be undone. Continue?'
-    );
+  const handleReset = async () => {
+    const confirmed = await gameConfirm(tr('resetRealmConfirm'));
 
     if (!confirmed) return;
 
@@ -168,12 +160,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     },
     {
       id: 'SAVE' as const,
-      label: isTL ? 'Save' : 'Save',
+      label: isTL ? 'I-save' : 'Save',
       icon: Save,
     },
     {
       id: 'CREDITS' as const,
-      label: 'Credits',
+      label: tr('credits'),
       icon: Code2,
     },
   ];
@@ -390,7 +382,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <div className="mb-2 flex items-center gap-2 px-1">
                   <Sparkles className="h-3.5 w-3.5 text-purple-400" />
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    {isTL ? 'Performance' : 'Performance'}
+                    {isTL ? 'Pagganap' : 'Performance'}
                   </h3>
                 </div>
 
@@ -472,7 +464,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <div className="mt-2">
                   <SettingRow
                     icon={<Grid3X3 className="h-4 w-4" />}
-                    title={isTL ? 'Tile Coordinates' : 'Tile Coordinates'}
+                    title={isTL ? 'Koordinado ng Tile' : 'Tile Coordinates'}
                     description={
                       isTL
                         ? 'Ipakita ang chessboard labels (A1–J10) sa bawat tile ng mapa.'
@@ -502,7 +494,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <div className="mb-2 flex items-center gap-2 px-1">
                   <Zap className="h-3.5 w-3.5 text-cyan-400" />
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    {isTL ? 'Automation' : 'Automation'}
+                    {isTL ? 'Awtomasyon' : 'Automation'}
                   </h3>
                 </div>
 
@@ -517,7 +509,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-3">
                       <div className="min-w-0">
                         <div className="text-xs font-medium text-slate-200">
-                          {isTL ? 'Auto Task Dispatch' : 'Auto Task Dispatch'}
+                          {isTL ? 'Awtomatikong Pagtatalaga ng Gawain' : 'Auto Task Dispatch'}
                         </div>
                         <div className="mt-0.5 text-[10px] text-slate-500">
                           {isTL
@@ -703,7 +695,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
               <section className="border-t border-slate-800 pt-4">
                 <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-rose-400/70">
-                  {isTL ? 'Danger Zone' : 'Danger Zone'}
+                  {isTL ? 'Mapanganib na Bahagi' : 'Danger Zone'}
                 </div>
 
                 <button
@@ -750,7 +742,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     </h3>
 
                     <p className="text-xs text-slate-400">
-                      Software Engineer · Philippines
+                      {tr('creatorRole')}
                     </p>
                   </div>
                 </div>
@@ -769,26 +761,26 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <div className="mb-2 flex items-center gap-2 px-1">
                   <Layers className="h-3.5 w-3.5 text-sky-400" />
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    Tech Stack
+                    {tr('techStack')}
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
                     <span className="text-sky-400 font-bold">Phaser 3</span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Isometric 2.5D Canvas Engine</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{tr('techPhaser')}</p>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
-                    <span className="text-indigo-400 font-bold">React 19 + Vite</span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Modular HUD & UI Overlays</p>
+                    <span className="text-indigo-400 font-bold">React 18 + Vite</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{tr('techReact')}</p>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
                     <span className="text-emerald-400 font-bold">Zustand</span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">State & Local Persistence</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{tr('techZustand')}</p>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
                     <span className="text-amber-400 font-bold">EasyStar.js</span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">A* Grid Pathfinding</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{tr('techEasystar')}</p>
                   </div>
                 </div>
               </section>

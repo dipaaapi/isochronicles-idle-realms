@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
+import { logFloatingText } from '../state/activityLog';
 import { IsometricHelper } from './IsometricHelper';
 import { GRID_SIZE } from '../state/buildingLayout';
 import type { Resources } from '../types/state';
@@ -72,14 +73,14 @@ export class GroundLootManager {
 
     // Soft Ambient Glow
     const glowColor = this.getGlowColor(resourceKey);
-    const glow = this.scene.add.arc(0, -6, 15, 0, 360, false, glowColor, 0.45);
+    const glow = this.scene.add.arc(0, -4, 8, 0, 360, false, glowColor, 0.45);
     container.add(glow);
 
     // Icon Emoji Sprite
-    const sprite = this.scene.add.text(0, -18, icon, {
-      fontSize: '22px',
+    const sprite = this.scene.add.text(0, -10, icon, {
+      fontSize: '11px',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 2,
     }).setOrigin(0.5, 0.5);
     container.add(sprite);
 
@@ -216,38 +217,14 @@ export class GroundLootManager {
     store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
     soundFx.playDeposit();
 
-    // Floating text feedback (+5 💎)
-    const label = collectorName ? `+${loot.amount} ${loot.icon}` : `+${loot.amount} ${loot.icon}`;
-    const pickupText = this.scene.add.text(
-      loot.container.x,
-      loot.container.y - 25,
-      label,
-      {
-        fontSize: '13px',
-        fontFamily: 'monospace',
-        fontStyle: 'bold',
-        color: '#fef08a',
-        stroke: '#000000',
-        strokeThickness: 3,
-      }
-    ).setOrigin(0.5, 0.5).setDepth(4000);
-
-    this.parentContainer.add(pickupText);
-
-    this.scene.tweens.add({
-      targets: pickupText,
-      y: pickupText.y - 32,
-      alpha: 0,
-      duration: 850,
-      ease: 'Cubic.easeOut',
-      onComplete: () => pickupText.destroy(),
-    });
+    // Narrated in the activity log tray (no floating text over the map)
+    logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
 
     // Animate item flying upward & shrinking
     this.scene.tweens.add({
       targets: loot.container,
-      y: loot.container.y - 28,
-      scale: 1.4,
+      y: loot.container.y - 14,
+      scale: 1.15,
       alpha: 0,
       duration: 350,
       ease: 'Back.easeIn',

@@ -2,8 +2,10 @@
   {
     "id": "rune_pickaxe",
     "name": "Rune Pickaxe",
+    "nameTl": "Runang Piko",
     "slot": "TOOL",
     "description": "Forged with raw aether crystals. Increases Aether Shard gathering yield by +1 and grants +20 Combat Attack.",
+    "descriptionTl": "Pinanday mula sa hilaw na aether crystal. +1 ani ng Kristal at +20 Lakas sa Labanan.",
     "icon": "⛏️",
     "stats": {
       "bonusGatherPercent": 25,
@@ -17,8 +19,10 @@
   {
     "id": "lumberjack_cleaver",
     "name": "Grove Woodcleaver",
+    "nameTl": "Palakol ng Kakahuyan",
     "slot": "TOOL",
     "description": "Reinforced timber blade. Increases Grove Wood gathering speed by +20% and grants +25 Combat Attack.",
+    "descriptionTl": "Pinatibay na talim na pangkahoy. +20% bilis ng pagkuha ng Kahoy at +25 Lakas sa Labanan.",
     "icon": "🪓",
     "stats": {
       "bonusSpeed": 15,
@@ -32,8 +36,10 @@
   {
     "id": "granite_sledge",
     "name": "Granite Sledge",
+    "nameTl": "Granite na Maso",
     "slot": "TOOL",
     "description": "Crushes runic quarry stone with ease. +35 Combat Attack and +1 Cargo capacity on stone.",
+    "descriptionTl": "Madaling dinudurog ang bato ng quarry. +35 Lakas sa Labanan at +1 kargada ng bato.",
     "icon": "🔨",
     "stats": {
       "bonusCargo": 1,
@@ -47,8 +53,10 @@
   {
     "id": "aether_blade",
     "name": "Void Aether Blade",
+    "nameTl": "Espada ng Void Aether",
     "slot": "TOOL",
     "description": "Gleaming blade woven from condensed void essence. Strikes invading crusade soldiers for +65 Combat Attack.",
+    "descriptionTl": "Kumikinang na talim mula sa siksik na void essence. +65 Lakas sa Labanan laban sa mga krusada.",
     "icon": "⚔️",
     "stats": {
       "bonusAttack": 65,
@@ -62,8 +70,10 @@
   {
     "id": "ironstone_plating",
     "name": "Ironstone Plating",
+    "nameTl": "Baluting Ironstone",
     "slot": "ARMOR",
     "description": "Heavy basalt chestplate. Grants +140 Max HP and reduces damage taken from invaders.",
+    "descriptionTl": "Mabigat na baluting basalt. +140 Max HP at binabawasan ang pinsala mula sa kalaban.",
     "icon": "🛡️",
     "stats": {
       "bonusHp": 140
@@ -76,8 +86,10 @@
   {
     "id": "verdant_cloak",
     "name": "Verdant Travel Cloak",
+    "nameTl": "Luntiang Balabal",
     "slot": "ARMOR",
     "description": "Silken woven nomad cloak. Reduces fatigue stamina drain by 40% and increases speed by +20.",
+    "descriptionTl": "Hinabing balabal ng manlalakbay. -40% pagod sa stamina at +20 bilis.",
     "icon": "🦹",
     "stats": {
       "staminaDrainReduction": 40,
@@ -91,8 +103,10 @@
   {
     "id": "aegis_core",
     "name": "Aegis Guardian Core",
+    "nameTl": "Aegis Guardian Core",
     "slot": "ARMOR",
     "description": "Miniature kinetic field generator. Grants +220 Max HP and +30 Combat Attack.",
+    "descriptionTl": "Maliit na generator ng kinetic na kalasag. +220 Max HP at +30 Lakas sa Labanan.",
     "icon": "💠",
     "stats": {
       "bonusHp": 220,
@@ -106,8 +120,10 @@
   {
     "id": "swift_boots",
     "name": "Zephyr Wind Boots",
+    "nameTl": "Bota ng Hangin",
     "slot": "RELIC",
     "description": "Lightweight enchanted boots. Grants +35 movement speed across the citadel.",
+    "descriptionTl": "Magaan at may engkantong bota. +35 bilis ng paglakad sa kuta.",
     "icon": "👢",
     "stats": {
       "bonusSpeed": 35
@@ -121,8 +137,10 @@
   {
     "id": "dimensional_pouch",
     "name": "Aether Cargo Pouch",
+    "nameTl": "Supot ng Aether",
     "slot": "RELIC",
     "description": "Folded pocket dimension allowing the bearer to haul +2 extra resource cargo per trip.",
+    "descriptionTl": "Bulsang may sariling dimensyon: +2 dagdag na kargada bawat biyahe.",
     "icon": "🎒",
     "stats": {
       "bonusCargo": 2
@@ -136,8 +154,10 @@
   {
     "id": "vitality_charm",
     "name": "Eternal Vitality Charm",
+    "nameTl": "Agimat ng Walang-Hanggang Buhay",
     "slot": "RELIC",
     "description": "Spiritual amulet granting +80 Max HP and 25% stamina drain reduction.",
+    "descriptionTl": "Espiritwal na agimat: +80 Max HP at -25% pagod sa stamina.",
     "icon": "🧿",
     "stats": {
       "bonusHp": 80,
@@ -152,9 +172,11 @@
   {
     "id": "obsidian_warblade",
     "name": "Obsidian Warblade",
+    "nameTl": "Obsidian na Espada",
     "slot": "TOOL",
     "icon": "🌋",
     "description": "A blade knapped from Brimstone obsidian. Grants +45 Combat Attack and faster work swings.",
+    "descriptionTl": "Talim na tinabas mula sa obsidian ng Brimstone. +45 Lakas sa Labanan at mas mabilis na pagtatrabaho.",
     "stats": {
       "bonusAttack": 45,
       "bonusSpeed": 10
@@ -167,9 +189,11 @@
   {
     "id": "soulbound_shroud",
     "name": "Soulbound Shroud",
+    "nameTl": "Balabal ng mga Kaluluwa",
     "slot": "ARMOR",
     "icon": "💀",
     "description": "Woven from harvested souls. Grants +120 HP and shrugs off fatigue.",
+    "descriptionTl": "Hinabi mula sa inaning kaluluwa. +120 HP at hindi agad napapagod.",
     "stats": {
       "bonusHp": 120,
       "staminaDrainReduction": 15
@@ -182,9 +206,11 @@
   {
     "id": "tidal_amulet",
     "name": "Tidal Amulet",
+    "nameTl": "Agimat ng Alon",
     "slot": "RELIC",
     "icon": "🔮",
     "description": "An abyssal pearl set in coral. Grants +40 HP, +25% stamina efficiency and +1 cargo.",
+    "descriptionTl": "Perlas ng bangin na nakalagay sa koral. +40 HP, +25% tipid sa stamina at +1 kargada.",
     "stats": {
       "bonusHp": 40,
       "staminaDrainReduction": 25,
@@ -198,9 +224,11 @@
   {
     "id": "scrapforged_plating",
     "name": "Scrapforged Plating",
+    "nameTl": "Baluting Scrap",
     "slot": "ARMOR",
     "icon": "⚙️",
     "description": "Mecha scrap hammered into armor plates. Grants +90 HP and +10 Combat Attack.",
+    "descriptionTl": "Scrap ng Mecha na pinukpok bilang baluti. +90 HP at +10 Lakas sa Labanan.",
     "stats": {
       "bonusHp": 90,
       "bonusAttack": 10

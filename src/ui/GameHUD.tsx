@@ -44,6 +44,8 @@ import { WeatherModal } from './WeatherModal';
 import { AutoEnhancePrompt } from '../ui/AutoEnhancePrompt';
 import { ECONOMY_CONFIG, RESOURCE_PRICES } from '../state/economy';
 import type { BattleItemId } from '../types/state';
+import { HoverTooltip } from './HoverTooltip';
+import { useTranslation } from '../i18n/translations';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
@@ -182,6 +184,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   } = useGameStore();
 
   const isTL = language === 'TL';
+  const { t: tr } = useTranslation();
   const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
   const [isFullscreen, setIsFullscreen] = useState(
@@ -191,6 +194,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const [activeTab, setActiveTab] = useState<'command' | 'status' | 'resources'>('command');
   const [confirmAction, setConfirmAction] = useState<'SKIP_DAY' | 'SUMMON_WAVE' | null>(null);
   const [hoveredBattleItem, setHoveredBattleItem] = useState<BattleItemId | null>(null);
+  const [battleItemAnchor, setBattleItemAnchor] = useState<HTMLElement | null>(null);
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
 
   const [isBgmOff, setIsBgmOff] = useState(() => soundFx.getIsBgmDisabled());
@@ -314,28 +318,28 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       icon: <CloudSun className="w-5 h-5 text-amber-400 animate-pulse" />,
       border: 'border-amber-500/30',
       bg: 'bg-amber-950/20',
-      badge: '☀️ Clear',
+      badge: tr('hudWeatherClear'),
     },
     RAIN: {
       label: isTL ? 'Ulan at Pagkulog' : 'Stormy Rain',
       icon: <CloudRain className="w-5 h-5 text-sky-400 animate-bounce-short" />,
       border: 'border-sky-500/30',
       bg: 'bg-sky-950/20',
-      badge: '🌧️ Raining',
+      badge: tr('hudWeatherRain'),
     },
     SNOW: {
       label: isTL ? 'Niyebeng Yelo' : 'Frost Snow',
       icon: <CloudSnow className="w-5 h-5 text-cyan-300 animate-pulse" />,
       border: 'border-cyan-500/30',
       bg: 'bg-cyan-950/20',
-      badge: '❄️ Snowing',
+      badge: tr('hudWeatherSnow'),
     },
     HEATWAVE: {
       label: isTL ? 'Matinding Init' : 'Scorching Heat',
       icon: <Flame className="w-5 h-5 text-rose-400 animate-pulse" />,
       border: 'border-rose-500/30',
       bg: 'bg-rose-950/20',
-      badge: '🔥 Heatwave',
+      badge: tr('hudWeatherHeat'),
     },
   }[weather || 'CLEAR'];
 
@@ -375,7 +379,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <p className="text-[10px] text-purple-300/80 font-semibold flex items-center gap-1">
                     <span>{isTL ? currentPlatform.name : currentPlatform.nameEn}</span>
                     <span>•</span>
-                    <span className="font-mono text-purple-400">Phase {platformPhase} of 4</span>
+                    <span className="font-mono text-purple-400">{tr('hudPhase').replace('{n}', String(platformPhase))}</span>
                   </p>
                 </div>
               </div>
@@ -400,9 +404,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <div className="flex flex-col items-center py-3 gap-3 flex-1 overflow-y-auto">
           <div className="text-[10px] font-mono font-bold text-red-400 text-center">W{invasion.waveNumber}</div>
           <div className="text-[10px] font-mono font-bold text-emerald-400 text-center">{castleHpPct}%</div>
-          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('command'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-purple-300 cursor-pointer" title="Citadel">🏰</button>
-          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('status'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-sky-300 cursor-pointer" title="Status"><Shield className="w-4 h-4" /></button>
-          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('resources'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-300 cursor-pointer" title="Resources"><Coins className="w-4 h-4" /></button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('command'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-purple-300 cursor-pointer" title={tr('hudCitadel')}>🏰</button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('status'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-sky-300 cursor-pointer" title={tr('status')}><Shield className="w-4 h-4" /></button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('resources'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-300 cursor-pointer" title={tr('resources')}><Coins className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -504,12 +508,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <div
                     key={item.id}
                     className="relative flex flex-col items-center"
-                    onMouseEnter={() => setHoveredBattleItem(item.id)}
+                    onMouseEnter={(e) => { setHoveredBattleItem(item.id); setBattleItemAnchor(e.currentTarget); }}
                     onMouseLeave={() => setHoveredBattleItem(null)}
                   >
-                    {/* Hover tooltip */}
-                    {isHovered && (
-                      <div className="absolute bottom-[calc(100%+8px)] right-0 z-50 w-64 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl backdrop-blur-md animate-fade-in pointer-events-none">
+                    {/* Hover tooltip (portal: the sidebar's overflow can't clip it) */}
+                    <HoverTooltip anchor={battleItemAnchor} open={isHovered} placement="bottom">
+                      <div className="w-64 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl animate-fade-in">
                         <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-1.5">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xl">{item.icon}</span>
@@ -521,8 +525,21 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                         </div>
                         <p className="text-[10px] text-slate-300 leading-snug">{isTL ? item.descTl : item.descEn}</p>
                         <div className="mt-1 text-[9px] text-purple-300 font-semibold">{isTL ? item.buffEffectTl : item.buffEffectEn}</div>
+                        <div className="mt-1.5 pt-1.5 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400">{tr('hudCost')}</span>
+                          <span className="flex items-center gap-1">
+                            {Object.entries(cost).map(([resKey, amount]) => {
+                              const have = (resources[resKey as keyof typeof resources] ?? 0) as number;
+                              return (
+                                <span key={resKey} className={`font-mono font-bold ${have >= (amount ?? 0) ? 'text-amber-300' : 'text-rose-400'}`}>
+                                  {RESOURCE_PRICES[resKey as keyof typeof RESOURCE_PRICES]?.icon ?? '💎'} {have}/{amount}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        </div>
                       </div>
-                    )}
+                    </HoverTooltip>
 
                     <button
                       type="button"
@@ -569,7 +586,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 activeTab === 'command' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Command 🏰
+              {tr('hudTabCommand')}
             </button>
             <button
               onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
@@ -577,7 +594,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 activeTab === 'status' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Status 🛡️
+              {tr('hudTabStatus')}
             </button>
             <button
               onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
@@ -585,7 +602,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 activeTab === 'resources' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Resources 💎
+              {tr('hudTabResources')}
             </button>
           </div>
 
@@ -616,7 +633,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   className="p-2.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-900/40 transition"
                 >
                   <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Skills {skillPoints > 0 && `(${skillPoints})`}</span>
+                  <span>{tr('hudSkills')} {skillPoints > 0 && `(${skillPoints})`}</span>
                 </button>
 
                 <button
@@ -624,7 +641,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   className="p-2.5 rounded-2xl bg-sky-950/50 border border-sky-500/40 text-sky-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-sky-900/50 transition shadow-sm"
                 >
                   <Compass className="w-4 h-4 text-sky-400" />
-                  <span>Atlas 🧭</span>
+                  <span>{tr('hudAtlas')}</span>
                 </button>
               </div>
 
@@ -672,7 +689,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     {invasion.isActive ? (isTL ? 'LUMALABAN' : 'BATTLING') : (isTL ? 'HANDA' : 'READY')}
                   </span>
                 </div>
-                <div className="text-xs font-bold text-slate-200">Wave {invasion.waveNumber}/100</div>
+                <div className="text-xs font-bold text-slate-200">{tr('hudWave').replace('{n}', String(invasion.waveNumber))}</div>
                 <div className="mt-1 text-[10px] text-slate-400">
                   {invasion.isActive
                     ? `${invasion.enemiesRemaining}/${invasion.totalEnemiesInWave} ${isTL ? 'natitira' : 'remaining'}`
@@ -728,10 +745,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
               <div className="grid grid-cols-4 gap-1.5 pt-1">
                 {([
-                  ['obsidianShard', '🌋', isTL ? 'Obsidian' : 'Obsidian'],
-                  ['soulFragments', '💀', isTL ? 'Kaluluwa' : 'Souls'],
-                  ['abyssalPearl', '🔮', isTL ? 'Perlas' : 'Pearl'],
-                  ['scrapMetal', '⚙️', isTL ? 'Scrap' : 'Scrap'],
+                  ['obsidianShard', '🌋', tr('resObsidian')],
+                  ['soulFragments', '💀', tr('resSouls')],
+                  ['abyssalPearl', '🔮', tr('resPearl')],
+                  ['scrapMetal', '⚙️', tr('resScrap')],
                 ] as const).map(([key, icon, label]) => (
                   <div key={key} title={label} className="rounded-xl border border-slate-800 bg-slate-900/60 px-1.5 py-1.5 text-center">
                     <div className="text-sm leading-none">{icon}</div>
@@ -752,8 +769,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
               <button
                 onClick={() => { soundFx.playClick(); togglePause(); }}
-                title={gameSpeed === 0 ? 'Play ( ` )' : 'Pause ( ` )'}
-                aria-label={gameSpeed === 0 ? 'Play' : 'Pause'}
+                title={gameSpeed === 0 ? tr('hudPlay') : tr('hudPause')}
+                aria-label={gameSpeed === 0 ? tr('hudPlay') : tr('hudPause')}
                 className={`p-1.5 rounded-lg flex items-center justify-center transition cursor-pointer ${
                   gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
                 }`}
@@ -765,7 +782,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <button
                   key={speed}
                   onClick={() => { soundFx.playClick(); toggleFastSpeed(speed); }}
-                  title={`${speed}× speed (${index + 1})`}
+                  title={tr('hudSpeed').replace('{speed}', String(speed)).replace('{key}', String(index + 1))}
                   aria-pressed={gameSpeed === speed}
                   className={`px-1.5 py-1 rounded-lg flex items-center gap-0.5 text-[10px] font-black font-mono transition cursor-pointer ${
                     gameSpeed === speed ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'
@@ -790,7 +807,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               {/* Music ON/OFF */}
               <button
                 onClick={handleToggleBgm}
-                title={isBgmOff ? 'Music: OFF' : 'Music: ON'}
+                title={isBgmOff ? tr('hudMusicOff') : tr('hudMusicOn')}
                 className={`p-1.5 rounded-lg border transition cursor-pointer ${
                   isBgmOff ? 'border-rose-900/60 bg-rose-950/40 text-rose-400' : 'border-slate-800 bg-slate-950 text-indigo-300 hover:bg-slate-800'
                 }`}
@@ -801,7 +818,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               {/* SFX ON/OFF */}
               <button
                 onClick={handleToggleSfx}
-                title={isSfxOff ? 'SFX: OFF' : 'SFX: ON'}
+                title={isSfxOff ? tr('hudSfxOff') : tr('hudSfxOn')}
                 className={`p-1.5 rounded-lg border transition cursor-pointer ${
                   isSfxOff ? 'border-rose-900/60 bg-rose-950/40 text-rose-400' : 'border-slate-800 bg-slate-950 text-sky-300 hover:bg-slate-800'
                 }`}
@@ -812,7 +829,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               {/* Fullscreen */}
               <button
                 onClick={toggleFullscreen}
-                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                title={isFullscreen ? tr('hudExitFullscreen') : tr('hudFullscreen')}
                 className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
               >
                 {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
@@ -834,7 +851,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <div className="p-2 border-t border-slate-800/80 bg-slate-900 flex flex-col items-center gap-2">
           <button
             onClick={() => { soundFx.playClick(); togglePause(); }}
-            title={gameSpeed === 0 ? 'Play ( ` )' : 'Pause ( ` )'}
+            title={gameSpeed === 0 ? tr('hudPlay') : tr('hudPause')}
             className={`w-10 h-8 rounded-lg flex items-center justify-center transition cursor-pointer border ${
               gameSpeed === 0 ? 'bg-rose-500/30 border-rose-500/50 text-rose-300' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
             }`}

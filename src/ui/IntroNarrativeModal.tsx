@@ -121,7 +121,7 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
             <button 
               type="button"
               onClick={toggleFullscreen} 
-              aria-label="Toggle Fullscreen"
+              aria-label={language === 'TL' ? 'Buong screen' : 'Toggle Fullscreen'}
               className="p-1.5 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer"
             >
               {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
@@ -168,13 +168,13 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
                       : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                   }`}
                 >
-                  {item.label}
+                  {language === 'TL' ? item.labelTl : item.label}
                 </button>
               );
             })}
           </div>
           <p className="mt-2 text-xs text-amber-300/80 font-medium" aria-live="polite">
-            {DIFFICULTIES[difficulty].description}
+            {language === 'TL' ? DIFFICULTIES[difficulty].descriptionTl : DIFFICULTIES[difficulty].description}
           </p>
         </fieldset>
 

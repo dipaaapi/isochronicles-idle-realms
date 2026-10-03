@@ -12,7 +12,7 @@ export type ActivityCategory = 'combat' | 'economy' | 'minions' | 'world';
 export type ActivityTone = 'good' | 'bad' | 'neutral' | 'epic';
 export type Localized = string | { en: string; tl: string };
 export type MessageKey = keyof typeof catalog.messages;
-type Vars = Record<string, string | number>;
+type Vars = Record<string, string | number | { en: string; tl: string }>;
 
 export interface ActivityEntry {
   id: number;
@@ -67,8 +67,12 @@ export const localize = (text: Localized): string => {
   return isTagalog() ? text.tl : text.en;
 };
 
-const fill = (template: string, vars: Vars): string =>
-  template.replace(/\{(\w+)\}/g, (match, name: string) => (name in vars ? String(vars[name]) : match));
+const fill = (template: string, vars: Vars, lang: 'en' | 'tl' = 'en'): string =>
+  template.replace(/\{(\w+)\}/g, (match, name: string) => {
+    if (!(name in vars)) return match;
+    const value = vars[name];
+    return typeof value === 'object' ? value[lang] : String(value);
+  });
 
 const gameClock = (): { day: number; clock: string } => {
   const { day, dayProgress } = useGameStore.getState();
@@ -145,8 +149,8 @@ export function logMessage(
 ): void {
   const msg = catalog.messages[key];
   const format = (total: number): Localized => ({
-    en: fill(msg.en, { ...vars, total }),
-    tl: fill(msg.tl, { ...vars, total }),
+    en: fill(msg.en, { ...vars, total }, 'en'),
+    tl: fill(msg.tl, { ...vars, total }, 'tl'),
   });
   logActivity({
     category: msg.category as ActivityCategory,
@@ -176,6 +180,25 @@ const CATEGORY_PATTERNS: Array<[ActivityCategory, RegExp]> = [
 const SKIP_PATTERN = new RegExp(rules.skip, 'i');
 const BAD_COLORS = new Set(rules.badColors);
 const EPIC_COLORS = new Set(rules.epicColors);
+const RESOURCE_NAMES = catalog.resourceNames as Record<string, { en: string; tl: string }>;
+const PHRASES = catalog.phrases.map(([en, tl]) => [new RegExp(`^${en}$`, 'iu'), tl] as const);
+
+/** A resource label from a popup ("Wood", "Kristal", …) in both languages. */
+const resourceName = (label: string): { en: string; tl: string } =>
+  RESOURCE_NAMES[label.toLowerCase()] ?? { en: label, tl: label };
+
+/** Tagalog for a free-form popup line, via the phrase table (falls back to the English). */
+const tagalogPhrase = (text: string): string => {
+  for (const [re, tl] of PHRASES) {
+    const m = text.match(re);
+    if (m) return tl.replace(/\$(\d)/g, (_, i: string) => {
+      const part = m[+i] ?? '';
+      return RESOURCE_NAMES[part.toLowerCase()]?.tl ?? part;
+    });
+  }
+  return text;
+};
+
 const LEADING_EMOJI = /^(\p{Extended_Pictographic}️?)\s*/u;
 const TRAILING_EMOJI = /\s*\p{Extended_Pictographic}️?$/u;
 
@@ -191,7 +214,7 @@ export function logFloatingText(raw: string, color: string, subject?: string): v
   let m: RegExpMatchArray | null;
 
   if ((m = text.match(/^\+(\d+) (.+?) Delivered$/i))) {
-    logMessage('delivered', { resource: m[2] }, { mergeKey: `deliver:${m[2]}`, amount: +m[1] });
+    logMessage('delivered', { resource: resourceName(m[2]) }, { mergeKey: `deliver:${m[2]}`, amount: +m[1] });
   } else if ((m = text.match(/^-(\d+) Castle HP/i))) {
     logMessage('castleDamage', {}, { mergeKey: 'castle-dmg', amount: +m[1] });
   } else if ((m = text.match(/^-(\d+) HP/i))) {
@@ -203,9 +226,9 @@ export function logFloatingText(raw: string, color: string, subject?: string): v
   } else if ((m = text.match(/^\+(\d+) 🪙$/u))) {
     logMessage('bounty', {}, { mergeKey: 'bounty', amount: +m[1] });
   } else if ((m = text.match(/^\+(\d+) (\p{Extended_Pictographic}️?) (.+)$/u))) {
-    logMessage('looted', { resource: m[3] }, { mergeKey: `loot:${m[3]}`, amount: +m[1], icon: m[2] });
-  } else if ((m = text.match(/^\+(\d+) ([A-Za-z][\w ]*)$/))) {
-    logMessage('gathered', { resource: m[2] }, { mergeKey: `gather:${m[2]}`, amount: +m[1] });
+    logMessage('looted', { resource: resourceName(m[3]) }, { mergeKey: `loot:${m[3]}`, amount: +m[1], icon: m[2] });
+  } else if ((m = text.match(/^\+(\d+) (\p{L}[\p{L}\w ]*)$/u))) {
+    logMessage('gathered', { resource: resourceName(m[2]) }, { mergeKey: `gather:${m[2]}`, amount: +m[1] });
   } else {
     const emoji = text.match(LEADING_EMOJI);
     const body = text.replace(LEADING_EMOJI, '').replace(TRAILING_EMOJI, '').trim();
@@ -214,7 +237,9 @@ export function logFloatingText(raw: string, color: string, subject?: string): v
       category,
       tone: BAD_COLORS.has(color) ? 'bad' : EPIC_COLORS.has(color) ? 'epic' : 'good',
       icon: emoji?.[1] ?? catalog.categoryIcons[category],
-      text: subject ? `${subject}: ${body}` : body,
+      text: subject
+        ? { en: `${subject}: ${body}`, tl: `${subject}: ${tagalogPhrase(body)}` }
+        : { en: body, tl: tagalogPhrase(body) },
     });
   }
 }

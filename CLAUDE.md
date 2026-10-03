@@ -11,7 +11,7 @@
 
 ## Project overview
 
-IsoChronicle: Idle Realms is an offline-first isometric idle strategy game. The player is a weakened Demon Lord rebuilding a ruined citadel with a Support Slime, summoning an Ancient Ent, building resource areas, raising minions, and surviving 100 invasion waves across four realms. After that, Regression (prestige) resets the realm while keeping bonuses. See [README.md](README.md) for gameplay and [LORE.md](LORE.md) for setting (LORE.md is also loaded in-game via Vite raw import).
+IsoChronicle: Idle Realms is an offline-first isometric idle strategy game. The player is a weakened Demon Lord rebuilding a ruined citadel with a Support Slime, summoning an Ancient Ent, building resource areas, raising minions, and surviving 100 invasion waves across four realms. After that, Regression (prestige) resets the realm while keeping bonuses. See [README.md](README.md) for gameplay and [LORE.md](LORE.md) for setting. LORE.md and its Tagalog twin [LORE.tl.md](LORE.tl.md) are loaded into the Atlas Lore tab via Vite raw import (`##` sections, blank-line paragraphs, `- ` bullet lists); keep both in sync with the mechanics.
 
 No backend: state persists locally with Zustand + LocalForage (IndexedDB), with offline progression and JSON save export/import.
 
@@ -51,6 +51,9 @@ Phaser owns the world canvas; React owns the HUD and modals; they communicate th
 - Camera is clamped so the island stays inside the frame (`MainScene.clampCamera` / `getIslandBounds`); starting zoom fits the island.
 - `WorldEffects.ts` drives the sky (sun/moon arc between the island tips on `skyFxLayer`, behind the tiles, plus stars), tile reactions under moving units, leaping fish, world-space rain/snow/heat haze, drifting clouds, and lightning (RAIN days are randomly stormy: frequent strikes, double strikes, sheet lightning, camera shake). Layer order: `skyFxLayer` → tiles → `groundFxLayer` → structures/units → `airFxLayer`.
 - Activity log: `src/state/activityLog.ts` (session store, merging of repeated events into summed ×N entries, floating-text classifier), `src/state/activityWatcher.ts` (narrates store diffs: day, weather, waves, construction, roster, achievements, skills, regression, blessings), `src/ui/ActivityLogTray.tsx` (bottom-left tray over the canvas). Log with `logMessage(key, vars)`; add new wording to `src/i18n/activityMessages.json`. Both managers' `spawnFloatingPopup` now route into the log (the nearest unit names the entry). Tests stub `activityLog` (it imports JSON).
+- Language: one setting, the store's `language` (`EN` default / `TL`); `useLanguage` and `useTranslation` both read it. Every player-visible string needs both languages — UI strings in `src/i18n/uiStrings.json` (`t(key)`), data tables as `name`/`nameEn`-style pairs, log wording in `activityMessages.json` (free-form popup text is translated through its `phrases` table, resource names through `resourceNames`). Roster units are named with the English class name; display them with `unitName()`.
+- Atlas Guide steps live in `src/i18n/atlasGuide.json` (`**bold**` supported); FAQ in `src/i18n/faqTranslations.ts`. Update them when mechanics change.
+- Hover cards use `src/ui/HoverTooltip.tsx` (portal + fixed position, flips and clamps to the viewport) so `overflow-hidden` / scrolling parents can't clip them.
 - Commit messages use the `ft:` prefix followed by a list of touched areas.
 - Some code comments are in Filipino/Taglish; keep them as-is.
 

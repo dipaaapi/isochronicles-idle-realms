@@ -1,5 +1,5 @@
 import { CRAFTABLE_ITEMS, TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES, type EquipmentSlot } from '../../types/game';
-import type { GameStoreState, ResourceBuildingState, TowerId } from '../../types/state';
+import type { GameStoreState, ResourceBuildingId, ResourceBuildingState, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST, getUnitSummonCost, maxUnitsOfClass } from '../../state/economy';
 import { canAfford } from '../../state/resources';
@@ -338,6 +338,12 @@ function autoSummonGeneralsByAncientEnt(
 ): void {
   // Only summon generals once the Citadel Castle stands
   if (!store.castleBuilt) return;
+
+  // Each built establishment whose General stands fills up to its tenant cap, one tenant per cycle
+  for (const buildingId of Object.keys(store.resourceBuildings ?? {}) as ResourceBuildingId[]) {
+    if ((store.resourceBuildings[buildingId]?.level ?? 0) < 1) continue;
+    if (store.summonTenant(buildingId)) break;
+  }
 
   for (const unitClass of FIGHTER_CLASSES) {
     const count = store.roster.filter((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;

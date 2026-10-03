@@ -55,8 +55,11 @@ export interface EquipmentStats {
 export interface EquipmentItem {
   id: string;
   name: string;
+  /** Tagalog name / description (craftable items); `name` / `description` are English. */
+  nameTl?: string;
   slot: EquipmentSlot;
   description: string;
+  descriptionTl?: string;
   icon: string;
   stats: EquipmentStats;
   costResources: {

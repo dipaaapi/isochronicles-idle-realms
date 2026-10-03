@@ -9,6 +9,8 @@ import { FortificationsPanel } from './FortificationsPanel';
 import { ResearchPanel } from './ResearchPanel';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
+import { useTranslation, unitName, type TranslationKey } from '../i18n/translations';
+import { useTenantCounts } from '../state/tenantCounts';
 import {
   UnitClass,
   UNIT_CLASSES,
@@ -42,6 +44,13 @@ interface CitadelCommandModalProps {
   initialTab?: CitadelTab;
 }
 
+const SLOT_LABEL: Record<'ALL' | 'TOOL' | 'ARMOR' | 'RELIC', TranslationKey> = {
+  ALL: 'slotAll',
+  TOOL: 'slotTool',
+  ARMOR: 'slotArmor',
+  RELIC: 'slotRelic',
+};
+
 export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   isOpen,
   onClose,
@@ -73,6 +82,8 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   } = useGameStore();
 
   const isTL = language === 'TL';
+  const { t: tr } = useTranslation();
+  const tenantCounts = useTenantCounts((s) => s.counts);
 
   const [activeTab, setActiveTab] = useState<CitadelTab>(initialTab);
   const [selectedUnitId, setSelectedUnitId] = useState<string>(roster[0]?.id || '');
@@ -152,31 +163,31 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     {
       id: 'MINION_FRENZY',
       icon: '🔥',
-      name: 'Minion Frenzy',
+      name: isTL ? 'Siklab ng Minion' : 'Minion Frenzy',
       desc: isTL ? 'Karagdagang pinsala para sa mga alagad.' : 'Additional damage boost for minions.',
     },
     {
       id: 'FORCE_FIELD',
       icon: '🛡️',
-      name: 'Force Field',
+      name: isTL ? 'Kalasag ng Kuta' : 'Aegis Barrier',
       desc: isTL ? 'Kalasag para sa lahat ng pasilidad at kastilyo.' : 'Force field for all establishments and the castle.',
     },
     {
       id: 'MASS_REGEN',
       icon: '💖',
-      name: 'Mass Regen',
+      name: isTL ? 'Malawakang Lunas' : 'Mass Restoration',
       desc: isTL ? 'Pinapabilis ang pagbabalik ng HP ng lahat ng pasilidad.' : 'Boosts HP regeneration of all establishments.',
     },
     {
       id: 'SHIELD_OVERLOAD',
       icon: '⚡',
-      name: 'Shield Overload',
+      name: isTL ? 'Soberkarga ng Kalasag' : 'Shield Overload',
       desc: isTL ? 'Pinalalakas ang shield restoration ng lahat.' : 'Shield restoration boost for all establishments.',
     },
     {
       id: 'CHRONO_SURGE',
       icon: '⏱️',
-      name: 'Chrono Surge',
+      name: isTL ? 'Pampabilis ng Oras' : 'Chrono Surge',
       desc: isTL ? 'Pinapabilis ang cooldown ng skills.' : 'Boosts cooldown skills of all establishments and castle.',
     },
   ];
@@ -185,31 +196,31 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     {
       id: 'armorPiercing',
       icon: '⚙️',
-      name: isTL ? 'Armor-Piercing Rounds' : 'Armor-Piercing Ammo',
+      name: isTL ? 'Balang Tumatagos sa Baluti' : 'Armor-Piercing Ammo',
       desc: isTL ? '+25% pinsala sa Mecha & Bosses bawat level.' : '+25% tower damage vs Mecha & Bosses per level.',
     },
     {
       id: 'incendiary',
       icon: '🌋',
-      name: isTL ? 'Incendiary Blast Shells' : 'Incendiary Blast Shells',
+      name: isTL ? 'Nagliliyab na Bala' : 'Incendiary Blast Shells',
       desc: isTL ? 'Sinusunog ang mga kaaway para sa 12 DPS bawat level.' : 'Ignites invaders with burning DoT per level.',
     },
     {
       id: 'cryoFrost',
       icon: '❄️',
-      name: isTL ? 'Cryo-Frost Shards' : 'Cryo-Frost Shards',
+      name: isTL ? 'Bala ng Yelo' : 'Cryo-Frost Shards',
       desc: isTL ? 'Pinapabagal ang bilis ng kaaway ng hanggang 40%.' : 'Slows invader movement speed and shatters armor.',
     },
     {
       id: 'teslaChain',
       icon: '⚡',
-      name: isTL ? 'Tesla Chain Overcharge' : 'Tesla Chain Overcharge',
+      name: isTL ? 'Kadena ng Kidlat' : 'Tesla Chain Overcharge',
       desc: isTL ? 'Tumatalon ang kuryente sa katabing mga kalaban.' : 'Arcs lightning to up to 4 nearby invaders.',
     },
     {
       id: 'voidFlak',
       icon: '🔮',
-      name: isTL ? 'Void Flak Cannonade' : 'Void Flak Cannonade',
+      name: isTL ? 'Kanyon ng Void' : 'Void Flak Cannonade',
       desc: isTL ? '+30% pinsala sa lumilipad at may Area Splash.' : '+30% Anti-Air damage and AoE splash explosions.',
     },
   ];
@@ -311,7 +322,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           {BEAST_PORTRAITS.AQUA_SLIME ? (
                             <img
                               src={BEAST_PORTRAITS.AQUA_SLIME}
-                              alt="Aqua Slime"
+                              alt={isTL ? UNIT_CLASSES.AQUA_SLIME.name : UNIT_CLASSES.AQUA_SLIME.nameEn}
                               className="h-10 w-10 rounded-xl border border-cyan-500/40 object-cover [image-rendering:pixelated] bg-slate-950/60"
                             />
                           ) : (
@@ -319,7 +330,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           )}
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                              <span>Aqua Slime</span>
+                              <span>{isTL ? UNIT_CLASSES.AQUA_SLIME.name : UNIT_CLASSES.AQUA_SLIME.nameEn}</span>
                               <span className="text-[10px] font-mono px-1.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">Lv.{lvl}/5</span>
                             </div>
                             <div className="text-[10px] text-slate-400 mt-0.5">
@@ -332,7 +343,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                             onClick={() => handleEvolution(upgradeSupportSlime)}
                             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white transition cursor-pointer"
                           >
-                            Evolve
+                            {tr('evolve')}
                           </button>
                         )}
                       </div>
@@ -358,7 +369,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           {BEAST_PORTRAITS.TREANT ? (
                             <img
                               src={BEAST_PORTRAITS.TREANT}
-                              alt="Ancient Ent"
+                              alt={isTL ? UNIT_CLASSES.TREANT.name : UNIT_CLASSES.TREANT.nameEn}
                               className="h-10 w-10 rounded-xl border border-emerald-500/40 object-cover [image-rendering:pixelated] bg-slate-950/60"
                             />
                           ) : (
@@ -366,11 +377,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           )}
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                              <span>Ancient Ent</span>
+                              <span>{isTL ? UNIT_CLASSES.TREANT.name : UNIT_CLASSES.TREANT.nameEn}</span>
                               <span className="text-[10px] font-mono px-1.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">Lv.{lvl}/5</span>
                             </div>
                             <div className="text-[10px] text-slate-400 mt-0.5">
-                              {cost ? `💎${cost.aetherShards} 🌲${cost.wood} 🪙${cost.coins}` : 'Max Level'}
+                              {cost ? `💎${cost.aetherShards} 🌲${cost.wood} 🪙${cost.coins}` : tr('maxLevelShort')}
                             </div>
                           </div>
                         </div>
@@ -382,7 +393,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                               canAfford ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                             }`}
                           >
-                            Evolve
+                            {tr('evolve')}
                           </button>
                         )}
                       </div>
@@ -403,17 +414,18 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {[
-                      { estabId: 'SPIRE' as const, cls: 'SUCCUBUS' as const, estabName: isTL ? 'Tore ng Kristal' : 'Crystal Spire', icon: '💎' },
-                      { estabId: 'QUARRY' as const, cls: 'GOLEM' as const, estabName: isTL ? 'Stone Quarry' : 'Stone Quarry', icon: '🪨' },
-                      { estabId: 'WOOD' as const, cls: 'LAVA_GARGOYLE' as const, estabName: isTL ? 'Wood Grove' : 'Wood Grove', icon: '🌲' },
-                      { estabId: 'MINE' as const, cls: 'DEMON_HOUND' as const, estabName: isTL ? 'Metal Mine' : 'Metal Mine', icon: '⛏️' },
-                      { estabId: 'PORT' as const, cls: 'MERMAN' as const, estabName: isTL ? 'Water Port' : 'Water Port', icon: '⚓' },
-                      { estabId: 'CRYPT' as const, cls: 'NECROMANCER' as const, estabName: isTL ? 'Crypt of Souls' : 'Crypt of Souls', icon: '💀' },
-                      { estabId: 'TRENCH' as const, cls: 'KRAKEN' as const, estabName: isTL ? 'Abyssal Trench' : 'Abyssal Trench', icon: '🐙' },
-                      { estabId: 'KENNEL' as const, cls: 'DEMON_HOUND' as const, estabName: isTL ? 'Infernal Kennel' : 'Infernal Kennel', icon: '🐺' },
-                      { estabId: 'PERCH' as const, cls: 'HARPY' as const, estabName: isTL ? 'Brimstone Perch' : 'Brimstone Perch', icon: '🦅' },
-                    ].map(({ estabId, cls, estabName, icon }) => {
+                      { estabId: 'SPIRE' as const, cls: 'SUCCUBUS' as const, icon: '💎' },
+                      { estabId: 'QUARRY' as const, cls: 'GOLEM' as const, icon: '🪨' },
+                      { estabId: 'WOOD' as const, cls: 'LAVA_GARGOYLE' as const, icon: '🌲' },
+                      { estabId: 'PORT' as const, cls: 'MERMAN' as const, icon: '⚓' },
+                      { estabId: 'CRYPT' as const, cls: 'NECROMANCER' as const, icon: '💀' },
+                      { estabId: 'TRENCH' as const, cls: 'KRAKEN' as const, icon: '🐙' },
+                      { estabId: 'KENNEL' as const, cls: 'DEMON_HOUND' as const, icon: '🐺' },
+                      { estabId: 'PERCH' as const, cls: 'HARPY' as const, icon: '🦅' },
+                    ].map(({ estabId, cls, icon }) => {
                       const cfg = UNIT_CLASSES[cls];
+                      const estab = (RESOURCE_BUILDING_CONFIG as Record<string, { label: string; labelEn: string } | undefined>)[estabId];
+                      const estabLabel = estab ? (isTL ? estab.label : estab.labelEn) : estabId;
                       const activeUnits = roster.filter((u) => u.unitClass === cls && !u.parentBuildingId && !u.id.startsWith('tenant_'));
                       const isSummoned = activeUnits.length > 0;
 
@@ -440,16 +452,17 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                                   </h4>
                                   <span className="text-[10px] text-purple-300 font-mono font-bold flex items-center gap-1">
                                     <span>{icon}</span>
-                                    <span>{estabName}</span>
+                                    <span>{estabLabel}</span>
                                   </span>
                                 </div>
                               </div>
-                              <span className="text-[10px] font-mono text-slate-300">
-                                {isSummoned ? (
-                                  <span className="text-emerald-400 font-bold">Active</span>
-                                ) : (
-                                  <span className="text-slate-500">Unsummoned</span>
-                                )}
+                              <span className="text-[10px] font-mono text-right leading-tight shrink-0">
+                                <span className={`block font-bold ${isSummoned ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                  👑 {isSummoned ? tr('generalActive') : tr('generalNotSummoned')}
+                                </span>
+                                <span className="block text-cyan-300" title={tr('tenantsHint')}>
+                                  🛡️ {tr('tenantsLabel')} {tenantCounts[estabId]?.living ?? 0}/{tenantCounts[estabId]?.max ?? 5}
+                                </span>
                               </span>
                             </div>
 
@@ -667,7 +680,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           slotFilter === slot ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-slate-800'
                         }`}
                       >
-                        {slot}
+                        {tr(SLOT_LABEL[slot])}
                       </button>
                     ))}
                   </div>
@@ -683,7 +696,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                       const uName = isTL ? (uCfg?.name || u.name) : (uCfg?.nameEn || uCfg?.name || u.name);
                       return (
                         <option key={u.id} value={u.id}>
-                          {uName} ({u.unitClass})
+                          {unitName(u.name, u.unitClass, language)} · {uName}
                         </option>
                       );
                     })}
@@ -704,11 +717,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                           <div className="flex items-center gap-2">
                             <span className="text-2xl">{item.icon}</span>
                             <div>
-                              <div className="text-xs font-bold text-white">{item.name}</div>
-                              <div className="text-[10px] text-slate-400">{item.description}</div>
+                              <div className="text-xs font-bold text-white">{isTL ? item.nameTl ?? item.name : item.name}</div>
+                              <div className="text-[10px] text-slate-400">{isTL ? item.descriptionTl ?? item.description : item.description}</div>
                             </div>
                           </div>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{item.slot}</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{tr(SLOT_LABEL[item.slot])}</span>
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">

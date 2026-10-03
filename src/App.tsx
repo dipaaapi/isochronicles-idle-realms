@@ -4,6 +4,7 @@ import { TitleScreen } from './ui/TitleScreen';
 import { IntroNarrativeModal } from './ui/IntroNarrativeModal';
 import { GameHUD } from './ui/GameHUD';
 import { WelcomeBackModal } from './ui/WelcomeBackModal';
+import { GameDialogHost } from './ui/GameDialog';
 import { CitadelCommandModal, CitadelTab } from './ui/CitadelCommandModal';
 import { AtlasModal, AtlasTab } from './ui/AtlasModal';
 import { BestiaryModal } from './ui/BestiaryModal';
@@ -76,7 +77,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
+    <main className="pixel-ui relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
       {/* Screen 1: Title Screen (No Atlas button here) */}
       {screen === 'TITLE' && (
         <TitleScreen
@@ -174,6 +175,9 @@ export const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         onReturnToTitle={screen === 'GAME' ? () => setScreen('TITLE') : undefined}
       />
+
+      {/* In-game confirm / alert (native dialogs would drop fullscreen) */}
+      <GameDialogHost />
     </main>
   );
 };

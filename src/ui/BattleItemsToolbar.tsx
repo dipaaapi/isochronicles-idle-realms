@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { ECONOMY_CONFIG, RESOURCE_PRICES } from '../state/economy';
 import type { BattleItemId, Resources } from '../types/state';
+import { HoverTooltip } from './HoverTooltip';
 import { soundFx } from '../game/audio/soundFx';
 
 interface ItemMeta {
@@ -105,6 +106,7 @@ const ITEMS: ItemMeta[] = [
 export const BattleItemsToolbar: React.FC = () => {
   const { language, resources, defense, useBattleItem } = useGameStore();
   const [hoveredItem, setHoveredItem] = useState<BattleItemId | null>(null);
+  const [hoverAnchor, setHoverAnchor] = useState<HTMLElement | null>(null);
   const tl = language === 'TL';
 
   const handleUseItem = (id: BattleItemId) => {
@@ -146,12 +148,12 @@ export const BattleItemsToolbar: React.FC = () => {
           <div
             key={item.id}
             className="relative"
-            onMouseEnter={() => setHoveredItem(item.id)}
+            onMouseEnter={(e) => { setHoveredItem(item.id); setHoverAnchor(e.currentTarget); }}
             onMouseLeave={() => setHoveredItem(null)}
           >
             {/* Rich Hover Buff Information Card */}
-            {isHovered && (
-              <div className="absolute bottom-[calc(100%+10px)] right-0 z-50 w-72 rounded-2xl border border-slate-700/90 bg-slate-950/95 p-3.5 shadow-2xl shadow-black/80 backdrop-blur-md animate-fade-in pointer-events-none">
+            <HoverTooltip anchor={hoverAnchor} open={isHovered} placement="top">
+              <div className="w-72 rounded-2xl border border-slate-700/90 bg-slate-950/95 p-3.5 shadow-2xl shadow-black/80 animate-fade-in">
                 {/* Header with icon, name, and hotkey */}
                 <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
                   <div className="flex items-center gap-2">
@@ -230,7 +232,7 @@ export const BattleItemsToolbar: React.FC = () => {
                   </div>
                 </div>
               </div>
-            )}
+            </HoverTooltip>
 
             {/* Skill Button */}
             <button

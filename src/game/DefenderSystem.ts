@@ -9,6 +9,8 @@ import type { TowerId, Resources } from '../types/state';
 import { TASK_NODE_LOCATIONS, type UnitClass, type HarvestTask } from '../types/game';
 import { createMinionSprite, faceCharacterSprite, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
 import { soundFx } from './audio/soundFx';
+import { useTenantCounts, type TenantCount } from '../state/tenantCounts';
+import { logFloatingText } from '../state/activityLog';
 
 export type DefenderState = 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT';
 
@@ -195,6 +197,18 @@ export class DefenderSystem {
         this.spawnTimers.set(tower.id, timer);
       }
     }
+
+    // Live counts for the Citadel Command / establishment windows
+    const counts: Record<string, TenantCount> = {};
+    for (const tower of this.structures.getTowers()) {
+      if (!GUARD_CONFIG[tower.id]) continue;
+      counts[tower.id] = {
+        living: this.getLivingTenantsCount(tower.id),
+        garrisoned: this.getGarrisonCount(tower.id),
+        max: MAX_PER_ESTABLISHMENT,
+      };
+    }
+    useTenantCounts.getState().publish(counts);
 
     const invaders = this.invasion
       .getInvaders()
@@ -582,25 +596,9 @@ export class DefenderSystem {
     this.scene.tweens.add({ targets: d.container, scale: 0.1, alpha: 0, duration: 260, onComplete: () => d.container.destroy() });
   }
 
-  private spawnFloatingPopup(x: number, y: number, text: string, color: string): void {
-    const txt = this.scene.add.text(x, y, text, {
-      fontFamily: 'Cinzel, Georgia, serif',
-      fontSize: '11px',
-      fontStyle: 'bold',
-      color,
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5);
-    txt.setDepth(9995);
-    this.layer.add(txt);
-    this.scene.tweens.add({
-      targets: txt,
-      y: y - 24,
-      alpha: 0,
-      duration: 1100,
-      ease: 'Quad.easeOut',
-      onComplete: () => txt.destroy(),
-    });
+  /** No floating text on the map: the event is narrated in the activity log tray. */
+  private spawnFloatingPopup(_x: number, _y: number, text: string, color: string): void {
+    logFloatingText(text, color);
   }
 
   destroy(): void {

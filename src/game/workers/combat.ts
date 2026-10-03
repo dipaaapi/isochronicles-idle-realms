@@ -5,6 +5,11 @@ import { IsometricHelper } from '../IsometricHelper';
 import type { ActiveInvader } from '../InvasionManager';
 import type { PortalState } from '../PortalManager';
 import { CRITICAL_HP, type WorkerContext, type WorkerFrame, type WorkerInstance } from './types';
+import { useGameStore } from '../../state/useGameStore';
+
+/** A fighter skill's name in the player's language. */
+const skillName = (skill: { name: string; nameTl?: string }): string =>
+  useGameStore.getState().language === 'TL' ? skill.nameTl ?? skill.name : skill.name;
 
 const warnCriticallyWounded = (ctx: WorkerContext, worker: WorkerInstance) => {
   worker.overrideEmote = '🩹';
@@ -156,7 +161,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
 
     // Visual burst effect & fanfare
     ctx.spawnHarvestBurst(wx, wy - 15, config.lanternColor, 20);
-    ctx.spawnFloatingPopup(wx, wy - 52, `💥 ${ult.name}!`, '#f43f5e');
+    ctx.spawnFloatingPopup(wx, wy - 52, `💥 ${skillName(ult)}!`, '#f43f5e');
     soundFx.playFanfare();
 
     // Slay / damage all invaders in wide AOE area
@@ -178,7 +183,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     const sk1 = skills.skill1;
     worker.armorShield = (worker.armorShield || 0) + 80;
     ctx.spawnHarvestBurst(wx, wy - 10, config.lanternColor, 10);
-    ctx.spawnFloatingPopup(wx, wy - 42, `✨ ${sk1.name}!`, '#38bdf8');
+    ctx.spawnFloatingPopup(wx, wy - 42, `✨ ${skillName(sk1)}!`, '#38bdf8');
     soundFx.playGolemCheer();
     return;
   }
@@ -190,7 +195,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     const sk2 = skills.skill2;
     worker.hp = Math.min(worker.maxHp, worker.hp + 140);
     ctx.spawnHarvestBurst(wx, wy - 10, 0x22c55e, 10);
-    ctx.spawnFloatingPopup(wx, wy - 42, `🛡️ ${sk2.name}!`, '#22c55e');
+    ctx.spawnFloatingPopup(wx, wy - 42, `🛡️ ${skillName(sk2)}!`, '#22c55e');
     soundFx.playClick();
   }
 }

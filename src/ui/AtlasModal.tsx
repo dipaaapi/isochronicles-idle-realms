@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import { faqTranslations } from '../i18n/faqTranslations';
-import loreMarkdown from '../../LORE.md?raw';
+import loreMarkdownEn from '../../LORE.md?raw';
+import loreMarkdownTl from '../../LORE.tl.md?raw';
+import ATLAS_GUIDE from '../i18n/atlasGuide.json';
 import {
   X,
   Compass,
@@ -37,7 +39,9 @@ import {
   teamStatTotals,
   type Localized,
   type TeamStat,
+  TEAM_STATS,
 } from '../state/skillTree';
+import { gameConfirm } from './GameDialog';
 
 export type AtlasTab = 'GUIDE' | 'BESTIARY' | 'REGRESSION' | 'FAQ' | 'LORE';
 
@@ -47,16 +51,71 @@ interface AtlasModalProps {
   initialSection?: AtlasTab;
 }
 
-const parsedLore = loreMarkdown
-  .split(/\n(?=## )/)
-  .map((section) => {
-    const [heading, ...body] = section.trim().split('\n');
-    return {
-      heading: heading.replace(/^##\s*/, ''),
-      body: body.join(' ').replace(/\*\*/g, ''),
-    };
-  })
-  .filter((section) => section.heading && section.body);
+interface LoreSection {
+  heading: string;
+  /** Paragraphs; a paragraph made only of "- " lines is a bullet list. */
+  blocks: Array<{ text: string } | { items: string[] }>;
+  plain: string;
+}
+
+/** Splits LORE markdown into `##` sections with paragraphs and bullet lists. */
+const parseLore = (markdown: string): LoreSection[] =>
+  markdown
+    .replace(/\r\n/g, '\n')
+    .split(/\n(?=## )/)
+    .filter((section) => section.startsWith('## '))
+    .map((section) => {
+      const [heading, ...rest] = section.trim().split('\n');
+      const blocks = rest
+        .join('\n')
+        .split(/\n\s*\n/)
+        .map((para) => para.trim())
+        .filter(Boolean)
+        .map((para) => {
+          const lines = para.split('\n');
+          return lines.every((line) => line.startsWith('- '))
+            ? { items: lines.map((line) => line.slice(2)) }
+            : { text: lines.join(' ') };
+        });
+      return {
+        heading: heading.replace(/^##\s*/, ''),
+        blocks,
+        plain: rest.join(' ').replace(/\*\*/g, ''),
+      };
+    })
+    .filter((section) => section.heading && section.blocks.length > 0);
+
+const LORE: Record<'EN' | 'TL', LoreSection[]> = {
+  EN: parseLore(loreMarkdownEn),
+  TL: parseLore(loreMarkdownTl),
+};
+
+/** Renders the **bold** spans of a guide / lore line. */
+const richText = (text: string) =>
+  text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') ? (
+      <strong key={i} className="text-slate-100">{part.slice(2, -2)}</strong>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    )
+  );
+
+// Literal class names so Tailwind keeps them
+const GUIDE_COLORS: Record<string, { card: string; title: string; badge: string }> = {
+  sky: { card: 'border-sky-500/30 bg-sky-950/20', title: 'text-sky-300', badge: 'bg-sky-500/30 border-sky-400/50' },
+  emerald: { card: 'border-emerald-500/30 bg-emerald-950/20', title: 'text-emerald-300', badge: 'bg-emerald-500/30 border-emerald-400/50' },
+  amber: { card: 'border-amber-500/30 bg-amber-950/20', title: 'text-amber-300', badge: 'bg-amber-500/30 border-amber-400/50' },
+  purple: { card: 'border-purple-500/30 bg-purple-950/20', title: 'text-purple-300', badge: 'bg-purple-500/30 border-purple-400/50' },
+  rose: { card: 'border-rose-500/30 bg-rose-950/20', title: 'text-rose-300', badge: 'bg-rose-500/30 border-rose-400/50' },
+  indigo: { card: 'border-indigo-500/30 bg-indigo-950/20', title: 'text-indigo-300', badge: 'bg-indigo-500/30 border-indigo-400/50' },
+  orange: { card: 'border-orange-500/30 bg-orange-950/20', title: 'text-orange-300', badge: 'bg-orange-500/30 border-orange-400/50' },
+  cyan: { card: 'border-cyan-500/30 bg-cyan-950/20', title: 'text-cyan-300', badge: 'bg-cyan-500/30 border-cyan-400/50' },
+  fuchsia: { card: 'border-fuchsia-500/30 bg-fuchsia-950/20', title: 'text-fuchsia-300', badge: 'bg-fuchsia-500/30 border-fuchsia-400/50' },
+  violet: { card: 'border-violet-500/30 bg-violet-950/20', title: 'text-violet-300', badge: 'bg-violet-500/30 border-violet-400/50' },
+};
+
+const PHASE_ICONS: Record<1 | 2 | 3 | 4, string> = { 1: '🔥', 2: '🌋', 3: '❄️', 4: '✨' };
+const PHASE_WAVES: Record<1 | 2 | 3 | 4, [number, number]> = { 1: [1, 25], 2: [26, 50], 3: [51, 75], 4: [76, 100] };
 
 export const AtlasModal: React.FC<AtlasModalProps> = ({
   isOpen,
@@ -124,7 +183,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
   const boostStats = Object.keys(REGRESSION_BOOST_PER_TIER) as TeamStat[];
   const isRecommended = invasion.waveNumber >= 100;
 
-  const handlePerformRegression = () => {
+  const handlePerformRegression = async () => {
     if (regressionNameInput.trim() !== realmName.trim()) return;
     soundFx.playFanfare();
     const promptMsg = fillText(t(REGRESSION_TEXT.confirm), {
@@ -134,7 +193,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
       hp: hpPerTier,
     });
 
-    if (window.confirm(promptMsg)) {
+    if (await gameConfirm(promptMsg)) {
       performRegression();
       onClose();
     }
@@ -149,11 +208,15 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
       item.answer.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredLore = parsedLore.filter(
+  const filteredLore = (LORE[language] ?? LORE.EN).filter(
     (item) =>
       item.heading.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.body.toLowerCase().includes(searchQuery.toLowerCase())
+      item.plain.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const wavesLabel = (phase: 1 | 2 | 3 | 4) =>
+    t(ATLAS_GUIDE.header.waves)
+      .replace('{from}', String(PHASE_WAVES[phase][0]))
+      .replace('{to}', String(PHASE_WAVES[phase][1]));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 select-none animate-in fade-in duration-200">
@@ -169,7 +232,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
               <h2 className="text-base md:text-lg font-black tracking-wide text-white flex items-center gap-2">
                 <span>{isTL ? 'Atlas ng Kaharian' : 'Realm Atlas'}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-400/40 text-sky-300 font-mono uppercase tracking-wider">
-                  Knowledge Hub
+                  {t(ATLAS_GUIDE.header.badge)}
                 </span>
               </h2>
               <p className="text-[11px] text-slate-400">
@@ -240,7 +303,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
               }`}
             >
               <RotateCcw className="w-3.5 h-3.5 text-purple-300" />
-              <span>{isTL ? 'Regression' : 'Regression'}</span>
+              <span>{isTL ? 'Regresyon' : 'Regression'}</span>
             </button>
 
             {/* TAB 4: FAQ */}
@@ -297,120 +360,42 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
           {activeTab === 'GUIDE' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {/* Step 1 */}
-                <div className="glass-panel p-4 rounded-2xl border border-sky-500/30 bg-sky-950/20 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2.5 text-sky-300 font-bold mb-2 text-sm">
-                      <span className="w-7 h-7 rounded-xl bg-sky-500/30 border border-sky-400/50 flex items-center justify-center text-xs font-mono text-white">1</span>
-                      <span>🤖 {isTL ? 'Autopilot Minions & Resources' : 'Autopilot Minions & Gathering'}</span>
+                {ATLAS_GUIDE.steps.map((step, index) => {
+                  const color = GUIDE_COLORS[step.color] ?? GUIDE_COLORS.sky;
+                  return (
+                    <div key={index} className={`glass-panel p-4 rounded-2xl border ${color.card}`}>
+                      <div className={`flex items-center gap-2.5 font-bold mb-2 text-sm ${color.title}`}>
+                        <span className={`w-7 h-7 shrink-0 rounded-xl border flex items-center justify-center text-xs font-mono text-white ${color.badge}`}>
+                          {index + 1}
+                        </span>
+                        <span>{step.icon} {t(step.title)}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed pl-9">{richText(t(step.body))}</p>
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed pl-9">
-                      {isTL ? (
-                        <>
-                          Kusang lumalakad ang mga alagad sa lumulutang na isla upang magmina ng 💎 <strong>Kristal</strong>, pumutol ng 🌲 <strong>Kahoy</strong>, at magtipak ng 🪨 <strong>Bato</strong>.
-                          <br /><strong className="text-amber-300">Tip:</strong> I-click ang mga Golem upang tumalon at magmadali sa trabaho!
-                        </>
-                      ) : (
-                        <>
-                          Your loyal servants roam the floating realm to extract 💎 <strong>Crystals</strong>, chop 🌲 <strong>Wood</strong>, and quarry 🪨 <strong>Stone</strong>.
-                          <br /><strong className="text-amber-300">Tip:</strong> Click on your Golems to make them bounce and gather faster!
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 2 */}
-                <div className="glass-panel p-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2.5 text-amber-300 font-bold mb-2 text-sm">
-                      <span className="w-7 h-7 rounded-xl bg-amber-500/30 border border-amber-400/50 flex items-center justify-center text-xs font-mono text-white">2</span>
-                      <span>🏪 {isTL ? 'Pamilihan at Barya (Quick Trade)' : 'Market Trading & Gold Coins'}</span>
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed pl-9">
-                      {isTL ? (
-                        <>
-                          Gamitin ang <strong>Pamilihan (Market)</strong> upang ibenta ang naipong materyales para sa 🪙 <strong>Gintong Barya</strong> o bumili ng kulang na sangkap anumang oras.
-                        </>
-                      ) : (
-                        <>
-                          Visit the <strong>Market</strong> tab to exchange extra materials for 🪙 <strong>Gold Coins</strong> or buy missing ingredients instantly.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 3 */}
-                <div className="glass-panel p-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2.5 text-emerald-300 font-bold mb-2 text-sm">
-                      <span className="w-7 h-7 rounded-xl bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center text-xs font-mono text-white">3</span>
-                      <span>⭐ {isTL ? 'Agham, Sandata, at Kasanayan' : 'Research, Armory & Skills'}</span>
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed pl-9">
-                      {isTL ? (
-                        <>
-                          I-upgrade ang kapasidad at bilis sa <strong>Agham</strong>, magpanday ng pambihirang sandata sa <strong>Pandayan</strong>, at mag-invest sa <strong>Skill Tree</strong> kada 5 waves!
-                        </>
-                      ) : (
-                        <>
-                          Enhance minion speed and cargo in <strong>Research</strong>, forge artifacts in the <strong>Armory</strong>, and allocate points in the <strong>Skill Tree</strong> every 5 waves!
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Step 4 */}
-                <div className="glass-panel p-4 rounded-2xl border border-rose-500/30 bg-rose-950/20 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2.5 text-rose-300 font-bold mb-2 text-sm">
-                      <span className="w-7 h-7 rounded-xl bg-rose-500/30 border border-rose-400/50 flex items-center justify-center text-xs font-mono text-white">4</span>
-                      <span>🏰 {isTL ? 'Tanggulan at 100 Wave Crusades' : 'Citadel Defense & 100 Waves'}</span>
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed pl-9">
-                      {isTL ? (
-                        <>
-                          Ipagtanggol ang Kuta laban sa mga Tao at Mecha! Manatiling buo ang 3 natatanging kasanayan ng bawat pasilidad. I-click ang mga kalaban sa mapa para tamaan ng kidlat! ⚡
-                        </>
-                      ) : (
-                        <>
-                          Defend the Citadel against Human & Mecha crusaders! Utilize 3 unique skills per establishment. Click enemies anywhere on map to strike them with lightning! ⚡
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
 
-              {/* 4 World Phases Infographic Card */}
+              {/* 4 Realm Phases */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 border border-purple-500/30">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-purple-300 mb-2 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>{isTL ? '4 na Yugto ng Kampanya (Realms)' : 'The 4 Realm Phases (Waves 1 - 100)'}</span>
+                  <span>{t(ATLAS_GUIDE.header.phasesTitle)}</span>
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 text-center">
-                  <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <div className="text-lg">🔥</div>
-                    <div className="text-xs font-bold text-slate-200 mt-1">Demon Citadel</div>
-                    <div className="text-[10px] text-slate-500 font-mono">Waves 1 - 25</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <div className="text-lg">🌋</div>
-                    <div className="text-xs font-bold text-slate-200 mt-1">Magma Caldera</div>
-                    <div className="text-[10px] text-slate-500 font-mono">Waves 26 - 50</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <div className="text-lg">❄️</div>
-                    <div className="text-xs font-bold text-slate-200 mt-1">Frost Spire</div>
-                    <div className="text-[10px] text-slate-500 font-mono">Waves 51 - 75</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800">
-                    <div className="text-lg">✨</div>
-                    <div className="text-xs font-bold text-slate-200 mt-1">Astral Sanctum</div>
-                    <div className="text-[10px] text-slate-500 font-mono">Waves 76 - 100</div>
-                  </div>
+                  {([1, 2, 3, 4] as const).map((phase) => {
+                    const cfg = PLATFORM_CONFIGS[phase];
+                    return (
+                      <div
+                        key={phase}
+                        className={`p-2.5 rounded-xl bg-slate-950/70 border ${platformPhase === phase ? 'border-purple-500' : 'border-slate-800'}`}
+                      >
+                        <div className="text-lg">{PHASE_ICONS[phase]}</div>
+                        <div className="text-xs font-bold text-slate-200 mt-1">{isTL ? cfg.name : cfg.nameEn}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{wavesLabel(phase)}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -648,7 +633,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                                     : (isTL ? '❓ Hindi pa Nakakatapat' : '❓ Undiscovered Invader')}
                                   {config.role === 'RULER' && (
                                     <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-amber-300">
-                                      👑 {isTL ? 'Boss' : 'Boss'}
+                                      👑 {isTL ? 'Pinuno' : 'Boss'}
                                     </span>
                                   )}
                                 </h3>
@@ -717,7 +702,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                     {isTL ? 'Kasalukuyang Takbo ng Panahon' : 'Current Timeline Progress'}
                   </span>
                   <span className="text-xs font-mono font-bold text-purple-400">
-                    Phase {platformPhase} of 4 · Regression Tier {regressionCount}
+                    {isTL ? `Yugto ${platformPhase} ng 4 · Antas ng Regression ${regressionCount}` : `Phase ${platformPhase} of 4 · Regression Tier ${regressionCount}`}
                   </span>
                 </div>
 
@@ -728,8 +713,8 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
                     <div className="text-[11px] text-slate-400">{isTL ? 'Plataporma' : 'Platform'}</div>
-                    <div className="text-sm font-black text-purple-300 mt-1 truncate" title={currentPlatform.nameEn}>
-                      {currentPlatform.nameEn}
+                    <div className="text-sm font-black text-purple-300 mt-1 truncate" title={isTL ? currentPlatform.name : currentPlatform.nameEn}>
+                      {isTL ? currentPlatform.name : currentPlatform.nameEn}
                     </div>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
@@ -768,10 +753,10 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-bold" style={{ color: pCfg.accentColor }}>
-                            Phase {pIndex}: {pCfg.nameEn}
+                            {isTL ? `Yugto ${pIndex}: ${pCfg.name}` : `Phase ${pIndex}: ${pCfg.nameEn}`}
                           </span>
                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300">
-                            {pCfg.waveRange}
+                            {wavesLabel(pIndex)}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-400 leading-tight line-clamp-2">
@@ -791,7 +776,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                     <span>{isTL ? 'Mga Permanenteng Bonus ng Regression' : 'Permanent Regression Bonuses'}</span>
                   </h4>
                   <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    +{hpPerTier * regressionCount} Castle Max HP
+                    +{hpPerTier * regressionCount} {isTL ? 'Max HP ng Kastilyo' : 'Castle Max HP'}
                   </span>
                 </div>
 
@@ -802,11 +787,11 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                     const perTier = REGRESSION_BOOST_PER_TIER[st];
                     return (
                       <div key={st} className="p-2.5 rounded-xl bg-slate-950/70 border border-purple-500/20">
-                        <div className="text-[10px] font-medium text-slate-400">{st}</div>
+                        <div className="text-[10px] font-medium text-slate-400">{t(TEAM_STATS[st].name)}</div>
                         <div className="text-xs font-black font-mono text-purple-300 mt-0.5">
                           +{curr.toFixed(0)}% <span className="text-emerald-400 text-[10px]">➜ +{next.toFixed(0)}%</span>
                         </div>
-                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">+{perTier}% per tier</div>
+                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">+{perTier}% {isTL ? 'bawat antas' : 'per tier'}</div>
                       </div>
                     );
                   })}
@@ -863,9 +848,9 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                         key={idx}
                         className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] flex items-center justify-between font-mono"
                       >
-                        <span className="text-purple-300 font-bold">Tier {entry.regressionIndex}</span>
-                        <span className="text-slate-400">Wave {entry.waveReached}</span>
-                        <span className="text-slate-500">Day {entry.dayReached}</span>
+                        <span className="text-purple-300 font-bold">{isTL ? 'Antas' : 'Tier'} {entry.regressionIndex}</span>
+                        <span className="text-slate-400">{t(REGRESSION_TEXT.historyWave).replace('{n}', String(entry.waveReached))}</span>
+                        <span className="text-slate-500">{isTL ? 'Araw' : 'Day'} {entry.dayReached}</span>
                         <span className="text-slate-500">{new Date(entry.timestamp).toLocaleDateString()}</span>
                       </div>
                     ))}
@@ -918,9 +903,17 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                       <Scroll className="w-3.5 h-3.5 text-indigo-400" />
                       <span>{item.heading}</span>
                     </h3>
-                    <p className="text-xs text-slate-300 leading-relaxed pl-5">
-                      {item.body}
-                    </p>
+                    <div className="space-y-2 pl-5">
+                      {item.blocks.map((block, i) =>
+                        'items' in block ? (
+                          <ul key={i} className="list-disc pl-4 space-y-1 text-xs text-slate-300 leading-relaxed">
+                            {block.items.map((line, j) => <li key={j}>{richText(line)}</li>)}
+                          </ul>
+                        ) : (
+                          <p key={i} className="text-xs text-slate-300 leading-relaxed">{richText(block.text)}</p>
+                        )
+                      )}
+                    </div>
                   </div>
                 ))
               )}

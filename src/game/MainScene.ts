@@ -1137,6 +1137,14 @@ export class MainScene extends Phaser.Scene {
         this._fpsDebugText.setVisible(showDebug);
       }
       if (showDebug) {
+        // scrollFactor 0 still inherits camera zoom (userZoom * dpr); counter it so the overlay stays 11 CSS px
+        const cam = this.cameras.main;
+        const inv = 1 / cam.zoom;
+        this._fpsDebugText.setScale(this.dpr * inv);
+        this._fpsDebugText.setPosition(
+          cam.width / 2 + (8 * this.dpr - cam.width / 2) * inv,
+          cam.height / 2 + (8 * this.dpr - cam.height / 2) * inv
+        );
         this._fpsDebugUpdateTimer += delta;
         if (this._fpsDebugUpdateTimer >= MainScene.FPS_DEBUG_UPDATE_MS) {
           this._fpsDebugUpdateTimer = 0;

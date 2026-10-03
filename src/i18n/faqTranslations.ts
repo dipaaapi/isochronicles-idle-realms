@@ -18,19 +18,43 @@ export const faqTranslations: Record<Language, FAQContent> = {
     entries: [
       {
         question: '🌳 Who builds the castle and buildings?',
-        answer: 'Your starting Slime summons the Ent — the realm\'s loyal builder. It automatically constructs the Castle, Wood Grove, Stone Quarry, Metal Mine, and Water Port, in that order. It walks to each site and builds once you have enough resources. No build button to click — it\'s all on autopilot.',
+        answer: 'Your starting Slime summons the Ent for free — the realm\'s only builder. It raises the Castle first, then the Crystal Spire, then the establishments in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench and Crypt of Souls. It walks to each site and builds once you have the supplies. There is no build button — it\'s all on autopilot.',
       },
       {
-        question: '🎁 How do I get supplies before construction finishes?',
-        answer: 'Random scouts raid your citadel between waves, and your towers and establishments fire on them. Click them to defeat them and instantly receive wood, stone, aether shards, and coins straight into your resources. The Ent simply waits if supplies are short, so keep hunting scouts.',
+        question: '🎁 How do I get supplies early on?',
+        answer: 'Lone scouts wander the island between waves. Click them to strike them down and their loot goes straight into your stores. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Ent simply waits while supplies are short.',
       },
       {
         question: '⚔️ When do minions and waves unlock?',
-        answer: 'Build the Castle and all four resource buildings to level 1. Once that\'s done, minion recruitment unlocks and the wave countdown begins. Note that individual minions may have their own upgrade and summon costs.',
+        answer: 'As soon as the Castle stands. The wave countdown starts, and each establishment can summon its Champion once it is built (some Champions also need a higher Nexus or Refinery level). Open an establishment by clicking it on the map.',
+      },
+      {
+        question: '🏠 What are tenants?',
+        answer: 'Once an establishment has its Champion, you can add up to 5 tenants of the same kind. They garrison the building and each one holds part of its defence. When the building is battered they break out and counter-attack.',
       },
       {
         question: '🛠️ What does the Ent do after construction?',
-        answer: 'It never really rests — it repairs and fortifies the castle and enriches existing resource sites. During invasions, castle defense becomes its top priority.',
+        answer: 'It never really rests: it repairs wrecked or damaged buildings, tends the castle walls, enriches the soil so harvests grow richer, and forges or buys gear for itself. A wrecked establishment stops producing and fighting until the Ent repairs it.',
+      },
+      {
+        question: '🏰 Why doesn\'t my castle shoot?',
+        answer: 'The citadel no longer attacks — your establishments do. Each one and the Crystal Spire guards a 4×4 zone with its own tower and three skills. The citadel instead burns a Provoke Beacon that pulls nearby invaders onto its walls. Upgrade walls, shield, beacon, towers and munitions in Citadel Command → Fortifications.',
+      },
+      {
+        question: '🌀 Where do invaders come from?',
+        answer: 'From the four rifts at the island\'s corners. Minions can smash an open rift: it stops spawning for the rest of the wave and pays a bounty. Seal all four and no more invaders arrive that wave. Some invaders are rushers that ignore everything and charge the citadel — the activity log warns you when one appears.',
+      },
+      {
+        question: '💥 What happens if the castle falls?',
+        answer: 'The invaders steal half of everything in your stores and escape through the rifts. The castle is restored right away and the game continues, so keep the walls and shield upgraded.',
+      },
+      {
+        question: '🔥 What are the Q W E R T buttons?',
+        answer: 'Battle relics: Minion Frenzy (Q), Aegis Barrier (W), Mass Restoration (E), Shield Overload (R) and Chrono Surge (T). Hover a button to see its effect and cost. They run on landmark materials — obsidian from the Brimstone Perch, souls from the Crypt of Souls, pearls from the Abyssal Trench.',
+      },
+      {
+        question: '⛈️ Does the weather matter?',
+        answer: 'Yes. Rain slows Mecha by 15%, snow slows humans by 15%, and a heatwave makes every invader hit 10% harder. Some rainy days turn into thunderstorms. Click the weather card in the sidebar to choose the weather yourself or leave it random. A year lasts 365 days across four seasons.',
       },
       {
         question: '✨ How do I get skill points?',
@@ -41,58 +65,82 @@ export const faqTranslations: Record<Language, FAQContent> = {
         answer: 'Days and waves restart at 1 and the Ent rebuilds your realm from scratch. In return, every regression tier permanently strengthens YOUR team — never the enemy: +5% minion attack, +3% minion speed, 3% less damage to minions, +5% tower damage, +5% harvest, and +100 Castle HP, plus bonus starting coins and shards. Your skill ranks are refunded and you earn the points again by clearing waves.',
       },
       {
-        question: '🏃 Why are some invaders running straight at my castle?',
-        answer: 'Those are rushers. A random few invaders ignore your minions and establishments and charge the citadel at extra speed. The activity log warns you when one appears — keep the walls strong and the towers ready.',
+        question: '🚚 Can I move an establishment?',
+        answer: 'Yes. Hold the mouse button on an establishment to lift it, then click a free tile to set it down (right-click or Esc cancels). You can\'t move buildings while a wave is under way.',
       },
       {
         question: '⌨️ Are there keyboard shortcuts?',
-        answer: 'Yes: ` (backtick) plays or pauses, 1 switches to 2× speed and 2 to 3× speed — press the same key again to return to 1×. In quick trade, drag or scroll the knob (hold Shift for ×10) or use the arrow keys to pick an amount; the total always uses the real market price.',
+        answer: 'Yes: ` (backtick) plays or pauses, 1 switches to 2× speed and 2 to 3× speed — press the same key again to return to 1×. Q, W, E, R and T cast the battle relics. In quick trade, drag or scroll the knob (hold Shift for ×10) or use the arrow keys to pick an amount; the total always uses the real market price.',
       },
       {
         question: '🌍 Why does the scenery change?',
-        answer: 'Each phase brings a new world: Demon Citadel (waves 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, and Astral Sanctum (76–100) ✨.',
+        answer: 'Each realm brings a new world: Demon Citadel (waves 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, and Astral Sanctum (76–100) ✨.',
       },
     ],
   },
   TL: {
-    title: '📜 Realm Lore & Tips',
+    title: '📜 Kasaysayan at Payo ng Kaharian',
     close: 'Isara',
     entries: [
       {
-        question: '🌳 Sino ang gumagawa ng castle at buildings?',
-        answer: 'Ang starting Slime mo ang susumon sa Ent — ang loyal na builder ng realm mo. Awtomatiko niyang itatayo ang Castle, Wood Grove, Stone Quarry, Metal Mine, at Water Port, ayon sa pagkakasunod-sunod. Lalakad siya sa bawat site at magtatayo kapag sapat na ang resources mo. Walang kailangang i-click na build button — puro autopilot!',
+        question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
+        answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent — ang tanging tagapagtayo ng kaharian. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, at saka ang mga pasilidad ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman at Libingan ng mga Kaluluwa. Lalakad ito sa bawat puwesto at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
       },
       {
-        question: '🎁 Paano kukuha ng supplies bago matapos ang construction?',
-        answer: 'May random scouts na susugod sa kuta mo sa pagitan ng waves, at babarilin sila ng towers at establishments mo. I-click lang sila para talunin at makakuha agad ng wood, stone, aether shards, at coins — diretso sa resources mo. Hihintayin ka lang ng Ent kung kulang pa ang supplies, kaya keep hunting!',
+        question: '🎁 Paano makakakuha ng supply sa simula?',
+        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon. I-click sila para tamaan at diretsong mapupunta sa imbak mo ang nakaw nila. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Ent habang kulang ang supply.',
       },
       {
-        question: '⚔️ Kailan magiging available ang minions at waves?',
-        answer: 'Kumpletuhin ang Castle at lahat ng apat na resource buildings sa Level 1. Sa sandaling matapos iyon, ma-unlock ang minion recruitment at magsisimula na ang wave countdown. Take note: may mga minion na may sariling upgrade at summon cost.',
+        question: '⚔️ Kailan magbubukas ang mga alagad at alon?',
+        answer: 'Kapag nakatayo na ang Kastilyo. Magsisimula ang countdown ng alon, at matatawag ng bawat pasilidad ang Kampeon nito kapag naitayo na ito (may ilang Kampeon na kailangan din ng mas mataas na antas ng Nexus o Refinery). Buksan ang pasilidad sa pag-click dito sa mapa.',
       },
       {
-        question: '🛠️ Ano ang ginagawa ng Ent pagkatapos ng construction?',
-        answer: 'Hindi siya nagpapahinga! Nagre-repair at nagfo-fortify siya ng castle, at pina-enrich pa ang existing resource sites mo. Pero pag may invasion, castle defense ang unang priority niya.',
+        question: '🏠 Ano ang mga umuupa?',
+        answer: 'Kapag may Kampeon na ang pasilidad, makakadagdag ka ng hanggang 5 umuupa na kauri nito. Nagbabantay sila sa gusali at may hawak ang bawat isa na bahagi ng depensa nito. Kapag nabugbog ang gusali, kumakawala sila at gumaganti.',
       },
       {
-        question: '✨ Paano makakuha ng skill points?',
-        answer: 'Manalo lang nang manalo! Kada 5 waves na matapos mo, may 2 skill points ka (40 pagdating ng Wave 100). Buksan ang Skills at i-click ang skill para magdagdag ng rank — gagana agad. Bawat branch ay nagbubukas mula taas pababa, at libre ang "I-reset" para maibalik lahat ng points, kaya mag-experiment ka lang.',
+        question: '🛠️ Ano ang ginagawa ng Ent pagkatapos magtayo?',
+        answer: 'Hindi ito nagpapahinga: inaayos nito ang mga nasira o nawasak na gusali, binabantayan ang pader ng kastilyo, pinatataba ang lupa para lumaki ang ani, at nagpapanday o bumibili ng sariling gamit. Humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang ayusin ito ng Ent.',
+      },
+      {
+        question: '🏰 Bakit hindi bumabaril ang kastilyo ko?',
+        answer: 'Hindi na umaatake ang kuta — ang mga pasilidad mo na ang lumalaban. Bawat isa at ang Tore ng Kristal ay nagbabantay sa 4×4 na sona gamit ang sariling tore at tatlong kakayahan. Sa halip, may Liwanag ng Panunukso ang kuta na humihila sa mga kalaban papunta sa pader nito. I-upgrade ang pader, kalasag, liwanag, tore at bala sa Sentro ng Kuta → Tanggulan.',
+      },
+      {
+        question: '🌀 Saan nanggagaling ang mga kalaban?',
+        answer: 'Sa apat na lagusan sa mga sulok ng isla. Kayang wasakin ng mga alagad ang bukas na lagusan: titigil ito sa paglalabas ng kalaban sa natitirang bahagi ng alon at magbibigay ng gantimpala. Isara ang apat at wala nang darating sa alon na iyon. May mga rusher na hindi pumapansin sa iba at diretsong sumusugod sa kuta — babalaan ka ng activity log kapag may lumitaw.',
+      },
+      {
+        question: '💥 Ano ang mangyayari kapag bumagsak ang kastilyo?',
+        answer: 'Nanakawin ng mga kalaban ang kalahati ng lahat ng nasa imbak mo at tatakas sa mga lagusan. Agad na naibabalik ang kastilyo at tuloy ang laro, kaya panatilihing naka-upgrade ang pader at kalasag.',
+      },
+      {
+        question: '🔥 Para saan ang mga button na Q W E R T?',
+        answer: 'Mga relikya ng labanan: Siklab ng Minion (Q), Kalasag ng Kuta (W), Malawakang Lunas (E), Soberkarga ng Kalasag (R) at Pampabilis ng Oras (T). Itapat ang mouse sa button para makita ang epekto at halaga. Pinapagana sila ng materyales ng landmark — obsidian mula sa Dapuan ng Asupre, kaluluwa mula sa Libingan, perlas mula sa Bangin ng Kailaliman.',
+      },
+      {
+        question: '⛈️ Mahalaga ba ang panahon?',
+        answer: 'Oo. Pinababagal ng ulan ang Mecha nang 15%, pinababagal ng niyebe ang mga tao nang 15%, at pinalalakas ng matinding init ang tama ng lahat ng kalaban nang 10%. May mga maulang araw na nagiging bagyong may kidlat. I-click ang weather card sa sidebar para ikaw ang pumili ng panahon o hayaan itong random. Ang isang taon ay 365 araw na may apat na panahon.',
+      },
+      {
+        question: '✨ Paano makakuha ng puntos ng kasanayan?',
+        answer: 'Manalo lang nang manalo! Kada 5 alon na matapos mo, may 2 puntos ka (40 pagdating ng Alon 100). Buksan ang Kasanayan at i-click ang isang kasanayan para magdagdag ng antas — gagana agad. Bawat sangay ay nagbubukas mula taas pababa, at libre ang "I-reset" para maibalik lahat ng puntos, kaya mag-eksperimento ka lang.',
       },
       {
         question: '🔁 Ano ang makukuha ko sa regression?',
-        answer: 'Magre-restart ang Days at Waves sa 1 at muling itatayo ng Ent ang realm mo mula zero. Kapalit nito, bawat regression tier ay permanenteng nagpapalakas sa KOPONAN mo — hindi sa kalaban: +5% atake ng minion, +3% bilis ng minion, 3% bawas pinsala sa minion, +5% pinsala ng tower, +5% ani, at +100 Castle HP, plus dagdag na starting coins at shards. Ibabalik ang skill ranks mo at kikitain ulit ang points sa pagtapos ng mga wave.',
+        answer: 'Babalik sa 1 ang araw at alon at muling itatayo ng Ent ang kaharian mo mula sa simula. Kapalit nito, bawat antas ng regression ay permanenteng nagpapalakas sa KOPONAN mo — hindi sa kalaban: +5% atake ng alagad, +3% bilis ng alagad, 3% bawas pinsala sa alagad, +5% pinsala ng tore, +5% ani, at +100 HP ng Kastilyo, dagdag pa ang panimulang barya at kristal. Ibabalik ang mga antas ng kasanayan mo at kikitain muli ang puntos sa pagtapos ng mga alon.',
       },
       {
-        question: '🏃 Bakit may mga kalabang diretsong sumusugod sa kastilyo?',
-        answer: 'Sila ang mga rusher. May ilang random na kalaban na hindi pumapansin sa minions at establishments at mabilis na sumusugod sa kuta. Babalaan ka ng activity log kapag may lumitaw — panatilihing matibay ang pader at handa ang mga tower.',
+        question: '🚚 Puwede bang ilipat ang isang pasilidad?',
+        answer: 'Oo. Pindutin nang matagal ang pasilidad para buhatin ito, saka i-click ang bakanteng tile para ilapag (right-click o Esc para kanselahin). Hindi puwedeng maglipat ng gusali habang may alon.',
       },
       {
         question: '⌨️ May keyboard shortcuts ba?',
-        answer: 'Oo: ` (backtick) para sa play o pause, 1 para sa 2× speed at 2 para sa 3× speed — pindutin ulit ang parehong key para bumalik sa 1×. Sa quick trade, i-drag o i-scroll ang knob (hawakan ang Shift para ×10) o gamitin ang arrow keys para pumili ng dami; laging tunay na presyo ng merkado ang ginagamit sa total.',
+        answer: 'Oo: ` (backtick) para i-play o i-pause, 1 para sa 2× bilis at 2 para sa 3× bilis — pindutin ulit ang parehong key para bumalik sa 1×. Ang Q, W, E, R at T ay para sa mga relikya ng labanan. Sa mabilisang palitan, i-drag o i-scroll ang knob (hawakan ang Shift para ×10) o gamitin ang arrow keys para pumili ng dami; laging tunay na presyo ng pamilihan ang gamit sa kabuuan.',
       },
       {
         question: '🌍 Bakit nagbabago ang paligid?',
-        answer: 'Bawat phase, bagong mundo: Demon Citadel (waves 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, at Astral Sanctum (76–100) ✨.',
+        answer: 'Bawat kaharian ay bagong mundo: Kuta ng Kadiliman (alon 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, at Astral Sanctum (76–100) ✨.',
       },
     ],
   },

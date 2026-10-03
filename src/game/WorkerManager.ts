@@ -222,15 +222,16 @@ export class WorkerManager implements WorkerContext {
     gaugeGfx.setVisible(false);
 
     // Slice-of-Life Emote Bubble (sleek, compact, only shown during active reactions)
-    const emoteBubble = this.scene.add.container(0, -32);
+    // Kept small: it sits over the unit's head and must not hide the sprite
+    const emoteBubble = this.scene.add.container(0, -30);
     const emoteBg = this.scene.add.graphics();
     emoteBg.fillStyle(0x0f172a, 0.82);
     emoteBg.lineStyle(1, config.lanternColor, 0.75);
-    emoteBg.fillRoundedRect(-10, -8, 20, 15, 4);
-    emoteBg.strokeRoundedRect(-10, -8, 20, 15, 4);
+    emoteBg.fillRect(-6, -5, 12, 10);
+    emoteBg.strokeRect(-6, -5, 12, 10);
 
-    const emoteText = this.scene.add.text(0, -1, TASK_CONFIG[item.assignedTask].icon, {
-      fontSize: '9px',
+    const emoteText = this.scene.add.text(0, 0, TASK_CONFIG[item.assignedTask].icon, {
+      fontSize: '7px',
       fontFamily: 'Inter, system-ui, sans-serif',
       color: '#f8fafc',
     });
@@ -457,7 +458,8 @@ export class WorkerManager implements WorkerContext {
     faceCharacterSprite(sprite, dx, dy, moving);
 
     // Dynamic Organic Character Motion & Physics
-    const baseScale = UNIT_CLASSES[worker.unitClass]?.scale ?? 1.0;
+    // Tenants are a smaller copy of their General so the General stays the one standout
+    const baseScale = (UNIT_CLASSES[worker.unitClass]?.scale ?? 1.0) * (worker.parentBuildingId ? 0.72 : 1);
     const offset = worker.bobOffset ?? 0;
 
     if (worker.unitClass === 'AQUA_SLIME') {
@@ -781,7 +783,7 @@ export class WorkerManager implements WorkerContext {
         worker.emoteBubble.setVisible(true);
         const alpha = Math.min(1, worker.overrideEmoteTimer / 250);
         worker.emoteBubble.setAlpha(alpha);
-        worker.emoteBubble.setScale(0.9 + Math.sin(time / 140) * 0.05);
+        worker.emoteBubble.setScale(0.85 + Math.sin(time / 140) * 0.04);
       }
       if (worker.overrideEmoteTimer <= 0) {
         worker.overrideEmote = null;

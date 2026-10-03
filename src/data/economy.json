@@ -335,6 +335,7 @@
   "unitSummon": {
     "maxPerClass": 1,
     "maxTreants": 1,
+    "tenantsPerEstablishment": 5,
     "costs": {
       "GOLEM": {
         "base": {

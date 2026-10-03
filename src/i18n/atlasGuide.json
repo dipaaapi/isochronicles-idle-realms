@@ -1,0 +1,109 @@
+{
+  "header": {
+    "badge": { "en": "Knowledge Hub", "tl": "Sentro ng Kaalaman" },
+    "phasesTitle": { "en": "The 4 Realms (Waves 1 - 100)", "tl": "Ang 4 na Kaharian (Alon 1 - 100)" },
+    "waves": { "en": "Waves {from} - {to}", "tl": "Alon {from} - {to}" }
+  },
+
+  "steps": [
+    {
+      "icon": "💧",
+      "color": "sky",
+      "title": { "en": "Ruins & the Slime Lord", "tl": "Ang Guho at ang Slime Lord" },
+      "body": {
+        "en": "You start in the ruins with only the **Slime Lord**. It summons the **Sprout Ent** for free, then heals, restores stamina, revives fallen minions and gives morale boosts. Evolve it (up to Lv.5) in **Citadel Command → Minions**.",
+        "tl": "Magsisimula ka sa guho kasama lang ang **Slime Lord**. Libre nitong tatawagin ang **Sprout Ent**, at saka ito manggagamot, magbabalik ng lakas, bubuhay sa mga nasawi at magpapasigla. I-evolve ito (hanggang Lv.5) sa **Sentro ng Kuta → Mga Alagad**."
+      }
+    },
+    {
+      "icon": "🌳",
+      "color": "emerald",
+      "title": { "en": "The Ent Builds Everything", "tl": "Ang Ent ang Nagtatayo ng Lahat" },
+      "body": {
+        "en": "There is no build button. The Ent raises the **Citadel**, then the **Crystal Spire**, then each establishment in order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench and Crypt of Souls. It waits when supplies are short, then repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
+        "tl": "Walang build button. Itatayo ng Ent ang **Kuta**, pagkatapos ang **Tore ng Kristal**, at isa-isa ang mga pasilidad: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman at Libingan ng mga Kaluluwa. Naghihintay ito kapag kulang ang supply, at pagkatapos ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
+      }
+    },
+    {
+      "icon": "🪙",
+      "color": "amber",
+      "title": { "en": "Early Supplies & the Market", "tl": "Maagang Supply at ang Pamilihan" },
+      "body": {
+        "en": "Click wandering **scouts** to strike them for free loot. Trade any material for coins (or buy what you lack) in **Citadel Command → Market**, or click a resource in the sidebar's **Resources** tab for a quick trade.",
+        "tl": "I-click ang mga gumagalang **espiya** para tamaan sila at makakuha ng libreng nakaw. Ipagpalit ang anumang materyales sa barya (o bilhin ang kulang) sa **Sentro ng Kuta → Pamilihan**, o i-click ang isang yaman sa tab na **Yaman** ng sidebar para sa mabilisang palitan."
+      }
+    },
+    {
+      "icon": "👹",
+      "color": "purple",
+      "title": { "en": "Champions & Tenants", "tl": "Mga Kampeon at Umuupa" },
+      "body": {
+        "en": "Click an establishment to open it. Once the citadel stands, summon its **Champion** there (some need a higher Nexus or Refinery level). A Champion lets you add up to **5 tenants** that garrison the building, each holding part of its defence, and break out to counter-attack when it falls.",
+        "tl": "I-click ang isang pasilidad para buksan ito. Kapag nakatayo na ang kuta, tawagin doon ang **Kampeon** nito (may ilan na kailangan ng mas mataas na antas ng Nexus o Refinery). Kapag may Kampeon, makakadagdag ka ng hanggang **5 umuupa** na nagbabantay sa gusali, may hawak na bahagi ng depensa nito, at kumakawala para gumanti kapag nasira ito."
+      }
+    },
+    {
+      "icon": "🌀",
+      "color": "rose",
+      "title": { "en": "Waves, Rifts & Rushers", "tl": "Mga Alon, Lagusan at Rusher" },
+      "body": {
+        "en": "Once the citadel stands, a wave arrives every **150 seconds** through the four corner **rifts**. Minions can smash an open rift for a bounty; seal all four and no more invaders come that wave. **Rushers** charge the citadel directly. Click any invader to strike it with lightning, and let minions collect the loot that falls.",
+        "tl": "Kapag nakatayo na ang kuta, may alon bawat **150 segundo** mula sa apat na **lagusan** sa mga sulok. Kayang wasakin ng mga alagad ang bukas na lagusan para sa gantimpala; isara ang apat at wala nang darating sa alon na iyon. Diretsong sumusugod sa kuta ang mga **rusher**. I-click ang kahit anong kalaban para tamaan ng kidlat, at hayaang pulutin ng mga alagad ang nahulog na nakaw."
+      }
+    },
+    {
+      "icon": "🏰",
+      "color": "indigo",
+      "title": { "en": "Defending the Island", "tl": "Pagtatanggol sa Isla" },
+      "body": {
+        "en": "The citadel doesn't attack — each establishment and the Crystal Spire guards a **4×4 zone** with its own tower and **3 skills**. The citadel's **Provoke Beacon** pulls invaders onto its walls instead. Upgrade walls, shield, beacon, towers and munitions in **Citadel Command → Fortifications**. A wrecked building stops working until the Ent repairs it.",
+        "tl": "Hindi umaatake ang kuta — bawat pasilidad at ang Tore ng Kristal ang nagbabantay sa **4×4 na sona** gamit ang sariling tore at **3 kakayahan**. Hinihila naman ng **Liwanag ng Panunukso** ng kuta ang mga kalaban papunta sa pader nito. I-upgrade ang pader, kalasag, liwanag, tore at bala sa **Sentro ng Kuta → Tanggulan**. Humihinto ang nawasak na gusali hanggang ayusin ito ng Ent."
+      }
+    },
+    {
+      "icon": "🔥",
+      "color": "amber",
+      "title": { "en": "Battle Relics (Q W E R T)", "tl": "Mga Relikya ng Labanan (Q W E R T)" },
+      "body": {
+        "en": "The five buttons in the sidebar (or keys **Q W E R T**) cast **Minion Frenzy**, **Aegis Barrier**, **Mass Restoration**, **Shield Overload** and **Chrono Surge**. Hover one to see its effect and cost. They run on landmark materials: obsidian from the Perch, souls from the Crypt, pearls from the Trench.",
+        "tl": "Ang limang button sa sidebar (o mga key na **Q W E R T**) ay para sa **Siklab ng Minion**, **Kalasag ng Kuta**, **Malawakang Lunas**, **Soberkarga ng Kalasag** at **Pampabilis ng Oras**. Itapat ang mouse para makita ang epekto at halaga. Pinapagana sila ng materyales ng landmark: obsidian mula sa Dapuan, kaluluwa mula sa Libingan, perlas mula sa Bangin."
+      }
+    },
+    {
+      "icon": "💥",
+      "color": "orange",
+      "title": { "en": "When the Citadel Falls", "tl": "Kapag Bumagsak ang Kuta" },
+      "body": {
+        "en": "If the castle's HP hits zero, the invaders steal **half of your stores** and escape through the rifts. The castle is restored right away and the game goes on — keep the walls and shield upgraded to avoid it.",
+        "tl": "Kapag naubos ang HP ng kastilyo, nanakawin ng mga kalaban ang **kalahati ng imbak mo** at tatakas sa mga lagusan. Agad na naibabalik ang kastilyo at tuloy ang laro — panatilihing naka-upgrade ang pader at kalasag para maiwasan ito."
+      }
+    },
+    {
+      "icon": "⛈️",
+      "color": "cyan",
+      "title": { "en": "Seasons & Weather", "tl": "Panahon at Klima" },
+      "body": {
+        "en": "A year has **365 days** and four seasons. **Rain** slows Mecha by 15%, **snow** slows humans by 15%, and a **heatwave** makes every invader hit 10% harder. Click the weather card in the sidebar to pick the weather yourself or keep it random.",
+        "tl": "May **365 araw** at apat na panahon ang isang taon. Pinababagal ng **ulan** ang Mecha nang 15%, pinababagal ng **niyebe** ang mga tao nang 15%, at pinalalakas ng **matinding init** ang tama ng lahat ng kalaban nang 10%. I-click ang weather card sa sidebar para ikaw ang pumili ng panahon o hayaan itong random."
+      }
+    },
+    {
+      "icon": "⭐",
+      "color": "fuchsia",
+      "title": { "en": "Skills, Research & Gear", "tl": "Kasanayan, Pagsasaliksik at Gamit" },
+      "body": {
+        "en": "Every **5 waves** cleared gives **2 skill points** — spend them in **Skills** (resetting is free). Upgrade the Slime, Ent, citadel, establishments and tenants in **Research**, and craft weapons, armour and relics in the **Armory**.",
+        "tl": "Bawat **5 alon** na natapos ay may **2 puntos ng kasanayan** — gamitin ito sa **Kasanayan** (libre ang pag-reset). I-upgrade ang Slime, Ent, kuta, pasilidad at umuupa sa **Pagsasaliksik**, at magpanday ng sandata, baluti at agimat sa **Pandayan**."
+      }
+    },
+    {
+      "icon": "♻️",
+      "color": "violet",
+      "title": { "en": "Regression", "tl": "Regression" },
+      "body": {
+        "en": "After Wave 100 (or any time you choose), **Regress**: the realm returns to Day 1 and Wave 1 with only the Slime, but every tier permanently boosts **your team only** and adds castle HP and starting coins. See the **Regression** tab.",
+        "tl": "Pagkatapos ng Alon 100 (o kahit kailan mo gusto), mag-**Regress**: babalik ang kaharian sa Araw 1 at Alon 1 kasama lang ang Slime, pero bawat antas ay permanenteng nagpapalakas sa **koponan mo lang** at nagdadagdag ng HP ng kastilyo at panimulang barya. Tingnan ang tab na **Regression**."
+      }
+    }
+  ]
+}

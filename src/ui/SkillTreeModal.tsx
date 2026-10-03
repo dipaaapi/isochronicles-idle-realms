@@ -20,6 +20,7 @@ import {
   type SkillRanks,
   type TeamStat,
 } from '../state/skillTree';
+import { gameConfirm } from './GameDialog';
 
 interface SkillCardProps {
   id: SkillId;
@@ -110,8 +111,8 @@ export const SkillTreeModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
   const activeStats = (Object.keys(totals) as TeamStat[]).filter((s) => totals[s] > 0);
   const spent = Object.values(skillRanks).some((r) => (r ?? 0) > 0);
 
-  const handleReset = () => {
-    if (window.confirm(t(SKILL_TEXT.resetConfirm))) resetSkills();
+  const handleReset = async () => {
+    if (await gameConfirm(t(SKILL_TEXT.resetConfirm))) resetSkills();
   };
 
   return (

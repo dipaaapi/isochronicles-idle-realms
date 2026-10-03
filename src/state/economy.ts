@@ -45,6 +45,9 @@ export const getUnitSummonCost = (unitClass: UnitClass, countOfClass: number): P
 export const maxUnitsOfClass = (unitClass: UnitClass): number =>
   unitClass === 'TREANT' ? config.unitSummon.maxTreants : config.unitSummon.maxPerClass;
 
+/** Tenants that serve under one establishment's General. */
+export const TENANTS_PER_ESTABLISHMENT: number = config.unitSummon.tenantsPerEstablishment;
+
 export const slimeEvolutionCost = (currentLevel: number): Partial<Resources> =>
   scaleCost(config.slimeEvolution.cost.base, config.slimeEvolution.cost.perLevel, currentLevel);
 

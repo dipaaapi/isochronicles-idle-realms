@@ -93,3 +93,71 @@
 .animate-tray-in {
   animation: tray-in 220ms ease-out;
 }
+
+/* ── Pixel-art UI theme (HUD, activity log, modals) ─────────────────────────
+   Matches the world's pixel art: pixel fonts, square corners, 2px borders,
+   hard drop shadows and no blur. Applied by the `pixel-ui` class on the app root. */
+.pixel-ui,
+.pixel-ui .font-sans,
+.pixel-ui .font-mono {
+  font-family: 'Pixelify Sans', 'Inter', system-ui, sans-serif;
+}
+.pixel-ui .font-fantasy,
+.pixel-ui h1,
+.pixel-ui h2 {
+  font-family: 'Silkscreen', 'Pixelify Sans', monospace;
+  letter-spacing: 0.02em;
+}
+.pixel-ui {
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+}
+.pixel-ui *:not(canvas) {
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.pixel-ui [class~="border"],
+.pixel-ui [class~="border-2"] {
+  border-width: 2px;
+}
+.pixel-ui [class*="shadow-lg"],
+.pixel-ui [class*="shadow-xl"],
+.pixel-ui [class*="shadow-2xl"],
+.pixel-ui [class*="shadow-md"] {
+  box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.65) !important;
+}
+.pixel-ui img {
+  image-rendering: pixelated;
+}
+.pixel-ui svg {
+  shape-rendering: crispEdges;
+}
+.pixel-ui ::-webkit-scrollbar-thumb {
+  border-radius: 0;
+}
+
+/* Bevelled pixel panel and button (light top-left, dark bottom-right) */
+.pixel-frame {
+  border: 2px solid #0b0f1a;
+  box-shadow:
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.14),
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.45),
+    4px 4px 0 0 rgba(0, 0, 0, 0.7);
+}
+.pixel-btn {
+  border: 2px solid #0b0f1a;
+  box-shadow:
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.22),
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.4);
+}
+.pixel-btn:hover {
+  filter: brightness(1.15);
+}
+.pixel-btn:active {
+  box-shadow:
+    inset 2px 2px 0 0 rgba(0, 0, 0, 0.4),
+    inset -2px -2px 0 0 rgba(255, 255, 255, 0.12);
+  transform: translateY(1px);
+}

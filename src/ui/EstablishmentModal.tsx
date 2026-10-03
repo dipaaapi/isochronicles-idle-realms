@@ -4,7 +4,7 @@ import { RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES } from '../state/useGameStore
 import { BUILDING_IDS } from '../state/buildingLayout';
 import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../data/establishmentSkills';
-import { useTranslation } from '../i18n/translations';
+import { useTranslation, unitName } from '../i18n/translations';
 import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
 import { UNIT_CLASSES } from '../data/units';
 import { RESEARCH_CATEGORIES, ResearchNodeConfig } from '../data/researchConfig';
@@ -15,6 +15,8 @@ import type { ResourceBuildingId, Resources } from '../types/state';
 import type { StructureId } from '../game/StructureManager';
 import type { UnitClass, HarvestTask } from '../types/game';
 import { TASK_CONFIG } from '../data/tasks';
+import { summonLock } from '../state/store/rosterSlice';
+import { useTenantCounts } from '../state/tenantCounts';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -49,8 +51,6 @@ const ESTABLISHMENT_CHAMPIONS: Partial<Record<StructureId, UnitClass[]>> = {
   TRENCH: ['KRAKEN'],
   KENNEL: ['DEMON_HOUND'],
   PERCH: ['HARPY'],
-  MINE: ['DEMON_HOUND'],
-  CAVE: ['NECROMANCER'],
   CASTLE: ['TREANT', 'AQUA_SLIME'],
 };
 
@@ -157,6 +157,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
   const [activeTab, setActiveTab] = useState<EstabTab>(initialTab);
   const [activeEstab, setActiveEstab] = useState<StructureId>(selectedId ?? 'CASTLE');
   const { isTL } = useTranslation();
+  const tenantCount = useTenantCounts((s) => s.counts[activeEstab as string]);
 
   const {
     roster,
@@ -336,7 +337,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
               <div className="h-full rounded-full transition-all duration-300" style={{ width: `${defPct * 100}%`, background: defColor }} />
             </div>
             <span className="text-[11px] font-mono text-slate-200 font-bold min-w-[90px] text-right">
-              {isCastle ? `${fmtNum(defense.shieldHp)} / ${fmtNum(defense.shieldMaxHp)}` : `Tower Lv ${tLevel} / 5`}
+              {isCastle ? `${fmtNum(defense.shieldHp)} / ${fmtNum(defense.shieldMaxHp)}` : (isTL ? `Tore Lv ${tLevel} / 5` : `Tower Lv ${tLevel} / 5`)}
             </span>
           </div>
         </div>
@@ -401,7 +402,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                       <div className="font-mono font-bold text-amber-300">Lv. {defense.wallLevel}</div>
                     </div>
                     <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                      <div className="text-slate-400 text-[10px]">{isTL ? 'Provoke Beacon' : 'Provoke Beacon'}</div>
+                      <div className="text-slate-400 text-[10px]">{isTL ? 'Liwanag ng Panunukso' : 'Provoke Beacon'}</div>
                       <div className="font-mono font-bold text-purple-300">Lv. {defense.beaconLevel}</div>
                     </div>
                   </div>
@@ -433,7 +434,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                       <span>⚡</span>
                       <span>{isTL ? 'Mga Kakayahan ng Gusali' : 'Establishment Skills & Ultimates'}</span>
                     </h3>
-                    <span className="text-[10px] text-slate-400 font-mono">3 / 3 Active Skills</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{isTL ? '3 / 3 Aktibong Kakayahan' : '3 / 3 Active Skills'}</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -493,7 +494,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                             <span className="text-xs font-bold text-emerald-300">
                               ⬆️ {isTL ? 'Produksyon' : 'Production'} → Lv. {nextLevel}
                             </span>
-                            <span className="text-[10px] font-mono text-slate-400">Yield +20%</span>
+                            <span className="text-[10px] font-mono text-slate-400">{isTL ? 'Ani +20%' : 'Yield +20%'}</span>
                           </div>
                           <div className="mt-2 space-y-1 text-[11px]">
                             {Object.entries(upgradeCost).map(([key, val]) => {
@@ -618,10 +619,23 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     </div>
                   </div>
                   <div className="text-right font-mono shrink-0">
-                    <span className="text-sm font-black text-cyan-400">5 / 5</span>
-                    <div className="text-[10px] text-slate-400">{isTL ? 'Garrisoned' : 'Garrisoned'}</div>
+                    <span className="text-sm font-black text-cyan-400">
+                      {tenantCount ? `${tenantCount.garrisoned} / ${tenantCount.max}` : '—'}
+                    </span>
+                    <div className="text-[10px] text-slate-400">{isTL ? 'Nakatalaga' : 'Garrisoned'}</div>
+                    {tenantCount && tenantCount.living > tenantCount.garrisoned && (
+                      <div className="text-[10px] text-rose-300">
+                        {tenantCount.living - tenantCount.garrisoned} {isTL ? 'lumalaban' : 'fighting'}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                <p className="text-[10px] text-cyan-200/70 leading-snug">
+                  {isTL
+                    ? 'Kusang lumilitaw nang libre ang mga umuupa kapag nakatayo ang gusali at kamukha nila ang Kampeon nito — ang mga nakikita mo sa mapa ay umuupa. Hiwalay ang Heneral sa ibaba: iisa lang ito at kailangang tawagin.'
+                    : 'Tenants appear on their own for free once the building stands, and they look like its Champion — the ones you see on the map are tenants. The General below is a separate, unique unit you summon yourself.'}
+                </p>
 
                 {/* Tenant Combat Stats Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-cyan-500/20 text-xs">
@@ -635,7 +649,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
                     <div className="text-slate-400 text-[10px]">{isTL ? 'Kalasag ng Baluti' : 'Armor Shield'}</div>
-                    <div className="font-mono font-bold text-cyan-300">50 + Tether</div>
+                    <div className="font-mono font-bold text-cyan-300">{isTL ? '50 + Tali' : '50 + Tether'}</div>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
                     <div className="text-slate-400 text-[10px]">{isTL ? 'Bilis ng Pagtawag' : 'Respawn Cooldown'}</div>
@@ -652,13 +666,13 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     <span>{isTL ? 'Itinalagang Kampeon / Heneral ng Pasilidad' : 'Designated Champion General'}</span>
                   </h3>
                   <span className="text-[10px] text-purple-400 font-mono">
-                    {championClasses.length > 0 ? `${championClasses.length} Champion Class` : 'Citadel Defense'}
+                    {championClasses.length > 0 ? (isTL ? `${championClasses.length} Uri ng Kampeon` : `${championClasses.length} Champion Class`) : (isTL ? 'Depensa ng Kuta' : 'Citadel Defense')}
                   </span>
                 </div>
 
                 {championClasses.length === 0 ? (
                   <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-xs text-slate-400">
-                    {isTL ? 'Walang partikular na kampeon para sa pasilidad na ito.' : 'This establishment relies on the Crystal Spire resonance and garrison tenants.'}
+                    {isTL ? 'Walang sariling Heneral ang pasilidad na ito — ang mga umuupa nito ang nagbabantay.' : 'This establishment has no General of its own — its tenants guard it.'}
                   </div>
                 ) : (
                   championClasses.map((cls) => {
@@ -666,7 +680,14 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     const activeUnits = roster.filter((u) => u.unitClass === cls && !u.parentBuildingId && !u.id.startsWith('tenant_')).slice(0, 1);
                     const isSummoned = activeUnits.length > 0;
                     const cost = getUnitSummonCost(cls, activeUnits.length);
-                    const canAffordSummon = canAfford(resources, cost);
+                    const lock = summonLock(useGameStore.getState(), cls);
+                    const canAffordSummon = !lock && canAfford(resources, cost);
+                    const reqs = lock
+                      ? ([
+                          ['nexusLevel', lock.nexus, isTL ? 'Puso ng Isla (Nexus)' : 'Island Heart (Nexus)'],
+                          ['refineryLevel', lock.refinery, isTL ? 'Puno ng Kagubatan (Refinery)' : 'Forest Canopy (Refinery)'],
+                        ] as const).filter(([key, need]) => ((upgrades[key] as number) ?? 1) < need)
+                      : [];
 
                     return (
                       <div
@@ -738,9 +759,37 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                         )}
 
                         {/* Summon or Active Duty Status */}
-                        <div className="pt-2 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="pt-2 border-t border-slate-800 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
                           {!isSummoned ? (
                             <>
+                              {lock && (
+                                <div className="w-full space-y-1.5">
+                                  {reqs.map(([key, need, label]) => {
+                                    const level = (upgrades[key] as number) ?? 1;
+                                    const reqCost = techUpgradeCost(key, level);
+                                    const affordable = canAfford(resources, reqCost);
+                                    return (
+                                      <div key={key} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-amber-950/30 border border-amber-500/30 text-[11px]">
+                                        <span className="text-amber-200">
+                                          🔒 {isTL ? 'Kailangan' : 'Requires'} {label} Lv.{need} <span className="text-slate-400">({isTL ? 'ngayon' : 'now'} Lv.{level})</span>
+                                        </span>
+                                        <button
+                                          disabled={!affordable}
+                                          onClick={() => upgradeTech(key)}
+                                          className={`shrink-0 px-2.5 py-1 rounded-lg font-bold font-mono text-[10px] ${affordable ? 'bg-amber-600 hover:bg-amber-500 text-white cursor-pointer' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                                        >
+                                          ⬆️ {Object.entries(reqCost).map(([k, n]) => `${k === 'coins' ? '🪙' : RESOURCE_PRICES[k as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${n}`).join(' ')}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                  {lock.building && (
+                                    <div className="p-2 rounded-xl bg-amber-950/30 border border-amber-500/30 text-[11px] text-amber-200">
+                                      🔒 {isTL ? 'Itayo muna ang tahanan nito.' : 'Its home establishment must be built first.'}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               <div className="text-xs text-slate-300 font-mono">
                                 <span className="text-slate-400 mr-2">{isTL ? 'Gastos sa Pagtawag:' : 'Summon Cost:'}</span>
                                 {Object.entries(cost).map(([k, amount]) => `${k === 'coins' ? '🪙' : RESOURCE_PRICES[k as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${amount}`).join(' ')}
@@ -775,7 +824,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                                 <div className="flex items-center gap-2.5">
                                   <span className="text-xl">🧭</span>
                                   <div>
-                                    <div className="font-bold text-slate-200">{activeUnits[0]?.name || cfg.name}</div>
+                                    <div className="font-bold text-slate-200">{activeUnits[0] ? unitName(activeUnits[0].name, activeUnits[0].unitClass, isTL ? 'TL' : 'EN') : (isTL ? cfg.name : cfg.nameEn)}</div>
                                     <div className="text-[11px] text-slate-400">
                                       {isTL
                                         ? 'Nagmamasid sa mga lagusan, nagpapatrolya sa kuta, at nakikipaglaban sa mga sumasalakay.'

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { RESEARCH_CATEGORIES, ResearchCategoryConfig, ResearchNodeConfig } from '../data/researchConfig';
-import { techUpgradeCost } from '../state/economy';
+import { RESOURCE_PRICES, techUpgradeCost } from '../state/economy';
 import { canAfford } from '../state/resources';
 import { soundFx } from '../game/audio/soundFx';
 
@@ -20,6 +20,12 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'SLIME' | 'ENT' | 'CASTLE' | 'ESTABLISHMENTS' | 'TENANTS'>('SLIME');
 
   const currentCategory = RESEARCH_CATEGORIES.find((c) => c.id === activeTab) || RESEARCH_CATEGORIES[0];
+
+  const resLabel = (key: string): string => {
+    if (key === 'coins') return isTagalog ? 'Barya' : 'Coins';
+    const cfg = RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES];
+    return cfg ? (isTagalog ? cfg.label : cfg.labelEn ?? cfg.label) : key;
+  };
 
   const handleUpgrade = (node: ResearchNodeConfig) => {
     const currentLevel = (upgrades[node.key] as number) ?? 1;
@@ -197,7 +203,7 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
               {/* Column Header & Badge */}
               <div>
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-700/50">
-                  <span>Col {node.column}: {isTagalog ? node.columnTitleTagalog : node.columnTitleEnglish}</span>
+                  <span>{isTagalog ? 'Hanay' : 'Col'} {node.column}: {isTagalog ? node.columnTitleTagalog : node.columnTitleEnglish}</span>
                   <span className="px-2 py-0.5 rounded-full bg-slate-900 text-cyan-300 border border-slate-700 text-xs font-black">
                     Lv. {currentLevel} / {node.maxLevel}
                   </span>
@@ -233,13 +239,14 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
                         return (
                           <span
                             key={resKey}
+                            title={resLabel(resKey)}
                             className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border flex items-center gap-1 ${
                               hasEnough
                                 ? 'bg-slate-900/90 text-emerald-300 border-emerald-500/40'
                                 : 'bg-red-950/40 text-red-300 border-red-500/40'
                             }`}
                           >
-                            <span>{resKey}</span>
+                            <span>{RESOURCE_PRICES[resKey as keyof typeof RESOURCE_PRICES]?.icon ?? (resKey === 'coins' ? '🪙' : resLabel(resKey))}</span>
                             <span>{amount}</span>
                             <span className="text-[9px] opacity-75">({Math.floor(currentAmount)})</span>
                           </span>

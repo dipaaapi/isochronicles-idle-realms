@@ -69,7 +69,7 @@ export const ActivityLogTray: React.FC = () => {
         <button
           type="button"
           onClick={toggle}
-          className="pointer-events-auto flex w-full items-center gap-2 rounded-xl border border-slate-700/80 bg-slate-950/85 px-3 py-2 text-left shadow-lg shadow-black/40 backdrop-blur-md transition hover:border-violet-500/60"
+          className="pixel-frame pointer-events-auto flex w-full items-center gap-2 rounded-xl border border-slate-700/80 bg-slate-950/85 px-3 py-2 text-left shadow-lg shadow-black/40 backdrop-blur-md transition hover:border-violet-500/60"
           title={t(activityUi.title)}
         >
           <span className="relative shrink-0 text-violet-300">
@@ -96,7 +96,7 @@ export const ActivityLogTray: React.FC = () => {
 
   return (
     <div className="pointer-events-none absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-1.5rem))]">
-      <section className="pointer-events-auto flex max-h-[min(340px,60vh)] flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/90 shadow-2xl shadow-black/50 backdrop-blur-md">
+      <section className="pixel-frame pointer-events-auto flex max-h-[min(340px,60vh)] flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/90 shadow-2xl shadow-black/50 backdrop-blur-md">
         <header className="flex items-center gap-2 border-b border-slate-800 px-3 py-2">
           <ScrollText className="h-4 w-4 text-violet-300" />
           <h2 className="font-fantasy text-xs font-bold tracking-wider text-violet-100">{t(activityUi.title)}</h2>
@@ -113,7 +113,7 @@ export const ActivityLogTray: React.FC = () => {
               type="button"
               onClick={toggle}
               className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
-              aria-label="Collapse"
+              aria-label={t(activityUi.collapse)}
             >
               <ChevronDown className="h-4 w-4" />
             </button>

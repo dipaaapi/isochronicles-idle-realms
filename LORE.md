@@ -1,37 +1,51 @@
 # Isochronicle: Idle Realms - The Demon Lord's Return
 
 ## Core Premise
-Centuries ago, the great Demon Lord was brought to the brink of true death by a coalition of human heroes. Stripped of his power, his grand castle reduced to rubble, and his armies scattered, he fell into a deep slumber. But true darkness never truly dies. 
+Centuries ago, the great Demon Lord was brought to the brink of true death by an alliance of human crusaders and their machine legions. His citadel was torn down to a floating island of rubble, his armies scattered, and he fell into a long slumber.
 
-Now, he has awakened. Weakened but resolute, the Demon Lord begins his uplifting journey of vengeance and restoration. He will rebuild his dark citadel, gather a new horde of monstrous loyalists, and wipe out the human kingdoms that dare to encroach on his domain. 
+Now he has awakened. Weakened but resolute, he begins the long work of restoration: rebuild the citadel, raise a new horde of loyal monsters, and outlast the crusades that the Human & Mecha Alliance keeps sending against him.
 
-## The Beginning: An Unlikely Ally
-The Demon Lord awakens in the ruins of his former throne room, possessing only a fraction of his legendary magic. He is greeted not by fearsome generals, but by a single, enthusiastic **Slime**. This loyal slime support becomes his first minion and unlikely right-hand commander, helping him organize the first defenses and rally the scattered beasts and lesser demons hiding in the shadows. 
+## An Unlikely Ally
+The Demon Lord wakes in the ruins of his throne room with only a fraction of his old magic. No generals answer him — only a single, enthusiastic **Slime**. That Slime becomes the **Slime Lord**, his first servant and the heart of the horde. It heals the wounded, restores tired minions, raises fallen ones back to their feet and cheers the army on with morale boosts. As it evolves through five forms, its healing reaches more allies and its blessings grow stronger.
 
-## The Campaign of Four Realms
-To reclaim his full power, the Demon Lord must conquer the **Four Realms** of the world. The campaign is grueling and relentless, meant to take exactly **365 days** (in-game time) to complete a full cycle of conquest. 
+## The Ancient Ent
+The Slime's first act is to call a **Sprout Ent** out of the dead soil, free of charge. The Ent is the realm's only builder. Stone by stone it raises the **Citadel**, then the **Crystal Spire**, then each establishment in turn, waiting patiently whenever the stores run short. When there is nothing left to build it repairs whatever the invaders broke, enriches the soil so harvests grow richer, forges and buys gear for itself, and tends the castle walls. It too evolves through five forms, from Sprout Ent to an ancient guardian of the grove.
 
-The human kingdoms, sensing his return, send endless crusades to destroy his "evil deeds" before they can take root. The Demon Lord must overcome these relentless waves of human heroes, knights, and adventurers.
+## The Floating Island
+The citadel stands at the centre of a floating island with the Crystal Spire beside it. Around them the Ent raises nine establishments, placed anew in every realm: the **Wood Grove**, **Stone Quarry**, **Metal Mine**, **Water Port**, **Mystic Cave**, **Infernal Kennel**, **Brimstone Perch**, **Abyssal Trench** and **Crypt of Souls**. Each one is a home, a workshop and a fortress at once. It produces its own materials, guards the ground around it with its own tower, and calls on three skills of its own — two techniques and an ultimate. The Demon Lord may lift an establishment and set it down elsewhere, though never while an invasion is under way.
 
-### The Four Phases (Realms)
-1. **The Whispering Woods (Phase 1):** The Demon Lord and his Slime lieutenant gather feral beasts and low-level demons. They rebuild the outer walls of the castle and defend against the initial waves of human scouts and local militias.
-2. **The Shattered Steppes (Phase 2):** As power grows, the army expands. The Demon Lord harnesses ancient dark magic to summon stronger fiends. The human kingdoms send their professional armies and seasoned adventurers.
-3. **The Sunken Citadels (Phase 3):** The Demon Lord's castle begins to resemble its former glory. He claims dominance over the seas and swamps, facing down humanity's elite paladins and magical academies.
-4. **The High Heavens' Peak (Phase 4):** The final push into the heart of the human territories. The Demon Lord commands an unstoppable legion of apex demons, facing the reincarnated heroes of old in a clash for ultimate supremacy.
+## Champions and Tenants
+Every establishment is home to one **Champion**: the **Earth Golem** of the Quarry, the **Lava Gargoyle** of the Grove, the **Succubus** of the Crystal Spire, the **Water Merman** of the Port, the **Demon Hound** of the Kennel, the **Harpy** of the Perch, the **Kraken** of the Trench and the **Lich Necromancer** of the Crypt. A Champion can be summoned once the citadel stands and its home is built, and it gathers, fights and leads. Behind each Champion come up to five **tenants** of the same kind. They garrison their home and each one holds part of its defences; when the line breaks they tear free and strike back.
 
-## The Progression (100 Waves)
-Each realm culminates in a series of intense sieges. The Demon Lord must conquer **100 Waves** of enemies across these realms to complete his vengeance. With each wave defeated, he harvests their souls and resources to upgrade his castle, empower his Slime commander, and breed more terrifying units.
+## The Citadel and Its Beacon
+The rebuilt citadel no longer fights with its own hands. Its towers have gone quiet; the establishments do the killing now. Instead the citadel burns a **Provoke Beacon**, a taunting light that drags nearby invaders away from the establishments and onto the walls. Thick walls, a shield that soaks the first blows and a strong beacon keep the rest of the island safe.
 
-## The Regression (Prestige Mechanic)
-Conquering the 100th wave and claiming the 4th realm is not the end, but a new beginning. Realizing that the human spirit is a weed that always grows back, and that his own power has barely scratched its true potential, the Demon Lord performs a grand ritual of **Regression**. 
+## The Crusades
+Once the citadel stands, the Human & Mecha Alliance notices. Every few minutes a new wave of invaders tears open the four **rifts** at the corners of the island and pours through them. The Demon Lord's minions can smash an open rift: it stops spawning for the rest of the wave and pays a bounty, and once every rift is sealed no more invaders arrive. Some invaders are **rushers** that ignore everything and charge straight for the citadel. Between waves, lone **scouts** wander the island; striking one down yields easy loot. Slain invaders scatter materials on the ground for the minions to collect, and the Demon Lord can strike any invader with a bolt of lightning.
 
-He sacrifices his conquered territories to absorb their ambient magical essence, resetting time and sending himself back to his ruined castle. However, he retains core fragments of his harnessed power, unique artifacts, and elite monster bloodlines. With each Regression, his base power multiplies, allowing him to push further, build faster, and become a truly unstoppable force of nature in his eternal quest for absolute dominion.
-
-## The Demon Lord's Forces
-The horde is led by two **Rulers**. The **Ancient Ent** raises the castle, the Crystal Spire and every establishment from the ruins, and the **Slime Lord** heals the wounded and summons the rest of the horde. Eight **Fighters** answer the call: the **Golem**, a tank and fortress guardian; the **Merman**, a marine lancer; the **Necromancer**, who summons the dead and collects souls; the **Kraken**, an abyssal horror that grapples whole squads; the **Demon Hound**, an infernal flanker whose bite burns; the **Succubus**, a disruptor who charms and weakens; the **Lava Gargoyle**, an aerial brute with volcanic splash; and the **Harpy**, a high-speed anti-air scout.
-
-## The Landmarks of the Island
-Four landmarks house the new beasts. The **Abyssal Trench** is home to the Kraken and yields water, fish and abyssal pearls. The **Crypt of Souls** gathers soul fragments from every repelled wave and calls the Necromancer. The **Brimstone Perch** is the Harpy's roost; it forges obsidian and shoots flying Mecha out of the sky. The **Infernal Kennel** raises the Demon Hounds and drives every beast faster while a wave is under way.
+If the citadel falls, the invaders loot half of everything in its stores and flee back through the rifts. The walls are raised again at once, and the war goes on.
 
 ## The Invading Coalition
-The Human & Mecha Alliance is also led by two **Rulers**: the **High Priest**, a holy healer who mends the soldiers around him, and the **Mecha Valkyrie**, the steel-winged commander of the machine legions. They lead the boss waves. Their eight **Fighters** are the frontline **Human Knight**, the sniping **Human Archer**, the fast **Mecha Scout**, the armored **Mecha Titan**, the twin-bladed **Assassin**, swarms of laser-firing **Mecha Drones**, the long-range **Mecha Siege Tank**, and **Chrono**, the time mage who warps and slows the battlefield.
+The Alliance is led by two **Rulers**: the **High Priest**, a holy healer who mends the soldiers around him, and the **Mecha Valkyrie**, the steel-winged commander of the machine legions. They lead the boss waves. Their eight **Fighters** are the frontline **Human Knight**, the sharp-eyed **Human Archer**, the fast **Mecha Scout**, the armoured **Mecha Titan**, the twin-bladed **Assassin**, swarms of laser-firing **Mecha Drones**, the long-range **Mecha Siege Tank**, and **Chrono**, the time mage who slows the battlefield around him.
+
+## The Four Realms
+The campaign spans **100 waves**. Every 25 waves the island is drawn into a new realm and changes around the citadel:
+
+- **Demon Citadel** (waves 1–25): the ancestral seat of obsidian and aether spires, where the first scouts and militias test the rebuilt walls.
+- **Magma Caldera** (waves 26–50): scorched basalt and rivers of molten fire, where crusader legions and mecha divisions march through the ash.
+- **Frost Spire** (waves 51–75): glacial peaks and subzero storms, where armoured titans and inquisitors push through the snow.
+- **Astral Sanctum** (waves 76–100): a sanctuary of gold and white marble at the top of the heavens, where humanity gathers its full strength.
+
+## Seasons and Storms
+A year in the realm lasts **365 days**, split into four seasons of about 91 days: a balanced Spring, a Summer of heatwaves, an Autumn of rain and storms, and a Winter of snow. The weather shapes every battle. Rain rusts the Mecha and slows them, snow chills the humans and slows them, and heatwaves enrage every invader so they hit harder. Some rainy days turn into thunderstorms that shake the island with lightning.
+
+## Relics of War
+Five battle relics answer the Demon Lord's call, each fuelled by a rare material from the landmarks. **Minion Frenzy** fills the horde with burning fury, the **Aegis Barrier** makes the citadel and establishments untouchable for a short time, **Mass Restoration** pours healing into every structure, **Shield Overload** refills the citadel's shield and patches its walls, and **Chrono Surge** bends time so every skill is ready again. The Brimstone Perch forges obsidian, the Crypt gathers souls from every repelled wave, the Abyssal Trench yields pearls, and scrap is torn from fallen Mecha.
+
+## Growing in Power
+Victory itself feeds the horde. Every five waves cleared grants the Demon Lord new skill points to spend on his minions, his citadel, his harvests and his mystic arts. Research deepens what the Slime, the Ent, the citadel, the establishments and the tenants can do, and the armory forges weapons, armour and relics for any minion.
+
+## The Regression
+Conquering the hundredth wave is not the end. Knowing that the human spirit always grows back, the Demon Lord performs the ritual of **Regression**. He gives up the realm he conquered and absorbs its essence, rewinding time to the first day of the first year, with the citadel in ruins and only the Slime at his side.
+
+What he keeps is the power he gained. Each Regression tier permanently strengthens his own forces — never the enemy's — with stronger, faster and tougher minions, deadlier towers, richer harvests, sturdier walls and a larger treasury to start again. His skills return to him to be earned anew, and every Regression is recorded in the history of the realm.

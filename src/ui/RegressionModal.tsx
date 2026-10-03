@@ -8,6 +8,7 @@ import {
   REGRESSION_BOOST_PER_TIER, REGRESSION_TEXT, TEAM_STATS, fillText, formatStat, teamStatTotals,
   type Localized, type TeamStat,
 } from '../state/skillTree';
+import { gameConfirm } from './GameDialog';
 
 interface RegressionModalProps {
   onClose: () => void;
@@ -41,21 +42,21 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
   const boostStats = Object.keys(REGRESSION_BOOST_PER_TIER) as TeamStat[];
   const isRecommended = invasion.waveNumber >= 100;
 
-  const handlePerformRegression = () => {
+  const handlePerformRegression = async () => {
     if (regressionName.trim() !== realmName.trim()) return;
     soundFx.playFanfare();
     const promptMsg = fillText(t(REGRESSION_TEXT.confirm), {
       wave: invasion.waveNumber, phase: platformPhase, day, hp: hpPerTier,
     });
 
-    if (window.confirm(promptMsg)) {
+    if (await gameConfirm(promptMsg)) {
       performRegression();
       onClose();
     }
   };
 
-  const handleResetRegressionProgress = () => {
-    if (!window.confirm(t(REGRESSION_TEXT.resetConfirm))) return;
+  const handleResetRegressionProgress = async () => {
+    if (!(await gameConfirm(t(REGRESSION_TEXT.resetConfirm)))) return;
     if (resetRegressionProgress(resetConfirmation)) setResetConfirmation('');
   };
 
@@ -235,8 +236,8 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
 
           <div className="rounded-2xl border border-rose-500/40 bg-rose-950/20 p-4 space-y-3">
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">Reset Regression Records</h4>
-              <p className="mt-1 text-[11px] text-slate-400">Type <span className="font-mono font-bold text-rose-200">RESET REGRESSIONS</span> to {t(REGRESSION_TEXT.resetInfo)}</p>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">{t(REGRESSION_TEXT.resetTitle)}</h4>
+              <p className="mt-1 text-[11px] text-slate-400">{t(REGRESSION_TEXT.resetType).split('{phrase}')[0]}<span className="font-mono font-bold text-rose-200">RESET REGRESSIONS</span>{t(REGRESSION_TEXT.resetType).split('{phrase}')[1]} {t(REGRESSION_TEXT.resetInfo)}</p>
             </div>
             <div className="flex gap-2">
               <input
@@ -250,7 +251,7 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
                 disabled={resetConfirmation.trim().toUpperCase() !== 'RESET REGRESSIONS'}
                 className="rounded-xl border border-rose-500/40 bg-rose-900/50 px-3 py-2 text-[11px] font-bold text-rose-200 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
               >
-                Reset
+                {t(REGRESSION_TEXT.resetButton)}
               </button>
             </div>
           </div>
@@ -293,17 +294,17 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
                         </span>
                         <div>
                           <div className="font-bold text-slate-200 flex items-center gap-1.5">
-                            <span className="text-red-400">Wave {rec.waveReached}</span>
+                            <span className="text-red-400">{t(REGRESSION_TEXT.historyWave).replace('{n}', String(rec.waveReached))}</span>
                             <span className="text-slate-500">•</span>
                             <span style={{ color: recPlatform.accentColor }}>
-                              Phase {rec.phaseReached} ({recPlatform.nameEn})
+                              {t(REGRESSION_TEXT.historyPhase).replace('{n}', String(rec.phaseReached)).replace('{realm}', language === 'TL' ? recPlatform.name : recPlatform.nameEn)}
                             </span>
-                            {rec.completedWave100 && <span title="Conquered Wave 100!">👑</span>}
+                            {rec.completedWave100 && <span title={t(REGRESSION_TEXT.conquered100)}>👑</span>}
                           </div>
                           <div className="text-[10px] text-slate-400 flex items-center gap-2">
-                            <span>{recSeason.icon} Day {rec.dayReached} (Year {rec.yearReached || 1})</span>
+                            <span>{recSeason.icon} {t(REGRESSION_TEXT.historyDay).replace('{day}', String(rec.dayReached)).replace('{year}', String(rec.yearReached || 1))}</span>
                             <span>•</span>
-                            <span>{rec.invasionsRepelled} repelled</span>
+                            <span>{t(REGRESSION_TEXT.historyRepelled).replace('{n}', String(rec.invasionsRepelled))}</span>
                           </div>
                         </div>
                       </div>

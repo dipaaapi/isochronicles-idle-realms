@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { hasSavedRealm } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
+import { gameAlert } from './GameDialog';
 import { Play, RotateCcw, Sliders, Shield, Compass, BookOpen } from 'lucide-react';
 
 interface TitleScreenProps {
@@ -99,7 +100,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           soundFx.stopBackgroundMusic();
           onContinueRealm();
         } else {
-          alert('Failed to load save file. Please check if the JSON is valid.');
+          void gameAlert('Failed to load save file. Please check if the JSON is valid.');
         }
       }
     };
