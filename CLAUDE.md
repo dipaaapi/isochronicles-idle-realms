@@ -2,12 +2,13 @@
 
 ## Working preferences
 
-- Always analyze the whole project first before making changes.
-- If already familiar with the project, check what's been updated or added since last time (e.g. `git log`, `git diff`, `git status`) instead of re-reading everything.
+- Before making changes, get the project overview from `.claude/skills/codemap/CODEMAP.md` (every file's purpose and exports) and read only the code the task needs (`/codemap`: `outline <file>`, `where <symbol>`). Don't read the whole project unless the task truly needs it.
+- If already familiar with the project, check what's been updated or added since last time (`git log`, `node .claude/skills/codemap/codemap.mjs changed <ref>`, `git status`) instead of re-reading everything.
+- When adding, removing or renaming source files, update `.claude/skills/codemap/purposes.json` and run `codemap.mjs build`.
 - At the start of a session, briefly explain what's in the project and propose what to do next.
 - Repetitive, reusable information (message wording, EN/TL text pairs, labels, lookup tables) goes in a `.json` file and is referenced by key from code, not hardcoded inline. Example: `src/i18n/activityMessages.json`.
 - No floating text over characters, buildings or enemies on the map — narrate events in the activity log tray instead.
-- Character sprites must follow the designs in `public/backgrounds/bestiary-icons/` (silhouette, colours, weapons, props). Compare icon vs rendered frames side by side before shipping model changes.
+- Character sprites must follow the designs in `public/portraits/` (structures: `public/structures/`) (silhouette, colours, weapons, props). Compare icon vs rendered frames side by side before shipping model changes.
 - Structure models (`src/game/sprites/structureModels.ts`) must follow the Codex art in `public/structures/` (mapping in `STRUCTURE_ART`). The art is the design source, not the old models. Check changes in the Atlas → Structures tab, which shows the art next to the in-game render in every state (construction, idle, firing, hit, destroyed).
 
 ## Project overview
@@ -27,6 +28,10 @@ React 18 + TypeScript, Phaser 3 (world canvas), Vite 5 + vite-plugin-pwa, Tailwi
 - `npx tsc --noEmit` — type-check only
 - `node scripts/test-construction.cjs` / `node scripts/test-invasions.cjs` — logic tests (transpile TS in a Node VM with Phaser/audio/storage stubbed)
 - `docker compose up --build` — dev server in Docker with polling HMR
+- `/security-audit` — project skill (`.claude/skills/security-audit/`) for auditing save import, persisted state, PWA config, dependencies and Docker
+- `/voxel-model` — project skill for editing minion/enemy/structure voxel models cheaply: `node .claude/skills/voxel-model/model-tool.mjs list|show|stats|render <key>` prints one model or renders only the frames you need (with `--ref` art beside it)
+- `/codemap` — project map: `.claude/skills/codemap/CODEMAP.md` plus `node .claude/skills/codemap/codemap.mjs outline|where|changed|check|build` to find code and read only the line ranges you need
+- `/lore` — project skill for story/lore/flavour text: canon sheet in `.claude/skills/lore/SKILL.md` plus `node .claude/skills/lore/lore-tool.mjs sections|section|entity|find|check` to pull only the text you need and verify EN/TL pairs
 
 ## Architecture
 
