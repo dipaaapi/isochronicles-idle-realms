@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
-import loreMarkdown from '../../LORE.md?raw';
 import {
   X,
   Download,
@@ -9,6 +8,8 @@ import {
   Trash2,
   Home,
   Volume2,
+  Languages,
+  Globe,
   VolumeX,
   Layers,
   Sparkles,
@@ -17,7 +18,6 @@ import {
   Droplet,
   Grid3X3,
   Save,
-  BookOpen,
   Code2,
   User,
 } from 'lucide-react';
@@ -27,18 +27,6 @@ interface SettingsDrawerProps {
   onClose: () => void;
   onReturnToTitle?: () => void;
 }
-
-const loreSections = loreMarkdown
-  .split(/\n(?=## )/)
-  .map((section) => {
-    const [heading, ...body] = section.trim().split('\n');
-
-    return {
-      heading: heading.replace(/^##\s*/, ''),
-      body: body.join(' ').replace(/\*\*/g, ''),
-    };
-  })
-  .filter((section) => section.heading && section.body);
 
 // Declared at module scope: defining it inside SettingsDrawer made React remount
 // the row (and its button) on every store tick, swallowing clicks mid-press.
@@ -72,12 +60,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onReturnToTitle,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [currentTab, setCurrentTab] = useState<
-    'GAME' | 'SAVE' | 'LORE' | 'CREDITS'
-  >('GAME');
+  const [currentTab, setCurrentTab] = useState<'GAME' | 'SAVE' | 'CREDITS'>('GAME');
 
   const {
     language,
+    setLanguage,
     isAudioMuted,
     toggleAudioMute,
     isGoreEnabled,
@@ -185,11 +172,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       icon: Save,
     },
     {
-      id: 'LORE' as const,
-      label: isTL ? 'Kuwento' : 'Lore',
-      icon: BookOpen,
-    },
-    {
       id: 'CREDITS' as const,
       label: 'Credits',
       icon: Code2,
@@ -238,8 +220,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </button>
           </div>
 
-          {/* Simple tab navigation */}
-          <div className="mt-4 grid grid-cols-4 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1">
+          {/* Tab navigation (3 tabs: Game, Save, Credits) */}
+          <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const active = currentTab === tab.id;
@@ -268,9 +250,73 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
         {/* Content */}
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {/* GAME */}
+          {/* GAME TAB */}
           {currentTab === 'GAME' && (
             <div className="space-y-5">
+              {/* Language Selection */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <Languages className="h-3.5 w-3.5 text-sky-400" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    {isTL ? 'Wika at Salin' : 'Language & Translation'}
+                  </h3>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="shrink-0 rounded-xl bg-sky-500/15 p-2 text-sky-400">
+                        <Globe className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-100">
+                          {isTL ? 'Pangunahing Wika' : 'Display Language'}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-slate-500">
+                          {isTL
+                            ? 'Pumili sa pagitan ng English at Tagalog para sa buong laro.'
+                            : 'Choose between English and Tagalog globally across all screens and HUD.'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        setLanguage('EN');
+                      }}
+                      className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold transition-all border ${
+                        !isTL
+                          ? 'border-sky-500/60 bg-sky-500/20 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.25)]'
+                          : 'border-slate-800 bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <span className="text-base">🇺🇸</span>
+                      <span>English</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        setLanguage('TL');
+                      }}
+                      className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold transition-all border ${
+                        isTL
+                          ? 'border-sky-500/60 bg-sky-500/20 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.25)]'
+                          : 'border-slate-800 bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <span className="text-base">🇵🇭</span>
+                      <span>Tagalog</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+
               {/* Audio & Visuals */}
               <section>
                 <div className="mb-2 flex items-center gap-2 px-1">
@@ -289,11 +335,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                         <Volume2 className="h-4 w-4" />
                       )
                     }
-                    title={isTL ? 'Tunog ng Laro' : 'Game Sound'}
+                    title={isTL ? 'Tunog ng Laro' : 'Game Sound Effects'}
                     description={
                       isTL
-                        ? 'I-on o i-mute ang procedural game sounds.'
-                        : 'Turn game sound effects on or off.'
+                        ? 'I-on o i-mute ang game sounds at background music.'
+                        : 'Turn game sounds and music on or off.'
                     }
                   >
                     <button
@@ -308,13 +354,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                           : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
                       }`}
                     >
-                      {isAudioMuted
-                        ? isTL
-                          ? 'MUTE'
-                          : 'MUTED'
-                        : isTL
-                        ? 'ON'
-                        : 'ON'}
+                      {isAudioMuted ? (isTL ? 'MUTE' : 'MUTED') : 'ON'}
                     </button>
                   </SettingRow>
 
@@ -324,7 +364,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     description={
                       isTL
                         ? 'Ipakita ang blood effects kapag may damage o death.'
-                        : 'Show blood effects when units take damage or die.'
+                        : 'Show blood particles when units take damage or die.'
                     }
                   >
                     <button
@@ -362,12 +402,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-slate-100">
-                        {isTL ? 'Graphics & FPS' : 'Graphics & FPS'}
+                        {isTL ? 'Graphics & FPS' : 'Graphics & Target FPS'}
                       </div>
                       <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
                         {isTL
-                          ? 'Pumili ng frame rate. Mas mataas ay mas smooth pero maaaring mas mabigat sa device.'
-                          : 'Choose the frame rate. Higher FPS is smoother but may use more device power.'}
+                          ? 'Pumili ng frame rate. Mas mataas ay mas smooth ngunit maaaring mas mabigat sa device.'
+                          : 'Choose your target frame rate. Higher FPS is smoother.'}
                       </p>
                     </div>
                   </div>
@@ -408,7 +448,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                           ? `Live: ${measuredFps} FPS · Target: ${targetFps}`
                           : isTL
                           ? 'Ipakita ang live FPS information sa game.'
-                          : 'Show live FPS information in-game.'}
+                          : 'Show live FPS information on screen.'}
                       </div>
                     </div>
 
@@ -435,8 +475,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     title={isTL ? 'Tile Coordinates' : 'Tile Coordinates'}
                     description={
                       isTL
-                        ? 'Ipakita ang pangalan ng bawat tile na parang chessboard (A1–J10) para sa building placement.'
-                        : 'Show chessboard-style tile names (A1–J10) to help verify building placement.'
+                        ? 'Ipakita ang chessboard labels (A1–J10) sa bawat tile ng mapa.'
+                        : 'Display chessboard coordinates (A1–J10) on every tile.'
                     }
                   >
                     <button
@@ -469,8 +509,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
                   <p className="mb-3 text-[10px] leading-relaxed text-slate-500">
                     {isTL
-                      ? 'Kapag naka-ON, awtomatikong gagawa ng ilang routine ang iyong realm.'
-                      : 'When enabled, the game automatically handles selected routine tasks.'}
+                      ? 'Kapag naka-ON, awtomatikong gagawa ng mga routine task ang iyong Realm.'
+                      : 'When enabled, the game automatically handles routine background tasks.'}
                   </p>
 
                   <div className="space-y-3">
@@ -498,11 +538,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                             : 'border-slate-700 bg-slate-800 text-slate-400'
                         }`}
                       >
-                        {autoSettings.autoDispatch
-                          ? isTL
-                            ? 'ON'
-                            : 'ON'
-                          : 'OFF'}
+                        {autoSettings.autoDispatch ? 'ON' : 'OFF'}
                       </button>
                     </div>
 
@@ -513,8 +549,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                         </div>
                         <div className="mt-0.5 text-[10px] text-slate-500">
                           {isTL
-                            ? 'Awtomatikong haharap ang armed golems sa invading shades.'
-                            : 'Armed golems automatically intercept invading shades.'}
+                            ? 'Awtomatikong haharap ang armed units sa invading crusaders.'
+                            : 'Armed units automatically intercept invading crusaders.'}
                         </div>
                       </div>
 
@@ -544,7 +580,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                         <div className="mt-0.5 text-[10px] text-slate-500">
                           {isTL
                             ? 'Awtomatikong mag-evolve kapag sapat ang resources.'
-                            : 'Automatically evolve Support Slime and Treant when resources allow.'}
+                            : 'Automatically evolve Support Slime and Treant when materials allow.'}
                         </div>
                       </div>
 
@@ -569,14 +605,14 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </div>
           )}
 
-          {/* SAVE */}
+          {/* SAVE TAB */}
           {currentTab === 'SAVE' && (
             <div className="space-y-4">
               <section>
                 <div className="mb-2 flex items-center gap-2 px-1">
                   <Save className="h-3.5 w-3.5 text-sky-400" />
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    {isTL ? 'Save Management' : 'Save Management'}
+                    {isTL ? 'Pamamahala ng Save File' : 'Save Management'}
                   </h3>
                 </div>
 
@@ -584,7 +620,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <button
                     type="button"
                     onClick={handleExport}
-                    className="flex w-full items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-950/20 p-3.5 text-left transition-all hover:bg-sky-950/40"
+                    className="flex w-full items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-950/20 p-3.5 text-left transition-all hover:bg-sky-950/40 cursor-pointer"
                   >
                     <div className="rounded-lg bg-sky-500/15 p-2 text-sky-400">
                       <Download className="h-4 w-4" />
@@ -592,12 +628,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-sky-100">
-                        {isTL ? 'I-download ang Save' : 'Export Save'}
+                        {isTL ? 'I-download ang Save' : 'Export Save File'}
                       </div>
                       <div className="mt-0.5 text-[10px] text-slate-500">
                         {isTL
                           ? 'Gumawa ng .json backup file ng iyong Realm.'
-                          : 'Create a .json backup of your current Realm.'}
+                          : 'Create a downloadable .json backup of your Realm.'}
                       </div>
                     </div>
                   </button>
@@ -608,7 +644,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                       soundFx.playClick();
                       fileInputRef.current?.click();
                     }}
-                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800"
+                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800 cursor-pointer"
                   >
                     <div className="rounded-lg bg-slate-800 p-2 text-slate-300">
                       <Upload className="h-4 w-4" />
@@ -616,12 +652,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-slate-200">
-                        {isTL ? 'I-restore ang Save' : 'Import Save'}
+                        {isTL ? 'I-restore ang Save' : 'Import Save File'}
                       </div>
                       <div className="mt-0.5 text-[10px] text-slate-500">
                         {isTL
-                          ? 'Mag-load ng dating .json Realm backup.'
-                          : 'Load a previous .json Realm backup.'}
+                          ? 'Mag-load ng dating .json Realm backup file.'
+                          : 'Load an existing .json Realm backup file.'}
                       </div>
                     </div>
                   </button>
@@ -645,7 +681,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                       onClose();
                       onReturnToTitle();
                     }}
-                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800"
+                    className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800 cursor-pointer"
                   >
                     <div className="rounded-lg bg-slate-800 p-2 text-slate-400">
                       <Home className="h-4 w-4" />
@@ -658,7 +694,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                       <div className="mt-0.5 text-[10px] text-slate-500">
                         {isTL
                           ? 'Mananatili ang current Realm state sa browser.'
-                          : 'Your current Realm state remains in the browser.'}
+                          : 'Your current Realm progress remains saved in browser storage.'}
                       </div>
                     </div>
                   </button>
@@ -673,7 +709,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="flex w-full items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-950/20 p-3.5 text-left text-rose-300 transition-all hover:bg-rose-950/40"
+                  className="flex w-full items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-950/20 p-3.5 text-left text-rose-300 transition-all hover:bg-rose-950/40 cursor-pointer"
                 >
                   <div className="rounded-lg bg-rose-500/10 p-2 text-rose-400">
                     <Trash2 className="h-4 w-4" />
@@ -681,12 +717,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
                   <div>
                     <div className="text-xs font-semibold">
-                      {isTL ? 'I-reset ang Realm' : 'Reset Realm'}
+                      {isTL ? 'I-reset ang Realm' : 'Reset Realm Progress'}
                     </div>
                     <div className="mt-0.5 text-[10px] text-rose-400/70">
                       {isTL
                         ? 'Permanenteng buburahin ang lahat ng progress.'
-                        : 'Permanently erase all Realm progress.'}
+                        : 'Permanently erase all progress, buildings, and history.'}
                     </div>
                   </div>
                 </button>
@@ -694,50 +730,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </div>
           )}
 
-          {/* LORE */}
-          {currentTab === 'LORE' && (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-sky-500/20 bg-sky-950/15 p-3.5">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-sky-400" />
-                  <div className="text-xs font-semibold text-sky-200">
-                    {isTL ? 'Tungkol sa Realm' : 'About the Realm'}
-                  </div>
-                </div>
-
-                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
-                  {isTL
-                    ? 'Basahin ang mundo, kasaysayan, at mga pangunahing konsepto ng IsoChronicle.'
-                    : 'Read the world, history, and key concepts behind IsoChronicle.'}
-                </p>
-              </div>
-
-              <div className="max-h-[58vh] space-y-2 overflow-y-auto pr-1">
-                {loreSections.map((section, index) => (
-                  <div
-                    key={section.heading}
-                    className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5"
-                  >
-                    <h3
-                      className={`mb-1 font-fantasy text-sm font-bold ${
-                        index % 2 === 0
-                          ? 'text-sky-300'
-                          : 'text-amber-300'
-                      }`}
-                    >
-                      {section.heading}
-                    </h3>
-
-                    <p className="text-[11px] leading-relaxed text-slate-400">
-                      {section.body}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CREDITS */}
+          {/* CREDITS TAB */}
           {currentTab === 'CREDITS' && (
             <div className="space-y-4">
               {/* Creator */}
@@ -749,7 +742,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400">
-                      {isTL ? 'Gumawa ng Laro' : 'Created By'}
+                      {isTL ? 'Gumawa ng Laro' : 'Creator & Developer'}
                     </div>
 
                     <h3 className="mt-1 font-fantasy text-xl font-bold text-white">
@@ -780,54 +773,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   </h3>
                 </div>
 
-                <div className="space-y-2">
-                  {[
-                    ['Phaser 3.80', '2.5D isometric rendering and game engine'],
-                    ['React 18', 'Reactive HUD, menus, modals, and UI layer'],
-                    ['TypeScript', 'Type-safe game and simulation code'],
-                    ['Tailwind CSS', 'Responsive UI and visual styling'],
-                    ['Web Audio API', 'Procedural offline sound effects'],
-                    ['Docker Compose', 'Local development and sandbox environment'],
-                    ['IndexedDB / LocalStorage', 'Local-first game persistence'],
-                  ].map(([name, description]) => (
-                    <div
-                      key={name}
-                      className="rounded-xl border border-slate-800 bg-slate-900/70 p-3"
-                    >
-                      <div className="text-xs font-semibold text-slate-200">
-                        {name}
-                      </div>
-                      <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
-                        {description}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Architecture note */}
-              <section className="rounded-xl border border-slate-800 bg-slate-900/70 p-3.5">
-                <div className="flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-cyan-400" />
-                  <div className="text-xs font-semibold text-slate-200">
-                    {isTL ? 'Architecture' : 'Architecture'}
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
+                    <span className="text-sky-400 font-bold">Phaser 3</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Isometric 2.5D Canvas Engine</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
+                    <span className="text-indigo-400 font-bold">React 19 + Vite</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Modular HUD & UI Overlays</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
+                    <span className="text-emerald-400 font-bold">Zustand</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">State & Local Persistence</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-slate-300 font-mono">
+                    <span className="text-amber-400 font-bold">EasyStar.js</span>
+                    <p className="text-[10px] text-slate-500 mt-0.5">A* Grid Pathfinding</p>
                   </div>
                 </div>
-
-                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
-                  {isTL
-                    ? 'Offline at local-first ang design ng game. Walang cloud, telemetry, o external asset dependency na kailangan para maglaro.'
-                    : 'The game is designed as an offline, local-first experience with no cloud, telemetry, or external asset dependency required for play.'}
-                </p>
               </section>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex shrink-0 items-center justify-between border-t border-slate-800 px-5 py-3 text-[10px] font-mono text-slate-600">
-          <span>IsoChronicle v1.3.0</span>
-          <span>EdMaster28 · Offline</span>
         </div>
       </div>
     </div>

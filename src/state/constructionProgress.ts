@@ -30,21 +30,55 @@ export interface ConstructionStatus {
 /** Establishments that must stand before recruiting and invasions begin (the Mystic Cave is a later bonus). */
 export const CORE_BUILDINGS: ResourceBuildingId[] = ['WOOD', 'QUARRY', 'MINE', 'PORT'];
 
-/**
- * The Ent's next construction job: the citadel first, then the Crystal Spire, then each establishment
- * in layout order. x/y is the walkable tile the Ent works from.
- */
-export const nextConstruction = (state: { castleBuilt: boolean; spireBuilt?: boolean; resourceBuildings: ResourceBuildingsState }) => {
-  if (!state.castleBuilt) return { id: 'CASTLE' as const, x: CASTLE_GATE.x, y: CASTLE_GATE.y, label: 'Castle' };
-  if (state.spireBuilt === false) return { id: 'SPIRE' as const, x: SPIRE_WORK_SPOT.x, y: SPIRE_WORK_SPOT.y, label: 'Crystal Spire' };
-  const id = BUILDING_IDS.find((b) => (state.resourceBuildings[b]?.level ?? 0) < 1);
-  if (!id) return undefined;
-  const spot = BUILDING_SITES[id].workSpot;
-  return { id, x: spot.x, y: spot.y, label: SITE_LABELS[id] };
+/** Ancient Ent builds Citadel Castle, Spire, and all Realm Establishments in sequence */
+export const nextEntConstruction = (state: {
+  castleBuilt: boolean;
+  spireBuilt?: boolean;
+  resourceBuildings?: ResourceBuildingsState;
+}) => {
+  if (!state.castleBuilt) return { id: 'CASTLE' as const, x: CASTLE_GATE.x, y: CASTLE_GATE.y, label: 'Citadel Castle' };
+
+  if (state.spireBuilt === false) {
+    return { id: 'SPIRE' as const, x: SPIRE_WORK_SPOT.x, y: SPIRE_WORK_SPOT.y, label: 'Crystal Spire' };
+  }
+
+  if (state.resourceBuildings) {
+    for (const id of BUILDING_IDS) {
+      if ((state.resourceBuildings[id]?.level ?? 0) < 1) {
+        const spot = BUILDING_SITES[id]?.workSpot;
+        if (spot) {
+          return { id, x: spot.x, y: spot.y, label: SITE_LABELS[id] || id };
+        }
+      }
+    }
+  }
+
+  return undefined;
+};
+
+export const nextConstruction = nextEntConstruction;
+
+export const nextMinionSpireConstruction = (state: { castleBuilt: boolean; spireBuilt?: boolean }) => {
+  if (state.castleBuilt && state.spireBuilt === false) {
+    return { id: 'SPIRE' as const, x: SPIRE_WORK_SPOT.x, y: SPIRE_WORK_SPOT.y, label: 'Crystal Spire' };
+  }
+  return undefined;
+};
+
+export const nextChampionConstruction = (
+  buildingId: ResourceBuildingId | undefined,
+  state: { resourceBuildings: ResourceBuildingsState }
+) => {
+  if (!buildingId) return undefined;
+  if ((state.resourceBuildings[buildingId]?.level ?? 0) >= 1) return undefined;
+  const spot = BUILDING_SITES[buildingId]?.workSpot;
+  if (!spot) return undefined;
+  return { id: buildingId, x: spot.x, y: spot.y, label: SITE_LABELS[buildingId] || buildingId };
 };
 
 export const isConstructionReady = (state: {
   castleBuilt: boolean;
-  resourceBuildings: ResourceBuildingsState;
-}): boolean => state.castleBuilt &&
-  CORE_BUILDINGS.every((id) => (state.resourceBuildings[id]?.level ?? 0) >= 1);
+  spireBuilt?: boolean;
+  resourceBuildings?: ResourceBuildingsState;
+}): boolean => state.castleBuilt;
+

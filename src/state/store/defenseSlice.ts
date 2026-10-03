@@ -66,7 +66,8 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
   },
 
   damageCastle: (amount: number) => {
-    const state = get();
+      const state = get();
+      if (state.defense.forceFieldTimer > 0) return;
     let remainingDmg = amount * teamBonuses(state).castleDamage;
 
     // Damage reduction from wall level (4% per level)
@@ -85,6 +86,18 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
   },
 
   // Invasion Actions
+  tickDefenseTimers: (deltaSec: number) => {
+    set((prev) => ({
+      defense: {
+        ...prev.defense,
+        forceFieldTimer: Math.max(0, prev.defense.forceFieldTimer - deltaSec),
+        minionFrenzyTimer: Math.max(0, prev.defense.minionFrenzyTimer - deltaSec),
+        massRegenTimer: Math.max(0, prev.defense.massRegenTimer - deltaSec),
+        castleHp: prev.defense.massRegenTimer > 0 ? Math.min(prev.defense.castleMaxHp, prev.defense.castleHp + 25 * deltaSec) : prev.defense.castleHp,
+      }
+    }));
+  },
+
   tickInvasionCountdown: (deltaSec: number) => {
     const state = get();
     if (!isConstructionReady(state) || state.invasion.isActive) return;
@@ -171,17 +184,12 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     set((prev) => {
       // Enemies loot a share of every stockpile when the castle is crushed
       const { looted, remaining } = lootResources(prev.resources, ECONOMY_CONFIG.breachLootFraction);
-      const slime = prev.roster.find((unit) => unit.unitClass === 'AQUA_SLIME');
-      const roster = [createSupportSlime(slime?.slimeEvolutionLevel)];
 
       return {
         resources: remaining,
         lootedResources: looted,
         // Reset base structures and restore castle health
         defense: { ...prev.defense, castleHp: prev.defense.castleMaxHp, shieldHp: prev.defense.shieldMaxHp },
-        upgrades: { ...INITIAL_UPGRADES },
-        roster,
-        workerCount: roster.length,
         resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
         spireTower: restoreWreckedSpire(prev.spireTower),
         invasion: {

@@ -1,12 +1,15 @@
 import { SUPPORT_SLIME_EVOLUTION, UNIT_CLASSES, UnitClass } from '../../types/game';
 import { useGameStore } from '../../state/useGameStore';
-import { getUnitSummonCost, maxUnitsOfClass } from '../../state/economy';
+import { getUnitSummonCost, maxUnitsOfClass, techUpgradeCost } from '../../state/economy';
 import { FIGHTER_CLASSES, summonLock } from '../../state/store/rosterSlice';
 import { canAfford } from '../../state/resources';
 import { nextConstruction } from '../../state/constructionProgress';
+import { RESEARCH_CATEGORIES } from '../../data/researchConfig';
+import { SLIME_MORALE_BUFFS } from '../../data/slimeBuffs';
 import { soundFx } from '../audio/soundFx';
 import { clampLevel } from './modifiers';
 import type { WorkerContext, WorkerFrame, WorkerInstance } from './types';
+import type { Resources, UpgradesState } from '../../types/state';
 
 const distance = (a: WorkerInstance, b: WorkerInstance) =>
   Math.hypot(a.container.x - b.container.x, a.container.y - b.container.y);
@@ -91,13 +94,122 @@ function pulseHeal(ctx: WorkerContext, slime: WorkerInstance, allies: WorkerInst
   soundFx.playHarvest('crystal');
 }
 
-/** Every few seconds: auto-evolve (if enabled, once construction is done) and summon one missing minion the realm can afford. */
+/** 
+ * Slime Automated Commerce: Auto-Sell surplus materials and Auto-Buy needed shortages.
+ */
+function handleSlimeMarketAutomation(ctx: WorkerContext, slime: WorkerInstance): void {
+  const store = useGameStore.getState();
+  const resources = store.resources;
+
+  // 1. AUTO-SELL: If enabled, sell stockpiles that exceed 250 units (keeping safe buffer)
+  if (store.autoSettings?.autoSell) {
+    const rawTradeables: (keyof Omit<Resources, 'coins'>)[] = ['wood', 'stone', 'fish', 'water', 'minerals'];
+    for (const resKey of rawTradeables) {
+      const amount = resources[resKey] ?? 0;
+      if (amount > 200) {
+        const batchToSell = Math.min(25, Math.floor(amount - 150));
+        if (batchToSell > 0 && store.sellResource(resKey, batchToSell)) {
+          ctx.spawnFloatingPopup(
+            slime.container.x,
+            slime.container.y - 30,
+            `💰 Auto-Sold ${batchToSell} ${resKey}!`,
+            '#eab308'
+          );
+          break; // One sale per interval to prevent spam
+        }
+      }
+    }
+  }
+
+  // 2. AUTO-BUY: If enabled and we have abundant gold coins (> 150), top up low crucial resources (< 20)
+  if (store.autoSettings?.autoBuy && (resources.coins ?? 0) >= 150) {
+    const essentialKeys: (keyof Omit<Resources, 'coins'>)[] = ['wood', 'stone', 'water', 'aetherShards'];
+    for (const resKey of essentialKeys) {
+      const current = resources[resKey] ?? 0;
+      if (current < 15) {
+        if (store.buyResource(resKey, 10)) {
+          ctx.spawnFloatingPopup(
+            slime.container.x,
+            slime.container.y - 30,
+            `🛒 Auto-Bought 10 ${resKey}!`,
+            '#38bdf8'
+          );
+          break;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Slime Automated Research / Upgrading: Checks research matrix and structure tech upgrades.
+ */
+function handleSlimeAutoUpgrade(ctx: WorkerContext, slime: WorkerInstance): void {
+  const store = useGameStore.getState();
+  if (!store.autoSettings?.autoUpgrade) return;
+
+  // Don't burn resources if initial Castle / Spire hasn't been built yet
+  if (nextConstruction(store)) return;
+
+  // Check 5 Research Categories
+  for (const cat of RESEARCH_CATEGORIES) {
+    for (const node of cat.nodes) {
+      const currentLevel = (store.upgrades[node.key] as number) ?? 1;
+      if (currentLevel >= node.maxLevel) continue;
+
+      const cost = techUpgradeCost(node.key, currentLevel);
+      if (canAfford(store.resources, cost)) {
+        if (store.upgradeTech(node.key)) {
+          ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0x8b5cf6, 10);
+          ctx.spawnFloatingPopup(
+            slime.container.x,
+            slime.container.y - 45,
+            `🔬 Auto-Researched: ${node.nameEnglish}!`,
+            '#a855f7'
+          );
+          soundFx.playFanfare();
+          return; // One research per cycle
+        }
+      }
+    }
+  }
+
+  // Also check general tech upgrades (nexus, refinery, quarry, golemSpeed, golemCapacity)
+  const generalTechs: (keyof UpgradesState)[] = ['nexusLevel', 'refineryLevel', 'quarryLevel', 'golemSpeedLevel', 'golemCapacityLevel'];
+  for (const techKey of generalTechs) {
+    const lvl = (store.upgrades[techKey] as number) ?? 1;
+    if (lvl < 10) {
+      const cost = techUpgradeCost(lvl);
+      if (canAfford(store.resources, cost)) {
+        if (store.upgradeTech(techKey)) {
+          ctx.spawnFloatingPopup(
+            slime.container.x,
+            slime.container.y - 45,
+            `⚙️ Auto-Upgraded: ${String(techKey)}!`,
+            '#3b82f6'
+          );
+          return;
+        }
+      }
+    }
+  }
+}
+
+/** Every few seconds: auto-evolve, auto-buy/sell, auto-upgrade, and summon missing minions. */
+/** Every few seconds: auto-evolve, auto-buy/sell, auto-upgrade, and genesis summon Sprout Ent if missing. */
 export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: number): void {
   slime.autoSummonTimer = (slime.autoSummonTimer ?? 3.0) - deltaSec;
   if (slime.autoSummonTimer > 0) return;
-  slime.autoSummonTimer = 4.0 + Math.random() * 2.0;
+  slime.autoSummonTimer = 3.5 + Math.random() * 2.0;
 
   const store = useGameStore.getState();
+
+  // Slime Market Trading (Auto-Buy & Auto-Sell)
+  handleSlimeMarketAutomation(ctx, slime);
+
+  // Slime Research Automation (Auto-Upgrade)
+  handleSlimeAutoUpgrade(ctx, slime);
+
   // Evolutions wait until the Ent has finished building: spending the starting
   // supplies on them would leave the castle unaffordable and soft-lock a new realm.
   if (store.autoSettings?.autoEvolve && !nextConstruction(store)) {
@@ -105,28 +217,114 @@ export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: 
     store.upgradeTreant();
   }
 
-  for (const unitClass of SUMMON_ORDER) {
-    const count = store.roster.filter((u) => u.unitClass === unitClass).length;
-    if (count >= maxUnitsOfClass(unitClass)) continue;
-    const isFree = unitClass === 'TREANT';
-    // With auto-buy on, top up the missing materials with coins first
-    if (!isFree && store.autoBuySummon?.[unitClass] && !summonLock(store, unitClass)) {
-      const cost = getUnitSummonCost(unitClass, count);
-      if (!canAfford(store.resources, cost)) store.buyShortfall(cost);
+  // Support Slime Genesis Summon: if Sprout Ent is absent, summon Ent for free!
+  const hasTreant = store.roster.some((u) => u.unitClass === 'TREANT');
+  if (!hasTreant) {
+    if (useGameStore.getState().summonUnit('TREANT', 'BUILD', true)) {
+      ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0x22c55e, 16);
+      ctx.spawnFloatingPopup(
+        slime.container.x,
+        slime.container.y - 45,
+        '🌱 Slime Summoned: Sprout Ent! (Free) 🌱',
+        '#22c55e'
+      );
+      soundFx.playGolemCheer();
     }
-    if (!useGameStore.getState().summonUnit(unitClass, undefined, isFree)) continue;
-
-    ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0x38bdf8, 12);
-    ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0xfbbf24, 8);
-    ctx.spawnFloatingPopup(
-      slime.container.x,
-      slime.container.y - 45,
-      isFree ? `🌱 Slime Summoned: Sprout Ent! (Free) 🌱` : `✨ Slime Summoned: ${UNIT_CLASSES[unitClass].name}! ✨`,
-      isFree ? '#22c55e' : '#38bdf8'
-    );
-    soundFx.playGolemCheer();
-    return; // Summon 1 unit per cycle
   }
+}
+
+/**
+ * Slime Random Morale Boost Behavior:
+ * Periodically chooses an ally (General/Champion, Ancient Ent, or Establishment Tenant)
+ * that does NOT currently have an active Morale Buff (strict max 1 buff per unit).
+ * Bestows 1 of 10 unique, powerful buffs!
+ */
+export function pulseMoraleBoost(ctx: WorkerContext, slime: WorkerInstance, deltaSec: number): void {
+  slime.moraleBoostTimer = (slime.moraleBoostTimer ?? 2.0) - deltaSec;
+  if (slime.moraleBoostTimer > 0) return;
+  slime.moraleBoostTimer = 6.0 + Math.random() * 4.0; // Pulse every 6-10s
+
+  const isTl = useGameStore.getState().language === 'TL';
+
+  // 1. Gather all potential recipients: Generals/Fighters, Ancient Ent, and Establishment Tenants
+  const workers = ctx.getWorkers().filter((w) => w.id !== slime.id && w.hp > 0);
+  const defenders = ctx.getDefenders ? ctx.getDefenders().filter((d) => !d.dead && d.container?.active) : [];
+
+  interface BoostTarget {
+    type: 'WORKER' | 'DEFENDER';
+    name: string;
+    x: number;
+    y: number;
+    hasBuff: boolean;
+    applyBuff: (buff: typeof SLIME_MORALE_BUFFS[number]) => void;
+  }
+
+  const targets: BoostTarget[] = [];
+
+  for (const w of workers) {
+    targets.push({
+      type: 'WORKER',
+      name: w.name || w.unitClass,
+      x: w.container.x,
+      y: w.container.y,
+      hasBuff: (w.activeSlimeBuff?.duration ?? 0) > 0,
+      applyBuff: (buff) => {
+        w.activeSlimeBuff = {
+          ...buff,
+          maxDuration: buff.duration,
+        };
+        w.overrideEmote = buff.icon;
+        w.overrideEmoteTimer = 2200;
+        if (buff.armorShield) {
+          w.armorShield = (w.armorShield || 0) + buff.armorShield;
+          w.armorShieldTimer = Math.max(w.armorShieldTimer || 0, buff.duration);
+        }
+      },
+    });
+  }
+
+  for (const d of defenders) {
+    targets.push({
+      type: 'DEFENDER',
+      name: d.unitClass === 'TREANT' ? 'Grove Tenant' : `${d.unitClass} Tenant`,
+      x: d.container.x,
+      y: d.container.y,
+      hasBuff: ((d as any).activeSlimeBuff?.duration ?? 0) > 0,
+      applyBuff: (buff) => {
+        (d as any).activeSlimeBuff = {
+          ...buff,
+          maxDuration: buff.duration,
+        };
+        if (buff.armorShield) {
+          d.armorShield = (d.armorShield || 0) + buff.armorShield;
+        }
+      },
+    });
+  }
+
+  if (targets.length === 0) return;
+
+  // Filter for allies without an active buff (Max 1 per unit)
+  const unbuffed = targets.filter((t) => !t.hasBuff);
+  const chosenTarget = unbuffed.length > 0
+    ? unbuffed[Math.floor(Math.random() * unbuffed.length)]
+    : targets[Math.floor(Math.random() * targets.length)];
+
+  if (!chosenTarget) return;
+
+  // Pick 1 of the 10 unique buffs randomly
+  const buff = SLIME_MORALE_BUFFS[Math.floor(Math.random() * SLIME_MORALE_BUFFS.length)];
+  chosenTarget.applyBuff(buff);
+
+  // Visual & Audio fanfare
+  ctx.spawnHarvestBurst(chosenTarget.x, chosenTarget.y - 15, buff.hexColor, 12);
+  ctx.spawnFloatingPopup(
+    chosenTarget.x,
+    chosenTarget.y - 42,
+    `✨ ${isTl ? 'Morale Boost' : 'Morale Boost'}: ${buff.icon} ${isTl ? buff.nameTl : buff.name}!`,
+    buff.color
+  );
+  soundFx.playGolemCheer();
 }
 
 /** Support Healing Slime AI: invulnerable, follows and heals the neediest ally, auto-summons. */
@@ -156,19 +354,18 @@ export function updateSupportSlime(ctx: WorkerContext, slime: WorkerInstance, fr
     // Move smoothly towards lowest HP / highest fatigue ally
     slime.status = 'MOVING_TO_NODE';
     ctx.moveToward(slime, target.container.x, target.container.y, effectiveSpeed * 1.35 * deltaSec, deltaSec);
-    slime.overrideEmote = '💚';
-    slime.overrideEmoteTimer = 400;
   } else {
     // In range: hover alongside ally and pulse support healing & stamina restoration
     slime.status = 'HEALING';
-    slime.overrideEmote = '✨';
-    slime.overrideEmoteTimer = 800;
     slime.supportCooldown -= deltaSec;
     if (slime.supportCooldown <= 0) {
       slime.supportCooldown = 1.0;
+      slime.overrideEmote = '💚';
+      slime.overrideEmoteTimer = 650;
       pulseHeal(ctx, slime, allies);
     }
   }
 
   autoSummon(ctx, slime, deltaSec);
+  pulseMoraleBoost(ctx, slime, deltaSec);
 }

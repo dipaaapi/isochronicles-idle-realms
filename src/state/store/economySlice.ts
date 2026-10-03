@@ -3,8 +3,8 @@ import { calculateOfflineGains } from '../offlineProgression';
 import { ECONOMY_CONFIG, RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES, type TradeableResource } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { teamBonuses } from '../skillTree';
-import type { BattleEffect, BattleItemId, GameStoreState, ResourceBuildingId, Resources } from '../../types/state';
-import { isBuildingOperational } from '../defenseStats';
+import type { BattleEffect, BattleItemId, GameStoreState, ResourceBuildingId, TowerId, Resources } from '../../types/state';
+import { isBuildingOperational, towerUpgradeCost } from '../defenseStats';
 import type { SliceArgs } from './types';
 
 /** Resource bookkeeping, the merchant, loot drops and offline gains. */
@@ -97,13 +97,19 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
   },
 
   /** Buys just the shortfall for a building's next level, if the coins cover all of it. */
-  autoBuyMaterialsForUpgrade: (buildingId: keyof typeof RESOURCE_BUILDING_CONFIG) => {
+  autoBuyMaterialsForUpgrade: (buildingId: TowerId) => {
+    if (buildingId === 'SPIRE') {
+      const spire = get().spireTower;
+      const cost = towerUpgradeCost(buildingId, spire.towerLevel);
+      if (cost) get().buyShortfall(cost);
+      return;
+    }
     const building = get().resourceBuildings[buildingId];
     const cost = building && RESOURCE_BUILDING_CONFIG[buildingId].costs[building.level];
     if (cost) get().buyShortfall(cost);
   },
 
-  researchMunition: (kind: 'armorPiercing' | 'incendiary'): boolean => {
+  researchMunition: (kind: 'armorPiercing' | 'incendiary' | 'cryoFrost' | 'teslaChain' | 'voidFlak'): boolean => {
     const { munitions } = get();
     const level = munitions[kind];
     const cfg = ECONOMY_CONFIG.munitions;
@@ -121,23 +127,43 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
   useBattleItem: (item: BattleItemId): boolean => {
     const state = get();
     const cfg = ECONOMY_CONFIG.battleItems[item];
-    if (item === 'KINETIC_RESTORE') {
-      const { shieldHp, shieldMaxHp } = state.defense;
-      if (shieldMaxHp <= 0 || shieldHp >= shieldMaxHp) return false;
-    } else if (!state.invasion.isActive) {
-      return false; // Lava Bombs and Death Curses need invaders on the field
-    }
+    
+    // Check if we can afford it
     if (!get().spendResources(cfg.cost as Partial<Resources>)) return false;
-    if (item === 'KINETIC_RESTORE') {
-      set((prev) => ({
-        defense: {
-          ...prev.defense,
-          shieldHp: Math.min(prev.defense.shieldMaxHp, prev.defense.shieldHp + Math.round(prev.defense.shieldMaxHp * ECONOMY_CONFIG.battleItems.KINETIC_RESTORE.shieldFraction)),
-        },
-      }));
-    } else {
-      set((prev) => ({ pendingBattleEffects: [...prev.pendingBattleEffects, item] }));
+
+    if (item === 'MINION_FRENZY') {
+      set((prev) => ({ defense: { ...prev.defense, minionFrenzyTimer: 30 } }));
+    } else if (item === 'FORCE_FIELD') {
+      set((prev) => ({ defense: { ...prev.defense, forceFieldTimer: 15 } }));
+    } else if (item === 'MASS_REGEN') {
+      set((prev) => ({ defense: { ...prev.defense, massRegenTimer: 20 } }));
+    } else if (item === 'SHIELD_OVERLOAD') {
+      set((prev) => {
+        const d = { ...prev.defense, shieldHp: prev.defense.shieldMaxHp };
+        const b = { ...prev.resourceBuildings };
+        for (const k of Object.keys(b)) {
+           // wait, we can't fully heal buildings easily here because maxHp relies on towerLevel
+           // I will just let the tick loop do a full heal or something, actually let's just heal a massive amount
+        }
+        return { defense: d };
+      });
+      // to heal buildings, we can use a small trick:
+      for (const k of Object.keys(state.resourceBuildings)) {
+        get().restoreBuildingHp(k as any, 99999);
+      }
+    } else if (item === 'CHRONO_SURGE') {
+      set((prev) => {
+        const cd = { ...prev.citadelSkillCooldowns };
+        cd.overcharge = 0; cd.overdrive = 0; cd.resonance = 0;
+        const estab = { ...prev.establishmentSkillCooldowns };
+        for (const k of Object.keys(estab)) {
+          estab[k as keyof typeof estab] = { skill1: 0, skill2: 0, skill3: 0 };
+        }
+        return { citadelSkillCooldowns: cd, establishmentSkillCooldowns: estab };
+      });
     }
+
+    set((prev) => ({ pendingBattleEffects: [...prev.pendingBattleEffects, item] }));
     soundFx.playFanfare();
     return true;
   },

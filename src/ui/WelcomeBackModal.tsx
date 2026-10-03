@@ -5,7 +5,8 @@ import { soundFx } from '../game/audio/soundFx';
 import { Clock, Gem, Trees, Hammer, Sparkles, Check } from 'lucide-react';
 
 export const WelcomeBackModal: React.FC = () => {
-  const { offlineGains, isOfflineModalOpen, closeOfflineModal } = useGameStore();
+  const { offlineGains, isOfflineModalOpen, closeOfflineModal, language } = useGameStore();
+  const isTL = language === 'TL';
 
   if (!isOfflineModalOpen || !offlineGains) return null;
 
@@ -18,16 +19,22 @@ export const WelcomeBackModal: React.FC = () => {
             <Sparkles className="w-8 h-8 animate-pulse text-sky-300" />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-wide">
-            Maligayang Pagbabalik! 🎉
+            {isTL ? 'Maligayang Pagbabalik! 🎉' : 'Welcome Back! 🎉'}
           </h2>
           <div className="flex items-center gap-1.5 text-xs text-sky-300/90 mt-1 font-bold">
             <Clock className="w-3.5 h-3.5" />
-            <span>Nawala ka nang: {formatDuration(offlineGains.elapsedSeconds)}</span>
+            <span>
+              {isTL
+                ? `Nawala ka nang: ${formatDuration(offlineGains.elapsedSeconds)}`
+                : `You were away for: ${formatDuration(offlineGains.elapsedSeconds)}`}
+            </span>
           </div>
         </div>
 
         <p className="text-xs text-slate-300 text-center mb-6 leading-relaxed">
-          Habang wala ka, patuloy na nagtrabaho at nag-ipon ang iyong mga masisipag na Golem:
+          {isTL
+            ? 'Habang wala ka, patuloy na nagtrabaho at nag-ipon ang iyong mga masisipag na Golem:'
+            : 'While you were away, your industrious servants continued gathering resources:'}
         </p>
 
         {/* Gains Breakdown Grid */}
@@ -35,7 +42,9 @@ export const WelcomeBackModal: React.FC = () => {
           {/* Shards */}
           <div className="glass-panel p-3 rounded-2xl flex flex-col items-center text-center border-sky-500/40 shadow-sm">
             <Gem className="w-6 h-6 text-sky-400 mb-1" />
-            <span className="text-[10px] uppercase font-bold text-sky-200">Kristal</span>
+            <span className="text-[10px] uppercase font-bold text-sky-200">
+              {isTL ? 'Kristal' : 'Gems'}
+            </span>
             <span className="text-sm font-black font-mono text-sky-300 mt-0.5">
               +{offlineGains.aetherShardsEarned.toLocaleString()}
             </span>
@@ -44,7 +53,9 @@ export const WelcomeBackModal: React.FC = () => {
           {/* Wood */}
           <div className="glass-panel-emerald p-3 rounded-2xl flex flex-col items-center text-center border-emerald-500/40 shadow-sm">
             <Trees className="w-6 h-6 text-emerald-400 mb-1" />
-            <span className="text-[10px] uppercase font-bold text-emerald-200">Kahoy</span>
+            <span className="text-[10px] uppercase font-bold text-emerald-200">
+              {isTL ? 'Kahoy' : 'Wood'}
+            </span>
             <span className="text-sm font-black font-mono text-emerald-300 mt-0.5">
               +{offlineGains.woodEarned.toLocaleString()}
             </span>
@@ -53,7 +64,9 @@ export const WelcomeBackModal: React.FC = () => {
           {/* Stone */}
           <div className="glass-panel-amber p-3 rounded-2xl flex flex-col items-center text-center border-amber-500/40 shadow-sm">
             <Hammer className="w-6 h-6 text-amber-400 mb-1" />
-            <span className="text-[10px] uppercase font-bold text-amber-200">Bato</span>
+            <span className="text-[10px] uppercase font-bold text-amber-200">
+              {isTL ? 'Bato' : 'Stone'}
+            </span>
             <span className="text-sm font-black font-mono text-amber-300 mt-0.5">
               +{offlineGains.stoneEarned.toLocaleString()}
             </span>
@@ -69,7 +82,7 @@ export const WelcomeBackModal: React.FC = () => {
           className="w-full py-4 px-4 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 transition-all shadow-xl shadow-sky-500/30 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
         >
           <Check className="w-5 h-5 stroke-[3]" />
-          <span>KUNIN LAHAT NG NAIPON! 🎁</span>
+          <span>{isTL ? 'KUNIN LAHAT NG NAIPON! 🎁' : 'COLLECT ALL REWARDS! 🎁'}</span>
         </button>
       </div>
     </div>

@@ -15,6 +15,7 @@ import {
   createInitialResourceNodes,
   applyRealmLayout,
   createSupportSlime,
+  perBuilding,
 } from './initialState';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import { INVADER_CONFIGS, UNIT_CLASSES } from '../../types/game';
@@ -66,6 +67,27 @@ const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNode
   return applyRealmLayout(seed, clean, nodes);
 };
 
+
+const normalizeEstablishmentSkillCooldowns = (raw?: unknown): GameStoreState['establishmentSkillCooldowns'] => {
+  const base = {
+    ...perBuilding(() => ({ skill1: 0, skill2: 0, skill3: 0 })),
+    CASTLE: { skill1: 0, skill2: 0, skill3: 0 },
+    SPIRE: { skill1: 0, skill2: 0, skill3: 0 },
+  };
+  if (!raw || typeof raw !== 'object') return base;
+  const obj = raw as Record<string, Record<string, unknown>>;
+  for (const id of Object.keys(base) as (keyof typeof base)[]) {
+    if (obj[id]) {
+      base[id] = {
+        skill1: Number(obj[id].skill1) || 0,
+        skill2: Number(obj[id].skill2) || 0,
+        skill3: Number(obj[id].skill3) || 0,
+      };
+    }
+  }
+  return base;
+};
+
 const toResources = (raw: Record<string, unknown>): Resources =>
   Object.fromEntries(RESOURCE_KEYS.map((key) => [key, Number(raw[key]) || 0])) as unknown as Resources;
 
@@ -98,6 +120,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       spireBuilt: state.spireBuilt,
       spireTower: state.spireTower,
       resourceBuildings: state.resourceBuildings,
+  establishmentSkillCooldowns: state.establishmentSkillCooldowns,
       autoBuyBuildingMaterials: state.autoBuyBuildingMaterials,
       autoBuySummon: state.autoBuySummon,
       defense: state.defense,
@@ -138,7 +161,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         resources: toResources(data.resources),
         castleBuilt: data.castleBuilt ?? false,
         // Saves from before the spire needed building keep it standing once the citadel is up
-        munitions: { armorPiercing: 0, incendiary: 0, ...(data.munitions || {}) },
+        munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0, ...(data.munitions || {}) },
         spireBuilt: data.spireBuilt ?? (data.castleBuilt ?? false),
         spireTower: normalizeSpireTower(data.spireTower),
         resourceBuildings: normalizeResourceBuildings(data.resourceBuildings),
@@ -233,11 +256,12 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     discoveredBeasts: migrateDiscovered<UnitClass>(persisted.discoveredBeasts, UNIT_CLASSES, currentState.discoveredBeasts),
     discoveredInvaders: migrateDiscovered<InvaderType>(persisted.discoveredInvaders, INVADER_CONFIGS, currentState.discoveredInvaders),
     castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
-    munitions: { armorPiercing: 0, incendiary: 0, ...(persisted.munitions ?? {}) },
+    munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0, ...(persisted.munitions ?? {}) },
     pendingBattleEffects: [],
     spireBuilt: persisted.spireBuilt ?? (persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0)),
     spireTower: normalizeSpireTower(persisted.spireTower),
     resourceBuildings: normalizeResourceBuildings(persisted.resourceBuildings),
+    establishmentSkillCooldowns: normalizeEstablishmentSkillCooldowns(persisted.establishmentSkillCooldowns),
     autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(persisted.autoBuyBuildingMaterials ?? {}) },
     autoBuySummon: persisted.autoBuySummon ?? {},
     defense: persisted.defense

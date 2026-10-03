@@ -139,140 +139,280 @@ export class SkillSystem {
   private beastSkill(w: WorkerInstance, invaders: ActiveInvader[], workers: WorkerInstance[]): void {
     const near = (tiles: number) => invaders.filter((i) => tilesBetween(i.container, w.container) <= tiles).sort(byDistanceTo(w.container));
     const atk = Math.max(10, w.attackPower || 20);
-    const key = `${w.id}:skill`;
+    const key1 = `${w.id}:skill1`;
+    const key2 = `${w.id}:skill2`;
+
+    const trySkill2 = Math.random() > 0.5;
 
     switch (w.unitClass) {
       case 'TREANT': {
-        // Nature's Grasp: root every ground invader within 5 tiles for 6s
+        const store = useGameStore.getState();
+        const researchCd = Math.min(0.5, ((store.upgrades.entCooldownSurvival ?? 1) - 1) * 0.12);
+        const rootsCd = Math.max(12, 28 * (1 - researchCd));
+        const barkCd = Math.max(15, 35 * (1 - researchCd));
+        const autoSurvival = store.autoSettings.autoSurvivalSkills ?? true;
+
+        // Auto-switch Survival Skills (QWERT) trigger
+        if (autoSurvival) {
+          const { castleHp, castleMaxHp, shieldHp, shieldMaxHp } = store.defense;
+          // Trigger Q: Minion Frenzy if heavy enemies
+          if (invaders.length >= 6 && store.defense.minionFrenzyTimer <= 0) {
+            store.useBattleItem('MINION_FRENZY');
+            this.shout(w, '⚡ AUTO: Minion Frenzy!');
+          }
+          // Trigger W: Force Field if castle in critical danger
+          if (castleHp > 0 && castleHp < castleMaxHp * 0.4 && store.defense.forceFieldTimer <= 0) {
+            store.useBattleItem('FORCE_FIELD');
+            this.shout(w, '🛡️ AUTO: Force Field!');
+          }
+          // Trigger E: Mass Restoration if castle damaged
+          if (castleHp < castleMaxHp * 0.7 && store.defense.massRegenTimer <= 0) {
+            store.useBattleItem('MASS_REGEN');
+            this.shout(w, '💖 AUTO: Mass Regen!');
+          }
+          // Trigger R: Shield Overload if barrier broken
+          if (shieldHp < shieldMaxHp * 0.25 && store.defense.shieldHp < 50) {
+            store.useBattleItem('SHIELD_OVERLOAD');
+            this.shout(w, '⚡ AUTO: Shield Overload!');
+          }
+          // Trigger T: Chrono Surge when skills on cooldown under siege
+          if (invaders.length >= 6 && (store.citadelSkillCooldowns.overcharge > 5 || store.citadelSkillCooldowns.overdrive > 5)) {
+            store.useBattleItem('CHRONO_SURGE');
+            this.shout(w, '⏳ AUTO: Chrono Surge!');
+          }
+        }
+
         const targets = near(5).filter((i) => !INVADER_CONFIGS[i.type].flying);
-        if (targets.length === 0 || !this.ready(key, 28)) return;
-        for (const i of targets) this.invasion.applySlow(i, 0.02, 6);
-        this.ring(w.container, 5, 0x22c55e);
-        this.shout(w, "🌿 Nature's Grasp");
+        if (trySkill2 && this.ready(key2, barkCd)) {
+          const allies = workers.filter(a => tilesBetween(a.container, w.container) <= 6);
+          const researchArmor = ((store.upgrades.entDefenseHpBar ?? 1) - 1) * 30;
+          for (const a of allies) a.armorShield = (a.armorShield || 0) + 200 + researchArmor;
+          this.ring(w.container, 6, 0xa3e635);
+          this.shout(w, 'Barkskin Shield');
+          return;
+        }
+        if (targets.length > 0 && this.ready(key1, rootsCd)) {
+          const researchDmg = ((store.upgrades.entAttackConstruct ?? 1) - 1) * 15;
+          for (const i of targets) {
+            this.invasion.applySlow(i, 0.02, 6);
+            if (researchDmg > 0) this.invasion.damageInvader(i, researchDmg, '🌿');
+          }
+          this.ring(w.container, 5, 0x22c55e);
+          this.shout(w, "Nature's Grasp");
+          return;
+        }
         return;
       }
       case 'AQUA_SLIME': {
-        // Primordial Tsunami: heal every ally 150 and wash nearby invaders 3 tiles back
+        const store = useGameStore.getState();
+        const researchCd = Math.min(0.45, ((store.upgrades.slimeCooldownBurst ?? 1) - 1) * 0.10);
+        const cd1 = Math.max(10, 20 * (1 - researchCd));
+        const cd2 = Math.max(12, 22 * (1 - researchCd));
+        const healBonus = 1 + ((store.upgrades.slimeAttackHeal ?? 1) - 1) * 0.25;
+
         const hurt = workers.some((a) => a.hp < a.maxHp * 0.7);
         const close = near(3);
-        if ((!hurt && close.length === 0) || !this.ready(key, 20)) return;
-        for (const a of workers) a.hp = Math.min(a.maxHp, a.hp + 150);
-        for (const i of close) this.invasion.knockback(i, w.container.x, w.container.y, TILE_PX * 3);
-        this.ring(w.container, 3, 0x38bdf8);
-        this.shout(w, '🌊 Primordial Tsunami');
+        if (trySkill2 && close.length > 0 && this.ready(key2, cd2)) {
+          this.addZone('magma', {x: w.container.x, y: w.container.y}, 3, 5, 0x84cc16);
+          this.shout(w, 'Acidic Puddle');
+          return;
+        }
+        if ((hurt || close.length > 0) && this.ready(key1, cd1)) {
+          const healAmount = Math.round(150 * healBonus);
+          for (const a of workers) a.hp = Math.min(a.maxHp, a.hp + healAmount);
+          for (const i of close) this.invasion.knockback(i, w.container.x, w.container.y, TILE_PX * 3);
+          this.ring(w.container, 3, 0x38bdf8);
+          this.shout(w, 'Primordial Tsunami');
+          return;
+        }
         return;
       }
     }
 
     if (w.status !== 'COMBAT') return;
+
     switch (w.unitClass) {
       case 'GOLEM': {
-        // Seismic Taunt: the 5 nearest invaders must attack the Golem; +50% armor for 8s
         const targets = near(4).slice(0, 5);
-        if (targets.length === 0 || !this.ready(key, 15)) return;
-        for (const i of targets) {
-          i.tauntTimer = 8;
-          i.tauntBy = w;
-          i.retargetTimer = 0;
+        if (trySkill2 && near(2).length > 0 && this.ready(key2, 18)) {
+           const t = near(2)[0];
+           t.frozenTimer = 2;
+           this.invasion.damageInvader(t, atk * 3, 'CRUSH');
+           this.shout(w, 'Boulder Smash');
+           return;
         }
-        w.armorBuffTimer = 8;
-        this.ring(w.container, 2, 0xa8a29e);
-        this.shout(w, '🪨 Seismic Taunt');
+        if (targets.length > 0 && this.ready(key1, 15)) {
+          for (const i of targets) {
+            i.tauntTimer = 8;
+            i.tauntBy = w;
+            i.retargetTimer = 0;
+          }
+          w.armorBuffTimer = 8;
+          this.ring(w.container, 2, 0xa8a29e);
+          this.shout(w, 'Seismic Taunt');
+          return;
+        }
         return;
       }
       case 'MERMAN': {
-        // Abyssal Pierce: a trident thrust through a line of invaders, shredding armor 30%
         const target = near(4)[0];
-        if (!target || !this.ready(key, 10)) return;
-        const dx = target.container.x - w.container.x;
-        const dy = target.container.y - w.container.y;
-        const len = Math.hypot(dx, dy) || 1;
-        const reach = TILE_PX * 5;
-        for (const i of invaders) {
-          const px = i.container.x - w.container.x;
-          const py = i.container.y - w.container.y;
-          const along = (px * dx + py * dy) / len;
-          const off = Math.abs(px * dy - py * dx) / len;
-          if (along < 0 || along > reach || off > TILE_PX * 0.7) continue;
-          i.vulnTimer = 6;
-          this.invasion.damageInvader(i, atk * 2, '🔱');
+        if (trySkill2 && this.ready(key2, 20)) {
+           const allies = workers.filter(a => tilesBetween(a.container, w.container) <= 4);
+           for (const a of allies) a.buffTimer = 6;
+           this.ring(w.container, 4, 0x22d3ee);
+           this.shout(w, 'Tidal Surge');
+           return;
         }
-        this.beam(w.container, { x: w.container.x + (dx / len) * reach, y: w.container.y + (dy / len) * reach }, 0x06b6d4);
-        this.shout(w, '🔱 Abyssal Pierce');
+        if (target && this.ready(key1, 10)) {
+          const dx = target.container.x - w.container.x, dy = target.container.y - w.container.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const reach = TILE_PX * 5;
+          for (const i of invaders) {
+            const px = i.container.x - w.container.x, py = i.container.y - w.container.y;
+            const along = (px * dx + py * dy) / len, off = Math.abs(px * dy - py * dx) / len;
+            if (along >= 0 && along <= reach && off <= TILE_PX * 0.7) {
+              i.vulnTimer = 6;
+              this.invasion.damageInvader(i, atk * 2, 'PIERCE');
+            }
+          }
+          this.beam(w.container, { x: w.container.x + (dx / len) * reach, y: w.container.y + (dy / len) * reach }, 0x06b6d4);
+          this.shout(w, 'Abyssal Pierce');
+          return;
+        }
         return;
       }
       case 'KRAKEN': {
-        // Abyssal Grip: four tentacles slam the nearest invaders with a water splash
         const targets = near(5).slice(0, 4);
-        if (targets.length === 0 || !this.ready(key, 25)) return;
-        for (const t of targets) {
-          this.invasion.damageInvader(t, Math.round(atk * 2.5), '🐙');
-          this.invasion.applySlow(t, 0.5, 2);
-          for (const o of invaders) {
-            if (o !== t && tilesBetween(o.container, t.container) <= 1) this.invasion.damageInvader(o, Math.round(atk * 1.25), undefined, true);
-          }
-          this.ring(t.container, 1, 0x0ea5e9);
+        if (trySkill2 && targets.length > 0 && this.ready(key2, 22)) {
+           for (const t of targets) t.charmTimer = 3;
+           this.ring(w.container, 5, 0x1e293b);
+           this.shout(w, 'Ink Screen');
+           return;
         }
-        this.shout(w, '🐙 Abyssal Grip');
+        if (targets.length > 0 && this.ready(key1, 25)) {
+          for (const t of targets) {
+            this.invasion.damageInvader(t, Math.round(atk * 2.5), 'SLAM');
+            this.invasion.applySlow(t, 0.5, 2);
+            for (const o of invaders) {
+              if (o !== t && tilesBetween(o.container, t.container) <= 1) this.invasion.damageInvader(o, Math.round(atk * 1.25), undefined, true);
+            }
+            this.ring(t.container, 1, 0x0ea5e9);
+          }
+          this.shout(w, 'Abyssal Grip');
+          return;
+        }
         return;
       }
       case 'DEMON_HOUND': {
-        // Hellfire Rush: leap onto the weakest invader and burn 5% of its max HP per second
         const target = near(7).sort((a, b) => a.hp - b.hp)[0];
-        if (!target || !this.ready(key, 8)) return;
-        const land = { x: target.container.x - 14, y: target.container.y + 6 };
-        this.scene.tweens.add({ targets: w.container, x: land.x, y: land.y, duration: 220, ease: 'Quad.easeOut' });
-        this.invasion.damageInvader(target, atk, '🔥');
-        this.invasion.applyBurn(target, Math.max(2, Math.round(target.maxHp * 0.05)), 4);
-        this.shout(w, '🔥 Hellfire Rush');
+        if (trySkill2 && near(3).length > 0 && this.ready(key2, 14)) {
+           for (const i of near(3)) {
+              this.invasion.knockback(i, w.container.x, w.container.y, TILE_PX * 2);
+              i.frozenTimer = 1.5;
+           }
+           this.ring(w.container, 3, 0x7f1d1d);
+           this.shout(w, 'Howl of Terror');
+           return;
+        }
+        if (target && this.ready(key1, 8)) {
+          const tx = target.container.x - 14, ty = target.container.y + 6;
+          const pos = {x: tx, y: ty};
+          this.scene.tweens.add({ targets: w.container, x: pos.x, y: pos.y, duration: 220, ease: 'Quad.easeOut' });
+          this.invasion.damageInvader(target, atk, 'BURN');
+          this.invasion.applyBurn(target, Math.max(2, Math.round(target.maxHp * 0.05)), 4);
+          this.shout(w, 'Hellfire Rush');
+          return;
+        }
         return;
       }
       case 'SUCCUBUS': {
-        // Alluring Charm: the strongest non-ruler invader fights its allies for 5s
-        const target = near(6)
-          .filter((i) => INVADER_CONFIGS[i.type].role !== 'RULER')
-          .sort((a, b) => b.hp - a.hp)[0];
-        if (!target || invaders.length < 2 || !this.ready(key, 18)) return;
-        target.charmTimer = 5;
-        target.retargetTimer = 0;
-        if (target.sprite?.active) target.sprite.setTint(0xf9a8d4);
-        this.scene.time.delayedCall(5000, () => target.sprite?.active && target.sprite.clearTint());
-        this.shout(w, '💘 Alluring Charm');
+        const target = near(6).filter((i) => INVADER_CONFIGS[i.type].role !== 'RULER').sort((a, b) => b.hp - a.hp)[0];
+        if (trySkill2 && near(4).length > 0 && this.ready(key2, 12)) {
+           const t = near(4)[0];
+           this.invasion.damageInvader(t, atk * 2, 'DRAIN');
+           w.hp = Math.min(w.maxHp, w.hp + atk * 2);
+           this.beam(t.container, w.container, 0xf472b6);
+           this.shout(w, 'Life Drain');
+           return;
+        }
+        if (target && invaders.length >= 2 && this.ready(key1, 18)) {
+          target.charmTimer = 5;
+          target.retargetTimer = 0;
+          if (target.sprite?.active) target.sprite.setTint(0xf9a8d4);
+          this.scene.time.delayedCall(5000, () => target.sprite?.active && target.sprite.clearTint());
+          this.shout(w, 'Alluring Charm');
+          return;
+        }
         return;
       }
       case 'LAVA_GARGOYLE': {
-        // Volcanic Dive: crash down on the densest pack and leave a burning magma pool
         const pool = near(6);
         const target = pool.sort((a, b) =>
           invaders.filter((o) => tilesBetween(o.container, b.container) <= 1.5).length -
           invaders.filter((o) => tilesBetween(o.container, a.container) <= 1.5).length)[0];
-        if (!target || !this.ready(key, 16)) return;
-        const at = { x: target.container.x, y: target.container.y };
-        this.scene.tweens.add({ targets: w.container, x: at.x, y: at.y - 4, duration: 420, ease: 'Cubic.easeIn' });
-        this.scene.time.delayedCall(420, () => {
-          for (const o of this.invasion.getInvaders()) {
-            if (!o.isDead && tilesBetween(o.container, at) <= 1.5) this.invasion.damageInvader(o, atk * 2, '🌋');
-          }
-          this.addZone('magma', at, 1.5, 5, 0xf97316);
-          soundFx.playExplosion();
-        });
-        this.shout(w, '🌋 Volcanic Dive');
+        
+        if (trySkill2 && pool.length > 0 && this.ready(key2, 12)) {
+           for (const t of pool.slice(0, 3)) {
+             this.invasion.damageInvader(t, atk * 1.5, 'METEOR');
+             this.invasion.applyBurn(t, atk, 3);
+           }
+           this.shout(w, 'Meteor Shower');
+           return;
+        }
+        if (target && this.ready(key1, 16)) {
+          const at = { x: target.container.x, y: target.container.y };
+          this.scene.tweens.add({ targets: w.container, x: at.x, y: at.y - 4, duration: 420, ease: 'Cubic.easeIn' });
+          this.scene.time.delayedCall(420, () => {
+            for (const o of this.invasion.getInvaders()) {
+              if (!o.isDead && tilesBetween(o.container, at) <= 1.5) this.invasion.damageInvader(o, atk * 2, 'CRASH');
+            }
+            this.addZone('magma', at, 1.5, 5, 0xf97316);
+            soundFx.playExplosion();
+          });
+          this.shout(w, 'Volcanic Dive');
+          return;
+        }
         return;
       }
       case 'HARPY': {
-        // Gale Slash: wind blades at up to 4 invaders, critical against flyers
         const targets = near(5).slice(0, 4);
-        if (targets.length === 0 || !this.ready(key, 11)) return;
-        for (const t of targets) {
-          const crit = INVADER_CONFIGS[t.type].flying ? 2.5 : 1;
-          this.invasion.damageInvader(t, Math.round(atk * 1.5 * crit), crit > 1 ? '🌪️ CRIT' : '🌪️');
-          this.beam(w.container, t.container, 0xfde68a);
+        if (trySkill2 && this.ready(key2, 20)) {
+           const allies = workers.filter(a => tilesBetween(a.container, w.container) <= 4);
+           for (const a of allies) a.buffTimer = 6;
+           this.ring(w.container, 4, 0xfef08a);
+           this.shout(w, 'Tailwind');
+           return;
         }
-        this.shout(w, '🌪️ Gale Slash');
+        if (targets.length > 0 && this.ready(key1, 11)) {
+          for (const t of targets) {
+            const crit = INVADER_CONFIGS[t.type].flying ? 2.5 : 1;
+            this.invasion.damageInvader(t, Math.round(atk * 1.5 * crit), crit > 1 ? 'CRIT' : 'SLASH');
+            this.beam(w.container, t.container, 0xfde68a);
+          }
+          this.shout(w, 'Gale Slash');
+          return;
+        }
+        return;
+      }
+      case 'NECROMANCER': {
+        const target = near(5)[0];
+        if (trySkill2 && target && this.ready(key2, 14)) {
+           this.invasion.damageInvader(target, atk * 2.5, 'BONE');
+           this.beam(w.container, target.container, 0xe2e8f0);
+           this.shout(w, 'Bone Spear');
+           return;
+        }
+        if (target && this.ready(key1, 18)) {
+           this.invasion.damageInvader(target, atk * 1.5, 'SIPHON');
+           this.beam(target.container, w.container, 0x4ade80);
+           this.shout(w, 'Soul Siphon');
+           return;
+        }
         return;
       }
     }
   }
+
 
   /** Soul Harvest & Reanimate (Necromancer) and Corpse Explosion (Crypt of Souls). */
   private onInvaderKilled(dead: ActiveInvader): void {
@@ -296,125 +436,218 @@ export class SkillSystem {
   // ── Invader skills ──────────────────────────────────────────────────────────
 
   private invaderSkill(inv: ActiveInvader, invaders: ActiveInvader[], workers: WorkerInstance[]): void {
-    const key = `${inv.id}:skill`;
+    const key1 = `${inv.id}:skill1`;
+    const key2 = `${inv.id}:skill2`;
     const targets = (tiles: number, fighting = false) => workers
       .filter((w) => !isImmune(w) && (!fighting || w.status === 'COMBAT') && tilesBetween(w.container, inv.container) <= tiles)
       .sort(byDistanceTo(inv.container));
     const dmg = inv.damage;
+    const trySkill2 = Math.random() > 0.5;
 
     switch (inv.type) {
-      case 'HIGH_PRIEST': {
-        // Sanctified Aegis: the 3 nearest allies become invulnerable for 4s
-        const allies = invaders.filter((o) => o !== inv && tilesBetween(o.container, inv.container) <= 4).sort(byDistanceTo(inv.container)).slice(0, 3);
-        if (allies.length === 0 || !this.ready(key, 30)) return;
-        for (const a of allies) {
-          a.invulnTimer = 4;
-          this.ring(a.container, 0.6, 0xfde047);
+      case 'HUMAN_KNIGHT': {
+        const t = targets(1.5)[0];
+        if (trySkill2 && this.ready(key2, 16)) {
+          inv.armorBuffTimer = 5;
+          this.ring(inv.container, 1, 0x94a3b8);
+          this.shoutAt(inv.container, 'Defensive Stance', '#cbd5e1');
+          return;
         }
-        this.shoutAt(inv.container, '✝️ Sanctified Aegis', '#fde68a');
+        if (t && this.ready(key1, 12)) {
+          t.stunTimer = 1.5;
+          this.invasion.strikeWorker(inv, t, dmg * 1.5);
+          this.shoutAt(inv.container, 'Shield Bash', '#cbd5e1');
+          return;
+        }
+        return;
+      }
+      case 'HIGH_PRIEST': {
+        const allies = invaders.filter((o) => o !== inv && tilesBetween(o.container, inv.container) <= 4).sort(byDistanceTo(inv.container));
+        if (trySkill2 && allies.length > 0 && this.ready(key2, 15)) {
+          for (const a of allies.slice(0, 3)) a.hp = Math.min(a.maxHp, a.hp + 50);
+          this.ring(inv.container, 4, 0xfef08a);
+          this.shoutAt(inv.container, 'Holy Light', '#fef08a');
+          return;
+        }
+        if (allies.length > 0 && this.ready(key1, 30)) {
+          for (const a of allies.slice(0, 3)) {
+            a.invulnTimer = 4;
+            this.ring(a.container, 0.6, 0xfde047);
+          }
+          this.shoutAt(inv.container, 'Sanctified Aegis', '#fde68a');
+          return;
+        }
         return;
       }
       case 'MECHA_VALKYRIE': {
-        // Orbital Particle Beam: a sustained laser on a fighting minion, or on the citadel
         const victim = targets(8, true)[0];
         const castle = this.structures.getCastleTarget();
-        if ((!victim && !castle) || !this.ready(key, 25)) return;
-        const aim = victim ? victim.container : { x: castle!.x, y: castle!.y - 30 };
-        for (let n = 0; n < 6; n++) {
-          this.scene.time.delayedCall(n * 500, () => {
-            if (inv.isDead) return;
-            this.beam({ x: aim.x, y: aim.y - 220 }, aim, 0xef4444);
-            if (victim) this.invasion.strikeWorker(inv, victim, Math.round(dmg * 0.5));
-            else if (castle) this.structures.damage(castle, Math.round(dmg * 0.5));
-          });
+        if (trySkill2 && (victim || castle) && this.ready(key2, 18)) {
+          const aim = victim ? victim.container : { x: castle!.x, y: castle!.y };
+          for (const w of targets(99)) if (tilesBetween(w.container, aim) <= 2) this.invasion.strikeWorker(inv, w, dmg);
+          this.ring(aim, 2, 0xec4899);
+          this.shoutAt(inv.container, 'Plasma Grenade', '#f472b6');
+          return;
         }
-        this.shoutAt(inv.container, '🛰️ Orbital Beam', '#fca5a5');
+        if ((victim || castle) && this.ready(key1, 25)) {
+          const aim = victim ? victim.container : { x: castle!.x, y: castle!.y - 30 };
+          for (let n = 0; n < 6; n++) {
+            this.scene.time.delayedCall(n * 500, () => {
+              if (inv.isDead) return;
+              this.beam({ x: aim.x, y: aim.y - 220 }, aim, 0xef4444);
+              if (victim) this.invasion.strikeWorker(inv, victim, Math.round(dmg * 0.5));
+              else if (castle) this.structures.damage(castle, Math.round(dmg * 0.5));
+            });
+          }
+          this.shoutAt(inv.container, 'Orbital Beam', '#fca5a5');
+          return;
+        }
         return;
       }
       case 'HUMAN_ARCHER': {
-        // Rain of Arrows: flaming arrows over a 3×3 area around a minion
         const target = targets(5)[0];
-        if (!target || !this.ready(key, 14)) return;
-        const at = { x: target.container.x, y: target.container.y };
-        for (const w of targets(99)) if (tilesBetween(w.container, at) <= 1.5) this.invasion.strikeWorker(inv, w, Math.round(dmg * 1.2));
-        this.ring(at, 1.5, 0xf97316);
-        this.shoutAt(inv.container, '🏹 Rain of Arrows', '#fdba74');
+        if (trySkill2 && targets(6)[0] && this.ready(key2, 10)) {
+          this.invasion.strikeWorker(inv, targets(6)[0], dmg * 2);
+          this.beam(inv.container, targets(6)[0].container, 0xfdba74);
+          this.shoutAt(inv.container, 'Piercing Arrow', '#fdba74');
+          return;
+        }
+        if (target && this.ready(key1, 14)) {
+          const at = { x: target.container.x, y: target.container.y };
+          for (const w of targets(99)) if (tilesBetween(w.container, at) <= 1.5) this.invasion.strikeWorker(inv, w, Math.round(dmg * 1.2));
+          this.ring(at, 1.5, 0xf97316);
+          this.shoutAt(inv.container, 'Rain of Arrows', '#fdba74');
+          return;
+        }
         return;
       }
       case 'MECHA_SCOUT': {
-        // Target Lock: marks a minion (or the nearest structure) to take +20% damage
-        if (!this.ready(key, 12)) return;
-        const target = targets(5)[0];
-        if (target) {
-          target.markedTimer = 6;
-          this.ring(target.container, 0.6, 0xef4444);
-        } else {
-          const s = this.structures.getTargets().sort((a, b) => tilesBetween(a, inv.container) - tilesBetween(b, inv.container))[0];
-          if (!s) return;
-          this.invasion.markStructure(s.id, 6);
-          this.ring(s, 1.5, 0xef4444);
+        if (trySkill2 && targets(2).length > 0 && this.ready(key2, 15)) {
+          const nx = inv.container.x + (Math.random() - 0.5) * 100;
+          const ny = inv.container.y + (Math.random() - 0.5) * 100;
+          const pos = {x: nx, y: ny};
+          this.scene.tweens.add({ targets: inv.container, x: pos.x, y: pos.y, duration: 200 });
+          this.shoutAt(inv.container, 'Evasive Maneuver', '#fca5a5');
+          return;
         }
-        this.shoutAt(inv.container, '🎯 Target Lock', '#fca5a5');
+        if (this.ready(key1, 12)) {
+          const target = targets(5)[0];
+          if (target) {
+            target.markedTimer = 6;
+            this.ring(target.container, 0.6, 0xef4444);
+          } else {
+            const s = this.structures.getTargets().sort((a, b) => tilesBetween(a, inv.container) - tilesBetween(b, inv.container))[0];
+            if (!s) return;
+            this.invasion.markStructure(s.id, 6);
+            this.ring(s, 1.5, 0xef4444);
+          }
+          this.shoutAt(inv.container, 'Target Lock', '#fca5a5');
+          return;
+        }
         return;
       }
       case 'MECHA_TITAN': {
-        // Siege Stomp: stuns adjacent minions for 2.5s
         const hit = targets(1.5);
-        if (hit.length === 0 || !this.ready(key, 18)) return;
-        for (const w of hit) w.stunTimer = 2.5;
-        this.ring(inv.container, 1.5, 0xf43f5e);
-        this.scene.cameras.main.shake(180, 0.004, true);
-        this.shoutAt(inv.container, '💥 Siege Stomp', '#fda4af');
+        if (trySkill2 && targets(5).length > 0 && this.ready(key2, 14)) {
+           for (let n = 0; n < 3; n++) {
+             const t = targets(5)[Math.floor(Math.random() * targets(5).length)];
+             if (t) {
+               this.invasion.strikeWorker(inv, t, dmg * 0.8);
+               this.beam(inv.container, t.container, 0xfda4af);
+             }
+           }
+           this.shoutAt(inv.container, 'Missile Barrage', '#fda4af');
+           return;
+        }
+        if (hit.length > 0 && this.ready(key1, 18)) {
+          for (const w of hit) w.stunTimer = 2.5;
+          this.ring(inv.container, 1.5, 0xf43f5e);
+          // [Camera shake removed]
+          this.shoutAt(inv.container, 'Siege Stomp', '#fda4af');
+          return;
+        }
         return;
       }
       case 'ASSASSIN': {
-        // Shadow Step: vanish and reappear behind a minion for a guaranteed critical
         const target = targets(8)[0];
-        if (!target || !this.ready(key, 12)) return;
-        const behind = { x: target.container.x + 12, y: target.container.y - 6 };
-        inv.container.setAlpha(0.2);
-        this.scene.tweens.add({ targets: inv.container, x: behind.x, y: behind.y, alpha: 1, duration: 260 });
-        this.scene.time.delayedCall(260, () => !inv.isDead && this.invasion.strikeWorker(inv, target, Math.round(dmg * 2.5)));
-        this.shoutAt(inv.container, '🗡️ Shadow Step', '#cbd5e1');
+        if (trySkill2 && targets(1.5)[0] && this.ready(key2, 10)) {
+           const t = targets(1.5)[0];
+           t.hp -= dmg;
+           this.shoutAt(inv.container, 'Poison Blade', '#a3e635');
+           return;
+        }
+        if (target && this.ready(key1, 12)) {
+          const behind = { x: target.container.x + 12, y: target.container.y - 6 };
+          const pos = behind;
+          inv.container.setAlpha(0.2);
+          this.scene.tweens.add({ targets: inv.container, x: pos.x, y: pos.y, alpha: 1, duration: 260 });
+          this.scene.time.delayedCall(260, () => !inv.isDead && this.invasion.strikeWorker(inv, target, Math.round(dmg * 2.5)));
+          this.shoutAt(inv.container, 'Shadow Step', '#cbd5e1');
+          return;
+        }
         return;
       }
       case 'MECHA_DRONE': {
-        // Laser Strafe: three quick laser pulses
         const target = targets(4)[0];
-        if (!target || !this.ready(key, 6)) return;
-        for (let n = 0; n < 3; n++) {
-          this.scene.time.delayedCall(n * 150, () => {
-            if (inv.isDead) return;
-            this.beam(inv.container, target.container, 0x84cc16);
-            this.invasion.strikeWorker(inv, target, Math.round(dmg * 0.6));
-          });
+        if (trySkill2 && targets(3).length > 0 && this.ready(key2, 14)) {
+           for (const t of targets(3)) t.stunTimer = 1.5;
+           this.ring(inv.container, 3, 0x60a5fa);
+           this.shoutAt(inv.container, 'EMP Blast', '#93c5fd');
+           return;
+        }
+        if (target && this.ready(key1, 6)) {
+          for (let n = 0; n < 3; n++) {
+            this.scene.time.delayedCall(n * 150, () => {
+              if (inv.isDead) return;
+              this.beam(inv.container, target.container, 0x84cc16);
+              this.invasion.strikeWorker(inv, target, Math.round(dmg * 0.6));
+            });
+          }
+          return;
         }
         return;
       }
       case 'MECHA_SIEGE_TANK': {
-        // Siege Mode Bombardment: anchors, then shells the citadel from any range
         const castle = this.structures.getCastleTarget();
-        if (!castle || !this.ready(key, 20)) return;
-        inv.frozenTimer = 1.5;
-        this.shoutAt(inv.container, '⚓ Siege Mode', '#bef264');
-        this.scene.time.delayedCall(1500, () => {
-          if (inv.isDead) return;
-          this.beam(inv.container, { x: castle.x, y: castle.y - 30 }, 0xf97316);
-          this.structures.damage(castle, dmg * 3);
-          this.ring(castle, 1.5, 0xf97316);
-          soundFx.playExplosion();
-        });
+        if (trySkill2 && targets(4).length > 0 && this.ready(key2, 15)) {
+           for (const w of targets(4)) this.invasion.strikeWorker(inv, w, dmg);
+           this.ring(inv.container, 4, 0xf97316);
+           this.shoutAt(inv.container, 'Shrapnel Shell', '#fdba74');
+           return;
+        }
+        if (castle && this.ready(key1, 20)) {
+          inv.frozenTimer = 1.5;
+          this.shoutAt(inv.container, 'Siege Mode', '#bef264');
+          this.scene.time.delayedCall(1500, () => {
+            if (inv.isDead) return;
+            this.beam(inv.container, { x: castle.x, y: castle.y - 30 }, 0xf97316);
+            this.structures.damage(castle, dmg * 3);
+            this.ring(castle, 1.5, 0xf97316);
+            soundFx.playExplosion();
+          });
+          return;
+        }
         return;
       }
       case 'CHRONO': {
-        // Temporal Stasis: beasts inside the clock move and fight 70% slower for 6s
-        if (targets(3).length === 0 || !this.ready(key, 24)) return;
-        this.addZone('stasis', inv.container, 2, 6, 0x818cf8);
-        this.shoutAt(inv.container, '⏳ Temporal Stasis', '#c7d2fe');
+        if (trySkill2 && invaders.length > 1 && this.ready(key2, 20)) {
+           for (const o of invaders) {
+             if (tilesBetween(o.container, inv.container) <= 4) o.frozenTimer = 0;
+           }
+           this.ring(inv.container, 4, 0x38bdf8);
+           this.shoutAt(inv.container, 'Time Warp', '#7dd3fc');
+           return;
+        }
+        if (targets(3).length > 0 && this.ready(key1, 24)) {
+          this.addZone('stasis', inv.container, 2, 6, 0x818cf8);
+          this.shoutAt(inv.container, 'Temporal Stasis', '#c7d2fe');
+          return;
+        }
         return;
       }
     }
   }
+
 
   // ── Establishment & citadel skills ──────────────────────────────────────────
 
@@ -527,19 +760,129 @@ export class SkillSystem {
         for (const i of zoneInvaders) this.invasion.applyBurn(i, 10, 3);
         this.ring(origin, 3, 0xef4444);
         break;
+      case 'CASTLE_AEGIS_SHIELD':
       case 'CASTLE_OVERDRIVE':
-        // Abyssal Overdrive: a shockwave throws every invader near the walls back
         for (const i of invaders) {
           if (castle && tilesBetween(i.container, castle) > 4) continue;
-          this.invasion.damageInvader(i, 30, '🌀');
+          this.invasion.damageInvader(i, 50, '🌀');
           this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 3);
         }
-        this.ring(origin, 4, 0xa855f7);
-        this.scene.cameras.main.shake(220, 0.006, true);
+        useGameStore.setState((s) => ({
+          defense: { ...s.defense, shieldHp: Math.min(s.defense.shieldMaxHp, s.defense.shieldHp + 200) },
+        }));
+        this.ring(origin, 4, 0x38bdf8);
         break;
+      case 'CASTLE_PROVOKE_BEACON':
+        for (const i of invaders) {
+          i.tauntTimer = 12;
+          i.retargetTimer = 0;
+        }
+        this.ring(origin, 6, 0xef4444);
+        break;
+      case 'CASTLE_APOCALYPSE_RAY':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 350, '⚡');
+          this.beam(origin, i.container, 0xf59e0b);
+        }
+        this.ring(origin, 8, 0xf59e0b);
+        soundFx.playExplosion();
+        break;
+      case 'SPIRE_ARCANE_OVERCHARGE':
       case 'SPIRE_OVERCHARGE':
         activateMod('spireOvercharge', 10);
+        this.ring(origin, 4, 0x22d3ee);
         break;
+      case 'SPIRE_CRYSTAL_RESONANCE': {
+        const storeDef = useGameStore.getState().defense;
+        const heal = Math.round(storeDef.castleMaxHp * 0.25);
+        useGameStore.setState((s) => ({
+          defense: { ...s.defense, castleHp: Math.min(s.defense.castleMaxHp, s.defense.castleHp + heal) },
+        }));
+        this.ring(origin, 5, 0xa855f7);
+        break;
+      }
+      case 'SPIRE_TEMPORAL_SUPERNOVA':
+        for (const i of invaders) {
+          i.frozenTimer = 6;
+          this.invasion.applySlow(i, 0.01, 6);
+        }
+        for (const w of workers) {
+          w.hp = w.maxHp;
+        }
+        this.ring(origin, 8, 0xec4899);
+        break;
+      case 'QUARRY_EARTH_TITAN':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 250, '⛰️');
+          i.frozenTimer = 4;
+        }
+        this.ring(origin, 6, 0xb45309);
+        break;
+      case 'MINE_MOLTEN_BARRAGE':
+        for (const i of invaders) {
+          this.invasion.applyBurn(i, 45, 6);
+          this.invasion.damageInvader(i, 80, '🌋');
+        }
+        this.ring(origin, 5, 0xea580c);
+        break;
+      case 'WOOD_WRATH_OF_THE_FOREST':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 300, '🌳');
+          if (!INVADER_CONFIGS[i.type].flying) {
+            i.frozenTimer = 8;
+          }
+        }
+        this.ring(origin, 6, 0x15803d);
+        break;
+      case 'PORT_LEVIATHAN_MAELSTROM':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 280, '🌊');
+          this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 3);
+          i.frozenTimer = 4;
+        }
+        this.ring(origin, 6, 0x0284c7);
+        break;
+      case 'CAVE_ABYSSAL_COLLAPSE':
+        for (const i of invaders) {
+          const dmg = Math.max(50, Math.round(i.hp * 0.35));
+          this.invasion.damageInvader(i, dmg, '🕳️');
+        }
+        this.ring(origin, 6, 0x7e22ce);
+        break;
+      case 'TRENCH_KRAKEN_WRATH':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 320, '🦑');
+          i.vulnTimer = 8;
+        }
+        this.ring(origin, 6, 0x0369a1);
+        break;
+      case 'CRYPT_ARMY_OF_THE_DAMNED':
+        for (let n = 0; n < 6; n++) {
+          this.defenders.summon(origin.x + (n % 2 === 0 ? 25 : -25) + n * 4, origin.y + 12, {
+            tag: 'skeleton_champion', unitClass: 'NECROMANCER', tint: 0x86efac, hp: 180, damage: 25, life: 30,
+          });
+        }
+        for (const i of invaders) {
+          this.invasion.applyBurn(i, 20, 8);
+        }
+        this.ring(origin, 6, 0x16a34a);
+        break;
+      case 'PERCH_DRAGON_INFERNO':
+        for (const i of invaders) {
+          this.invasion.damageInvader(i, 300, '🐲');
+          this.invasion.applyBurn(i, 30, 5);
+        }
+        this.ring(origin, 7, 0xc2410c);
+        break;
+      case 'KENNEL_CERBERUS_UNLEASHED':
+        activateMod('bloodFrenzy', 15);
+        for (const w of workers) {
+          w.buffTimer = 15;
+          w.armorBuffTimer = 15;
+        }
+        this.ring(origin, 6, 0xb91c1c);
+        break;
+
     }
   }
 

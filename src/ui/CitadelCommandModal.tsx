@@ -6,6 +6,7 @@ import { getUnitSummonCost } from '../state/economy';
 import { canAfford as canAffordCost } from '../state/resources';
 import React, { useEffect, useState } from 'react';
 import { FortificationsPanel } from './FortificationsPanel';
+import { ResearchPanel } from './ResearchPanel';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
@@ -16,14 +17,11 @@ import {
   CRAFTABLE_ITEMS,
   EquipmentItem,
   EquipmentSlot,
-  GOD_BLESSINGS,
-  GodBlessingId,
   TREANT_EVOLUTION,
 } from '../types/game';
-import { ResourceBuildingId, UpgradesState } from '../types/state';
+import { UpgradesState } from '../types/state';
 import {
   X,
-  Castle,
   Users,
   Store,
   Hammer,
@@ -33,8 +31,6 @@ import {
   Trees,
   Cpu,
   Compass,
-  Sparkles,
-  ArrowRightLeft,
   ChevronRight,
 } from 'lucide-react';
 
@@ -68,25 +64,21 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     sellResource,
     buyResource,
     craftEquipment,
-    purchaseEquipment,
     equipItem,
     unequipItem,
-    upgradeTech,
-    activeGodBlessings,
-    activateGodBlessing,
     upgradeTreant,
     castleBuilt,
     resourceBuildings,
-    upgradeResourceBuilding,
+    summonUnit,
   } = useGameStore();
 
+  const isTL = language === 'TL';
+
   const [activeTab, setActiveTab] = useState<CitadelTab>(initialTab);
-  const [armorySubTab, setArmorySubTab] = useState<'FORGE' | 'RESEARCH' | 'CASTLE' | 'BLESSINGS'>('FORGE');
   const [selectedUnitId, setSelectedUnitId] = useState<string>(roster[0]?.id || '');
   const [slotFilter, setSlotFilter] = useState<'ALL' | EquipmentSlot>('ALL');
   const [marketMode, setMarketMode] = useState<'SELL' | 'BUY'>('BUY');
   const [lastTradeMsg, setLastTradeMsg] = useState<string | null>(null);
-
 
   useEffect(() => {
     if (isOpen) {
@@ -119,21 +111,22 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
   const summonableClasses: UnitClass[] = FIGHTER_CLASSES;
 
-  // Every tradeable material, including the advanced drops, trades both ways
+  // Every tradeable material trades both ways
   const marketResources = Object.keys(RESOURCE_PRICES) as TradeableResource[];
 
   const handleTrade = (key: TradeableResource, amount: number, mode: 'BUY' | 'SELL') => {
     soundFx.playClick();
     const cfg = RESOURCE_PRICES[key];
+    const label = isTL ? cfg.label : (cfg.labelEn || cfg.label);
     if (mode === 'BUY') {
       const ok = buyResource(key, amount);
       if (ok) {
-        setLastTradeMsg(`+${amount} ${cfg.label} (-${amount * cfg.buy} 🪙)`);
+        setLastTradeMsg(`+${amount} ${label} (-${amount * cfg.buy} 🪙)`);
       }
     } else {
       const ok = sellResource(key, amount);
       if (ok) {
-        setLastTradeMsg(`-${amount} ${cfg.label} (+${amount * cfg.sell} 🪙)`);
+        setLastTradeMsg(`-${amount} ${label} (+${amount * cfg.sell} 🪙)`);
       }
     }
     setTimeout(() => setLastTradeMsg(null), 2500);
@@ -143,72 +136,83 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     (item) => slotFilter === 'ALL' || item.slot === slotFilter
   );
 
-  const canAffordCraft = (item: EquipmentItem) => !!item.costResources && canAffordCost(resources, craftingCost(item));
+  const canAffordCraft = (item: EquipmentItem) =>
+    !!item.costResources && canAffordCost(resources, craftingCost(item));
 
   const costLabel = (cost: Partial<Record<string, number>>) =>
-    Object.entries(cost).filter(([, n]) => n).map(([key, n]) => `${key === 'coins' ? '🪙' : RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${n}`).join(' ');
+    Object.entries(cost)
+      .filter(([, n]) => n)
+      .map(
+        ([key, n]) =>
+          `${key === 'coins' ? '🪙' : RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${n}`
+      )
+      .join(' ');
 
   const battleItems: Array<{ id: BattleItemId; icon: string; name: string; desc: string }> = [
-    { id: 'LAVA_BOMB', icon: '🌋', name: 'Lava Bomb', desc: language === 'TL' ? 'Tinatamaan ang lahat ng kalaban ng 60 pinsala.' : 'Deals 60 damage to every invader on the field.' },
-    { id: 'DEATH_CURSE', icon: '💀', name: 'Death Curse', desc: language === 'TL' ? 'Nanghihina ang lahat ng kalaban (8/s nang 8s).' : 'Every invader withers for 8 damage/s over 8s.' },
-    { id: 'KINETIC_RESTORE', icon: '🔮', name: 'Kinetic Barrier', desc: language === 'TL' ? 'Ibinabalik ang 50% ng kalasag ng kuta.' : 'Instantly restores 50% of the citadel shield.' },
-  ];
-
-  const munitionItems: Array<{ id: 'armorPiercing' | 'incendiary'; icon: string; name: string; desc: string }> = [
-    { id: 'armorPiercing', icon: '⚙️', name: 'Armor-Piercing Rounds', desc: language === 'TL' ? '+20% pinsala ng tower sa Mecha bawat antas.' : '+20% tower damage against Mecha per level.' },
-    { id: 'incendiary', icon: '🌋', name: 'Incendiary Rounds', desc: language === 'TL' ? 'Sinusunog ng mga tower ang tinatamaan nila.' : 'Tower hits set invaders burning.' },
-  ];
-
-  const techItems: Array<{
-    key: keyof UpgradesState;
-    title: string;
-    titleEn: string;
-    desc: string;
-    descEn: string;
-    icon: React.ReactNode;
-  }> = [
     {
-      key: 'golemSpeedLevel',
-      title: 'Bilis Tumakbo',
-      titleEn: 'Movement Speed',
-      desc: '+20% Bilis sa pagkilos ng alagad.',
-      descEn: '+20% movement speed for minions.',
-      icon: <Cpu className="w-5 h-5 text-sky-400" />,
+      id: 'MINION_FRENZY',
+      icon: '🔥',
+      name: 'Minion Frenzy',
+      desc: isTL ? 'Karagdagang pinsala para sa mga alagad.' : 'Additional damage boost for minions.',
     },
     {
-      key: 'golemCapacityLevel',
-      title: 'Kapasidad ng Dala',
-      titleEn: 'Cargo Capacity',
-      desc: '+1 kargada kada hakbang.',
-      descEn: '+1 cargo capacity per trip.',
-      icon: <Zap className="w-5 h-5 text-amber-400" />,
+      id: 'FORCE_FIELD',
+      icon: '🛡️',
+      name: 'Force Field',
+      desc: isTL ? 'Kalasag para sa lahat ng pasilidad at kastilyo.' : 'Force field for all establishments and the castle.',
     },
     {
-      key: 'nexusLevel',
-      title: 'Puso ng Isla',
-      titleEn: 'Citadel Nexus',
-      desc: 'Nagbubukas ng mas mataas na antas ng alagad.',
-      descEn: 'Unlocks higher tier servitors.',
-      icon: <Compass className="w-5 h-5 text-purple-400" />,
+      id: 'MASS_REGEN',
+      icon: '💖',
+      name: 'Mass Regen',
+      desc: isTL ? 'Pinapabilis ang pagbabalik ng HP ng lahat ng pasilidad.' : 'Boosts HP regeneration of all establishments.',
     },
     {
-      key: 'refineryLevel',
-      title: 'Gubat Refinery',
-      titleEn: 'Ancient Grove',
-      desc: 'Kusang nagbibigay ng karagdagang kahoy.',
-      descEn: 'Passively yields continuous timber.',
-      icon: <Trees className="w-5 h-5 text-emerald-400" />,
+      id: 'SHIELD_OVERLOAD',
+      icon: '⚡',
+      name: 'Shield Overload',
+      desc: isTL ? 'Pinalalakas ang shield restoration ng lahat.' : 'Shield restoration boost for all establishments.',
     },
     {
-      key: 'quarryLevel',
-      title: 'Minahan ng Bato',
-      titleEn: 'Basalt Quarry',
-      desc: 'Kusang nagbibigay ng karagdagang bato.',
-      descEn: 'Passively produces stone blocks.',
-      icon: <Hammer className="w-5 h-5 text-orange-400" />,
+      id: 'CHRONO_SURGE',
+      icon: '⏱️',
+      name: 'Chrono Surge',
+      desc: isTL ? 'Pinapabilis ang cooldown ng skills.' : 'Boosts cooldown skills of all establishments and castle.',
     },
   ];
 
+  const munitionItems: Array<{ id: 'armorPiercing' | 'incendiary' | 'cryoFrost' | 'teslaChain' | 'voidFlak'; icon: string; name: string; desc: string }> = [
+    {
+      id: 'armorPiercing',
+      icon: '⚙️',
+      name: isTL ? 'Armor-Piercing Rounds' : 'Armor-Piercing Ammo',
+      desc: isTL ? '+25% pinsala sa Mecha & Bosses bawat level.' : '+25% tower damage vs Mecha & Bosses per level.',
+    },
+    {
+      id: 'incendiary',
+      icon: '🌋',
+      name: isTL ? 'Incendiary Blast Shells' : 'Incendiary Blast Shells',
+      desc: isTL ? 'Sinusunog ang mga kaaway para sa 12 DPS bawat level.' : 'Ignites invaders with burning DoT per level.',
+    },
+    {
+      id: 'cryoFrost',
+      icon: '❄️',
+      name: isTL ? 'Cryo-Frost Shards' : 'Cryo-Frost Shards',
+      desc: isTL ? 'Pinapabagal ang bilis ng kaaway ng hanggang 40%.' : 'Slows invader movement speed and shatters armor.',
+    },
+    {
+      id: 'teslaChain',
+      icon: '⚡',
+      name: isTL ? 'Tesla Chain Overcharge' : 'Tesla Chain Overcharge',
+      desc: isTL ? 'Tumatalon ang kuryente sa katabing mga kalaban.' : 'Arcs lightning to up to 4 nearby invaders.',
+    },
+    {
+      id: 'voidFlak',
+      icon: '🔮',
+      name: isTL ? 'Void Flak Cannonade' : 'Void Flak Cannonade',
+      desc: isTL ? '+30% pinsala sa lumilipad at may Area Splash.' : '+30% Anti-Air damage and AoE splash explosions.',
+    },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
@@ -222,7 +226,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                {language === 'TL' ? 'Sentro ng Pangasiwaan' : 'Citadel Command'}
+                {isTL ? 'Sentro ng Pangasiwaan' : 'Citadel Command'}
               </h2>
               <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
                 <span>🏰 HP: {defense.castleHp}/{defense.castleMaxHp}</span>
@@ -246,18 +250,18 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
           </div>
         </div>
 
-        {/* MAIN BODY: 2-COLUMN VIEW (TABS SA KALIWA, CONTENT SA KANAN) */}
+        {/* MAIN BODY: 2-COLUMN VIEW */}
         <div className="flex-1 flex min-h-0 overflow-hidden">
           
           {/* LEFT SUB-NAVIGATION PANEL */}
           <div className="w-44 md:w-52 border-r border-slate-800/80 bg-slate-900/30 p-2.5 flex flex-col justify-between shrink-0">
             <div className="space-y-1">
               {[
-                { id: 'MINIONS' as CitadelTab, label: language === 'TL' ? 'Mga Alagad' : 'Minions', icon: <Users className="w-4 h-4" /> },
-                { id: 'MARKET' as CitadelTab, label: language === 'TL' ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
-                { id: 'FORGE' as CitadelTab, label: language === 'TL' ? 'Pandayan & Sandata' : 'Armory & Gear', icon: <Hammer className="w-4 h-4" /> },
-                { id: 'RESEARCH' as CitadelTab, label: language === 'TL' ? 'Agham (Research)' : 'Research', icon: <Zap className="w-4 h-4" /> },
-                { id: 'CASTLE' as CitadelTab, label: language === 'TL' ? 'Tanggulan' : 'Fortifications', icon: <Shield className="w-4 h-4" /> },
+                { id: 'MINIONS' as CitadelTab, label: isTL ? 'Mga Alagad' : 'Minions', icon: <Users className="w-4 h-4" /> },
+                { id: 'MARKET' as CitadelTab, label: isTL ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
+                { id: 'FORGE' as CitadelTab, label: isTL ? 'Pandayan & Sandata' : 'Armory & Gear', icon: <Hammer className="w-4 h-4" /> },
+                { id: 'RESEARCH' as CitadelTab, label: isTL ? 'Agham (Research)' : 'Research', icon: <Zap className="w-4 h-4" /> },
+                { id: 'CASTLE' as CitadelTab, label: isTL ? 'Tanggulan' : 'Fortifications', icon: <Shield className="w-4 h-4" /> },
               ].map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -266,9 +270,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     onClick={() => {
                       soundFx.playClick();
                       setActiveTab(tab.id);
-                      if (tab.id === 'FORGE' || tab.id === 'RESEARCH' || tab.id === 'CASTLE') {
-                        setArmorySubTab(tab.id as any);
-                      }
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       isActive
@@ -288,7 +289,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
             {/* Quick Helper Tip */}
             <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] text-slate-400">
-              💡 {language === 'TL' ? 'Malayang magpalit ng Barya at Yaman anumang oras.' : 'Trade resources and coins freely at any time.'}
+              💡 {isTL ? 'Malayang magpalit ng Barya at Yaman anumang oras.' : 'Trade resources and coins freely at any time.'}
             </div>
           </div>
 
@@ -306,14 +307,24 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     const lvl = (slime?.slimeEvolutionLevel ?? 1) as 1 | 2 | 3 | 4 | 5;
                     return (
                       <div className="p-3 rounded-2xl bg-slate-900/60 border border-cyan-500/30 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-2xl">💧</span>
+                        <div className="flex items-center gap-3">
+                          {BEAST_PORTRAITS.AQUA_SLIME ? (
+                            <img
+                              src={BEAST_PORTRAITS.AQUA_SLIME}
+                              alt="Aqua Slime"
+                              className="h-10 w-10 rounded-xl border border-cyan-500/40 object-cover [image-rendering:pixelated] bg-slate-950/60"
+                            />
+                          ) : (
+                            <span className="text-2xl">💧</span>
+                          )}
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-1.5">
                               <span>Aqua Slime</span>
                               <span className="text-[10px] font-mono px-1.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">Lv.{lvl}/5</span>
                             </div>
-                            <div className="text-[10px] text-slate-400 mt-0.5">Auto-heals, revives allies</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {isTL ? 'Kusang nagpapagaling ng kakampi' : 'Auto-heals and revives allies'}
+                            </div>
                           </div>
                         </div>
                         {lvl < 5 && (
@@ -343,8 +354,16 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
                     return (
                       <div className="p-3 rounded-2xl bg-slate-900/60 border border-emerald-500/30 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-2xl">🌲</span>
+                        <div className="flex items-center gap-3">
+                          {BEAST_PORTRAITS.TREANT ? (
+                            <img
+                              src={BEAST_PORTRAITS.TREANT}
+                              alt="Ancient Ent"
+                              className="h-10 w-10 rounded-xl border border-emerald-500/40 object-cover [image-rendering:pixelated] bg-slate-950/60"
+                            />
+                          ) : (
+                            <span className="text-2xl">🌲</span>
+                          )}
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-1.5">
                               <span>Ancient Ent</span>
@@ -371,107 +390,86 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   })()}
                 </div>
 
-                {/* Summonable Minions */}
+                {/* Establishment Champions & Tenants Directory */}
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    {language === 'TL' ? 'Patawagin ang mga Alagad' : 'Summon Minions'}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                    {summonableClasses.map((cls) => {
-                      const cfg = UNIT_CLASSES[cls];
-                      const count = roster.filter((u) => u.unitClass === cls).length;
-                      const maxCap = 2;
-                      const cost = getUnitSummonCost(cls, count);
-                      const canAfford = canAffordCost(resources, cost);
-                      const isMax = count >= maxCap;
-                      const lock = summonLock({ upgrades, resourceBuildings }, cls);
-                      const autoBuy = !!autoBuySummon[cls];
-
-                      return (
-                        <div key={cls} className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {BEAST_PORTRAITS[cls] ? <img src={BEAST_PORTRAITS[cls]} alt="" className="h-10 w-10 rounded-lg border border-slate-700 object-cover [image-rendering:pixelated]" /> : <span className="text-2xl">{cfg.iconEmoji}</span>}
-                              <div>
-                                <h4 className="text-xs font-bold text-white">{cfg.nameEn || cfg.name}</h4>
-                                <span className="text-[10px] text-slate-500 font-mono">Dami: {count}/{maxCap}</span>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-mono text-slate-300">⚔️{cfg.baseAttack} 💚{cfg.baseHp}</span>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] font-mono">
-                            <span className="text-slate-400">
-                              {Object.entries(cost).map(([key, amount]) => `${key === 'coins' ? '🪙' : RESOURCE_PRICES[key as keyof typeof RESOURCE_PRICES]?.icon ?? ''}${amount}`).join(' ')}
-                            </span>
-                            {isMax ? (
-                              <span className="px-3 py-1 rounded-xl font-bold bg-slate-800 text-slate-600">Max</span>
-                            ) : lock ? (
-                              <span className="px-2 py-1 rounded-xl font-bold bg-slate-800 text-amber-400/80" title={lock.building ? (language === 'TL' ? 'Itayo muna ang tahanan nito' : 'Build its home establishment first') : (language === 'TL' ? 'I-upgrade muna ang Kastilyo' : 'Upgrade the Castle first')}>
-                                🔒 {lock.building
-                                  ? (language === 'TL' ? RESOURCE_BUILDING_CONFIG[lock.building].label : RESOURCE_BUILDING_CONFIG[lock.building].labelEn)
-                                  : <>Nexus Lv{lock.nexus}{lock.refinery > 1 ? ` · Ref Lv${lock.refinery}` : ''}</>}
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => toggleAutoBuySummon(cls)}
-                                title={language === 'TL'
-                                  ? 'Kusang magpapatawag ang Slime. Kapag ON, bibilhin nito gamit ang coins ang kulang na materyales.'
-                                  : 'The Slime summons automatically. When ON, it buys missing materials with coins.'}
-                                className={`px-2.5 py-1 rounded-xl font-bold transition cursor-pointer border ${
-                                  autoBuy
-                                    ? 'border-amber-500/40 bg-amber-500/20 text-amber-300'
-                                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
-                                }`}
-                              >
-                                🪙 Auto-buy {autoBuy ? 'ON' : 'OFF'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      {isTL ? 'Mga Kampeon & Umuupa ng mga Pasilidad' : 'Establishment Champions & Tenants'}
+                    </h3>
+                    <span className="text-[10px] text-purple-400 font-mono">
+                      {isTL ? 'Pinamamahalaan sa Pasilidad' : 'Managed via Establishments'}
+                    </span>
                   </div>
-                </div>
 
-                {/* Minion Task Assignment */}
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    {language === 'TL' ? 'Pamamahala ng mga Alagad' : 'Assign Minion Tasks'}
-                  </h3>
-                  <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-                    {roster.map((unit) => {
-                      const cfg = UNIT_CLASSES[unit.unitClass];
-                      if (unit.unitClass === 'AQUA_SLIME' || unit.unitClass === 'TREANT') return null;
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {[
+                      { estabId: 'SPIRE' as const, cls: 'SUCCUBUS' as const, estabName: isTL ? 'Tore ng Kristal' : 'Crystal Spire', icon: '💎' },
+                      { estabId: 'QUARRY' as const, cls: 'GOLEM' as const, estabName: isTL ? 'Stone Quarry' : 'Stone Quarry', icon: '🪨' },
+                      { estabId: 'WOOD' as const, cls: 'LAVA_GARGOYLE' as const, estabName: isTL ? 'Wood Grove' : 'Wood Grove', icon: '🌲' },
+                      { estabId: 'MINE' as const, cls: 'DEMON_HOUND' as const, estabName: isTL ? 'Metal Mine' : 'Metal Mine', icon: '⛏️' },
+                      { estabId: 'PORT' as const, cls: 'MERMAN' as const, estabName: isTL ? 'Water Port' : 'Water Port', icon: '⚓' },
+                      { estabId: 'CRYPT' as const, cls: 'NECROMANCER' as const, estabName: isTL ? 'Crypt of Souls' : 'Crypt of Souls', icon: '💀' },
+                      { estabId: 'TRENCH' as const, cls: 'KRAKEN' as const, estabName: isTL ? 'Abyssal Trench' : 'Abyssal Trench', icon: '🐙' },
+                      { estabId: 'KENNEL' as const, cls: 'DEMON_HOUND' as const, estabName: isTL ? 'Infernal Kennel' : 'Infernal Kennel', icon: '🐺' },
+                      { estabId: 'PERCH' as const, cls: 'HARPY' as const, estabName: isTL ? 'Brimstone Perch' : 'Brimstone Perch', icon: '🦅' },
+                    ].map(({ estabId, cls, estabName, icon }) => {
+                      const cfg = UNIT_CLASSES[cls];
+                      const activeUnits = roster.filter((u) => u.unitClass === cls && !u.parentBuildingId && !u.id.startsWith('tenant_'));
+                      const isSummoned = activeUnits.length > 0;
 
                       return (
-                        <div key={unit.id} className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/80 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {BEAST_PORTRAITS[unit.unitClass] ? <img src={BEAST_PORTRAITS[unit.unitClass]} alt="" className="h-7 w-7 rounded-md border border-slate-700 object-cover [image-rendering:pixelated]" /> : <span className="text-xl">{cfg.iconEmoji}</span>}
-                            <span className="text-xs font-bold text-white truncate">{unit.name}</span>
+                        <div
+                          key={cls}
+                          className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col justify-between gap-2.5 shadow-sm hover:border-purple-500/40 transition"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {BEAST_PORTRAITS[cls] ? (
+                                  <img
+                                    src={BEAST_PORTRAITS[cls]}
+                                    alt=""
+                                    className="h-9 w-9 rounded-lg border border-slate-700 object-cover [image-rendering:pixelated]"
+                                  />
+                                ) : (
+                                  <span className="text-2xl">{cfg.iconEmoji}</span>
+                                )}
+                                <div>
+                                  <h4 className="text-xs font-bold text-white">
+                                    {isTL ? cfg.name : (cfg.nameEn || cfg.name)}
+                                  </h4>
+                                  <span className="text-[10px] text-purple-300 font-mono font-bold flex items-center gap-1">
+                                    <span>{icon}</span>
+                                    <span>{estabName}</span>
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-300">
+                                {isSummoned ? (
+                                  <span className="text-emerald-400 font-bold">Active</span>
+                                ) : (
+                                  <span className="text-slate-500">Unsummoned</span>
+                                )}
+                              </span>
+                            </div>
+
+                            <p className="mt-2 text-[10px] text-slate-400 leading-snug">
+                              {isTL ? cfg.subtitle : (cfg.subtitleEn || cfg.subtitle)}
+                            </p>
                           </div>
 
-                          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5">
-                            {tasksList.map((task) => {
-                              const isCurrent = unit.assignedTask === task;
-                              const tCfg = TASK_CONFIG[task];
-                              return (
-                                <button
-                                  key={task}
-                                  onClick={() => {
-                                    soundFx.playClick();
-                                    assignUnitTask(unit.id, task);
-                                  }}
-                                  className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold whitespace-nowrap cursor-pointer transition ${
-                                    isCurrent ? 'bg-purple-600 text-white' : 'bg-slate-800/60 text-slate-400 hover:text-slate-200'
-                                  }`}
-                                >
-                                  {tCfg.icon} {tCfg.label.split(' ')[0]}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundFx.playClick();
+                              onClose();
+                              useGameStore.getState().openEstablishmentModal(estabId);
+                            }}
+                            className="w-full py-1.5 rounded-xl font-bold text-xs bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white border border-indigo-500/40 transition cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <span>🏛️</span>
+                            <span>{isTL ? 'Pamahalaan sa Pasilidad' : 'Manage at Establishment'}</span>
+                          </button>
                         </div>
                       );
                     })}
@@ -487,8 +485,12 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Store className="w-5 h-5 text-amber-400" />
                     <div>
-                      <h3 className="text-xs font-bold text-white">Pamilihan ng Kuta (Quick Trade)</h3>
-                      <p className="text-[10px] text-slate-400">Bumili o magbenta ng kahit anong dami ng materyales.</p>
+                      <h3 className="text-xs font-bold text-white">
+                        {isTL ? 'Pamilihan ng Kuta (Quick Trade)' : 'Citadel Market (Quick Trade)'}
+                      </h3>
+                      <p className="text-[10px] text-slate-400">
+                        {isTL ? 'Bumili o magbenta ng kahit anong dami ng materyales gamit ang ginto.' : 'Buy or sell resources freely with gold coins.'}
+                      </p>
                     </div>
                   </div>
 
@@ -499,7 +501,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                         marketMode === 'BUY' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      Bumili (Buy)
+                      {isTL ? 'Bumili' : 'Buy'}
                     </button>
                     <button
                       onClick={() => setMarketMode('SELL')}
@@ -507,7 +509,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                         marketMode === 'SELL' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      Magbenta (Sell)
+                      {isTL ? 'Magbenta' : 'Sell'}
                     </button>
                   </div>
                 </div>
@@ -526,18 +528,19 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     const canAffordBuy10 = resources.coins >= cfg.buy * 10;
                     const canSell1 = stock >= 1;
                     const canSell10 = stock >= 10;
+                    const resourceName = isTL ? cfg.label : (cfg.labelEn || cfg.label);
 
                     return (
                       <div key={key} className="p-3.5 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{cfg.icon}</span>
                           <div>
-                            <h4 className="text-xs font-bold text-white">{cfg.label}</h4>
+                            <h4 className="text-xs font-bold text-white">{resourceName}</h4>
                             <div className="text-[11px] font-mono text-slate-400">
-                              Stock: <b className="text-slate-200">{stock.toLocaleString()}</b>
+                              {isTL ? 'Imbak' : 'Stock'}: <b className="text-slate-200">{stock.toLocaleString()}</b>
                             </div>
                             <div className="text-[10px] font-mono text-amber-400">
-                              Presyo: {marketMode === 'BUY' ? `${cfg.buy}🪙 Bili` : `${cfg.sell}🪙 Benta`}
+                              {isTL ? 'Presyo' : 'Price'}: {marketMode === 'BUY' ? `${cfg.buy}🪙 ${isTL ? 'Bili' : 'Buy'}` : `${cfg.sell}🪙 ${isTL ? 'Benta' : 'Sell'}`}
                             </div>
                           </div>
                         </div>
@@ -582,7 +585,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                                 onClick={() => handleTrade(key, stock, 'SELL')}
                                 className="px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:text-slate-600 text-amber-300 text-xs font-bold cursor-pointer border border-amber-500/30 transition"
                               >
-                                Lahat
+                                {isTL ? 'Lahat' : 'All'}
                               </button>
                             </>
                           )}
@@ -597,10 +600,10 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             {/* ================= TAB 3: ARMORY & GEAR ================= */}
             {activeTab === 'FORGE' && (
               <div className="space-y-4">
-                {/* Battle items & munitions made from the advanced drops */}
+                {/* Battle items & munitions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="p-3 rounded-2xl bg-orange-950/20 border border-orange-500/30 space-y-2">
-                    <h4 className="text-xs font-bold text-orange-200">{language === 'TL' ? 'Mga Gamit sa Labanan' : 'Battle Items'}</h4>
+                    <h4 className="text-xs font-bold text-orange-200">{isTL ? 'Mga Gamit sa Labanan' : 'Battle Items'}</h4>
                     {battleItems.map((b) => {
                       const cost = ECONOMY_CONFIG.battleItems[b.id].cost as Partial<Record<string, number>>;
                       const affordable = canAffordCost(resources, cost);
@@ -623,7 +626,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     })}
                   </div>
                   <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-700 space-y-2">
-                    <h4 className="text-xs font-bold text-slate-200">{language === 'TL' ? 'Bala ng mga Tower' : 'Tower Munitions'}</h4>
+                    <h4 className="text-xs font-bold text-slate-200">{isTL ? 'Bala ng mga Tower' : 'Tower Munitions'}</h4>
                     {munitionItems.map((m) => {
                       const level = munitions[m.id];
                       const maxed = level >= ECONOMY_CONFIG.munitions.maxLevel;
@@ -672,14 +675,18 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   <select
                     value={selectedUnitId}
                     onChange={(e) => setSelectedUnitId(e.target.value)}
-                    aria-label="Piliin ang alagad na magsusuot ng gamit"
+                    aria-label={isTL ? 'Piliin ang alagad na magsusuot ng gamit' : 'Select minion to equip gear'}
                     className="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold cursor-pointer"
                   >
-                    {roster.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.unitClass})
-                      </option>
-                    ))}
+                    {roster.map((u) => {
+                      const uCfg = UNIT_CLASSES[u.unitClass];
+                      const uName = isTL ? (uCfg?.name || u.name) : (uCfg?.nameEn || uCfg?.name || u.name);
+                      return (
+                        <option key={u.id} value={u.id}>
+                          {uName} ({u.unitClass})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -718,7 +725,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                                   canCraft ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                                 }`}
                               >
-                                Pandayin
+                                {isTL ? 'Pandayin' : 'Craft'}
                               </button>
                             )}
 
@@ -732,7 +739,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                                   isEquipped ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                                 }`}
                               >
-                                {isEquipped ? 'I-hubad' : 'I-suot'}
+                                {isTL ? (isEquipped ? 'I-hubad' : 'I-suot') : (isEquipped ? 'Unequip' : 'Equip')}
                               </button>
                             )}
                           </div>
@@ -745,48 +752,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             )}
 
             {/* ================= TAB 4: RESEARCH TECH ================= */}
-            {activeTab === 'RESEARCH' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {techItems.map((tech) => {
-                  const currentLevel = upgrades[tech.key];
-                  const costShards = Math.floor(40 * Math.pow(1.6, currentLevel - 1));
-                  const costWood = Math.floor(30 * Math.pow(1.5, currentLevel - 1));
-                  const costStone = Math.floor(25 * Math.pow(1.5, currentLevel - 1));
-                  const canAfford =
-                    resources.aetherShards >= costShards &&
-                    resources.wood >= costWood &&
-                    resources.stone >= costStone;
-
-                  return (
-                    <div key={tech.key} className="p-3.5 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">{tech.icon}</div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="text-xs font-bold text-white">{tech.title}</h4>
-                            <span className="text-[10px] font-mono px-1 rounded bg-purple-950 text-purple-300">Lv.{currentLevel}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 mt-0.5">{tech.desc}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] font-mono">
-                        <span className="text-slate-400">💎{costShards} 🌲{costWood} 🪨{costStone}</span>
-                        <button
-                          disabled={!canAfford}
-                          onClick={() => upgradeTech(tech.key)}
-                          className={`px-3 py-1 rounded-xl font-bold transition cursor-pointer ${
-                            canAfford ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                          }`}
-                        >
-                          I-upgrade
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {activeTab === 'RESEARCH' && <ResearchPanel />}
 
             {/* ================= TAB 5: CASTLE FORTIFICATIONS ================= */}
             {activeTab === 'CASTLE' && <FortificationsPanel />}

@@ -73,6 +73,8 @@ export interface ActiveInvader extends NavAgent {
   charmTimer?: number;
   /** Taunted by a Golem: must attack it. */
   tauntTimer?: number;
+  /** Armored defensively */
+  armorBuffTimer?: number;
   tauntBy?: WorkerInstance;
   target?: InvaderTarget;
   retargetTimer?: number;

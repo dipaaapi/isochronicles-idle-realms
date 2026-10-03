@@ -1,25 +1,27 @@
 import Phaser from 'phaser';
 import { GridPoint, UnitClass, UNIT_CLASSES, TASK_NODE_LOCATIONS, TASK_CONFIG } from '../types/game';
-import { UnitRosterItem } from '../types/state';
+import { ResourceBuildingId, UnitRosterItem } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
 import { isModActive } from './skills/combatMods';
-import { ConstructionStatus, CONSTRUCTION_SECONDS, nextConstruction } from '../state/constructionProgress';
+import { ConstructionStatus, CONSTRUCTION_SECONDS, nextConstruction, nextChampionConstruction, nextMinionSpireConstruction } from '../state/constructionProgress';
 import { soundFx } from './audio/soundFx';
 import { logFloatingText, nearestName } from '../state/activityLog';
 import type { InvasionManager } from './InvasionManager';
 import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
 import { Navigation } from './Navigation';
 import type { PortalManager } from './PortalManager';
-import { CASTLE_GATE, GRID_CENTER, GRID_SIZE } from '../state/buildingLayout';
-import { isEnrichableTask, type WorkerContext, type WorkerInstance } from './workers/types';
+import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, GRID_CENTER, GRID_SIZE, PORTAL_SITES, SPIRE_WORK_SPOT } from '../state/buildingLayout';
+import type { GroundLootItem, GroundLootManager } from './GroundLootManager';
+import { isEnrichableTask, type WorkerContext, type WorkerFrame, type WorkerInstance } from './workers/types';
 import { renderCargoGraphics, renderWorkerGraphics } from './workers/legacyWorkerArt';
 import { computeWorkerFrame } from './workers/modifiers';
 import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
+import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 
 export type { WorkerInstance } from './workers/types';
 
@@ -39,6 +41,28 @@ export class WorkerManager implements WorkerContext {
   public invasionManager?: InvasionManager;
   private nav?: Navigation;
   public portals?: PortalManager;
+  public groundLoot?: GroundLootManager;
+  public defenders?: import('./DefenderSystem').DefenderSystem;
+
+  public setDefenderSystem(defenders: import('./DefenderSystem').DefenderSystem): void {
+    this.defenders = defenders;
+  }
+
+  public getDefenders(): import('./DefenderSystem').Defender[] {
+    return this.defenders ? this.defenders.getDefenders() : [];
+  }
+
+  public setGroundLoot(loot: GroundLootManager): void {
+    this.groundLoot = loot;
+  }
+
+  public getNearestGroundLoot(x: number, y: number, maxDist: number = 320): GroundLootItem | null {
+    return this.groundLoot ? this.groundLoot.getNearestLoot(x, y, maxDist) : null;
+  }
+
+  public collectGroundLoot(item: GroundLootItem, collectorName?: string): void {
+    this.groundLoot?.collectLoot(item, collectorName);
+  }
 
   constructor(
     scene: Phaser.Scene,
@@ -126,6 +150,10 @@ export class WorkerManager implements WorkerContext {
           this.playEvolutionEffect(existing, 'Ancient Ent', previousLevel, existing.treantEvolutionLevel, 0x22c55e, '🌲');
         }
 
+        if (item.parentBuildingId !== undefined) {
+          existing.parentBuildingId = item.parentBuildingId;
+        }
+
         if (needsVisualRefresh) {
           this.redrawBody(existing);
           renderCargoGraphics(existing.cargoIcon, existing.assignedTask);
@@ -149,7 +177,26 @@ export class WorkerManager implements WorkerContext {
 
   private createWorker(item: UnitRosterItem): void {
     const config = UNIT_CLASSES[item.unitClass];
-    const startIso = IsometricHelper.gridToScreen(this.nexusGridPos.x, this.nexusGridPos.y);
+    const isTenant = item.parentBuildingId !== undefined || item.id.startsWith('tenant_');
+    const parentBuildingId = item.parentBuildingId || (item.id.startsWith('tenant_') ? (item.id.split('_')[1]?.toUpperCase() as ResourceBuildingId) : undefined);
+    const isGeneral = !isTenant && item.unitClass !== 'TREANT' && item.unitClass !== 'AQUA_SLIME';
+
+    // Spawn location calculation
+    let startX = this.nexusGridPos.x;
+    let startY = this.nexusGridPos.y;
+
+    if (isTenant && parentBuildingId && BUILDING_SITES[parentBuildingId]) {
+      startX = BUILDING_SITES[parentBuildingId].workSpot.x;
+      startY = BUILDING_SITES[parentBuildingId].workSpot.y;
+    } else if (isGeneral) {
+      const ent = this.workers.find((w) => w.unitClass === 'TREANT');
+      if (ent) {
+        startX = ent.gridX;
+        startY = ent.gridY;
+      }
+    }
+
+    const startIso = IsometricHelper.gridToScreen(startX, startY);
 
     const container = this.scene.add.container(startIso.x, startIso.y);
     container.setSize(36, 36);
@@ -171,25 +218,27 @@ export class WorkerManager implements WorkerContext {
 
     // Dual HP and Fatigue / Stamina floating gauges
     const gaugeGfx = this.scene.add.graphics();
+    gaugeGfx.setVisible(false);
 
-    // Slice-of-Life Emote Bubble
-    const emoteBubble = this.scene.add.container(0, -36);
+    // Slice-of-Life Emote Bubble (sleek, compact, only shown during active reactions)
+    const emoteBubble = this.scene.add.container(0, -32);
     const emoteBg = this.scene.add.graphics();
-    emoteBg.fillStyle(0x0f172a, 0.85);
-    emoteBg.lineStyle(1, config.lanternColor, 0.8);
-    emoteBg.fillRoundedRect(-14, -10, 28, 18, 6);
-    emoteBg.strokeRoundedRect(-14, -10, 28, 18, 6);
+    emoteBg.fillStyle(0x0f172a, 0.82);
+    emoteBg.lineStyle(1, config.lanternColor, 0.75);
+    emoteBg.fillRoundedRect(-10, -8, 20, 15, 4);
+    emoteBg.strokeRoundedRect(-10, -8, 20, 15, 4);
 
-    const emoteText = this.scene.add.text(0, -2, TASK_CONFIG[item.assignedTask].icon, {
-      fontSize: '11px',
+    const emoteText = this.scene.add.text(0, -1, TASK_CONFIG[item.assignedTask].icon, {
+      fontSize: '9px',
       fontFamily: 'Inter, system-ui, sans-serif',
       color: '#f8fafc',
     });
     emoteText.setOrigin(0.5);
     emoteBubble.add([emoteBg, emoteText]);
+    emoteBubble.setVisible(false);
 
     container.add([lanternGfx, shadow, body, cargoIcon, gaugeGfx, emoteBubble]);
-    container.setDepth(IsometricHelper.getDepth(this.nexusGridPos.x, this.nexusGridPos.y, 6));
+    container.setDepth(IsometricHelper.getDepth(startX, startY, 6));
 
     if (this.parentContainer) {
       this.parentContainer.add(container);
@@ -200,6 +249,7 @@ export class WorkerManager implements WorkerContext {
       name: item.name,
       unitClass: item.unitClass,
       assignedTask: item.assignedTask,
+      parentBuildingId,
       container,
       lanternGfx,
       shadow,
@@ -210,8 +260,8 @@ export class WorkerManager implements WorkerContext {
       emoteBg,
       emoteText,
       emoteBaseY: -36,
-      gridX: this.nexusGridPos.x,
-      gridY: this.nexusGridPos.y,
+      gridX: startX,
+      gridY: startY,
       currentPath: [],
       pathIndex: 0,
       status: 'IDLE',
@@ -348,7 +398,6 @@ export class WorkerManager implements WorkerContext {
         ease: 'Cubic.easeOut',
         onComplete: () => {
           soundFx.playFanfare();
-          this.scene.cameras.main.shake(320, 0.01);
           this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x86efac, 34);
           this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 24);
           this.spawnFloatingPopup(startIso.x, startIso.y - 58, '🌳 ANCIENT ENT AWAKENS! 🌳', '#86efac');
@@ -365,6 +414,57 @@ export class WorkerManager implements WorkerContext {
         ease: 'Sine.easeInOut',
         onComplete: () => ritualGfx.destroy(),
       });
+    } else if (isGeneral) {
+      // Mother Ancient Ent General Summoning Emergence Animation
+      const ritualGfx = this.scene.add.graphics();
+      ritualGfx.setPosition(startIso.x, startIso.y + 6);
+      ritualGfx.setDepth(IsometricHelper.getDepth(startX, startY, 5));
+      ritualGfx.lineStyle(3, 0x22c55e, 0.95);
+      ritualGfx.strokeEllipse(0, 0, 72, 26);
+      ritualGfx.lineStyle(2, 0x86efac, 0.7);
+      ritualGfx.strokeEllipse(0, 0, 108, 38);
+      ritualGfx.lineStyle(1, 0xfbbf24, 0.6);
+      ritualGfx.strokeEllipse(0, 0, 140, 48);
+      if (this.parentContainer) this.parentContainer.add(ritualGfx);
+
+      container.alpha = 0;
+      container.setScale(0.15);
+      container.y = startIso.y + 8;
+      ritualGfx.alpha = 0;
+      ritualGfx.scaleX = 0.25;
+      ritualGfx.scaleY = 0.25;
+
+      this.scene.tweens.add({
+        targets: container,
+        y: startIso.y,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 1300,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 18);
+          this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0xfbbf24, 14);
+          this.spawnFloatingPopup(startIso.x, startIso.y - 48, `🌳 Mother Ent summoned ${config.name}! 🌟`, '#86efac');
+          soundFx.playGolemCheer();
+          soundFx.playFanfare();
+        },
+      });
+
+      this.scene.tweens.add({
+        targets: ritualGfx,
+        alpha: 0.95,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 850,
+        yoyo: true,
+        repeat: 1,
+        ease: 'Sine.easeInOut',
+        onComplete: () => ritualGfx.destroy(),
+      });
+    } else if (isTenant) {
+      this.spawnHarvestBurst(startIso.x, startIso.y - 10, 0x10b981, 10);
+      this.spawnFloatingPopup(startIso.x, startIso.y - 36, `🏡 ${item.name} Reporting for Duty!`, '#6ee7b7');
     }
   }
 
@@ -405,7 +505,7 @@ export class WorkerManager implements WorkerContext {
       duration: 180,
       ease: 'Sine.easeInOut',
     });
-    this.scene.cameras.main.shake(260, 0.008);
+    // [Camera shake removed]
     this.spawnHarvestBurst(burstX, burstY, color, 36);
     this.spawnFloatingPopup(burstX, burstY - 52, `${icon} ${title} EVOLVED! Lv.${previousLevel} -> Lv.${nextLevel} ${icon}`, `#${color.toString(16).padStart(6, '0')}`);
     soundFx.playFanfare();
@@ -413,26 +513,26 @@ export class WorkerManager implements WorkerContext {
 
   private renderDualGauges(worker: WorkerInstance): void {
     worker.gaugeGfx.clear();
-    const barW = 24;
+    const barW = 18;
     const x = -barW / 2;
 
-    // 1. HP Gauge (Top Bar at y = -28)
-    worker.gaugeGfx.fillStyle(0x000000, 0.75);
-    worker.gaugeGfx.fillRect(x - 1, -29, barW + 2, 4);
+    // 1. HP Gauge (Top Bar)
+    worker.gaugeGfx.fillStyle(0x020617, 0.65);
+    worker.gaugeGfx.fillRoundedRect(x - 1, -26, barW + 2, 3, 1);
 
     const hpPct = Phaser.Math.Clamp(worker.hp / worker.maxHp, 0, 1);
     const hpColor = hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xf59e0b : 0xef4444;
-    worker.gaugeGfx.fillStyle(hpColor, 1);
-    worker.gaugeGfx.fillRect(x, -28, barW * hpPct, 2);
+    worker.gaugeGfx.fillStyle(hpColor, 0.95);
+    worker.gaugeGfx.fillRect(x, -25.5, barW * hpPct, 2);
 
-    // 2. Fatigue / Stamina Gauge (Bottom Bar at y = -25)
-    worker.gaugeGfx.fillStyle(0x000000, 0.75);
-    worker.gaugeGfx.fillRect(x - 1, -25, barW + 2, 4);
+    // 2. Fatigue / Stamina Gauge (Bottom Bar)
+    worker.gaugeGfx.fillStyle(0x020617, 0.65);
+    worker.gaugeGfx.fillRoundedRect(x - 1, -22, barW + 2, 3, 1);
 
     const stamPct = Phaser.Math.Clamp(worker.stamina / worker.maxStamina, 0, 1);
     const stamColor = stamPct > 0.3 ? 0x38bdf8 : 0xf59e0b;
-    worker.gaugeGfx.fillStyle(stamColor, 1);
-    worker.gaugeGfx.fillRect(x, -24, barW * stamPct, 2);
+    worker.gaugeGfx.fillStyle(stamColor, 0.95);
+    worker.gaugeGfx.fillRect(x, -21.5, barW * stamPct, 2);
   }
 
   /** Redraws the legacy vector body — skipped once the pixel sprite has taken over. */
@@ -447,9 +547,9 @@ export class WorkerManager implements WorkerContext {
   /**
    * Keeps a minion's 8-direction sprite in step with the simulation: attaches
    * it once the sheet is baked, faces the direction of travel (walk while
-   * moving, idle loop while standing) and swings tools while harvesting.
+   * moving, idle loop while standing) with dynamic character motion physics.
    */
-  private syncMinionSprite(worker: WorkerInstance, delta: number): void {
+  private syncMinionSprite(worker: WorkerInstance, delta: number, time: number): void {
     if (!worker.container.active) return;
 
     if (!worker.sprite) {
@@ -459,15 +559,11 @@ export class WorkerManager implements WorkerContext {
       worker.sprite = created;
       worker.body.clear();
       const headroom = minionSpriteHeadroom(worker.unitClass) ?? 24;
-      worker.emoteBaseY = -(headroom + 12);
+      worker.emoteBaseY = -(headroom + 10);
       worker._prevX = worker.container.x;
       worker._prevY = worker.container.y;
     }
     const sprite = worker.sprite;
-
-    // Follow the body's tweens (cheer squash, melee lunge)
-    sprite.setPosition(worker.body.x, worker.body.y);
-    sprite.setScale(worker.body.scaleX, worker.body.scaleY);
 
     const dx = worker.container.x - (worker._prevX ?? worker.container.x);
     const dy = worker.container.y - (worker._prevY ?? worker.container.y);
@@ -475,6 +571,54 @@ export class WorkerManager implements WorkerContext {
     worker._prevY = worker.container.y;
     const moving = Math.hypot(dx, dy) > 0.02;
     faceCharacterSprite(sprite, dx, dy, moving);
+
+    // Dynamic Organic Character Motion & Physics
+    const baseScale = UNIT_CLASSES[worker.unitClass]?.scale ?? 1.0;
+    const offset = worker.bobOffset ?? 0;
+
+    if (worker.unitClass === 'AQUA_SLIME') {
+      if (moving) {
+        // Bouncy gelatinous hop
+        const hopCycle = (time / 140 + offset) % Math.PI;
+        const hopHeight = Math.sin(hopCycle) * 5;
+        sprite.setPosition(worker.body.x, worker.body.y - hopHeight);
+        const stretch = Math.sin(hopCycle) * 0.16;
+        sprite.setScale(baseScale * (1 - stretch), baseScale * (1 + stretch));
+      } else {
+        // Gentle breathing gelatin pulse
+        const breathe = Math.sin(time / 320 + offset) * 0.04;
+        sprite.setPosition(worker.body.x, worker.body.y);
+        sprite.setScale(baseScale * (1 + breathe), baseScale * (1 - breathe));
+      }
+    } else if (worker.unitClass === 'LAVA_GARGOYLE' || worker.unitClass === 'SUCCUBUS' || worker.unitClass === 'HARPY') {
+      // Floating aerial elevation hover
+      const hover = Math.sin(time / 220 + offset) * 3.5;
+      sprite.setPosition(worker.body.x, worker.body.y - hover);
+      const sway = Math.sin(time / 300 + offset) * 0.02;
+      sprite.setScale(baseScale * (1 + sway), baseScale * (1 - sway));
+    } else if (worker.unitClass === 'TREANT' || worker.unitClass === 'GOLEM') {
+      // Heavy impactful grounded cadence
+      if (moving) {
+        const stepCycle = (time / 150 + offset) % Math.PI;
+        const bob = Math.sin(stepCycle) * 2.0;
+        sprite.setPosition(worker.body.x, worker.body.y - bob);
+        sprite.setScale(baseScale, baseScale);
+      } else {
+        sprite.setPosition(worker.body.x, worker.body.y);
+        sprite.setScale(baseScale, baseScale);
+      }
+    } else {
+      // Ground beasts (Merman, Necromancer, Demon Hound, etc.): Natural gait
+      if (moving) {
+        const gait = Math.sin(time / 130 + offset) * 1.8;
+        sprite.setPosition(worker.body.x, worker.body.y - Math.abs(gait));
+        sprite.setScale(baseScale, baseScale);
+      } else {
+        const idleBreathe = Math.sin(time / 400 + offset) * 0.02;
+        sprite.setPosition(worker.body.x, worker.body.y);
+        sprite.setScale(baseScale * (1 + idleBreathe), baseScale * (1 - idleBreathe));
+      }
+    }
 
     if (!moving && worker.status === 'HARVESTING') {
       worker._workTimer = (worker._workTimer ?? 0) - delta;
@@ -522,7 +666,7 @@ export class WorkerManager implements WorkerContext {
   }
 
   public update(time: number, delta: number, ambientDarkness: number = 0): void {
-    for (const worker of this.workers) this.syncMinionSprite(worker, delta);
+    for (const worker of this.workers) this.syncMinionSprite(worker, delta, time);
     const store = useGameStore.getState();
     const treantLevel = this.workers.find((w) => w.unitClass === 'TREANT')?.treantEvolutionLevel ?? 1;
 
@@ -575,13 +719,129 @@ export class WorkerManager implements WorkerContext {
         updateTreant(this, worker, frame);
         continue; // The Ent builds, repairs and enriches instead of gathering
       }
-      if (isHealer && updateHealer(this, worker, frame)) continue;
+      const isTenant = !!worker.parentBuildingId || worker.id.startsWith('tenant_');
+      const isGeneral = !isTenant && !isSupportSlime && !isTreant && !isHealer;
+      if (isGeneral) {
+        if (worker.status === 'COMBAT') {
+          updateCombat(this, worker, frame);
+        } else {
+          this.updateGeneralScouting(worker, frame);
+        }
+        continue;
+      }
+
+      if (worker.parentBuildingId && worker.status !== 'COMBAT') {
+        const closeLoot = this.getNearestGroundLoot(worker.container.x, worker.container.y, 32);
+        if (closeLoot) {
+          this.collectGroundLoot(closeLoot, worker.name);
+          worker.overrideEmote = '✨';
+          worker.overrideEmoteTimer = 1000;
+        }
+      }
 
       abandonUnavailableTask(worker, store);
       updateStatusEmote(worker, frame);
       if (worker.status === 'COMBAT') updateCombat(this, worker, frame);
       else updateGatherState(this, worker, frame);
     }
+  }
+
+  public updateGeneralScouting(worker: WorkerInstance, frame: WorkerFrame): void {
+    worker.cargo = 0;
+    worker.cargoIcon.setVisible(false);
+
+    const { store, deltaSec, effectiveSpeed } = frame;
+    const homeBuilding = frame.config.requiredBuilding;
+
+    // 1. If damaged home establishment exists, head there to guard and assist
+    if (homeBuilding) {
+      const b = towerBuildingOf(store, homeBuilding);
+      if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) {
+        const spot = homeBuilding === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[homeBuilding]?.workSpot;
+        if (spot) {
+          const target = IsometricHelper.gridToScreen(spot.x, spot.y);
+          const dist = Math.hypot(target.x - worker.container.x, target.y - worker.container.y);
+          if (dist > 20) {
+            worker.status = 'MOVING_TO_NODE';
+            worker.overrideEmote = '🔨';
+            worker.overrideEmoteTimer = 400;
+            this.moveToward(worker, target.x, target.y, effectiveSpeed * 1.1 * deltaSec, deltaSec);
+            return;
+          }
+          // At home establishment: guard and assist repair
+          worker.status = 'HARVESTING';
+          worker.stateTimer = (worker.stateTimer ?? 0) - frame.delta;
+          worker.overrideEmote = '🔨';
+          worker.overrideEmoteTimer = 400;
+          if (worker.stateTimer <= 0) {
+            const restored = useGameStore.getState().restoreBuildingHp(homeBuilding, 25);
+            if (restored > 0) {
+              this.spawnFloatingPopup(worker.container.x, worker.container.y - 35, `🔨 General Repaired +${restored} HP!`, '#86efac');
+              soundFx.playHarvest('wood');
+            }
+            worker.stateTimer = 1500;
+          }
+          return;
+        }
+      }
+    }
+
+    // 2. Active Scouting & Realm Patrol
+    if (worker.status === 'MOVING_TO_NODE' && worker.targetTile) {
+      const target = IsometricHelper.gridToScreen(worker.targetTile.x, worker.targetTile.y);
+      const dist = Math.hypot(target.x - worker.container.x, target.y - worker.container.y);
+      worker.overrideEmote = '🧭';
+      worker.overrideEmoteTimer = 400;
+      if (dist > 18) {
+        this.moveToward(worker, target.x, target.y, effectiveSpeed * deltaSec, deltaSec);
+        return;
+      }
+      // Arrived at patrol waypoint!
+      worker.status = 'IDLE';
+      worker.stateTimer = 1200 + Math.random() * 800; // Stand watch for ~1.5s
+      worker.overrideEmote = '🛡️';
+      worker.overrideEmoteTimer = 1200;
+      if (Math.random() < 0.40) {
+        this.spawnFloatingPopup(worker.container.x, worker.container.y - 25, `🧭 Sector Clear`, '#38bdf8');
+      }
+      return;
+    }
+
+    // If standing watch (IDLE state timer counting down)
+    if (worker.status === 'IDLE' && (worker.stateTimer ?? 0) > 0) {
+      worker.stateTimer -= frame.delta;
+      worker.overrideEmote = '🛡️';
+      worker.overrideEmoteTimer = 400;
+      return;
+    }
+
+    // 3. Choose next scout / patrol destination
+    const roll = Math.random();
+    let nextWaypoint: GridPoint;
+
+    if (roll < 0.50 && PORTAL_SITES.length > 0) {
+      // Scout invader rift portals to watch for invasions
+      const portal = PORTAL_SITES[Math.floor(Math.random() * PORTAL_SITES.length)];
+      nextWaypoint = portal.exit;
+    } else if (roll < 0.80 && homeBuilding) {
+      // Patrol parent establishment perimeter
+      nextWaypoint = homeBuilding === 'SPIRE' ? SPIRE_WORK_SPOT : (BUILDING_SITES[homeBuilding]?.workSpot ?? CASTLE_GATE);
+    } else if (BUILDING_IDS.length > 0) {
+      // Patrol around other realm establishments
+      const randBuilding = BUILDING_IDS[Math.floor(Math.random() * BUILDING_IDS.length)];
+      nextWaypoint = BUILDING_SITES[randBuilding]?.workSpot ?? CASTLE_GATE;
+    } else {
+      // Patrol open realm terrain
+      nextWaypoint = {
+        x: Phaser.Math.Between(3, GRID_SIZE - 4),
+        y: Phaser.Math.Between(3, GRID_SIZE - 4),
+      };
+    }
+
+    worker.targetTile = nextWaypoint;
+    worker.status = 'MOVING_TO_NODE';
+    worker.overrideEmote = '🧭';
+    worker.overrideEmoteTimer = 1500;
   }
 
   /** Permadeath: remove the minion from the map and the roster (with a partial refund). */
@@ -600,35 +860,51 @@ export class WorkerManager implements WorkerContext {
     delta: number,
     ambientDarkness: number
   ): void {
-    // Sprites animate their own bounce/hover; only legacy vector bodies bob here
     const bob = worker.sprite ? 0 : Math.sin(time / 250 + worker.bobOffset) * 2.5;
     worker.body.y = bob;
     worker.cargoIcon.y = bob;
-    // Gauges sit above the head: emoteBaseY is -36 for vector bodies, lower for taller sprites
     worker.gaugeGfx.y = bob + worker.emoteBaseY + 36;
-    worker.emoteBubble.y = worker.emoteBaseY + bob;
+    worker.emoteBubble.y = worker.emoteBaseY + bob - 4;
 
-    // Re-render Dual HP & Fatigue Gauges only when values actually changed
-    const hpFloor = Math.floor(worker.hp);
-    const stFloor = Math.floor(worker.stamina);
-    if (
-      hpFloor !== worker._gaugeHp ||
-      worker.maxHp !== worker._gaugeMaxHp ||
-      stFloor !== worker._gaugeStamina ||
-      worker.maxStamina !== worker._gaugeMaxStamina
-    ) {
-      worker._gaugeHp = hpFloor;
-      worker._gaugeMaxHp = worker.maxHp;
-      worker._gaugeStamina = stFloor;
-      worker._gaugeMaxStamina = worker.maxStamina;
-      this.renderDualGauges(worker);
+    // Show gauges only when in combat or when HP/stamina is depleted
+    const needsGauges = worker.status === 'COMBAT' || worker.hp < worker.maxHp || worker.stamina < worker.maxStamina * 0.85;
+    worker.gaugeGfx.setVisible(needsGauges);
+
+    if (needsGauges) {
+      const hpFloor = Math.floor(worker.hp);
+      const stFloor = Math.floor(worker.stamina);
+      if (
+        hpFloor !== worker._gaugeHp ||
+        worker.maxHp !== worker._gaugeMaxHp ||
+        stFloor !== worker._gaugeStamina ||
+        worker.maxStamina !== worker._gaugeMaxStamina
+      ) {
+        worker._gaugeHp = hpFloor;
+        worker._gaugeMaxHp = worker.maxHp;
+        worker._gaugeStamina = stFloor;
+        worker._gaugeMaxStamina = worker.maxStamina;
+        this.renderDualGauges(worker);
+      }
     }
 
     this.updateWorkerLantern(worker, config, ambientDarkness);
 
+    // Emote bubble only shown during active reaction/emote timers
     if (worker.overrideEmoteTimer > 0) {
       worker.overrideEmoteTimer -= delta;
-      if (worker.overrideEmoteTimer <= 0) worker.overrideEmote = null;
+      if (worker.overrideEmote) {
+        worker.emoteText.setText(worker.overrideEmote);
+        worker.emoteBubble.setVisible(true);
+        const alpha = Math.min(1, worker.overrideEmoteTimer / 250);
+        worker.emoteBubble.setAlpha(alpha);
+        worker.emoteBubble.setScale(0.9 + Math.sin(time / 140) * 0.05);
+      }
+      if (worker.overrideEmoteTimer <= 0) {
+        worker.overrideEmote = null;
+        worker.emoteBubble.setVisible(false);
+      }
+    } else {
+      worker.emoteBubble.setVisible(false);
     }
   }
 
@@ -672,18 +948,77 @@ export class WorkerManager implements WorkerContext {
     worker.gridY = Phaser.Math.Clamp(Math.round(worker.gridY ?? GRID_CENTER.y), 0, GRID_SIZE - 1);
     const store = useGameStore.getState();
 
-    // Minions are not locked into one resource: they roam to whatever the realm needs
-    if (isGatherer(worker.unitClass)) {
-      const chosenTask = chooseGatherTask(store);
-      if (worker.assignedTask !== chosenTask) {
-        worker.assignedTask = chosenTask;
-        this.redrawBody(worker);
-        renderCargoGraphics(worker.cargoIcon, chosenTask);
-        worker.emoteText.setText(TASK_CONFIG[chosenTask].icon);
+    // 1. Dedicated Tenant AI: strictly harvest from & repair their parent establishment!
+    if (worker.parentBuildingId) {
+      const loot = this.getNearestGroundLoot(worker.container.x, worker.container.y, 350);
+      if (loot) {
+        this.followPathTo(worker, { x: loot.gridX, y: loot.gridY });
+        worker.status = 'MOVING_TO_NODE';
+        worker.overrideEmote = '🎒';
+        worker.overrideEmoteTimer = 2000;
+        return;
       }
+      const site = BUILDING_SITES[worker.parentBuildingId];
+      const targetNode = site ? site.workSpot : (TASK_NODE_LOCATIONS[worker.assignedTask] || this.nexusGridPos);
+      this.followPathTo(worker, targetNode);
+      worker.status = 'MOVING_TO_NODE';
+      return;
     }
 
-    // Enrichable nodes are tracked in the store; the others are fixed work spots
+    // 2. General / Champion Defense & Scouting Patrol:
+    // Generals prioritize repairing their damaged home establishment and Citadel Castle, then scout/patrol
+    const isGeneral = isGatherer(worker.unitClass) && !worker.id.startsWith('tenant_') && !worker.parentBuildingId;
+    if (isGeneral) {
+      const homeBuilding = UNIT_CLASSES[worker.unitClass]?.requiredBuilding;
+      if (homeBuilding) {
+        const b = towerBuildingOf(store, homeBuilding);
+        if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) {
+          const spot = homeBuilding === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[homeBuilding]?.workSpot;
+          if (spot) {
+            this.followPathTo(worker, spot);
+            worker.status = 'MOVING_TO_NODE';
+            worker.overrideEmote = '🔨';
+            worker.overrideEmoteTimer = 2000;
+            return;
+          }
+        }
+      }
+
+      if (store.defense.castleHp < store.defense.castleMaxHp) {
+        this.followPathTo(worker, this.nexusGridPos);
+        worker.status = 'MOVING_TO_NODE';
+        worker.overrideEmote = '🛡️';
+        worker.overrideEmoteTimer = 2000;
+        return;
+      }
+
+      let scoutTarget: GridPoint;
+      const roll = Math.random();
+      if (roll < 0.40 && PORTAL_SITES.length > 0) {
+        // Scout near invader portals to guard against incursions
+        const portal = PORTAL_SITES[Math.floor(Math.random() * PORTAL_SITES.length)];
+        scoutTarget = portal.exit;
+      } else if (roll < 0.70 && homeBuilding) {
+        // Patrol around their parent establishment to protect it
+        scoutTarget = homeBuilding === 'SPIRE' ? SPIRE_WORK_SPOT : (BUILDING_SITES[homeBuilding]?.workSpot ?? this.nexusGridPos);
+      } else if (BUILDING_IDS.length > 0) {
+        const buildingId = BUILDING_IDS[Math.floor(Math.random() * BUILDING_IDS.length)];
+        scoutTarget = BUILDING_SITES[buildingId].workSpot;
+      } else {
+        // Free roam platform territory
+        scoutTarget = {
+          x: Phaser.Math.Between(2, GRID_SIZE - 3),
+          y: Phaser.Math.Between(2, GRID_SIZE - 3),
+        };
+      }
+      this.followPathTo(worker, scoutTarget);
+      worker.status = 'MOVING_TO_NODE';
+      worker.overrideEmote = '🧭';
+      worker.overrideEmoteTimer = 1500;
+      return;
+    }
+
+    // Standard Minions:
     const task = worker.assignedTask;
     const targetNode = (isEnrichableTask(task) && store.dynamicResourceNodes?.[task]) || TASK_NODE_LOCATIONS[task];
     this.followPathTo(worker, targetNode);

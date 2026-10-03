@@ -106,7 +106,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
 
     buildSpire: (): boolean => {
       const state = get();
-      if (state.spireBuilt || !state.castleBuilt || !hasTreant(state)) return false;
+      if (state.spireBuilt || !state.castleBuilt) return false;
       if (!get().spendResources(SPIRE_CONSTRUCTION_COST)) return false;
       set({ spireBuilt: true, spireTower: { ...INITIAL_SPIRE_TOWER }, lastSavedTimestamp: Date.now() });
       soundFx.playFanfare();
@@ -114,14 +114,41 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
     },
 
     upgradeResourceBuilding: (buildingId: ResourceBuildingId): boolean => {
-      if (!hasTreant(get())) return false;
-
       const config = RESOURCE_BUILDING_CONFIG[buildingId];
-      const nextLevel = get().resourceBuildings[buildingId].level + 1;
-      const cost = config.costs[nextLevel - 1];
-      if (!cost || !get().spendResources(cost)) return false;
+      if (!config) return false;
+      const state = get();
+      if ((buildingId as string) === 'SPIRE') {
+        if (!state.spireBuilt) return false;
+        const currentLevel = state.spireTower?.towerLevel ?? 1;
+        const nextLevel = currentLevel + 1;
+        const cost = config.costs[nextLevel - 1];
+        if (!cost) return false;
 
-      const previous = get().resourceBuildings[buildingId];
+        if (!get().spendResources(cost)) {
+          get().buyShortfall(cost);
+          if (!get().spendResources(cost)) return false;
+        }
+
+        patchTower('SPIRE', {
+          towerLevel: nextLevel,
+          hp: Math.min(buildingMaxHp(nextLevel), (state.spireTower.hp ?? 0) + (buildingMaxHp(nextLevel) - buildingMaxHp(currentLevel))),
+        });
+        soundFx.playFanfare();
+        return true;
+      }
+
+      const previous = state.resourceBuildings[buildingId];
+      if (!previous) return false;
+      const nextLevel = previous.level + 1;
+      const cost = config.costs[nextLevel - 1];
+      if (!cost) return false;
+
+      // Auto-buy missing shortfall materials if coins allow
+      if (!get().spendResources(cost)) {
+        get().buyShortfall(cost);
+        if (!get().spendResources(cost)) return false;
+      }
+
       const towerLevel = Math.max(1, previous.towerLevel ?? 1);
       patchBuilding(buildingId, {
         level: nextLevel,
@@ -139,7 +166,13 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       if (!building || building.level < 1) return false;
       const towerLevel = towerLevelOf(building);
       const cost = towerUpgradeCost(buildingId, towerLevel);
-      if (!cost || !get().spendResources(cost)) return false;
+      if (!cost) return false;
+
+      // Auto-buy missing shortfall materials if coins allow
+      if (!get().spendResources(cost)) {
+        get().buyShortfall(cost);
+        if (!get().spendResources(cost)) return false;
+      }
 
       const nextTower = towerLevel + 1;
       // Upgrades raise max HP and heal by the added amount
@@ -162,6 +195,8 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
     },
 
     damageBuilding: (buildingId: TowerId, amount: number): boolean => {
+      const state = get();
+      if (state.defense.forceFieldTimer > 0) return false;
       const building = towerBuildingOf(get(), buildingId);
       if (!building || building.level < 1 || !(amount > 0)) return false;
       const hp = buildingHpOf(building);
@@ -202,36 +237,48 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       set((state) => {
         const next = { ...state.establishmentSkillCooldowns };
         let changed = false;
-        for (const id of Object.keys(next) as ResourceBuildingId[]) {
-          const { skill1, skill2 } = next[id];
+        for (const id of Object.keys(next) as (ResourceBuildingId | 'CASTLE' | 'SPIRE')[]) {
+          const current = next[id] ?? { skill1: 0, skill2: 0, skill3: 0 };
+          const { skill1 = 0, skill2 = 0, skill3 = 0 } = current;
           const ns1 = Math.max(0, skill1 - deltaSeconds);
           const ns2 = Math.max(0, skill2 - deltaSeconds);
-          if (ns1 !== skill1 || ns2 !== skill2) {
-            next[id] = { skill1: ns1, skill2: ns2 };
+          const ns3 = Math.max(0, skill3 - deltaSeconds);
+          if (ns1 !== skill1 || ns2 !== skill2 || ns3 !== skill3) {
+            next[id] = { skill1: ns1, skill2: ns2, skill3: ns3 };
             changed = true;
           }
         }
         const cd = state.citadelSkillCooldowns;
-        const citadel = cd.overdrive > 0 || cd.overcharge > 0
-          ? { citadelSkillCooldowns: { overdrive: Math.max(0, cd.overdrive - deltaSeconds), overcharge: Math.max(0, cd.overcharge - deltaSeconds) } }
+        const citadel = cd.overdrive > 0 || cd.overcharge > 0 || cd.resonance > 0
+          ? { citadelSkillCooldowns: { overdrive: Math.max(0, cd.overdrive - deltaSeconds), overcharge: Math.max(0, cd.overcharge - deltaSeconds), resonance: Math.max(0, cd.resonance - deltaSeconds) } }
           : {};
         return changed ? { establishmentSkillCooldowns: next, ...citadel } : { ...state, ...citadel };
       });
     },
 
-    triggerEstablishmentSkill: (buildingId: ResourceBuildingId, skillIndex: 0 | 1) => {
+    triggerEstablishmentSkill: (buildingId: ResourceBuildingId | 'CASTLE' | 'SPIRE', skillIndex: 0 | 1 | 2) => {
       const state = get();
-      const building = state.resourceBuildings[buildingId];
-      if (!building || building.level < 1) return false;
-      const slot = skillIndex === 0 ? 'skill1' : 'skill2';
-      if (state.establishmentSkillCooldowns[buildingId][slot] > 0) return false;
+      if (buildingId === 'CASTLE') {
+        if (!state.castleBuilt) return false;
+      } else if (buildingId === 'SPIRE') {
+        if (!state.spireBuilt) return false;
+      } else {
+        const building = state.resourceBuildings[buildingId];
+        if (!building || building.level < 1) return false;
+      }
 
-      const skill = ESTABLISHMENT_SKILLS[buildingId][slot];
+      const slot = skillIndex === 0 ? 'skill1' : skillIndex === 1 ? 'skill2' : 'skill3';
+      const cds = state.establishmentSkillCooldowns[buildingId] ?? { skill1: 0, skill2: 0, skill3: 0 };
+      if (cds[slot] > 0) return false;
+
+      const skill = ESTABLISHMENT_SKILLS[buildingId]?.[slot];
+      if (!skill) return false;
+
       set((prev) => ({
         pendingSkillCasts: [...prev.pendingSkillCasts, skill.id],
         establishmentSkillCooldowns: {
           ...prev.establishmentSkillCooldowns,
-          [buildingId]: { ...prev.establishmentSkillCooldowns[buildingId], [slot]: skill.cooldownSeconds },
+          [buildingId]: { ...(prev.establishmentSkillCooldowns[buildingId] ?? { skill1: 0, skill2: 0, skill3: 0 }), [slot]: skill.cooldownSeconds },
         },
       }));
       soundFx.playFanfare();
@@ -249,8 +296,8 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       if (!state.castleBuilt || !state.invasion.isActive || state.citadelSkillCooldowns.overdrive > 0) return false;
       if (!get().spendResources({ aetherShards: 40 })) return false;
       set((prev) => ({
-        pendingSkillCasts: [...prev.pendingSkillCasts, 'CASTLE_OVERDRIVE'],
-        citadelSkillCooldowns: { ...prev.citadelSkillCooldowns, overdrive: 45 },
+        pendingSkillCasts: [...prev.pendingSkillCasts, 'CASTLE_AEGIS_SHIELD'],
+        citadelSkillCooldowns: { ...prev.citadelSkillCooldowns, overdrive: 40 },
       }));
       return true;
     },
@@ -260,9 +307,22 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       if (!state.spireBuilt || state.citadelSkillCooldowns.overcharge > 0) return false;
       if (!get().spendResources({ coins: 60, arcaneEssence: 5 })) return false;
       set((prev) => ({
-        pendingSkillCasts: [...prev.pendingSkillCasts, 'SPIRE_OVERCHARGE'],
+        pendingSkillCasts: [...prev.pendingSkillCasts, 'SPIRE_ARCANE_OVERCHARGE'],
         citadelSkillCooldowns: { ...prev.citadelSkillCooldowns, overcharge: 40 },
       }));
+      return true;
+    },
+
+    castCrystalResonance: (): boolean => {
+      const state = get();
+      if (!state.spireBuilt || state.citadelSkillCooldowns.resonance > 0) return false;
+      const amount = Math.round(state.defense.castleMaxHp * 0.25);
+      if (state.defense.castleHp >= state.defense.castleMaxHp) return false;
+      set((prev) => ({
+        defense: { ...prev.defense, castleHp: Math.min(prev.defense.castleMaxHp, prev.defense.castleHp + amount) },
+        citadelSkillCooldowns: { ...prev.citadelSkillCooldowns, resonance: 70 },
+      }));
+      soundFx.playFanfare();
       return true;
     },
 
@@ -303,7 +363,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       set({ selectedEstablishmentId: null });
     },
 
-    toggleBuildingAutoBuy: (buildingId: ResourceBuildingId) => {
+    toggleBuildingAutoBuy: (buildingId: TowerId) => {
       set((state) => ({
         autoBuyBuildingMaterials: {
           ...state.autoBuyBuildingMaterials,

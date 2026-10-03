@@ -37,7 +37,7 @@ export const INITIAL_RESOURCES: Resources = {
 };
 
 /** Builds a per-establishment record with the same starting value. */
-const perBuilding = <T>(value: () => T): Record<ResourceBuildingId, T> => ({
+export const perBuilding = <T>(value: () => T): Record<ResourceBuildingId, T> => ({
   WOOD: value(),
   MINE: value(),
   QUARRY: value(),
@@ -62,6 +62,9 @@ export const INITIAL_DEFENSE: CastleDefenseState = {
   wallLevel: 1,
   beaconLevel: 1,
   shieldLevel: 1,
+  forceFieldTimer: 0,
+  minionFrenzyTimer: 0,
+  massRegenTimer: 0,
 };
 
 export const INITIAL_INVASION: InvasionState = {
@@ -80,8 +83,11 @@ export const INITIAL_AUTO_SETTINGS: AutoSettings = {
   autoRest: true,
   autoDefend: true,
   autoSell: false,
+  autoBuy: false,
+  autoUpgrade: false,
   autoTap: true,
   autoEvolve: true,
+  autoSurvivalSkills: true,
 };
 
 export const INITIAL_UPGRADES: UpgradesState = {
@@ -90,6 +96,27 @@ export const INITIAL_UPGRADES: UpgradesState = {
   quarryLevel: 1,
   golemSpeedLevel: 1,
   golemCapacityLevel: 1,
+
+  // 5 Focus Categories (Default Lv. 1)
+  slimeAttackHeal: 1,
+  slimeDefenseAbsorb: 1,
+  slimeCooldownBurst: 1,
+
+  entAttackConstruct: 1,
+  entDefenseHpBar: 1,
+  entCooldownSurvival: 1,
+
+  castleAttackTurret: 1,
+  castleDefenseArmor: 1,
+  castleCooldownUltimate: 1,
+
+  establishmentAttackWork: 1,
+  establishmentDefenseBar: 1,
+  establishmentCooldownSkill: 1,
+
+  tenantAttackCounter: 1,
+  tenantDefenseBar: 1,
+  tenantCooldownSummon: 1,
 };
 
 export const SUPPORT_SLIME_ID = 'unit_slime_support_1';
@@ -130,6 +157,7 @@ export const createInitialWorldClock = () => ({
   dayProgress: 0,
   timeOfDay: 'DAY' as const,
   weather: 'CLEAR' as const,
+  randomWeatherEnabled: true,
   ambientDarkness: 0,
   gameSpeed: 1 as GameSpeed,
 });
@@ -197,10 +225,10 @@ export const createInitialProgress = () => {
     // Platform & Regression Progression
     layoutSeed,
     buildingPositions: {} as BuildingPositions,
-    munitions: { armorPiercing: 0, incendiary: 0 },
+    munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0 },
     pendingSkillCasts: [] as string[],
-    citadelSkillCooldowns: { overdrive: 0, overcharge: 0 },
-    pendingBattleEffects: [] as Array<'LAVA_BOMB' | 'DEATH_CURSE'>,
+    citadelSkillCooldowns: { overdrive: 0, overcharge: 0, resonance: 0 },
+    pendingBattleEffects: [] as import('../../types/state').BattleEffect[],
     platformPhase: 1 as const,
     regressionCount: 0,
     regressionHistory: [],
@@ -215,7 +243,11 @@ export const createInitialProgress = () => {
     activeGodBlessings: createInitialBlessings(),
 
     // Establishments
-    establishmentSkillCooldowns: perBuilding(() => ({ skill1: 0, skill2: 0 })),
+    establishmentSkillCooldowns: {
+      ...perBuilding(() => ({ skill1: 0, skill2: 0, skill3: 0 })),
+      CASTLE: { skill1: 0, skill2: 0, skill3: 0 },
+      SPIRE: { skill1: 0, skill2: 0, skill3: 0 },
+    },
     selectedEstablishmentId: null,
     autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING },
     autoBuySummon: {},

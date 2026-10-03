@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { hasSavedRealm } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
-import { Play, RotateCcw, Sliders, Shield, Compass } from 'lucide-react';
+import { Play, RotateCcw, Sliders, Shield, Compass, BookOpen } from 'lucide-react';
 
 interface TitleScreenProps {
   onStartNewRealm: () => void;
@@ -153,7 +153,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       <div className="flex-1" />
 
       {/* --- ACTION BUTTONS MENU --- */}
-      <div className="relative z-20 flex flex-col items-center gap-3.5 w-full max-w-sm px-4 mb-8">
+      <div className="relative z-20 flex flex-col items-center gap-3 w-full max-w-sm px-4 mb-8">
         
         {/* START NEW REALM BUTTON */}
         <button
@@ -197,14 +197,14 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           <button
             type="button"
             onClick={handleSettingsClick}
-            className={`w-full group flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl text-xs font-bold tracking-wider uppercase transition-all duration-150 border ${
+            className={`w-full group flex items-center justify-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-bold tracking-wider uppercase transition-all duration-150 border ${
               clickedBtn === 'SETTINGS'
                 ? 'scale-95 bg-slate-700 text-white border-amber-400'
                 : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-red-500/50 hover:text-white hover:bg-slate-900 shadow-[0_4px_0_#050811] active:translate-y-0.5 active:shadow-none cursor-pointer'
             }`}
           >
-            <Sliders className="w-3.5 h-3.5 text-red-400 group-hover:rotate-45 transition-transform" />
-            <span>{language === 'TL' ? 'Mga Setting at Tunog ⚙️' : 'Settings & Audio ⚙️'}</span>
+            <Sliders className="w-4 h-4 text-red-400 group-hover:rotate-45 transition-transform" />
+            <span>{language === 'TL' ? 'MGA SETTING ⚙️' : 'SETTINGS ⚙️'}</span>
           </button>
         )}
 

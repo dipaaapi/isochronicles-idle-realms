@@ -868,7 +868,7 @@ const portal = (): StructureModel => {
   return {
     size: [34, 34, 46], foot: [17, 17, 0],
     materials: [
-      { color: 0x78716c }, { color: 0x44403c }, { color: 0xfbbf24 }, { color: 0xfde68a, emissive: true },
+      { color: 0x78716c }, { color: 0x44403c }, { color: 0xfbbf24 }, { color: 0x38bdf8, emissive: true },
       { color: 0x3b82f6, emissive: true }, { color: 0x93c5fd, emissive: true }, { color: 0xffffff, emissive: true },
       { color: 0xfde047, emissive: true }, { color: 0x60a5fa, emissive: true },
     ],

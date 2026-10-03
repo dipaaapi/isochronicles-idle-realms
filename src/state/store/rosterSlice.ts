@@ -13,17 +13,25 @@ import type { EquipmentItem, EquipmentSlot, HarvestTask, InvaderType, UnitClass 
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import type { SliceArgs } from './types';
 
-/** Castle (Nexus) / Refinery levels a paid summon still needs, or null when unlocked. */
+/** Castle (Nexus) / Refinery levels and required establishment a paid summon still needs, or null when unlocked. */
 export const summonLock = (
-  state: Pick<GameStoreState, 'upgrades' | 'resourceBuildings'>,
+  state: Pick<GameStoreState, 'upgrades'> & Partial<Pick<GameStoreState, 'spireBuilt' | 'resourceBuildings'>>,
   unitClass: UnitClass
-): { nexus: number; refinery: number; building?: ResourceBuildingId } | null => {
+): { nexus: number; refinery: number; building?: string } | null => {
   const cfg = UNIT_CLASSES[unitClass];
   const { upgrades } = state;
-  const homeMissing = !!cfg.requiredBuilding && (state.resourceBuildings[cfg.requiredBuilding]?.level ?? 0) < 1;
-  return homeMissing || upgrades.nexusLevel < cfg.requiredNexusLevel || upgrades.refineryLevel < cfg.requiredRefineryLevel
-    ? { nexus: cfg.requiredNexusLevel, refinery: cfg.requiredRefineryLevel, building: homeMissing ? cfg.requiredBuilding : undefined }
-    : null;
+  if (upgrades.nexusLevel < cfg.requiredNexusLevel || upgrades.refineryLevel < cfg.requiredRefineryLevel) {
+    return { nexus: cfg.requiredNexusLevel, refinery: cfg.requiredRefineryLevel };
+  }
+  if (cfg.requiredBuilding) {
+    const isBuilt = cfg.requiredBuilding === 'SPIRE'
+      ? !!state.spireBuilt
+      : (state.resourceBuildings?.[cfg.requiredBuilding as ResourceBuildingId]?.level ?? 0) >= 1;
+    if (!isBuilt) {
+      return { nexus: cfg.requiredNexusLevel, refinery: cfg.requiredRefineryLevel, building: cfg.requiredBuilding };
+    }
+  }
+  return null;
 };
 
 /** Fighters the Slime can summon (rulers are unique and arrive on their own). */
@@ -94,7 +102,7 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
 
     const state = get();
     if (unitClass !== 'TREANT' && !isConstructionReady(state)) return false;
-    const countOfClass = state.roster.filter((u) => u.unitClass === unitClass).length;
+    const countOfClass = state.roster.filter((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
     if (countOfClass >= maxUnitsOfClass(unitClass)) return false;
 
     const config = UNIT_CLASSES[unitClass];
@@ -133,6 +141,43 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
   },
 
   summonWorker: (): boolean => get().summonUnit('GOLEM', 'AETHER'),
+
+  summonTenant: (buildingId: ResourceBuildingId): boolean => {
+    const state = get();
+    const tenantMap: Record<ResourceBuildingId, { name: string; task: HarvestTask; unitClass: UnitClass }> = {
+      WOOD: { name: 'Woodland Tenant', task: 'WOOD', unitClass: 'LAVA_GARGOYLE' },
+      QUARRY: { name: 'Quarry Tenant', task: 'STONE', unitClass: 'GOLEM' },
+      MINE: { name: 'Miner Tenant', task: 'METAL', unitClass: 'DEMON_HOUND' },
+      PORT: { name: 'Harbor Tenant', task: 'FISH', unitClass: 'MERMAN' },
+      CAVE: { name: 'Cavern Tenant', task: 'ESSENCE', unitClass: 'NECROMANCER' },
+      TRENCH: { name: 'Abyssal Tenant', task: 'FISH', unitClass: 'KRAKEN' },
+      CRYPT: { name: 'Crypt Tenant', task: 'AETHER', unitClass: 'NECROMANCER' },
+      PERCH: { name: 'Perch Tenant', task: 'AETHER', unitClass: 'HARPY' },
+      KENNEL: { name: 'Kennel Tenant', task: 'WOOD', unitClass: 'DEMON_HOUND' },
+    };
+    const info = tenantMap[buildingId] || { name: 'Realm Tenant', task: 'AETHER', unitClass: 'GOLEM' as UnitClass };
+    const count = state.roster.filter(
+      (u) => u.parentBuildingId === buildingId || (u.id.startsWith(`tenant_${buildingId.toLowerCase()}`))
+    ).length;
+    if (count >= 2) return false;
+
+    const newUnitId = `tenant_${buildingId.toLowerCase()}_${Date.now()}`;
+    const newUnit: UnitRosterItem = {
+      id: newUnitId,
+      name: `${info.name} ${count + 1}`,
+      unitClass: info.unitClass,
+      assignedTask: info.task,
+      parentBuildingId: buildingId,
+    };
+    const nextRoster = [...state.roster, newUnit];
+    set({
+      roster: nextRoster,
+      workerCount: nextRoster.length,
+      lastSavedTimestamp: Date.now(),
+    });
+    soundFx.playGolemCheer();
+    return true;
+  },
 
   upgradeSupportSlime: (): boolean => {
     const state = get();

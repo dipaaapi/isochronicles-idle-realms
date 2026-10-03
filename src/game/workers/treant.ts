@@ -1,9 +1,10 @@
-import { TASK_NODE_LOCATIONS, TREANT_EVOLUTION } from '../../types/game';
+import { CRAFTABLE_ITEMS, TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES, type EquipmentSlot } from '../../types/game';
 import type { GameStoreState, ResourceBuildingState, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
-import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../../state/economy';
+import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST, getUnitSummonCost, maxUnitsOfClass } from '../../state/economy';
 import { canAfford } from '../../state/resources';
-import { CONSTRUCTION_SECONDS, nextConstruction } from '../../state/constructionProgress';
+import { FIGHTER_CLASSES, craftingCost, summonLock } from '../../state/store/rosterSlice';
+import { CONSTRUCTION_SECONDS, nextEntConstruction } from '../../state/constructionProgress';
 import { BUILDING_IDS, BUILDING_SITES, SPIRE_WORK_SPOT } from '../../state/buildingLayout';
 import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
 import { logMessage } from '../../state/activityLog';
@@ -19,8 +20,16 @@ type TreantProfile = typeof TREANT_EVOLUTION[1];
 const hpRatio = (b: ResourceBuildingState | undefined) =>
   buildingHpOf(b) / buildingMaxHp(towerLevelOf(b));
 
-const isDamaged = (b: ResourceBuildingState | undefined) =>
-  !!b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b));
+const isBuildingBuilt = (store: GameStoreState, id: TowerId): boolean => {
+  if (id === 'SPIRE') return !!store.spireBuilt;
+  return (store.resourceBuildings[id]?.level ?? 0) >= 1;
+};
+
+const isDamaged = (store: GameStoreState, id: TowerId): boolean => {
+  if (!isBuildingBuilt(store, id)) return false;
+  const b = towerBuildingOf(store, id);
+  return !!b && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b));
+};
 
 /** Everything the Ent repairs besides the citadel. */
 const REPAIRABLE: TowerId[] = ['SPIRE', ...BUILDING_IDS];
@@ -30,7 +39,7 @@ const repairSpot = (id: TowerId) => (id === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING
 const towerLabel = (id: TowerId, tl: boolean): { name: string; icon: string } => {
   if (id === 'SPIRE') return { name: tl ? DEFENSE_TEXT.spireName.tl : DEFENSE_TEXT.spireName.en, icon: '💎' };
   const cfg = RESOURCE_BUILDING_CONFIG[id];
-  return { name: tl ? cfg.label : cfg.labelEn, icon: cfg.icon };
+  return { name: tl ? (cfg?.label ?? id) : (cfg?.labelEn ?? id), icon: cfg?.icon ?? '🏛️' };
 };
 
 /**
@@ -44,8 +53,7 @@ export function updateConstruction(
   deltaSec: number,
   effectiveSpeed: number
 ): boolean {
-  // Finish initial construction before repairs, enrichment or fortification.
-  const site = nextConstruction(store);
+  const site = nextEntConstruction(store);
   if (!site) return false;
 
   const target = IsometricHelper.gridToScreen(site.x, site.y);
@@ -59,20 +67,47 @@ export function updateConstruction(
     return true;
   }
 
-  const cost = site.id === 'CASTLE' ? CASTLE_CONSTRUCTION_COST
-    : site.id === 'SPIRE' ? SPIRE_CONSTRUCTION_COST
-    : RESOURCE_BUILDING_CONFIG[site.id].costs[0];
+  let cost: Partial<typeof store.resources> = {};
+  if (site.id === 'CASTLE') {
+    cost = CASTLE_CONSTRUCTION_COST;
+  } else if (site.id === 'SPIRE') {
+    cost = SPIRE_CONSTRUCTION_COST;
+  } else {
+    cost = RESOURCE_BUILDING_CONFIG[site.id]?.costs[0] ?? {};
+  }
+
+  // Auto-buy missing shortfall materials if gold coins allow
+  if (!canAfford(store.resources, cost)) {
+    store.buyShortfall(cost);
+  }
+
   const affordable = canAfford(store.resources, cost);
   worker.status = affordable ? 'HARVESTING' : 'IDLE';
   worker.constructionTimer = affordable ? (worker.constructionTimer ?? 0) + deltaSec : 0;
   if (worker.constructionTimer >= CONSTRUCTION_SECONDS) {
-    const built = site.id === 'CASTLE' ? store.buildCastle()
-      : site.id === 'SPIRE' ? store.buildSpire()
-      : store.upgradeResourceBuilding(site.id);
     worker.constructionTimer = 0;
-    if (built) {
-      ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 12);
-      ctx.spawnFloatingPopup(target.x, target.y - 45, `Ent built ${site.label}!`, '#86efac');
+    if (site.id === 'CASTLE') {
+      const built = store.buildCastle();
+      if (built) {
+        ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 14);
+        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent built Citadel Castle! 🏰`, '#86efac');
+      }
+    } else if (site.id === 'SPIRE') {
+      const built = store.buildSpire();
+      if (built) {
+        ctx.spawnHarvestBurst(target.x, target.y - 15, 0x38bdf8, 16);
+        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent raised Crystal Spire! 💎`, '#38bdf8');
+        soundFx.playFanfare();
+      }
+    } else {
+      const built = store.upgradeResourceBuilding(site.id);
+      if (built) {
+        (ctx.scene as any).paveEstablishment?.(site.id, true);
+        ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 14);
+        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent established ${site.label}! 🏛️`, '#86efac');
+        soundFx.playFanfare();
+        store.summonTenant(site.id);
+      }
     }
   }
   return true;
@@ -86,7 +121,7 @@ const targetCastle = (ctx: WorkerContext, worker: WorkerInstance, actionTimer: n
   worker.treantTargetTile = { ...ctx.nexusGridPos };
 };
 
-/** Chooses the next job once the action timer runs out: castle → establishment → enrich a node. */
+/** Chooses the next job once the action timer runs out: castle → built establishment → enrich built node. */
 function chooseTreantJob(
   ctx: WorkerContext,
   worker: WorkerInstance,
@@ -99,9 +134,9 @@ function chooseTreantJob(
     return;
   }
 
-  // Most damaged establishment or spire (wrecked ones first)
+  // Most damaged BUILT establishment or spire (wrecked ones first, only if already constructed)
   const damagedId = REPAIRABLE
-    .filter((id) => isDamaged(towerBuildingOf(store, id)))
+    .filter((id) => isDamaged(store, id))
     .sort((a, b) => hpRatio(towerBuildingOf(store, a)) - hpRatio(towerBuildingOf(store, b)))[0];
 
   if (damagedId) {
@@ -112,7 +147,19 @@ function chooseTreantJob(
     return;
   }
 
-  // Replenish & enrich a resource node: 75% the lowest stockpile, 25% random
+  // Replenish & enrich a resource node ONLY for built establishments
+  const availableEnrichNodes: EnrichableNode[] = [];
+  if (store.spireBuilt) availableEnrichNodes.push('AETHER');
+  if ((store.resourceBuildings['WOOD']?.level ?? 0) >= 1) availableEnrichNodes.push('WOOD');
+  if ((store.resourceBuildings['QUARRY']?.level ?? 0) >= 1) availableEnrichNodes.push('STONE');
+  if ((store.resourceBuildings['MINE']?.level ?? 0) >= 1) availableEnrichNodes.push('ESSENCE');
+
+  if (availableEnrichNodes.length === 0) {
+    // If no resource buildings are built yet, focus on Castle
+    targetCastle(ctx, worker, 6.0);
+    return;
+  }
+
   worker.treantRepairId = undefined;
   worker.treantMode = 'REPLENISH';
   worker.treantActionTimer = profile.replenishCooldownSeconds + Math.random() * 4.0;
@@ -123,11 +170,12 @@ function chooseTreantJob(
     WOOD: store.resources.wood,
     ESSENCE: store.resources.arcaneEssence,
   };
-  const targetType = Math.random() < 0.75
-    ? ENRICHABLE.reduce((lowest, c) => (stock[c] < stock[lowest] ? c : lowest), ENRICHABLE[0])
-    : ENRICHABLE[Math.floor(Math.random() * ENRICHABLE.length)];
 
-  // Fixed location for resource landmark nodes (no random movement across map!)
+  const targetType = Math.random() < 0.75
+    ? availableEnrichNodes.reduce((lowest, c) => (stock[c] < stock[lowest] ? c : lowest), availableEnrichNodes[0])
+    : availableEnrichNodes[Math.floor(Math.random() * availableEnrichNodes.length)];
+
+  // Fixed location for resource landmark nodes
   const node = TASK_NODE_LOCATIONS[targetType];
   worker.treantTargetTile = { x: node.x, y: node.y };
   store.replenishResourceNode(targetType, { x: node.x, y: node.y, qualityMultiplier: profile.enrichmentMultiplier });
@@ -185,6 +233,16 @@ function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: 
     return;
   }
 
+  // Castle Fortification Upgrades (Wall / Beacon / Shield)
+  if (store.resources.coins >= 80) {
+    const upgraded = store.upgradeDefense('wallLevel') || store.upgradeDefense('shieldLevel') || store.upgradeDefense('beaconLevel');
+    if (upgraded) {
+      ctx.spawnHarvestBurst(x, y - 15, 0xa855f7, 10);
+      ctx.spawnFloatingPopup(x, y - 45, `🏰 Ent Upgraded Castle Defense!`, '#c084fc');
+      return;
+    }
+  }
+
   // Passive Citadel majesty coin tribute
   const tribute = Math.round(profile.level * 2);
   useGameStore.setState((s) => ({ resources: { ...s.resources, coins: s.resources.coins + tribute } }));
@@ -192,7 +250,129 @@ function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: 
   ctx.spawnFloatingPopup(x, y - 40, `👑 Citadel Majesty Tribute (+${tribute}🪙)`, '#fbbf24');
 }
 
-/** Ancient Ent AI: invulnerable builder that constructs, repairs, fortifies and enriches. */
+/**
+ * Ancient Ent Auto-Forge & Armory:
+ * The Ancient Ent inspects fighting minions in the realm. When a minion lacks
+ * gear or a stronger piece is craftable/purchasable, the Ancient Ent automatically
+ * crafts from materials or purchases with coins and equips it to the minion.
+ */
+function autoForgeAndEquipByAncientEnt(
+  ctx: WorkerContext,
+  worker: WorkerInstance,
+  store: GameStoreState
+): void {
+  const fighters = store.roster.filter(
+    (u) => u.unitClass !== 'TREANT' && u.unitClass !== 'AQUA_SLIME'
+  );
+  if (fighters.length === 0) return;
+
+  const slots: EquipmentSlot[] = ['TOOL', 'ARMOR', 'RELIC'];
+
+  for (const fighter of fighters) {
+    for (const slot of slots) {
+      const slotKey = slot.toLowerCase() as 'tool' | 'armor' | 'relic';
+      const currentItem = fighter.equipment?.[slotKey];
+
+      // 1. Equip from existing inventory first
+      const inInventory = store.inventory.find((i) => i.slot === slot);
+      if (inInventory && !currentItem) {
+        store.equipItem(fighter.id, inInventory);
+        ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0xa855f7, 6);
+        ctx.spawnFloatingPopup(
+          worker.container.x,
+          worker.container.y - 45,
+          `⚒️ Ent equipped ${inInventory.name}!`,
+          '#c084fc'
+        );
+        return;
+      }
+
+      if (currentItem) continue;
+
+      // 2. Craft or buy a missing piece for this slot
+      const candidateItems = CRAFTABLE_ITEMS.filter((i) => i.slot === slot);
+      for (const item of candidateItems) {
+        const cost = craftingCost(item);
+        if (canAfford(store.resources, cost)) {
+          // Craft directly using stockpiled resources
+          if (store.craftEquipment(item)) {
+            store.equipItem(fighter.id, item);
+            ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0xa855f7, 10);
+            ctx.spawnFloatingPopup(
+              worker.container.x,
+              worker.container.y - 45,
+              `⚒️ Ent forged ${item.name}!`,
+              '#c084fc'
+            );
+            return;
+          }
+        } else if (store.resources.coins >= (item.costCoins || 50)) {
+          // Buy using surplus realm gold coins
+          if (store.purchaseEquipment(item)) {
+            store.equipItem(fighter.id, item);
+            ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0xfbbf24, 10);
+            ctx.spawnFloatingPopup(
+              worker.container.x,
+              worker.container.y - 45,
+              `🪙 Ent bought ${item.name}!`,
+              '#fbbf24'
+            );
+            return;
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Mother Ancient Ent: Life Giver & General Summoner:
+ * The Ancient Ent acts as the mother of the realm who spawns and summons Generals/Champions.
+ * When the needed materials are complete (or auto-bought), the Ancient Ent summons them
+ * one by one with a visible motherly emergence animation.
+ */
+function autoSummonGeneralsByAncientEnt(
+  ctx: WorkerContext,
+  worker: WorkerInstance,
+  store: GameStoreState
+): void {
+  // Only summon generals once the Citadel Castle stands
+  if (!store.castleBuilt) return;
+
+  for (const unitClass of FIGHTER_CLASSES) {
+    const count = store.roster.filter((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
+    if (count >= maxUnitsOfClass(unitClass)) continue;
+
+    // Check prerequisites / tech requirements
+    if (summonLock(store, unitClass)) continue;
+
+    const cost = getUnitSummonCost(unitClass, count);
+
+    // If needed materials have a shortfall but realm has sufficient surplus gold coins, auto-buy shortfall
+    if (!canAfford(store.resources, cost)) {
+      store.buyShortfall(cost);
+    }
+
+    // Check if needed materials are complete
+    if (!canAfford(store.resources, cost)) {
+      continue; // Materials not yet complete for this general
+    }
+
+    // Mother Ent channels life-giving nature magic to birth the General!
+    worker.overrideEmote = '🌳';
+    worker.overrideEmoteTimer = 2200;
+    ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0x22c55e, 24);
+    ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0xfbbf24, 16);
+
+    const summoned = store.summonUnit(unitClass, undefined, false);
+    if (summoned) {
+      soundFx.playGolemCheer();
+      return; // Summon 1 general at a time when materials are complete
+    }
+  }
+}
+
+/** Ancient Ent AI: invulnerable builder that constructs, repairs, fortifies, crafts gear, enriches and mothers/summons generals. */
 export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
   const { store, deltaSec, effectiveSpeed } = frame;
   worker.hp = worker.maxHp; // Builder cannot take damage or be killed
@@ -200,6 +380,21 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
   worker.cargoIcon.setVisible(false);
 
   const profile = TREANT_EVOLUTION[clampLevel(worker.treantEvolutionLevel)];
+
+  // ── Mother Ancient Ent: Summon Generals When Needed Materials Are Complete ──
+  worker.autoSummonTimer = (worker.autoSummonTimer ?? 2.5) - deltaSec;
+  if (worker.autoSummonTimer <= 0) {
+    worker.autoSummonTimer = 3.0 + Math.random() * 1.5;
+    autoSummonGeneralsByAncientEnt(ctx, worker, store);
+  }
+
+  // ── Ancient Ent Auto-Forge & Armory Check ──
+  worker.entGearTimer = (worker.entGearTimer ?? 3.0) - deltaSec;
+  if (worker.entGearTimer <= 0) {
+    worker.entGearTimer = 4.0;
+    autoForgeAndEquipByAncientEnt(ctx, worker, store);
+  }
+
   if (updateConstruction(ctx, worker, store, deltaSec, effectiveSpeed)) return;
 
   if (worker.treantActionTimer === undefined) {
@@ -213,7 +408,7 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
   const castleNeedsWork = castleHp < castleMaxHp || shieldHp < shieldMaxHp;
 
   if (store.invasion.isActive && castleNeedsWork) {
-    // During an invasion, the Ent's only job is to keep the castle standing:
+    // During an invasion, the Ent's primary job is to keep the castle standing:
     // repair the hull first, then restore its protective shield.
     targetCastle(ctx, worker, Math.min(worker.treantActionTimer, 0.25));
     worker.supportCooldown = Math.min(worker.supportCooldown, 0.25);

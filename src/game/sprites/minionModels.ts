@@ -1,11 +1,11 @@
 import type { UnitClass } from '../../types/game';
 import type { Part, Pose, Shape, Vec3, VoxelModel } from './VoxelSprite';
-import { breathe, ENEMY_MODELS } from './enemyModels';
+import { breathe } from './enemyModels';
 import { recolorModel } from './VoxelSprite';
 
 /**
  * Voxel models for the Demon Lord's minions, following the bestiary artwork in
- * public/backgrounds/bestiary-icons/. Same conventions as enemyModels.ts:
+ * public/portraits/. Same conventions as enemyModels.ts:
  * +x = the character's right, +y = forward, +z = up.
  */
 
@@ -102,154 +102,316 @@ const golem = (): VoxelModel => {
   };
 };
 
-// ── Wayfarer — hooded rogue with glowing green eyes and a dagger ─────────────
+// ── Lava Gargoyle (LAVA_GARGOYLE) — volcanic rock, fiery bat wings & horns ───
 
-const wayfarer = (): VoxelModel => {
-  const M = { cloak: 0, cloakDark: 1, tunic: 2, leather: 3, pants: 4, boots: 5, shadow: 6, eye: 7, blade: 8, skin: 9 };
-  const cx = 15;
+const lavaGargoyle = (): VoxelModel => {
+  const M = { rock: 0, magma: 1, flame: 2, horn: 3, eye: 4, wingBone: 5, wingMembrane: 6 };
+  const cx = 16;
   const parts: Part[] = [
-    ...pair('Leg', [13.25, 15, 11], [box(12, 13.5, 4, 14.5, 16.5, 11, M.pants), box(11.7, 13, 0, 14.8, 17.8, 4, M.boots)], cx),
+    ...pair('Leg', [13, 16, 8], [
+      box(11, 14, 2, 15, 18, 9, M.rock),
+      box(10.5, 13, 0, 15.5, 19.5, 2.5, M.rock),               // talons
+      box(11.2, 17.5, 4, 14.8, 18.2, 7, M.magma),             // glowing vein
+    ], cx),
     {
-      name: 'torso', pivot: [15, 15, 11], shapes: [
-        box(11, 12.5, 11, 19, 17.5, 22, M.tunic),
-        box(11, 12.5, 12.5, 19, 17.8, 14, M.leather),         // belt
-        box(16.5, 17.5, 11, 18.5, 18.6, 13.5, M.leather),     // belt pouch
-        box(12, 17.3, 15, 13, 17.9, 21, M.leather),           // strap
-        ell(15, 15, 22, 5.3, 3.4, 1.8, M.cloak),              // cloak shoulders
+      name: 'torso', pivot: [16, 16, 9], shapes: [
+        box(11, 13, 9, 21, 19, 23, M.rock),
+        box(12, 18.2, 11, 20, 19.5, 21, M.magma),             // magma chest core
+        box(14, 18.8, 13, 18, 19.8, 19, M.flame),
+        box(15.5, 10, 8, 16.5, 12, 18, M.rock),               // spiked tail
+        box(15.5, 7.5, 5, 16.5, 10, 8.5, M.flame),
       ],
     },
-    { name: 'cape', parent: 'torso', pivot: [15, 12, 22], shapes: [box(10.5, 10.8, 7, 19.5, 12.2, 22, M.cloak), box(11, 10.4, 7, 19, 11, 10, M.cloakDark)] },
     {
-      name: 'head', parent: 'torso', pivot: [15, 15, 23], shapes: [
-        box(11.2, 11.8, 22.5, 18.8, 18.2, 30.5, M.cloak),     // deep hood
-        ell(15, 14.5, 30.5, 4, 3.6, 1.8, M.cloak),
-        box(14, 10.5, 25, 16, 12, 31, M.cloakDark),           // hood point
-        box(12.5, 17.4, 23, 17.5, 18.4, 28.5, M.shadow),      // face in shadow
-        box(12.5, 17.4, 23, 17.5, 18.4, 24.5, M.skin),        // chin
-        box(13.2, 18, 26, 14.4, 18.8, 27, M.eye),
-        box(15.6, 18, 26, 16.8, 18.8, 27, M.eye),
+      name: 'head', parent: 'torso', pivot: [16, 16, 23], shapes: [
+        box(12.5, 13, 23, 19.5, 19.5, 29, M.rock),
+        box(13.2, 19.2, 25.5, 14.8, 19.8, 27, M.eye),         // burning orange eyes
+        box(17.2, 19.2, 25.5, 18.8, 19.8, 27, M.eye),
+        box(14, 18.8, 23.5, 18, 19.6, 24.5, M.magma),         // fanged maw
+        box(11, 14, 28, 13.5, 17, 33, M.horn),                // curved horns
+        box(18.5, 14, 28, 21, 17, 33, M.horn),
       ],
     },
-    ...pair('Arm', [9.75, 15, 22], [box(8.5, 13.8, 14, 11, 16.2, 22, M.cloakDark), box(8.6, 13.9, 12, 10.9, 16.1, 14.5, M.leather)], cx, 'torso'),
-    {
-      name: 'dagger', parent: 'rightArm', pivot: [20.25, 15, 12.5], shapes: [
-        box(19.8, 14, 12, 20.8, 17, 13.3, M.leather),
-        box(19, 17, 11.8, 21.6, 17.8, 13.5, M.cloakDark),     // guard
-        box(19.9, 17.8, 12.2, 20.7, 24, 13.1, M.blade),
-      ],
-    },
+    ...pair('Arm', [9.5, 16, 21], [
+      box(8, 14, 13, 11, 18, 22, M.rock),
+      box(7.5, 13.5, 7, 11.5, 18.5, 13, M.magma),             // fiery claws
+      box(7.8, 17.5, 7.5, 11.2, 18.6, 10.5, M.flame),
+    ], cx, 'torso'),
+    ...pair('Wing', [10, 12, 20], [
+      box(4, 11, 19, 11, 12.5, 22, M.wingBone),               // wing spar
+      box(1, 11, 21, 5, 12.5, 30, M.wingBone),
+      box(1.5, 11.5, 14, 10, 12.2, 26, M.wingMembrane),       // fiery membrane
+      box(2.5, 11.6, 16, 9, 12.1, 23, M.flame),
+    ], cx, 'torso'),
   ];
-  // Runs hunched forward with the cape streaming behind
   const walk: Pose[] = STRIDE.map((s) => ({
-    leftLeg: { pitch: 0.65 * s },
-    rightLeg: { pitch: -0.65 * s },
-    leftArm: { pitch: -0.5 * s },
+    leftLeg: { pitch: 0.5 * s },
+    rightLeg: { pitch: -0.5 * s },
+    leftArm: { pitch: -0.4 * s },
     rightArm: { pitch: 0.4 * s },
-    torso: { pitch: 0.12, offset: [0, 0, s === 0 ? 1 : 0] },
-    cape: { pitch: -0.35 - 0.15 * Math.abs(s) },
+    leftWing: { yaw: 0.3 * s, roll: 0.1 * s },
+    rightWing: { yaw: -0.3 * s, roll: -0.1 * s },
+    torso: { pitch: 0.1, offset: [0, 0, s === 0 ? 1 : 0] },
   }));
   const attack: Pose[] = [
-    { rightArm: { pitch: 2.0 }, torso: { yaw: 0.35, pitch: 0.1 }, cape: { pitch: -0.3 } },
-    { rightArm: { pitch: 1.2, offset: [0, 2, 0] }, torso: { yaw: -0.1, pitch: 0.15 }, leftLeg: { pitch: 0.4 }, cape: { pitch: -0.5 } },
-    { rightArm: { pitch: 0.6, offset: [0, 1, 0] }, torso: { yaw: -0.35, pitch: 0.18 }, cape: { pitch: -0.6 } },
+    { leftWing: { yaw: 0.6 }, rightWing: { yaw: -0.6 }, rightArm: { pitch: 1.8 }, torso: { pitch: -0.1 } },
+    { leftWing: { yaw: -0.4 }, rightWing: { yaw: 0.4 }, rightArm: { pitch: 0.5, offset: [0, 2, 0] }, torso: { pitch: 0.25 } },
+    { leftWing: { yaw: 0.1 }, rightWing: { yaw: -0.1 }, rightArm: { pitch: 0.8 }, torso: { pitch: 0.1 } },
   ];
-  const idle = breathe('torso', { cape: { pitch: -0.1 } });
+  const idle = breathe('torso', { leftWing: { roll: 0.15 }, rightWing: { roll: -0.15 } });
   return {
-    size: [30, 32, 36],
-    foot: [15, 15, 0],
+    size: [36, 32, 36],
+    foot: [16, 16, 0],
     materials: [
-      { color: 0x6b5140 }, { color: 0x45342a }, { color: 0x3f5a3a }, { color: 0x5a3f28 }, { color: 0x3b3f47 },
-      { color: 0x292524 }, { color: 0x1a1512 }, { color: 0x4ade80, emissive: true }, { color: 0xe2e8f0 }, { color: 0xc68e62 },
+      { color: 0x27272a }, { color: 0xea580c, emissive: true }, { color: 0xfbbf24, emissive: true },
+      { color: 0x18181b }, { color: 0xf97316, emissive: true }, { color: 0x3f3f46 }, { color: 0xc2410c, emissive: true },
     ],
     parts,
     animations: { walk, attack, idle },
   };
 };
 
-// ── Chrono — old wizard with a pointed hat, orb staff and golden pocket watch ─
+// ── Succubus (SUCCUBUS) — dark winged demoness, horns, purple/charm magic ───
 
-const chronoWizard = (): VoxelModel => {
-  const M = { robe: 0, robeDark: 1, trim: 2, skin: 3, beard: 4, hat: 5, hatBand: 6, staff: 7, orb: 8, gold: 9, face: 10, eye: 11 };
+const succubus = (): VoxelModel => {
+  const M = { skin: 0, hair: 1, corset: 2, horn: 3, eye: 4, wingBone: 5, wingMembrane: 6, magicOrb: 7, magicGlow: 8 };
   const cx = 15;
   const parts: Part[] = [
+    ...pair('Leg', [13.5, 15, 11], [
+      box(12.2, 13.8, 3, 14.8, 16.2, 11, M.skin),
+      box(12, 13.5, 0, 15, 16.8, 3.5, M.corset),              // high heel boots
+    ], cx),
     {
-      name: 'robe', pivot: [15, 15, 12], shapes: [
-        box(10, 10.5, 0, 20, 19.5, 4, M.robeDark),
-        box(10.5, 11, 4, 19.5, 19, 8, M.robe),
-        box(11, 11.5, 8, 19, 18.5, 12, M.robe),
-        box(9.8, 10.3, 0, 20.2, 19.7, 1.2, M.trim),
-        box(14.3, 18.9, 0, 15.7, 19.8, 12, M.robeDark),       // robe opening
+      name: 'torso', pivot: [15, 15, 11], shapes: [
+        box(12, 13.5, 11, 18, 16.5, 15, M.corset),            // waist
+        box(11.5, 13, 15, 18.5, 17, 21, M.corset),             // bustier
+        box(12.5, 15.8, 16, 17.5, 17.2, 20.5, M.skin),         // chest
       ],
     },
     {
-      name: 'torso', parent: 'robe', pivot: [15, 15, 12], shapes: [
-        box(11, 12, 12, 19, 18, 22, M.robe),
-        box(11, 12, 13, 19, 18.3, 14.2, M.staff),             // rope belt
-        box(12.5, 17.8, 18, 17.5, 18.6, 22, M.trim),          // collar trim
+      name: 'head', parent: 'torso', pivot: [15, 15, 21], shapes: [
+        box(12.5, 13, 21, 17.5, 17, 27, M.skin),
+        box(11.5, 12, 22, 18.5, 16.5, 28, M.hair),             // long dark violet hair
+        box(13.2, 16.8, 23.5, 14.4, 17.4, 24.5, M.eye),       // glowing magenta eyes
+        box(15.6, 16.8, 23.5, 16.8, 17.4, 24.5, M.eye),
+        box(10.5, 13.5, 27, 12.5, 15.5, 31, M.horn),          // curved demon horns
+        box(17.5, 13.5, 27, 19.5, 15.5, 31, M.horn),
       ],
     },
-    {
-      name: 'head', parent: 'torso', pivot: [15, 15, 22], shapes: [
-        box(12.5, 13, 22, 17.5, 18, 28, M.skin),
-        box(12, 12.5, 23, 18, 15, 28, M.beard),               // white hair
-        box(13.3, 17.9, 25.5, 14.5, 18.5, 26.5, M.eye),
-        box(15.5, 17.9, 25.5, 16.7, 18.5, 26.5, M.eye),
-        box(14.5, 18, 24.2, 15.5, 19, 26, M.skin),            // nose
-        box(12.5, 16.8, 17, 17.5, 19.2, 24.8, M.beard),       // long beard
-        ell(15, 18.4, 17.5, 2.6, 1.3, 3.8, M.beard),
-        box(13, 18.2, 24, 17, 19.3, 25, M.beard),             // moustache
-        ell(15, 15, 28.6, 6.6, 6.6, 0.9, M.hat),              // brim
-        box(12, 12, 29, 18, 18, 32, M.hat),                   // cone
-        box(12, 12, 29, 18, 18.3, 30.2, M.hatBand),
-        box(13, 12.5, 32, 17, 17.5, 35, M.hat),
-        box(14, 13, 35, 16, 17, 38, M.hat),
-        box(14.5, 11.5, 37.5, 15.5, 13.5, 40.5, M.hat),       // bent tip
-      ],
-    },
-    ...pair('Arm', [10, 15, 21], [
-      box(8, 13, 13, 11.5, 17, 21, M.robe),
-      box(7.5, 12.5, 12, 12, 17.5, 14, M.robeDark),           // wide cuff
-      ball(9.7, 15.5, 11.5, 1.4, M.skin),
+    ...pair('Arm', [10, 15, 20], [
+      box(8.8, 14, 13, 11.2, 16, 20, M.skin),
+      box(8.5, 13.8, 11, 11.5, 16.2, 13.5, M.corset),         // glove
+    ], cx, 'torso'),
+    ...pair('Wing', [11, 12, 19], [
+      box(5, 11, 18, 12, 12.2, 21, M.wingBone),
+      box(2, 11, 20, 6, 12.2, 28, M.wingBone),
+      box(3, 11.4, 13, 11, 12, 24, M.wingMembrane),
     ], cx, 'torso'),
     {
-      name: 'staff', parent: 'rightArm', pivot: [20.3, 15.5, 12], shapes: [
-        box(20, 15, 1, 21, 16, 31, M.staff),
-        box(20, 16, 31, 21, 17.5, 33, M.staff),               // gnarled crook
-        box(20, 17, 33, 21, 18.5, 35.5, M.staff),
-        box(20, 15, 34.5, 21, 17.5, 35.5, M.staff),
-        ball(20.5, 16, 32.8, 1.5, M.orb),
-      ],
-    },
-    {
-      name: 'watch', parent: 'leftArm', pivot: [9.7, 15.5, 11.5], shapes: [
-        box(9.4, 16, 11, 10, 17.2, 13, M.gold),               // chain
-        ell(9.7, 17.8, 9.5, 2.4, 0.8, 2.4, M.gold),
-        ell(9.7, 18.3, 9.5, 1.7, 0.5, 1.7, M.face),
+      name: 'orb', parent: 'rightArm', pivot: [20, 16, 12], shapes: [
+        ball(20, 17, 12, 2.2, M.magicOrb),
+        ball(20, 17, 12, 1.2, M.magicGlow),
       ],
     },
   ];
   const walk: Pose[] = STRIDE.map((s) => ({
-    robe: { roll: 0.05 * s, offset: [0, 0, s === 0 ? 1 : 0] },
-    leftArm: { pitch: -0.2 * s },
-    watch: { pitch: 0.2 * s },
-    rightArm: { pitch: 0.15 * s },
-    staff: { pitch: -0.15 * s },
+    leftLeg: { pitch: 0.45 * s },
+    rightLeg: { pitch: -0.45 * s },
+    leftArm: { pitch: -0.3 * s },
+    rightArm: { pitch: 0.3 * s },
+    leftWing: { yaw: 0.25 * s, roll: 0.1 * s },
+    rightWing: { yaw: -0.25 * s, roll: -0.1 * s },
+    torso: { roll: 0.04 * s },
   }));
-  // Raises the pocket watch (face kept toward the enemy) and the staff orb flares
   const attack: Pose[] = [
-    { leftArm: { pitch: 1.0 }, watch: { pitch: -1.0 }, rightArm: { pitch: 0.4 }, staff: { pitch: -0.4 } },
-    { leftArm: { pitch: 1.4 }, watch: { pitch: -1.4, scale: [1.3, 1.3, 1.3] }, rightArm: { pitch: 0.5 }, staff: { pitch: -0.5 } },
-    { leftArm: { pitch: 1.2 }, watch: { pitch: -1.2, scale: [1.15, 1.15, 1.15] }, rightArm: { pitch: 0.3 }, staff: { pitch: -0.3 } },
+    { rightArm: { pitch: 1.4 }, orb: { scale: [1.4, 1.4, 1.4] }, leftWing: { yaw: 0.4 }, rightWing: { yaw: -0.4 } },
+    { rightArm: { pitch: 1.8 }, orb: { scale: [2.0, 2.0, 2.0], offset: [0, 2, 0] }, torso: { pitch: 0.15 } },
+    { rightArm: { pitch: 1.0 }, orb: { scale: [1.2, 1.2, 1.2] } },
   ];
-  // The watch swings gently like a pendulum
-  const idle: Pose[] = [{ watch: { roll: 0.2 } }, { watch: { roll: -0.2 }, robe: { offset: [0, 0, -1] } }];
+  const idle = breathe('torso', { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } });
   return {
-    size: [30, 32, 44],
+    size: [32, 30, 36],
     foot: [15, 15, 0],
     materials: [
-      { color: 0x5b3fa0 }, { color: 0x3b2a6b }, { color: 0xd4a017 }, { color: 0xe8c39e }, { color: 0xe5e7eb },
-      { color: 0x4c3b8a }, { color: 0x2e2257 }, { color: 0x6b4423 }, { color: 0x60a5fa, emissive: true },
-      { color: 0xfbbf24 }, { color: 0xf0fdfa, emissive: true }, { color: 0x1e293b },
+      { color: 0xf5d0c5 }, { color: 0x3b0764 }, { color: 0x581c87 }, { color: 0x18181b },
+      { color: 0xf472b6, emissive: true }, { color: 0x2e1065 }, { color: 0x7e22ce },
+      { color: 0xd946ef, emissive: true }, { color: 0xfce7f3, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── Demon Hound (DEMON_HOUND) — 4-legged infernal wolf with magma veins ──────
+
+const demonHound = (): VoxelModel => {
+  const M = { coal: 0, magma: 1, flame: 2, tooth: 3, eye: 4 };
+  const cx = 15;
+  const parts: Part[] = [
+    // Front legs
+    ...pair('FrontLeg', [11, 19, 8], [
+      box(9.5, 17.5, 1, 12.5, 20.5, 9, M.coal),
+      box(9, 17, 0, 13, 21.5, 1.8, M.coal),                    // paws
+      box(9.8, 19.8, 3, 12.2, 20.6, 7, M.magma),
+    ], cx),
+    // Back legs
+    ...pair('BackLeg', [11, 9, 8], [
+      box(9.5, 7.5, 1, 12.5, 10.5, 9, M.coal),
+      box(9, 7, 0, 13, 11.5, 1.8, M.coal),
+      box(9.8, 9.8, 3, 12.2, 10.6, 7, M.magma),
+    ], cx),
+    {
+      name: 'body', pivot: [15, 14, 9], shapes: [
+        box(10, 6, 8, 20, 22, 16, M.coal),
+        box(13.5, 7, 15.5, 16.5, 21, 18, M.magma),             // burning spine
+        box(14, 8, 17.5, 16, 20, 19.5, M.flame),
+        box(14, 3, 12, 16, 7, 15, M.flame),                   // flaming tail
+      ],
+    },
+    {
+      name: 'head', parent: 'body', pivot: [15, 22, 14], shapes: [
+        box(11.5, 20, 12, 18.5, 28, 18, M.coal),               // wolf snout
+        box(12.5, 24, 11, 17.5, 29, 14, M.magma),              // lower jaw
+        box(12.8, 27.5, 13.8, 13.8, 28.5, 14.8, M.tooth),      // fangs
+        box(16.2, 27.5, 13.8, 17.2, 28.5, 14.8, M.tooth),
+        box(12.2, 25.5, 17.2, 13.6, 26.5, 18.2, M.eye),        // red glow eyes
+        box(16.4, 25.5, 17.2, 17.8, 26.5, 18.2, M.eye),
+        box(10.5, 20.5, 17.5, 12.5, 22.5, 21, M.flame),        // burning ears
+        box(17.5, 20.5, 17.5, 19.5, 22.5, 21, M.flame),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftFrontLeg: { pitch: 0.5 * s },
+    rightFrontLeg: { pitch: -0.5 * s },
+    leftBackLeg: { pitch: -0.5 * s },
+    rightBackLeg: { pitch: 0.5 * s },
+    body: { roll: 0.06 * s, offset: [0, 0, s === 0 ? 1 : 0] },
+    head: { pitch: 0.1 * s },
+  }));
+  const attack: Pose[] = [
+    { head: { pitch: -0.3, offset: [0, -1, 1] }, body: { pitch: -0.15 } },
+    { head: { pitch: 0.4, offset: [0, 3, -1] }, body: { pitch: 0.25, offset: [0, 2, 0] } },
+    { head: { pitch: 0.1 }, body: { pitch: 0.05 } },
+  ];
+  const idle = breathe('body', { head: { pitch: 0.05 } });
+  return {
+    size: [30, 34, 26],
+    foot: [15, 14, 0],
+    materials: [
+      { color: 0x18181b }, { color: 0xea580c, emissive: true }, { color: 0xf97316, emissive: true },
+      { color: 0xffedd5 }, { color: 0xef4444, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── Harpy (HARPY) — golden feathered avian scout with talons & plumage ───────
+
+const harpy = (): VoxelModel => {
+  const M = { feather: 0, featherLight: 1, skin: 2, talon: 3, beak: 4, eye: 5, wingTip: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    ...pair('Leg', [13.5, 15, 10], [
+      box(12.5, 14, 2, 14.5, 16, 10, M.talon),
+      box(11.5, 13, 0, 15.5, 17.5, 2.5, M.talon),             // sharp raptor talons
+    ], cx),
+    {
+      name: 'torso', pivot: [15, 15, 10], shapes: [
+        box(12, 13, 10, 18, 17, 20, M.feather),
+        box(12.5, 15.5, 11, 17.5, 17.4, 19, M.featherLight),  // golden breast feathers
+        box(13.5, 8.5, 9, 16.5, 13, 14, M.featherLight),      // tail feathers
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 20], shapes: [
+        box(12.5, 13, 20, 17.5, 17, 26, M.skin),
+        box(13.5, 17, 21.5, 16.5, 19.5, 24, M.beak),          // curved beak
+        box(12.8, 16.2, 23.5, 13.8, 17, 24.5, M.eye),
+        box(16.2, 16.2, 23.5, 17.2, 17, 24.5, M.eye),
+        box(13, 12, 25, 17, 16, 30, M.featherLight),          // feathered crest
+      ],
+    },
+    ...pair('Wing', [10, 15, 19], [
+      box(4, 14, 16, 11, 16, 21, M.feather),                  // spread feathered wings
+      box(0, 14, 12, 5, 16, 24, M.wingTip),
+      box(1, 14.2, 14, 8, 15.8, 22, M.featherLight),
+    ], cx, 'torso'),
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.6 * s },
+    rightLeg: { pitch: -0.6 * s },
+    leftWing: { roll: 0.3 * s, yaw: 0.2 * s },
+    rightWing: { roll: -0.3 * s, yaw: -0.2 * s },
+    torso: { pitch: 0.12, offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  const attack: Pose[] = [
+    { leftWing: { roll: 0.7 }, rightWing: { roll: -0.7 }, leftLeg: { pitch: -0.5 }, rightLeg: { pitch: -0.5 } },
+    { leftWing: { roll: -0.4 }, rightWing: { roll: 0.4 }, leftLeg: { pitch: 0.8, offset: [0, 2, 0] }, rightLeg: { pitch: 0.8, offset: [0, 2, 0] } },
+    { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } },
+  ];
+  const idle = breathe('torso', { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } });
+  return {
+    size: [34, 30, 32],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0xd97706 }, { color: 0xfde68a }, { color: 0xfbbf24 }, { color: 0x78350f },
+      { color: 0xf59e0b }, { color: 0x0f172a }, { color: 0xb45309 },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── Kraken (KRAKEN) — Abyssal sea monstrosity with writhing tentacles ────────
+
+const kraken = (): VoxelModel => {
+  const M = { deep: 0, mantle: 1, suction: 2, eye: 3, beak: 4, dark: 5 };
+  const c = 16;
+  const parts: Part[] = [
+    {
+      name: 'head', pivot: [c, c, 14], shapes: [
+        ell(c, c, 22, 9, 8.5, 9, M.deep),                       // bulbous octopus mantle
+        ell(c, c, 24, 7.5, 7, 7, M.mantle),
+        box(c - 5.5, c + 7.5, 15, c - 2.5, c + 8.8, 18, M.eye),// glowing yellow eyes
+        box(c + 2.5, c + 7.5, 15, c + 5.5, c + 8.8, 18, M.eye),
+        box(c - 2, c + 6.5, 11, c + 2, c + 8.5, 14, M.beak),
+      ],
+    },
+    // 6 outer tentacles
+    ...pair('FrontTentacle', [c - 5, c + 5, 12], [
+      box(c - 8, c + 3, 2, c - 3, c + 7, 13, M.deep),
+      box(c - 7.5, c + 5.5, 3, c - 3.5, c + 7.5, 11, M.suction),
+    ], c),
+    ...pair('SideTentacle', [c - 7, c, 12], [
+      box(c - 11, c - 3, 1, c - 4, c + 3, 12, M.deep),
+      box(c - 10.5, c - 2.5, 2, c - 4.5, c + 2.5, 10, M.suction),
+    ], c),
+    ...pair('BackTentacle', [c - 5, c - 5, 12], [
+      box(c - 8, c - 7, 2, c - 3, c - 3, 13, M.deep),
+      box(c - 7.5, c - 6.5, 3, c - 3.5, c - 3.5, 11, M.suction),
+    ], c),
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftFrontTentacle: { pitch: 0.4 * s, roll: 0.2 * s },
+    rightFrontTentacle: { pitch: -0.4 * s, roll: -0.2 * s },
+    leftSideTentacle: { roll: 0.3 * s },
+    rightSideTentacle: { roll: -0.3 * s },
+    head: { offset: [0, 0, s === 0 ? 1 : 0], roll: 0.05 * s },
+  }));
+  const attack: Pose[] = [
+    { head: { pitch: -0.15 }, leftFrontTentacle: { pitch: 0.8 }, rightFrontTentacle: { pitch: 0.8 } },
+    { head: { pitch: 0.2, offset: [0, 3, -1] }, leftFrontTentacle: { pitch: -0.5, offset: [0, 2, 0] }, rightFrontTentacle: { pitch: -0.5, offset: [0, 2, 0] } },
+    { head: { pitch: 0.05 } },
+  ];
+  const idle = breathe('head', { leftSideTentacle: { roll: 0.1 }, rightSideTentacle: { roll: -0.1 } });
+  return {
+    size: [36, 36, 36],
+    foot: [c, c, 0],
+    materials: [
+      { color: 0x0f766e }, { color: 0x14b8a6 }, { color: 0x99f6e4 },
+      { color: 0xfacc15, emissive: true }, { color: 0x115e59 }, { color: 0x042f2e },
     ],
     parts,
     animations: { walk, attack, idle },
@@ -277,7 +439,6 @@ const slime = (): VoxelModel => {
       ],
     },
     {
-      // Healing halo only appears while casting
       name: 'halo', parent: 'body', pivot: [12, 12, 15], shapes: [
         box(8.5, 8.5, 14.5, 15.5, 9.5, 15.5, M.halo),
         box(8.5, 14.5, 14.5, 15.5, 15.5, 15.5, M.halo),
@@ -311,7 +472,7 @@ const slime = (): VoxelModel => {
   };
 };
 
-// ── Ancient Ent (TREANT) — a living tree with a bark face and green eyes ─────
+// ── Ancient Ent (TREANT) — a living tree with a bark face and green canopy ───
 
 const treant = (): VoxelModel => {
   const M = { bark: 0, barkDark: 1, leaf: 2, leafLight: 3, eye: 4, moss: 5, vine: 6 };
@@ -382,14 +543,13 @@ const treant = (): VoxelModel => {
   };
 };
 
-// ── Merman — teal fish-man on a fish tail, orange fins, silver trident ───────
+// ── Merman (MERMAN) — cyan sea warrior, fin crest, trident ───────────────────
 
 const merman = (): VoxelModel => {
   const M = { scale: 0, scaleLight: 1, belly: 2, fin: 3, finDark: 4, eye: 5, silver: 6, shaft: 7, dark: 8 };
   const cx = 15;
   const parts: Part[] = [
     {
-      // Coiled fish tail instead of legs
       name: 'tail', pivot: [15, 15, 10], shapes: [
         ell(15, 15, 9.5, 4.6, 4, 4.2, M.scale),
         ell(15, 13, 5.5, 3.6, 3.6, 3, M.scale),
@@ -460,7 +620,7 @@ const merman = (): VoxelModel => {
   };
 };
 
-// ── Necromancer — hooded skeleton in dark green robes, skull staff, soulfire ─
+// ── Necromancer (NECROMANCER) — Lich skeleton, dark robe, skull staff ────────
 
 const necromancer = (): VoxelModel => {
   const M = { robe: 0, robeDark: 1, trim: 2, bone: 3, eye: 4, flame: 5, flameHot: 6, staff: 7, socket: 8 };
@@ -512,7 +672,6 @@ const necromancer = (): VoxelModel => {
     staff: { pitch: -0.15 * s },
     soulfire: { hidden: true },
   }));
-  // Raises a hand wreathed in green soulfire
   const attack: Pose[] = [
     { leftArm: { pitch: 1.2 }, soulfire: { scale: [1.2, 1.2, 1.2] }, rightArm: { pitch: 0.3 }, staff: { pitch: -0.3 } },
     { leftArm: { pitch: 1.6 }, soulfire: { scale: [1.8, 1.8, 1.8] }, rightArm: { pitch: 0.5 }, staff: { pitch: -0.5 } },
@@ -535,7 +694,7 @@ const necromancer = (): VoxelModel => {
   };
 };
 
-// ── Sapling — mini sprout summoned by the Sapling Grove (Ancient Ent palette) ─
+// ── Sapling — mini sprout summoned by the Sapling Grove ──────────────────────
 
 const sapling = (): VoxelModel => {
   const M = { bark: 0, barkDark: 1, leaf: 2, leafLight: 3, eye: 4, bud: 5 };
@@ -543,20 +702,20 @@ const sapling = (): VoxelModel => {
   const parts: Part[] = [
     ...pair('Leg', [7.5, 9, 5], [
       box(6.5, 7.5, 1, 8.5, 10, 5.5, M.barkDark),
-      box(6, 7, 0, 9, 11.5, 1.3, M.barkDark),                 // root toes
+      box(6, 7, 0, 9, 11.5, 1.3, M.barkDark),
     ], cx),
     {
       name: 'trunk', pivot: [9, 9, 5], shapes: [
         ell(9, 9, 9, 3.6, 3.2, 4.4, M.bark),
         box(7.6, 11.6, 9.5, 8.8, 12.4, 10.9, M.eye),
         box(9.2, 11.6, 9.5, 10.4, 12.4, 10.9, M.eye),
-        box(8.2, 11.9, 7.2, 9.8, 12.5, 7.9, M.barkDark),      // tiny mouth
+        box(8.2, 11.9, 7.2, 9.8, 12.5, 7.9, M.barkDark),
       ],
     },
     {
       name: 'sprout', parent: 'trunk', pivot: [9, 9, 13], shapes: [
-        box(8.5, 8.5, 12.5, 9.5, 9.5, 16, M.barkDark),        // stem
-        ell(6.2, 9, 16.5, 3.2, 2, 1.3, M.leaf),               // twin leaves
+        box(8.5, 8.5, 12.5, 9.5, 9.5, 16, M.barkDark),
+        ell(6.2, 9, 16.5, 3.2, 2, 1.3, M.leaf),
         ell(11.8, 9, 16.8, 3.2, 2, 1.3, M.leafLight),
         ball(9, 9, 16.8, 1.3, M.bud),
       ],
@@ -595,22 +754,21 @@ const sapling = (): VoxelModel => {
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type MinionSpriteKey =
-  | 'golem' | 'wayfarer' | 'chrono' | 'slime' | 'treant' | 'merman' | 'necromancer' | 'sapling'
-  | 'kraken' | 'demonHound' | 'harpy';
+  | 'golem' | 'slime' | 'treant' | 'merman' | 'necromancer' | 'sapling'
+  | 'lavaGargoyle' | 'succubus' | 'demonHound' | 'harpy' | 'kraken';
 
 export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   golem,
-  wayfarer,
-  chrono: chronoWizard,
   slime,
   treant,
   merman,
   necromancer,
   sapling,
-  // Variants of existing models, recoloured to match the codex artwork
-  kraken: () => recolorModel(ENEMY_MODELS.deepOne(), 0xb45353, 0xfacc15, 0.6, 1.15),
-  demonHound: () => recolorModel(golem(), 0x9a3412, 0xfb923c, 0.65, 0.85),
-  harpy: () => recolorModel(wayfarer(), 0x8b5e34, 0xfde68a, 0.6),
+  lavaGargoyle,
+  succubus,
+  demonHound,
+  harpy,
+  kraken,
 };
 
 export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
@@ -621,7 +779,7 @@ export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
   NECROMANCER: 'necromancer',
   KRAKEN: 'kraken',
   DEMON_HOUND: 'demonHound',
-  SUCCUBUS: 'chrono',
-  LAVA_GARGOYLE: 'wayfarer',
+  SUCCUBUS: 'succubus',
+  LAVA_GARGOYLE: 'lavaGargoyle',
   HARPY: 'harpy',
 };

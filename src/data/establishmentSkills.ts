@@ -1,6 +1,6 @@
 /**
- * 2 unique establishment skills per ResourceBuildingId.
- * Skills are completely distinct from armed-unit abilities.
+ * 3 unique skills per structure: 2 ordinary skills + 1 ultimate skill.
+ * Includes CASTLE, SPIRE, and all ResourceBuildingIds.
  */
 
 import type { ResourceBuildingId } from '../types/state';
@@ -18,14 +18,88 @@ export interface EstablishmentSkillDef {
   /** Hex color for the active skill dot */
   activeColor: string;
   icon: string;
+  isUltimate?: boolean;
 }
 
-export interface EstablishmentSkillPair {
+export interface EstablishmentSkillTrio {
   skill1: EstablishmentSkillDef;
   skill2: EstablishmentSkillDef;
+  skill3: EstablishmentSkillDef; // 3rd is the Ultimate skill
 }
 
-export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkillPair> = {
+export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId | 'CASTLE' | 'SPIRE', EstablishmentSkillTrio> = {
+  CASTLE: {
+    skill1: {
+      id: 'CASTLE_AEGIS_SHIELD',
+      nameEn: 'Aegis Bastion Overdrive',
+      nameTl: 'Tanggulang Aegis Overdrive',
+      descriptionEn: 'Emits an abyssal shockwave knocking back invaders and restores 200 Shield HP.',
+      descriptionTl: 'Nagpapakawala ng abyssal shockwave na nagtataboy sa kalaban at nagbabalik ng 200 Kalasag.',
+      effectDuration: 0,
+      cooldownSeconds: 40,
+      activeColor: '#38bdf8',
+      icon: '🛡️',
+    },
+    skill2: {
+      id: 'CASTLE_PROVOKE_BEACON',
+      nameEn: 'Provoke Beacon Surge',
+      nameTl: 'Rurok ng Provoke Beacon',
+      descriptionEn: 'Pulses the citadel beacon with double range, taunting all invaders to target the keep for 12s.',
+      descriptionTl: 'Pinalalakas ang beacon nang dobleng layo, pinupukaw ang lahat ng kalaban sa loob ng 12s.',
+      effectDuration: 12,
+      cooldownSeconds: 50,
+      activeColor: '#ef4444',
+      icon: '📡',
+    },
+    skill3: {
+      id: 'CASTLE_APOCALYPSE_RAY',
+      nameEn: 'Citadel Apocalypse Ray',
+      nameTl: 'Banal na Kidlat ng Muog (Ultimate)',
+      descriptionEn: 'Ultimate: Unleashes a devastating orbital death beam from the citadel spire dealing 350 true damage to all invaders on the platform.',
+      descriptionTl: 'Ultimate: Nagpapakawala ng matinding orbital death beam na nagdudulot ng 350 true damage sa lahat ng kalaban sa buong kaharian.',
+      effectDuration: 0,
+      cooldownSeconds: 100,
+      activeColor: '#f59e0b',
+      icon: '⚡',
+      isUltimate: true,
+    },
+  },
+  SPIRE: {
+    skill1: {
+      id: 'SPIRE_ARCANE_OVERCHARGE',
+      nameEn: 'Arcane Overcharge',
+      nameTl: 'Arcane Overcharge',
+      descriptionEn: 'Overcharges arcane conduits, granting +50% fire rate to all defense towers for 10 seconds.',
+      descriptionTl: 'Pinapataas ang bilis ng pagtira ng lahat ng tore ng 50% sa loob ng 10 segundo.',
+      effectDuration: 10,
+      cooldownSeconds: 40,
+      activeColor: '#22d3ee',
+      icon: '🔮',
+    },
+    skill2: {
+      id: 'SPIRE_CRYSTAL_RESONANCE',
+      nameEn: 'Crystal Resonance',
+      nameTl: 'Kristal na Resonansya',
+      descriptionEn: 'Resonates crystalline mana to immediately restore 25% Max HP to the Citadel.',
+      descriptionTl: 'Nagpapagaling ng 25% Max HP sa Kastilyo gamit ang mana ng kristal.',
+      effectDuration: 0,
+      cooldownSeconds: 70,
+      activeColor: '#a855f7',
+      icon: '✨',
+    },
+    skill3: {
+      id: 'SPIRE_TEMPORAL_SUPERNOVA',
+      nameEn: 'Temporal Supernova',
+      nameTl: 'Supernova ng Panahon (Ultimate)',
+      descriptionEn: 'Ultimate: Detonates a pure chrono-crystal blast that freezes all invaders for 6s and restores all minion HP.',
+      descriptionTl: 'Ultimate: Pinasasabog ang chrono-crystal na nagyeyelo sa lahat ng kalaban ng 6s at nagpapagaling sa lahat ng alagad.',
+      effectDuration: 6,
+      cooldownSeconds: 110,
+      activeColor: '#ec4899',
+      icon: '🌌',
+      isUltimate: true,
+    },
+  },
   QUARRY: {
     skill1: {
       id: 'QUARRY_SEISMIC_SHATTER',
@@ -48,6 +122,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       cooldownSeconds: 90,
       activeColor: '#d97706',
       icon: '🏰',
+    },
+    skill3: {
+      id: 'QUARRY_EARTH_TITAN',
+      nameEn: 'Earth Titan Cataclysm',
+      nameTl: 'Kataklismo ng Higanteng Lupa (Ultimate)',
+      descriptionEn: 'Ultimate: Summons massive stalagmites across the platform dealing 250 damage and stunning all invaders for 4s.',
+      descriptionTl: 'Ultimate: Nagpapalitaw ng dambuhalang mga bato na nagdudulot ng 250 pinsala at nagpapastun sa lahat ng kalaban.',
+      effectDuration: 4,
+      cooldownSeconds: 105,
+      activeColor: '#b45309',
+      icon: '⛰️',
+      isUltimate: true,
     },
   },
   MINE: {
@@ -73,6 +159,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       activeColor: '#64748b',
       icon: '🛡️',
     },
+    skill3: {
+      id: 'MINE_MOLTEN_BARRAGE',
+      nameEn: 'Molten Iron Barrage',
+      nameTl: 'Ulan ng Tunaw na Bakal (Ultimate)',
+      descriptionEn: 'Ultimate: Carpet-bombs invaders with white-hot slag for 280 burn damage over 6s.',
+      descriptionTl: 'Ultimate: Nagpapaulan ng nagbabagang bakal na sumusunog sa mga kalaban ng 280 pinsala sa loob ng 6s.',
+      effectDuration: 6,
+      cooldownSeconds: 100,
+      activeColor: '#ea580c',
+      icon: '🌋',
+      isUltimate: true,
+    },
   },
   WOOD: {
     skill1: {
@@ -96,6 +194,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       cooldownSeconds: 100,
       activeColor: '#22c55e',
       icon: '✨',
+    },
+    skill3: {
+      id: 'WOOD_WRATH_OF_THE_FOREST',
+      nameEn: 'Wrath of the Primordial Forest',
+      nameTl: 'Poot ng Sinaunang Gubat (Ultimate)',
+      descriptionEn: 'Ultimate: The ancient canopy summons thorn tempests dealing 300 damage and rooting all ground invaders for 8s.',
+      descriptionTl: 'Ultimate: Ang sinaunang kagubatan ay nagpapakawala ng ipu-ipong tinik na nagdudulot ng 300 pinsala at gumagapos sa lahat ng kalaban.',
+      effectDuration: 8,
+      cooldownSeconds: 110,
+      activeColor: '#15803d',
+      icon: '🌳',
+      isUltimate: true,
     },
   },
   PORT: {
@@ -121,6 +231,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       activeColor: '#06b6d4',
       icon: '❄️',
     },
+    skill3: {
+      id: 'PORT_LEVIATHAN_MAELSTROM',
+      nameEn: 'Leviathan Maelstrom',
+      nameTl: 'Buhawi ng Leviathan (Ultimate)',
+      descriptionEn: 'Ultimate: Creates a gigantic oceanic vortex sucking in all invaders, dealing 280 frost damage and disarming them.',
+      descriptionTl: 'Ultimate: Lumilikha ng dambuhalang buhawi ng tubig na humihigop sa lahat ng kalaban at nagdudulot ng 280 pinsala.',
+      effectDuration: 5,
+      cooldownSeconds: 105,
+      activeColor: '#0284c7',
+      icon: '🌪️',
+      isUltimate: true,
+    },
   },
   CAVE: {
     skill1: {
@@ -144,6 +266,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       cooldownSeconds: 120,
       activeColor: '#f97316',
       icon: '🔥',
+    },
+    skill3: {
+      id: 'CAVE_ABYSSAL_COLLAPSE',
+      nameEn: 'Abyssal Void Collapse',
+      nameTl: 'Pagguho ng Kailaliman (Ultimate)',
+      descriptionEn: 'Ultimate: Opens a rift into the nether realm that obliterates 35% current HP of all active invaders.',
+      descriptionTl: 'Ultimate: Nagbubukas ng lagusan sa kailaliman na agarang nagwawasak ng 35% HP ng lahat ng kalaban.',
+      effectDuration: 0,
+      cooldownSeconds: 115,
+      activeColor: '#7e22ce',
+      icon: '🕳️',
+      isUltimate: true,
     },
   },
   TRENCH: {
@@ -169,6 +303,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       activeColor: '#a78bfa',
       icon: '🔮',
     },
+    skill3: {
+      id: 'TRENCH_KRAKEN_WRATH',
+      nameEn: "Kraken's Abyssal Wrath",
+      nameTl: "Poot ng Kraken (Ultimate)",
+      descriptionEn: "Ultimate: Massive tentacles rise across the realm, smashing enemies for 320 damage and crushing their armor.",
+      descriptionTl: "Ultimate: Lumalabas ang dambuhalang galamay ng Kraken na pumupukpok ng 320 pinsala sa mga kalaban.",
+      effectDuration: 4,
+      cooldownSeconds: 110,
+      activeColor: '#0369a1',
+      icon: '🦑',
+      isUltimate: true,
+    },
   },
   CRYPT: {
     skill1: {
@@ -192,6 +338,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       cooldownSeconds: 80,
       activeColor: '#94a3b8',
       icon: '🦴',
+    },
+    skill3: {
+      id: 'CRYPT_ARMY_OF_THE_DAMNED',
+      nameEn: "Army of the Damned",
+      nameTl: "Hukbo ng mga Sinumpa (Ultimate)",
+      descriptionEn: "Ultimate: Awakens a horde of 6 armored skeleton champions and plagues all invaders with decaying blight.",
+      descriptionTl: "Ultimate: Ginigising ang 6 na armadong kalansay na bayani at nilalason ang lahat ng kalaban.",
+      effectDuration: 30,
+      cooldownSeconds: 110,
+      activeColor: '#16a34a',
+      icon: '☠️',
+      isUltimate: true,
     },
   },
   PERCH: {
@@ -217,6 +375,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       activeColor: '#fbbf24',
       icon: '🦅',
     },
+    skill3: {
+      id: 'PERCH_DRAGON_INFERNO',
+      nameEn: "Dragon Phoenix Inferno",
+      nameTl: "Nag-aapoy na Bagwis ng Dragon (Ultimate)",
+      descriptionEn: "Ultimate: Incinerates the entire battlefield in dragon fire, dealing 300 fire damage and igniting all invaders.",
+      descriptionTl: "Ultimate: Tinutupok ang buong labanan sa apoy ng dragon, nagdudulot ng 300 pinsala sa lahat ng kalaban.",
+      effectDuration: 5,
+      cooldownSeconds: 105,
+      activeColor: '#c2410c',
+      icon: '🐲',
+      isUltimate: true,
+    },
   },
   KENNEL: {
     skill1: {
@@ -240,6 +410,18 @@ export const ESTABLISHMENT_SKILLS: Record<ResourceBuildingId, EstablishmentSkill
       cooldownSeconds: 50,
       activeColor: '#fb923c',
       icon: '🔥',
+    },
+    skill3: {
+      id: 'KENNEL_CERBERUS_UNLEASHED',
+      nameEn: "Cerberus Unleashed",
+      nameTl: "Pagsalakay ng Cerberus (Ultimate)",
+      descriptionEn: "Ultimate: Unleashes the 3-headed beast of the underworld, granting 100% attack speed and 50% life steal to all beasts.",
+      descriptionTl: "Ultimate: Pinakakawalan ang Cerberus, nagbibigay ng 100% bilis ng atake at 50% lifesteal sa lahat ng kakampi.",
+      effectDuration: 15,
+      cooldownSeconds: 110,
+      activeColor: '#b91c1c',
+      icon: '🐕‍🦺',
+      isUltimate: true,
     },
   },
 };

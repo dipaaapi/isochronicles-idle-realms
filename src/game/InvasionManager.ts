@@ -8,6 +8,7 @@ import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
+import type { GroundLootManager } from './GroundLootManager';
 import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import type { WorkerInstance } from './WorkerManager';
 import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
@@ -57,6 +58,11 @@ export class InvasionManager {
   private pathfinder: PathfindingService;
   private parentContainer?: Phaser.GameObjects.Container;
   private invaders: ActiveInvader[] = [];
+  public groundLoot?: GroundLootManager;
+
+  public setGroundLoot(loot: GroundLootManager): void {
+    this.groundLoot = loot;
+  }
   private spawnTimer: number = 0;
   private totalEnemiesToSpawn: number = 0;
   private enemiesSpawnedCount: number = 0;
@@ -207,21 +213,10 @@ export class InvasionManager {
   }
 
   /** Lava Bomb: heavy damage to every invader. Death Curse: everyone withers (burn). */
-  private playBattleEffect(effect: 'LAVA_BOMB' | 'DEATH_CURSE'): void {
-    const items = ECONOMY_CONFIG.battleItems;
-    for (const invader of [...this.invaders]) {
-      if (invader.isDead || (invader.emerge ?? 0) > 0) continue;
-      if (effect === 'LAVA_BOMB') {
-        this.spawnDeathBurst(invader.container.x, invader.container.y - 10, 0xf97316);
-        this.damageInvader(invader, items.LAVA_BOMB.damage, '🌋');
-      } else {
-        this.applyBurn(invader, items.DEATH_CURSE.burnDps, items.DEATH_CURSE.burnSeconds);
-        if (invader.sprite?.active) invader.sprite.setTint(0x86efac);
-      }
+  private playBattleEffect(effect: import('../types/state').BattleEffect): void {
+      soundFx.playExplosion();
+      this.scene.cameras.main.flash(180, 255, 255, 255, true);
     }
-    soundFx.playExplosion();
-    this.scene.cameras.main.flash(180, effect === 'LAVA_BOMB' ? 255 : 80, effect === 'LAVA_BOMB' ? 120 : 220, effect === 'LAVA_BOMB' ? 40 : 120, true);
-  }
 
   /** The High Priest mends nearby soldiers every few seconds. */
   private priestHeal(priest: ActiveInvader, deltaSec: number): void {
@@ -561,7 +556,7 @@ export class InvasionManager {
     boltGfx.lineTo(endX, endY);
     boltGfx.strokePath();
 
-    this.scene.cameras.main.shake(120, 0.005);
+    // [Camera shake removed]
     soundFx.playLaser();
 
     const smiteDmg = 35;
@@ -621,6 +616,13 @@ export class InvasionManager {
 
     invader.hp -= damage;
     this.renderHpBar(invader.hpBarGfx, invader.hp, invader.maxHp);
+    if (invader.sprite) {
+      const sprite = invader.sprite;
+      sprite.setTintFill(0xffffff);
+      this.scene.time.delayedCall(80, () => {
+        if (sprite.active) sprite.clearTint();
+      });
+    }
 
     if (popupText) {
       this.spawnFloatingPopup(

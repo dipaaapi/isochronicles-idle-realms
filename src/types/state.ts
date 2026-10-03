@@ -22,8 +22,8 @@ export interface Resources {
   coins: number;
 }
 
-export type BattleItemId = 'LAVA_BOMB' | 'DEATH_CURSE' | 'KINETIC_RESTORE';
-export type BattleEffect = 'LAVA_BOMB' | 'DEATH_CURSE';
+export type BattleItemId = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'SHIELD_OVERLOAD' | 'CHRONO_SURGE';
+export type BattleEffect = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'SHIELD_OVERLOAD' | 'CHRONO_SURGE';
 
 export type ResourceBuildingId =
   | 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE'
@@ -65,6 +65,32 @@ export interface UpgradesState {
   quarryLevel: number;
   golemSpeedLevel: number;
   golemCapacityLevel: number;
+
+  // ── 5 CATEGORY RESEARCH MATRIX (3 COLUMNS EACH) ──
+  // 1. SLIME
+  slimeAttackHeal: number;
+  slimeDefenseAbsorb: number;
+  slimeCooldownBurst: number;
+
+  // 2. ENT (TREANT)
+  entAttackConstruct: number;
+  entDefenseHpBar: number;
+  entCooldownSurvival: number;
+
+  // 3. CASTLE (CITADEL)
+  castleAttackTurret: number;
+  castleDefenseArmor: number;
+  castleCooldownUltimate: number;
+
+  // 4. ESTABLISHMENTS
+  establishmentAttackWork: number;
+  establishmentDefenseBar: number;
+  establishmentCooldownSkill: number;
+
+  // 5. TENANTS
+  tenantAttackCounter: number;
+  tenantDefenseBar: number;
+  tenantCooldownSummon: number;
 }
 
 export interface CastleDefenseState {
@@ -76,6 +102,9 @@ export interface CastleDefenseState {
   /** Provoke Beacon level (replaced the old castle turret). */
   beaconLevel: number;
   shieldLevel: number;
+  forceFieldTimer: number;
+  minionFrenzyTimer: number;
+  massRegenTimer: number;
 }
 
 export interface InvasionState {
@@ -102,8 +131,11 @@ export interface AutoSettings {
   autoRest: boolean;
   autoDefend: boolean;
   autoSell: boolean;
+  autoBuy: boolean;
+  autoUpgrade: boolean;
   autoTap: boolean;
   autoEvolve: boolean;
+  autoSurvivalSkills?: boolean;
 }
 
 export type ScreenState = 'TITLE' | 'STORY' | 'GAME';
@@ -145,6 +177,7 @@ export interface UnitRosterItem {
   name: string;
   unitClass: UnitClass;
   assignedTask: HarvestTask;
+  parentBuildingId?: ResourceBuildingId;
   hp?: number;
   maxHp?: number;
   slimeEvolutionLevel?: number;
@@ -196,6 +229,7 @@ export interface GameStoreState {
   // Audio & Environment & Seasons
   timeOfDay: TimeOfDayPhase;
   weather: WeatherType;
+  randomWeatherEnabled: boolean;
   day: number; // 1 to 365
   year: number; // 1, 2, 3...
   season: Season;
@@ -209,24 +243,29 @@ export interface GameStoreState {
   layoutSeed: number;
   /** Player-relocated establishments (top-left tile), layered over the seeded layout. */
   buildingPositions: Partial<Record<ResourceBuildingId | 'SPIRE', { x: number; y: number }>>;
-  /** Tower ammunition research (levels 0–3): scrap → armor-piercing vs Mecha, obsidian → incendiary burn. */
-  munitions: { armorPiercing: number; incendiary: number };
+  /** Tower ammunition research (levels 0–5): AP kinetic, incendiary napalm, cryo-frost shards, tesla chain, void flak. */
+  munitions: {
+    armorPiercing: number;
+    incendiary: number;
+    cryoFrost: number;
+    teslaChain: number;
+    voidFlak: number;
+  };
   /** Battle items fired from the Armory; the scene plays them on its next frame. */
   pendingBattleEffects: BattleEffect[];
   /** Crafts and fires a single-use battle item; false when unaffordable or unusable now. */
   useBattleItem: (item: BattleItemId) => boolean;
-  researchMunition: (kind: 'armorPiercing' | 'incendiary') => boolean;
+  researchMunition: (kind: 'armorPiercing' | 'incendiary' | 'cryoFrost' | 'teslaChain' | 'voidFlak') => boolean;
   /** Removes and returns the queued battle effects (scene side). */
   takeBattleEffects: () => BattleEffect[];
   /** Establishment / citadel skill ids waiting for the scene to play them. */
   pendingSkillCasts: string[];
   takeSkillCasts: () => string[];
   /** Seconds until the citadel's Abyssal Overdrive and the Spire's Arcane Overcharge are ready. */
-  citadelSkillCooldowns: { overdrive: number; overcharge: number };
-  /** Abyssal Overdrive: spend aether shards to throw invaders back from the walls. */
+  citadelSkillCooldowns: { overdrive: number; overcharge: number; resonance: number };
   castAbyssalOverdrive: () => boolean;
-  /** Arcane Overcharge: spend coins and essence to double the Spire's fire rate for 10s. */
   castArcaneOvercharge: () => boolean;
+  castCrystalResonance: () => boolean;
   /** Passive landmark yields (Abyssal Trench, Brimstone Perch, Infernal Kennel). */
   tickLandmarks: (deltaSeconds: number) => void;
   /** Fractional landmark yields waiting to become whole resources. */
@@ -267,12 +306,14 @@ export interface GameStoreState {
   spendResources: (cost: Partial<Resources>) => boolean;
   summonWorker: () => boolean;
   summonUnit: (unitClass: UnitClass, initialTask?: HarvestTask, isFreeCost?: boolean) => boolean;
+  summonTenant: (buildingId: ResourceBuildingId) => boolean;
   assignUnitTask: (unitId: string, task: HarvestTask) => void;
   removeUnit: (unitId: string, refundResources?: boolean) => void;
   upgradeSupportSlime: () => boolean;
   upgradeTech: (techKey: keyof UpgradesState) => boolean;
   setTimeOfDay: (phase: TimeOfDayPhase, darkness?: number) => void;
   setWeather: (weather: WeatherType) => void;
+  setRandomWeatherEnabled: (enabled: boolean) => void;
   setDayProgress: (progress: number) => void;
   incrementDay: () => void;
   toggleAudioMute: () => boolean;
@@ -302,6 +343,7 @@ export interface GameStoreState {
   restoreBuildingHp: (buildingId: TowerId, amount: number) => number;
 
   // Invasion Actions
+  tickDefenseTimers: (deltaSec: number) => void;
   tickInvasionCountdown: (deltaSeconds: number) => void;
   startInvasion: () => void;
   setEnemiesRemaining: (count: number) => void;
@@ -356,13 +398,13 @@ export interface GameStoreState {
 
   // ── Establishments ─────────────────────────────────────────────────────────
   /** Skill cooldowns in seconds for each establishment's 2 skills. */
-  establishmentSkillCooldowns: Record<ResourceBuildingId, { skill1: number; skill2: number }>;
+  establishmentSkillCooldowns: Record<ResourceBuildingId | 'CASTLE' | 'SPIRE', { skill1: number; skill2: number; skill3: number }>;
 
   /** The establishment currently open in the modal, or null if closed. */
   selectedEstablishmentId: 'CASTLE' | TowerId | null;
 
   /** Auto-buy toggle per building — whether to auto-purchase missing upgrade materials. */
-  autoBuyBuildingMaterials: Record<ResourceBuildingId, boolean>;
+  autoBuyBuildingMaterials: Partial<Record<TowerId, boolean>>;
   /** Minions the Support Slime may buy missing summon materials for (with coins). */
   autoBuySummon: Partial<Record<UnitClass, boolean>>;
   toggleAutoBuySummon: (unitClass: UnitClass) => void;
@@ -373,7 +415,7 @@ export interface GameStoreState {
   /** Tick skill cooldowns down by delta seconds. */
   tickEstablishmentSkills: (deltaSeconds: number) => void;
   /** Trigger a skill (index 0 or 1) on a building. Returns true if activated. */
-  triggerEstablishmentSkill: (buildingId: ResourceBuildingId, skillIndex: 0 | 1) => boolean;
+  triggerEstablishmentSkill: (buildingId: ResourceBuildingId | 'CASTLE' | 'SPIRE', skillIndex: 0 | 1 | 2) => boolean;
   /** Relocate a building to a new random position. Castle cannot be relocated. */
   relocateBuilding: (buildingId: ResourceBuildingId) => boolean;
 
@@ -382,7 +424,7 @@ export interface GameStoreState {
   /** Moves an establishment so its top-left tile is (x, y). Refused mid-wave or on a blocked spot. */
   relocateEstablishment: (id: ResourceBuildingId | 'SPIRE', x: number, y: number) => boolean;
   closeEstablishmentModal: () => void;
-  toggleBuildingAutoBuy: (buildingId: ResourceBuildingId) => void;
-  autoBuyMaterialsForUpgrade: (buildingId: ResourceBuildingId) => void;
+  toggleBuildingAutoBuy: (buildingId: TowerId) => void;
+  autoBuyMaterialsForUpgrade: (buildingId: TowerId) => void;
 }
 

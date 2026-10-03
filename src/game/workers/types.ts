@@ -5,11 +5,34 @@ import type { NavAgent } from '../Navigation';
 import type { ActiveInvader, InvasionManager } from '../InvasionManager';
 import type { PortalManager } from '../PortalManager';
 
+export interface SlimeMoraleBuffDef {
+  id: string;
+  name: string;
+  nameTl: string;
+  icon: string;
+  color: string;
+  hexColor: number;
+  duration: number;
+  maxDuration: number;
+  speedMultiplier?: number;
+  attackMultiplier?: number;
+  armorShield?: number;
+  regenPerSec?: number;
+  critChance?: number;
+  cooldownReduction?: number;
+  cargoBonus?: number;
+  infiniteStamina?: boolean;
+  evasionChance?: number;
+  buildRepairBonus?: number;
+  deathDefiance?: boolean;
+}
+
 export interface WorkerInstance extends NavAgent {
   id: string;
   name: string;
   unitClass: UnitClass;
   assignedTask: HarvestTask;
+  parentBuildingId?: ResourceBuildingId;
   container: Phaser.GameObjects.Container;
   lanternGfx: Phaser.GameObjects.Graphics;
   shadow: Phaser.GameObjects.Ellipse;
@@ -30,6 +53,7 @@ export interface WorkerInstance extends NavAgent {
   gridY: number;
   currentPath: GridPoint[];
   pathIndex: number;
+  targetTile?: GridPoint;
   status: WorkerStatus;
   stateTimer: number;
   cargo: number;
@@ -37,6 +61,8 @@ export interface WorkerInstance extends NavAgent {
   speed: number;
   bobOffset: number;
   buffTimer: number;
+  activeSlimeBuff?: SlimeMoraleBuffDef;
+  moraleBoostTimer?: number;
   overrideEmote: string | null;
   overrideEmoteTimer: number;
   // HP & Stamina
@@ -63,7 +89,11 @@ export interface WorkerInstance extends NavAgent {
   treantTargetTile?: GridPoint;
   /** Establishment the Ent is currently patching up (undefined = castle / none). */
   treantRepairId?: TowerId;
+  entGearTimer?: number;
   autoSummonTimer?: number;
+  skill1Cooldown?: number;
+  skill2Cooldown?: number;
+  ultimateCooldown?: number;
   // Skill status effects (seconds left)
   /** Stunned (Siege Stomp): cannot act. */
   stunTimer?: number;
@@ -122,7 +152,12 @@ export interface WorkerContext {
   readonly nexusGridPos: GridPoint;
   readonly invasionManager?: InvasionManager;
   readonly portals?: PortalManager;
+  readonly groundLoot?: import('../GroundLootManager').GroundLootManager;
+  readonly defenders?: import('../DefenderSystem').DefenderSystem;
+  getNearestGroundLoot?(x: number, y: number, maxDist?: number): import('../GroundLootManager').GroundLootItem | null;
+  collectGroundLoot?(item: import('../GroundLootManager').GroundLootItem, name?: string): void;
   getWorkers(): WorkerInstance[];
+  getDefenders?(): import('../DefenderSystem').Defender[];
   /** Free-roaming step toward a screen point; returns the remaining distance. */
   moveToward(worker: WorkerInstance, tx: number, ty: number, step: number, deltaSec: number): number;
   /** Follows `worker.currentPath`; calls onComplete on arrival. */
@@ -133,3 +168,4 @@ export interface WorkerContext {
   spawnFloatingPopup(x: number, y: number, text: string, color?: string): void;
   spawnHarvestBurst(x: number, y: number, color?: number, count?: number): void;
 }
+

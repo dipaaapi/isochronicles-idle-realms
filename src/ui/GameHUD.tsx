@@ -3,26 +3,20 @@ import { isConstructionReady } from '../state/constructionProgress';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
-  BookOpen,
   Sliders,
-  Zap,
-  Volume2,
-  VolumeX,
   Sunrise,
   Sun,
   Sunset,
   Moon,
   Maximize,
   Minimize,
-  RotateCcw,
   Play,
   FastForward,
   Pause,
   ChevronRight,
   ChevronLeft,
   Sparkles,
-  HelpCircle,
-  Activity,
+  Compass,
   Swords,
   Check,
   X,
@@ -33,52 +27,148 @@ import {
   Droplets,
   Coins,
   Shield,
-  Menu,
+  Volume2,
+  VolumeX,
+  Music,
+  CloudRain,
+  CloudSnow,
+  Flame,
+  CloudSun,
+  PanelRightClose,
+  PanelRightOpen,
+  Zap,
 } from 'lucide-react';
 import { PLATFORM_CONFIGS, SEASON_CONFIGS } from '../types/game';
 import { CitadelTab } from './CitadelCommandModal';
+import { WeatherModal } from './WeatherModal';
 import { AutoEnhancePrompt } from '../ui/AutoEnhancePrompt';
+import { ECONOMY_CONFIG, RESOURCE_PRICES } from '../state/economy';
+import type { BattleItemId } from '../types/state';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
-  onOpenCodex: () => void;
-  onOpenBestiary: () => void;
+  onOpenAtlas: (section?: 'GUIDE' | 'BESTIARY' | 'REGRESSION' | 'FAQ' | 'LORE') => void;
+  onOpenBestiary?: () => void;
   onOpenSettings: () => void;
-  onOpenFAQ: () => void;
   onOpenSkillTree: () => void;
-  onOpenRegression: () => void;
+  onOpenRegression?: () => void;
   onOpenQuickTrade: (
     resourceKey: 'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water'
   ) => void;
 }
 
+interface ItemMeta {
+  id: BattleItemId;
+  icon: string;
+  nameEn: string;
+  nameTl: string;
+  keyBinding: string;
+  maxDuration: number;
+  timerKey?: 'minionFrenzyTimer' | 'forceFieldTimer' | 'massRegenTimer';
+  color: string;
+  glowColor: string;
+  descEn: string;
+  descTl: string;
+  buffEffectEn: string;
+  buffEffectTl: string;
+}
+
+const BATTLE_ITEMS: ItemMeta[] = [
+  {
+    id: 'MINION_FRENZY',
+    icon: '🔥',
+    nameEn: 'Minion Frenzy',
+    nameTl: 'Siklab ng Minion',
+    keyBinding: 'q',
+    maxDuration: 30,
+    timerKey: 'minionFrenzyTimer',
+    color: '#f97316',
+    glowColor: 'rgba(249, 115, 22, 0.6)',
+    descEn: 'Empowers all allied minions with fiery battle fury.',
+    descTl: 'Pinupuno ng nagliliyab na galit sa pakikipaglaban ang lahat ng minion.',
+    buffEffectEn: '+200% Attack Damage for active minions (30s).',
+    buffEffectTl: '+200% Lakas ng Pag-atake para sa mga minion (30s).',
+  },
+  {
+    id: 'FORCE_FIELD',
+    icon: '🛡️',
+    nameEn: 'Aegis Barrier',
+    nameTl: 'Kalasag ng Kuta',
+    keyBinding: 'w',
+    maxDuration: 15,
+    timerKey: 'forceFieldTimer',
+    color: '#0284c7',
+    glowColor: 'rgba(2, 132, 199, 0.7)',
+    descEn: 'Erects an impenetrable energy barrier over the entire realm.',
+    descTl: 'Nagtatayo ng hindi matitibag na harang sa buong kaharian.',
+    buffEffectEn: 'Absolute invulnerability for Citadel & Establishments (15s).',
+    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali (15s).',
+  },
+  {
+    id: 'MASS_REGEN',
+    icon: '💖',
+    nameEn: 'Mass Restoration',
+    nameTl: 'Malawakang Lunas',
+    keyBinding: 'e',
+    maxDuration: 20,
+    timerKey: 'massRegenTimer',
+    color: '#ec4899',
+    glowColor: 'rgba(236, 72, 153, 0.6)',
+    descEn: 'Pours rejuvenative life essence into realm foundations.',
+    descTl: 'Nagbubuhos ng nagpapagaling na enerhiya sa lahat ng gusali.',
+    buffEffectEn: 'Rapid HP regeneration for Castle & Establishments (20s).',
+    buffEffectTl: 'Mabilisang nagpapagaling ng HP ng Kastilyo at gusali (20s).',
+  },
+  {
+    id: 'SHIELD_OVERLOAD',
+    icon: '⚡',
+    nameEn: 'Shield Overload',
+    nameTl: 'Soberkarga ng Kalasag',
+    keyBinding: 'r',
+    maxDuration: 0,
+    color: '#eab308',
+    glowColor: 'rgba(234, 179, 8, 0.6)',
+    descEn: 'Supercharges Citadel barrier to maximum capacity.',
+    descTl: 'Pinupuno ang kalasag ng Kuta hanggang sa pinakamataas na antas.',
+    buffEffectEn: 'Instantly restores Citadel shield to 100% & repairs structures.',
+    buffEffectTl: 'Agad na pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
+  },
+  {
+    id: 'CHRONO_SURGE',
+    icon: '⏱️',
+    nameEn: 'Chrono Surge',
+    nameTl: 'Pampabilis ng Oras',
+    keyBinding: 't',
+    maxDuration: 0,
+    color: '#a855f7',
+    glowColor: 'rgba(168, 85, 247, 0.6)',
+    descEn: 'Warps the flow of time to refresh tactical abilities.',
+    descTl: 'Binabaluktot ang takbo ng oras upang muling magamit ang kakayahan.',
+    buffEffectEn: 'Instantly resets all skill cooldowns for Citadel & Establishments.',
+    buffEffectTl: 'Agad na nirereset ang lahat ng skill cooldown ng Kuta at gusali.',
+  },
+];
+
 export const GameHUD: React.FC<GameHUDProps> = ({
   onOpenCitadel,
-  onOpenCodex,
-  onOpenBestiary,
+  onOpenAtlas,
   onOpenSettings,
-  onOpenFAQ,
   onOpenSkillTree,
-  onOpenRegression,
   onOpenQuickTrade,
 }) => {
   const {
     resources,
-    workerCount,
     defense,
     invasion,
     castleBuilt,
     resourceBuildings,
     timeOfDay,
-    weather,
     season,
+    weather,
     platformPhase,
-    regressionCount,
     skillPoints,
     isAudioMuted,
     toggleAudioMute,
-    autoSettings,
-    toggleAutoSetting,
     language,
     gameSpeed,
     togglePause,
@@ -88,8 +178,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     dayProgress,
     incrementDay,
     startInvasion,
+    useBattleItem,
   } = useGameStore();
 
+  const isTL = language === 'TL';
   const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
   const [isFullscreen, setIsFullscreen] = useState(
@@ -98,23 +190,43 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'command' | 'status' | 'resources'>('command');
   const [confirmAction, setConfirmAction] = useState<'SKIP_DAY' | 'SUMMON_WAVE' | null>(null);
+  const [hoveredBattleItem, setHoveredBattleItem] = useState<BattleItemId | null>(null);
+  const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
 
-  // Keyboard: ` play/pause, 1 = 2x speed, 2 = 3x speed (press again for 1x)
+  const [isBgmOff, setIsBgmOff] = useState(() => soundFx.getIsBgmDisabled());
+  const [isSfxOff, setIsSfxOff] = useState(() => soundFx.getIsSfxDisabled());
+
+  // Keyboard shortcuts: ` play/pause, 1 = 2x, 2 = 3x, Q/W/E/R/T battle items
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const el = event.target as HTMLElement | null;
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
-      if (event.code === 'Backquote') togglePause();
-      else if (event.code === 'Digit1' || event.code === 'Numpad1') toggleFastSpeed(2);
-      else if (event.code === 'Digit2' || event.code === 'Numpad2') toggleFastSpeed(3);
-      else return;
-      event.preventDefault();
-      soundFx.playClick();
+
+      if (event.code === 'Backquote') {
+        event.preventDefault();
+        togglePause();
+        soundFx.playClick();
+      } else if (event.code === 'Digit1' || event.code === 'Numpad1') {
+        event.preventDefault();
+        toggleFastSpeed(2);
+        soundFx.playClick();
+      } else if (event.code === 'Digit2' || event.code === 'Numpad2') {
+        event.preventDefault();
+        toggleFastSpeed(3);
+        soundFx.playClick();
+      } else {
+        const key = event.key.toLowerCase();
+        const matchedItem = BATTLE_ITEMS.find((item) => item.keyBinding === key);
+        if (matchedItem) {
+          event.preventDefault();
+          handleCastBattleItem(matchedItem.id);
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePause, toggleFastSpeed]);
+  }, [togglePause, toggleFastSpeed, resources]);
 
   useEffect(() => {
     const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -133,9 +245,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }
   };
 
-  const handleToggleAudio = () => {
+  const handleToggleBgm = () => {
     soundFx.playClick();
-    toggleAudioMute();
+    const disabled = soundFx.toggleBgm();
+    setIsBgmOff(disabled);
+  };
+
+  const handleToggleSfx = () => {
+    soundFx.playClick();
+    const disabled = soundFx.toggleSfx();
+    setIsSfxOff(disabled);
   };
 
   const handleConfirmAction = () => {
@@ -145,28 +264,80 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     setConfirmAction(null);
   };
 
+  const handleCastBattleItem = (id: BattleItemId) => {
+    const cost = (ECONOMY_CONFIG.battleItems[id]?.cost ?? {}) as Partial<Record<string, number>>;
+    const canAfford = Object.entries(cost).every(
+      ([k, v]) => ((resources[k as keyof typeof resources] ?? 0) as number) >= (v as number)
+    );
+    if (canAfford) {
+      soundFx.playClick();
+      useBattleItem(id);
+    }
+  };
+
+  // Time of Day Visual Configuration
   const timeOfDayConfig = {
     DAWN: {
-      label: language === 'TL' ? 'Bukang-liwayway' : 'Dawn',
-      icon: <Sunrise className="w-4 h-4 text-amber-300 animate-pulse" />,
-      color: 'text-amber-200',
+      label: isTL ? 'Bukang-liwayway' : 'Dawn',
+      icon: <Sunrise className="w-5 h-5 text-amber-300 animate-pulse" />,
+      skyGradient: 'from-amber-950/60 via-orange-950/30 to-indigo-950/40',
+      glowColor: 'rgba(245, 158, 11, 0.25)',
+      accentText: 'text-amber-300',
     },
     DAY: {
-      label: language === 'TL' ? 'Araw' : 'Day',
-      icon: <Sun className="w-4 h-4 text-yellow-400" />,
-      color: 'text-yellow-200',
+      label: isTL ? 'Kasalukuyang Tanghali' : 'Bright Day',
+      icon: <Sun className="w-5 h-5 text-yellow-400 animate-spin-slow" />,
+      skyGradient: 'from-sky-950/60 via-blue-950/30 to-slate-900/40',
+      glowColor: 'rgba(56, 189, 248, 0.25)',
+      accentText: 'text-yellow-300',
     },
     DUSK: {
-      label: language === 'TL' ? 'Takipsilim' : 'Dusk',
-      icon: <Sunset className="w-4 h-4 text-purple-400" />,
-      color: 'text-purple-200',
+      label: isTL ? 'Takipsilim' : 'Dusk Twilight',
+      icon: <Sunset className="w-5 h-5 text-purple-400 animate-pulse" />,
+      skyGradient: 'from-purple-950/60 via-pink-950/30 to-slate-950/40',
+      glowColor: 'rgba(168, 85, 247, 0.25)',
+      accentText: 'text-purple-300',
     },
     NIGHT: {
-      label: language === 'TL' ? 'Gabi' : 'Night',
-      icon: <Moon className="w-4 h-4 text-cyan-300" />,
-      color: 'text-cyan-200',
+      label: isTL ? 'Malalim na Gabi' : 'Midnight',
+      icon: <Moon className="w-5 h-5 text-cyan-300 animate-pulse" />,
+      skyGradient: 'from-indigo-950/70 via-slate-950/60 to-black/80',
+      glowColor: 'rgba(6, 182, 212, 0.25)',
+      accentText: 'text-cyan-300',
     },
   }[timeOfDay];
+
+  // Weather Visual Configuration
+  const weatherConfig = {
+    CLEAR: {
+      label: isTL ? 'Maaliwalas na Kalangitan' : 'Clear Skies',
+      icon: <CloudSun className="w-5 h-5 text-amber-400 animate-pulse" />,
+      border: 'border-amber-500/30',
+      bg: 'bg-amber-950/20',
+      badge: '☀️ Clear',
+    },
+    RAIN: {
+      label: isTL ? 'Ulan at Pagkulog' : 'Stormy Rain',
+      icon: <CloudRain className="w-5 h-5 text-sky-400 animate-bounce-short" />,
+      border: 'border-sky-500/30',
+      bg: 'bg-sky-950/20',
+      badge: '🌧️ Raining',
+    },
+    SNOW: {
+      label: isTL ? 'Niyebeng Yelo' : 'Frost Snow',
+      icon: <CloudSnow className="w-5 h-5 text-cyan-300 animate-pulse" />,
+      border: 'border-cyan-500/30',
+      bg: 'bg-cyan-950/20',
+      badge: '❄️ Snowing',
+    },
+    HEATWAVE: {
+      label: isTL ? 'Matinding Init' : 'Scorching Heat',
+      icon: <Flame className="w-5 h-5 text-rose-400 animate-pulse" />,
+      border: 'border-rose-500/30',
+      bg: 'bg-rose-950/20',
+      badge: '🔥 Heatwave',
+    },
+  }[weather || 'CLEAR'];
 
   const currentPlatform = PLATFORM_CONFIGS[platformPhase || 1];
   const currentSeason = SEASON_CONFIGS[season || 'SPRING'];
@@ -174,267 +345,378 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const shieldHpPct = Math.round((defense.shieldHp / defense.shieldMaxHp) * 100);
 
   const resourceGauges = [
-    { label: language === 'TL' ? 'Kristal' : 'Gems', key: 'aetherShards' as const, value: resources.aetherShards, color: 'bg-sky-400', text: 'text-sky-300', icon: <Gem className="w-3.5 h-3.5" /> },
-    { label: language === 'TL' ? 'Kahoy' : 'Wood', key: 'wood' as const, value: resources.wood, color: 'bg-emerald-400', text: 'text-emerald-300', icon: <Trees className="w-3.5 h-3.5" /> },
-    { label: language === 'TL' ? 'Bato' : 'Stone', key: 'stone' as const, value: resources.stone, color: 'bg-amber-400', text: 'text-amber-300', icon: <Hammer className="w-3.5 h-3.5" /> },
-    { label: language === 'TL' ? 'Magic' : 'Essence', key: 'arcaneEssence' as const, value: resources.arcaneEssence, color: 'bg-purple-400', text: 'text-purple-300', icon: <Sparkles className="w-3.5 h-3.5" /> },
-    { label: language === 'TL' ? 'Isda' : 'Fish', key: 'fish' as const, value: resources.fish, color: 'bg-cyan-400', text: 'text-cyan-300', icon: <Fish className="w-3.5 h-3.5" /> },
-    { label: language === 'TL' ? 'Tubig' : 'Water', key: 'water' as const, value: resources.water, color: 'bg-blue-400', text: 'text-blue-300', icon: <Droplets className="w-3.5 h-3.5" /> },
+    { label: isTL ? 'Kristal' : 'Gems', key: 'aetherShards' as const, value: resources.aetherShards, color: 'bg-sky-400', text: 'text-sky-300', icon: <Gem className="w-3.5 h-3.5" /> },
+    { label: isTL ? 'Kahoy' : 'Wood', key: 'wood' as const, value: resources.wood, color: 'bg-emerald-400', text: 'text-emerald-300', icon: <Trees className="w-3.5 h-3.5" /> },
+    { label: isTL ? 'Bato' : 'Stone', key: 'stone' as const, value: resources.stone, color: 'bg-amber-400', text: 'text-amber-300', icon: <Hammer className="w-3.5 h-3.5" /> },
+    { label: isTL ? 'Mahika' : 'Essence', key: 'arcaneEssence' as const, value: resources.arcaneEssence, color: 'bg-purple-400', text: 'text-purple-300', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { label: isTL ? 'Isda' : 'Fish', key: 'fish' as const, value: resources.fish, color: 'bg-cyan-400', text: 'text-cyan-300', icon: <Fish className="w-3.5 h-3.5" /> },
+    { label: isTL ? 'Tubig' : 'Water', key: 'water' as const, value: resources.water, color: 'bg-blue-400', text: 'text-blue-300', icon: <Droplets className="w-3.5 h-3.5" /> },
   ];
 
   return (
     <aside
       className={`relative h-full flex-shrink-0 flex flex-col bg-slate-950 border-l border-slate-800/80 transition-all duration-300 select-none z-10 overflow-hidden ${
-        isSidebarOpen ? 'w-[320px]' : 'w-16'
+        isSidebarOpen ? 'w-[335px]' : 'w-16'
       }`}
     >
-      {/* 1. TOP HEADER */}
-      <div className="flex flex-col p-3 border-b border-slate-800/80 bg-slate-900/60 gap-3">
-        <div className="flex items-center justify-between">
-          {isSidebarOpen ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm">
-                {platformPhase === 1 ? '🏰' : platformPhase === 2 ? '🌋' : platformPhase === 3 ? '❄️' : '✨'}
-              </span>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                {language === 'TL' ? currentPlatform.name : currentPlatform.nameEn}
-              </span>
-            </div>
-          ) : (
-            <div className="mx-auto text-sm">
-              {platformPhase === 1 ? '🏰' : platformPhase === 2 ? '🌋' : platformPhase === 3 ? '❄️' : '✨'}
-            </div>
-          )}
+      {/* 1. TOP HEADER: GAME TITLE & REALM PHASE */}
+      <div className="flex flex-col p-3 border-b border-slate-800/90 bg-gradient-to-b from-slate-900 to-slate-950 gap-2">
+        {isSidebarOpen ? (
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-500 to-sky-400 flex items-center justify-center text-sm shadow-md shadow-purple-500/30">
+                  🏰
+                </div>
+                <div>
+                  <h1 className="font-fantasy text-xs font-black tracking-wide text-white drop-shadow">
+                    IsoChronicle: Idle Realms
+                  </h1>
+                  <p className="text-[10px] text-purple-300/80 font-semibold flex items-center gap-1">
+                    <span>{isTL ? currentPlatform.name : currentPlatform.nameEn}</span>
+                    <span>•</span>
+                    <span className="font-mono text-purple-400">Phase {platformPhase} of 4</span>
+                  </p>
+                </div>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              soundFx.playClick();
-              setIsSidebarOpen((v) => !v);
-            }}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
-          >
-            {isSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
-        </div>
-
-        {isSidebarOpen && (
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300">
-              {currentSeason.icon} <span>{language === 'TL' ? currentSeason.name : currentSeason.nameEn}</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black font-mono uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                W{invasion.waveNumber}
+              </span>
             </div>
-            <div className={`flex items-center gap-1.5 text-[11px] font-bold ${timeOfDayConfig.color}`}>
-              {timeOfDayConfig.icon} <span>{timeOfDayConfig.label}</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-8 h-8 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-sm">
+              🏰
             </div>
+            <span className="text-[9px] font-mono font-bold text-purple-300">P{platformPhase}</span>
           </div>
         )}
       </div>
 
-      {/* 2. MINIFIED STRIP (Nakasara ang sidebar) */}
+      {/* 2. MINIFIED STRIP (WHEN COLLAPSED) */}
       {!isSidebarOpen && (
-        <div className="flex flex-col items-center py-4 gap-4 flex-1 overflow-y-auto">
-          <div className="text-[10px] font-mono font-bold text-sky-400 text-center">W{invasion.waveNumber}</div>
+        <div className="flex flex-col items-center py-3 gap-3 flex-1 overflow-y-auto">
+          <div className="text-[10px] font-mono font-bold text-red-400 text-center">W{invasion.waveNumber}</div>
           <div className="text-[10px] font-mono font-bold text-emerald-400 text-center">{castleHpPct}%</div>
-          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('command'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-red-300 cursor-pointer">🏰</button>
-          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('status'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-sky-300 cursor-pointer"><Activity className="w-4 h-4" /></button>
-          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('resources'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-300 cursor-pointer"><Coins className="w-4 h-4" /></button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('command'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-purple-300 cursor-pointer" title="Citadel">🏰</button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('status'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-sky-300 cursor-pointer" title="Status"><Shield className="w-4 h-4" /></button>
+          <button onClick={() => { setIsSidebarOpen(true); setActiveTab('resources'); }} className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-300 cursor-pointer" title="Resources"><Coins className="w-4 h-4" /></button>
         </div>
       )}
 
       {/* 3. EXPANDED SIDEBAR CONTENT */}
       {isSidebarOpen && (
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* TABS */}
-          <div className="grid grid-cols-3 p-2 gap-1.5 border-b border-slate-800/80 bg-slate-900/30">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+          
+          {/* SECTION A: ANIMATED TIME OF DAY & WEATHER (ROUNDED CORNERS) */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Box 1: Animated Morning-till-Dawn Section */}
+            <div className={`relative p-2.5 rounded-2xl border border-slate-800/80 bg-gradient-to-br ${timeOfDayConfig.skyGradient} flex flex-col justify-between overflow-hidden shadow-inner`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="p-1 rounded-lg bg-black/40 border border-white/10 shadow-sm">
+                    {timeOfDayConfig.icon}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-white">
+                      {timeOfDayConfig.label}
+                    </span>
+                    <div className="text-[9px] font-mono text-slate-300">
+                      Y{year || 1} • D{day || 1}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { soundFx.playClick(); setConfirmAction('SKIP_DAY'); }}
+                  title={isTL ? 'Laktawan ang araw' : 'Skip day'}
+                  className="p-1 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer"
+                >
+                  <FastForward className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Day cycle progress bar */}
+              <div className="mt-2">
+                <div className="h-1.5 rounded-full bg-black/50 overflow-hidden border border-white/10">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 to-sky-400 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(5, dayProgress * 100))}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Box 2: Animated Weather Section (Clickable) */}
             <button
-              onClick={() => { soundFx.playClick(); setActiveTab('command'); }}
-              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition flex flex-col items-center gap-1 cursor-pointer ${
-                activeTab === 'command' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'text-slate-400 hover:bg-slate-800'
-              }`}
+              type="button"
+              onClick={() => {
+                soundFx.playClick();
+                setIsWeatherModalOpen(true);
+              }}
+              title={isTL ? 'Kontrol ng Panahon (I-click para baguhin)' : 'Weather Control (Click to customize)'}
+              className={`relative p-2.5 rounded-2xl border ${weatherConfig.border} ${weatherConfig.bg} hover:border-sky-400/60 hover:shadow-lg hover:shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition flex flex-col justify-between overflow-hidden shadow-inner text-left cursor-pointer group`}
             >
-              <span className="text-sm">🏰</span>
-              <span>Centro</span>
-            </button>
-            <button
-              onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
-              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition flex flex-col items-center gap-1 cursor-pointer ${
-                activeTab === 'status' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-400 hover:bg-slate-800'
-              }`}
-            >
-              <Activity className="w-4 h-4" />
-              <span>Status</span>
-            </button>
-            <button
-              onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
-              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition flex flex-col items-center gap-1 cursor-pointer ${
-                activeTab === 'resources' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'
-              }`}
-            >
-              <Coins className="w-4 h-4" />
-              <span>Yaman</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-1.5">
+                  <div className="p-1 rounded-lg bg-black/40 border border-white/10 shadow-sm group-hover:border-sky-400/40 transition">
+                    {weatherConfig.icon}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-white flex items-center gap-1">
+                      {weatherConfig.badge}
+                      <span className="text-[9px] text-sky-400 opacity-80 font-normal">⚙️</span>
+                    </span>
+                    <div className="text-[9px] font-medium text-slate-300 flex items-center gap-1">
+                      <span>{currentSeason.icon}</span>
+                      <span>{isTL ? currentSeason.name : currentSeason.nameEn}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 text-[9px] text-slate-400 font-medium truncate flex items-center justify-between w-full">
+                <span>{weatherConfig.label}</span>
+                <span className="text-[8px] text-purple-400 font-bold uppercase tracking-wider group-hover:text-sky-300">
+                  {isTL ? 'Palitan' : 'Change'}
+                </span>
+              </div>
             </button>
           </div>
 
-          {/* MAIN TAB CONTENT */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
-            
-            {/* COMMAND TAB */}
-            {activeTab === 'command' && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2 justify-between bg-slate-900/60 p-2 rounded-xl border border-red-500/20">
-                  <button
-                    onClick={() => { soundFx.playClick(); onOpenCitadel('MINIONS'); }}
-                    className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-bold cursor-pointer hover:bg-red-900/50"
-                  >
-                    <span>👹</span> <span>{workerCount} Alagad</span>
-                  </button>
-                  <button
-                    onClick={() => { soundFx.playClick(); toggleAutoSetting('autoDispatch'); }}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer ${
-                      autoSettings.autoDispatch ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
-                    }`}
-                  >
-                    <Zap className="w-3 h-3" /> {autoSettings.autoDispatch ? 'AUTO ON' : 'AUTO OFF'}
-                  </button>
-                </div>
+          {/* SECTION B: QWERT BATTLE SKILLS TOOLBAR (INTEGRATED IN SIDE MENU) */}
+          <div className="p-2 rounded-2xl bg-slate-900/60 border border-purple-500/30">
+            <div className="grid grid-cols-5 gap-1.5">
+              {BATTLE_ITEMS.map((item) => {
+                const cost = (ECONOMY_CONFIG.battleItems[item.id]?.cost ?? {}) as Partial<Record<string, number>>;
+                const canAfford = Object.entries(cost).every(
+                  ([k, v]) => ((resources[k as keyof typeof resources] ?? 0) as number) >= (v as number)
+                );
+                const timerVal = item.timerKey ? (defense[item.timerKey] ?? 0) : 0;
+                const isActive = timerVal > 0;
+                const progressPct = item.maxDuration > 0 ? Math.min(100, Math.max(0, (timerVal / item.maxDuration) * 100)) : 0;
+                const isHovered = hoveredBattleItem === item.id;
 
-                <button
-                  onClick={() => { soundFx.playClick(); onOpenCitadel(); }}
-                  className="w-full flex flex-col items-center justify-center gap-1 py-4 rounded-xl bg-gradient-to-br from-red-950 via-purple-950 to-slate-900 border border-red-500/40 hover:border-amber-400 cursor-pointer shadow-lg"
-                >
+                return (
+                  <div
+                    key={item.id}
+                    className="relative flex flex-col items-center"
+                    onMouseEnter={() => setHoveredBattleItem(item.id)}
+                    onMouseLeave={() => setHoveredBattleItem(null)}
+                  >
+                    {/* Hover tooltip */}
+                    {isHovered && (
+                      <div className="absolute bottom-[calc(100%+8px)] right-0 z-50 w-64 rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl backdrop-blur-md animate-fade-in pointer-events-none">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xl">{item.icon}</span>
+                            <span className="text-xs font-bold text-white">{isTL ? item.nameTl : item.nameEn}</span>
+                          </div>
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono text-[10px] font-bold">
+                            {item.keyBinding.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-300 leading-snug">{isTL ? item.descTl : item.descEn}</p>
+                        <div className="mt-1 text-[9px] text-purple-300 font-semibold">{isTL ? item.buffEffectTl : item.buffEffectEn}</div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleCastBattleItem(item.id)}
+                      disabled={!canAfford && !isActive}
+                      className={`relative w-full h-11 flex flex-col items-center justify-center rounded-xl border transition cursor-pointer overflow-hidden ${
+                        isActive
+                          ? 'border-emerald-400 bg-slate-900 shadow-md shadow-emerald-500/30'
+                          : canAfford
+                          ? 'border-slate-700 bg-slate-900/80 hover:border-purple-400 hover:bg-slate-800'
+                          : 'border-slate-800/80 bg-slate-950/60 opacity-40 cursor-not-allowed'
+                      }`}
+                    >
+                      {isActive && (
+                        <div
+                          className="absolute bottom-0 left-0 right-0 pointer-events-none transition-all duration-100 ease-linear opacity-40"
+                          style={{
+                            height: `${progressPct}%`,
+                            backgroundColor: item.color,
+                          }}
+                        />
+                      )}
+                      <span className="relative z-10 text-base leading-none">{item.icon}</span>
+                      <span className="absolute top-0.5 right-1 text-[8px] font-mono font-black text-amber-300 uppercase">
+                        {item.keyBinding}
+                      </span>
+                      {isActive && (
+                        <span className="absolute bottom-0.5 text-[8px] font-mono font-bold text-white leading-none">
+                          {Math.ceil(timerVal)}s
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION C: NAVIGATION TABS */}
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900 p-1 border border-slate-800">
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('command'); }}
+              className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                activeTab === 'command' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Command 🏰
+            </button>
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
+              className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                activeTab === 'status' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Status 🛡️
+            </button>
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
+              className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                activeTab === 'resources' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Resources 💎
+            </button>
+          </div>
+
+          {/* SECTION D: TAB CONTENT */}
+          
+          {/* TAB 1: COMMAND */}
+          {activeTab === 'command' && (
+            <div className="space-y-2">
+              {/* Main Citadel Command Opener */}
+              <button
+                onClick={() => { soundFx.playClick(); onOpenCitadel('MINIONS'); }}
+                className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 border border-purple-500/40 hover:border-purple-400 flex items-center justify-between transition cursor-pointer shadow-md"
+              >
+                <div className="flex items-center gap-2.5">
                   <span className="text-2xl">🏰</span>
-                  <span className="text-xs font-bold text-red-100">Bukas Centro ng Kuta</span>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white">{isTL ? 'Sentro ng Kuta' : 'Citadel Command'}</div>
+                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Minions, Pamilihan, Pandayan, Agham' : 'Minions, Market, Armory, Research'}</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-purple-400" />
+              </button>
+
+              {/* 2 Quick Hub Buttons (Skills & Atlas) */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
+                  className="p-2.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-900/40 transition"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <span>Skills {skillPoints > 0 && `(${skillPoints})`}</span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
-                    className="p-2.5 rounded-lg bg-purple-950/30 border border-purple-500/30 text-purple-200 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-purple-900/40"
-                  >
-                    <Sparkles className="w-4 h-4" /> <span>Skills {skillPoints > 0 && `(${skillPoints})`}</span>
-                  </button>
-                  <button
-                    onClick={() => { soundFx.playClick(); onOpenRegression(); }}
-                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800"
-                  >
-                    <RotateCcw className="w-4 h-4 text-amber-400" /> <span>Regression</span>
-                  </button>
-                  <button
-                    onClick={() => { soundFx.playClick(); onOpenCodex(); }}
-                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800"
-                  >
-                    <BookOpen className="w-4 h-4 text-purple-400" /> <span>Gabay</span>
-                  </button>
-                  <button
-                    onClick={() => { soundFx.playClick(); onOpenBestiary(); }}
-                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-bold flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800"
-                  >
-                    <span>📖</span> <span>Talaan</span>
-                  </button>
-                </div>
-
                 <button
-                  onClick={() => { soundFx.playClick(); onOpenFAQ(); }}
-                  className="w-full mt-2 p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-amber-300 text-[11px] font-bold flex items-center justify-center gap-1.5 hover:border-amber-400/50 cursor-pointer"
+                  onClick={() => { soundFx.playClick(); onOpenAtlas('GUIDE'); }}
+                  className="p-2.5 rounded-2xl bg-sky-950/50 border border-sky-500/40 text-sky-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-sky-900/50 transition shadow-sm"
                 >
-                  <HelpCircle className="w-3.5 h-3.5" /> <span>FAQ / Mga Tanong</span>
+                  <Compass className="w-4 h-4 text-sky-400" />
+                  <span>Atlas 🧭</span>
                 </button>
               </div>
-            )}
 
-            {/* STATUS TAB */}
-            {activeTab === 'status' && (
-              <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-slate-400">Kastilyo</span>
-                      <span className="text-emerald-300 font-mono font-bold">{castleHpPct}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                      <div className="h-full bg-emerald-400" style={{ width: `${castleHpPct}%` }} />
-                    </div>
+              {/* Quick Castle Status Summary */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2">
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-slate-400">{isTL ? 'Kastilyo' : 'Castle'}</span>
+                    <span className="text-emerald-300 font-mono font-bold">{castleHpPct}%</span>
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-slate-400 flex items-center gap-1"><Shield className="w-2.5 h-2.5 text-sky-400" /> Kalasag</span>
-                      <span className="text-sky-300 font-mono font-bold">{shieldHpPct}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                      <div className="h-full bg-sky-400" style={{ width: `${shieldHpPct}%` }} />
-                    </div>
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-emerald-400" style={{ width: `${castleHpPct}%` }} />
                   </div>
                 </div>
-
-                <button
-                  onClick={() => { soundFx.playClick(); setConfirmAction('SKIP_DAY'); }}
-                  className={`w-full rounded-xl border p-3 text-left transition cursor-pointer ${
-                    confirmAction === 'SKIP_DAY' ? 'border-sky-400 bg-sky-950/70 ring-1 ring-sky-400' : 'border-slate-800 bg-slate-900/60 hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] uppercase text-slate-400">Takbo ng Panahon</span>
-                    <span className="text-[10px] font-bold text-sky-300">{timeOfDayConfig.label}</span>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2">
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-slate-400 flex items-center gap-1"><Shield className="w-2.5 h-2.5 text-sky-400" /> {isTL ? 'Kalasag' : 'Shield'}</span>
+                    <span className="text-sky-300 font-mono font-bold">{shieldHpPct}%</span>
                   </div>
-                  <div className="text-xs font-bold text-slate-200">Taon {year || 1} • Araw {day || 1}/365</div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-                    <div className="h-full rounded-full bg-sky-400" style={{ width: `${dayProgress * 100}%` }} />
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-sky-400" style={{ width: `${shieldHpPct}%` }} />
                   </div>
-                </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-                <button
-                  disabled={invasion.isActive}
-                  onClick={() => {
-                    if (invasion.isActive) return;
-                    if (!constructionReady) { soundFx.playClick(); onOpenCitadel('MINIONS'); return; }
-                    soundFx.playClick(); setConfirmAction('SUMMON_WAVE');
-                  }}
-                  className={`w-full rounded-xl border p-3 text-left transition ${
-                    confirmAction === 'SUMMON_WAVE' ? 'border-red-400 bg-red-950/70 ring-1 ring-red-400' : invasion.isActive ? 'border-red-900/50 bg-red-950/30' : 'border-red-700/40 bg-red-950/30 hover:border-red-500 cursor-pointer'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] uppercase text-slate-400">Pagsalakay (Wave)</span>
-                    <span className={`text-[10px] font-bold ${invasion.isActive ? 'text-rose-400' : 'text-emerald-400'}`}>
-                      {invasion.isActive ? 'LUMALABAN' : 'HANDA'}
+          {/* TAB 2: STATUS & WAVE ASSAULT */}
+          {activeTab === 'status' && (
+            <div className="space-y-2.5">
+              <button
+                disabled={invasion.isActive}
+                onClick={() => {
+                  if (invasion.isActive) return;
+                  if (!constructionReady) { soundFx.playClick(); onOpenCitadel('MINIONS'); return; }
+                  soundFx.playClick(); setConfirmAction('SUMMON_WAVE');
+                }}
+                className={`w-full rounded-2xl border p-3 text-left transition ${
+                  confirmAction === 'SUMMON_WAVE' ? 'border-red-400 bg-red-950/70 ring-1 ring-red-400' : invasion.isActive ? 'border-red-900/50 bg-red-950/30' : 'border-red-700/40 bg-red-950/30 hover:border-red-500 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] uppercase text-slate-400">{isTL ? 'Pagsalakay (Wave)' : 'Invasion (Wave)'}</span>
+                  <span className={`text-[10px] font-bold ${invasion.isActive ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {invasion.isActive ? (isTL ? 'LUMALABAN' : 'BATTLING') : (isTL ? 'HANDA' : 'READY')}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-200">Wave {invasion.waveNumber}/100</div>
+                <div className="mt-1 text-[10px] text-slate-400">
+                  {invasion.isActive
+                    ? `${invasion.enemiesRemaining}/${invasion.totalEnemiesInWave} ${isTL ? 'natitira' : 'remaining'}`
+                    : !constructionReady
+                    ? (isTL ? 'Ayusin muna ang kastilyo' : 'Prepare citadel first')
+                    : `${Math.ceil(invasion.countdown)}s ${isTL ? 'bago sumalakay' : 'until assault'}`}
+                </div>
+              </button>
+
+              {confirmAction && (
+                <div className="w-full p-2.5 rounded-xl border border-amber-500/50 bg-slate-800 flex items-center justify-between gap-2 shadow-lg">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {confirmAction === 'SKIP_DAY' ? <FastForward className="w-4 h-4 text-sky-400" /> : <Swords className="w-4 h-4 text-rose-400" />}
+                    <span className="text-[10px] text-slate-200 truncate">
+                      {confirmAction === 'SKIP_DAY'
+                        ? (isTL ? 'Laktawan araw?' : 'Skip day?')
+                        : (isTL ? 'Lumusob agad?' : 'Assault now?')}
                     </span>
                   </div>
-                  <div className="text-xs font-bold text-slate-200">Wave {invasion.waveNumber}/100</div>
-                  <div className="mt-1 text-[10px] text-slate-400">
-                    {invasion.isActive ? `${invasion.enemiesRemaining}/${invasion.totalEnemiesInWave} natitira` : !constructionReady ? 'Ayusin muna ang kastilyo' : `${Math.ceil(invasion.countdown)}s bago sumalakay`}
+                  <div className="flex items-center gap-1">
+                    <button onClick={handleConfirmAction} className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"><Check className="w-3 h-3 stroke-[3]" /></button>
+                    <button onClick={() => setConfirmAction(null)} className="p-1.5 rounded-lg bg-slate-700 text-slate-300 hover:text-white cursor-pointer"><X className="w-3 h-3 stroke-[3]" /></button>
                   </div>
-                </button>
+                </div>
+              )}
 
-                {confirmAction && (
-                  <div className="w-full p-2.5 rounded-lg border border-amber-500/50 bg-slate-800 flex items-center justify-between gap-2 shadow-lg">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {confirmAction === 'SKIP_DAY' ? <FastForward className="w-4 h-4 text-sky-400" /> : <Swords className="w-4 h-4 text-rose-400" />}
-                      <span className="text-[10px] text-slate-200 truncate">{confirmAction === 'SKIP_DAY' ? 'Laktawan araw?' : 'Lumusob agad?'}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={handleConfirmAction} className="p-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"><Check className="w-3 h-3 stroke-[3]" /></button>
-                      <button onClick={() => setConfirmAction(null)} className="p-1.5 rounded bg-slate-700 text-slate-300 hover:text-white cursor-pointer"><X className="w-3 h-3 stroke-[3]" /></button>
-                    </div>
-                  </div>
-                )}
+              <AutoEnhancePrompt onOpenCitadel={onOpenCitadel} embedded />
+            </div>
+          )}
 
-                <AutoEnhancePrompt onOpenCitadel={onOpenCitadel} embedded />
-              </div>
-            )}
-
-            {/* RESOURCES TAB */}
-            {activeTab === 'resources' && (
+          {/* TAB 3: RESOURCES */}
+          {activeTab === 'resources' && (
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 {resourceGauges.map((resource) => (
                   <button
                     key={resource.key}
                     onClick={() => { soundFx.playClick(); onOpenQuickTrade(resource.key); }}
-                    className="rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 text-left hover:border-slate-600 cursor-pointer flex flex-col justify-between"
+                    className="rounded-2xl border border-slate-800 bg-slate-900/60 p-2.5 text-left hover:border-slate-600 cursor-pointer flex flex-col justify-between"
                   >
-                    <div className={`flex items-center gap-1.5 text-[11px] font-bold mb-2 ${resource.text}`}>
+                    <div className={`flex items-center gap-1.5 text-[11px] font-bold mb-1.5 ${resource.text}`}>
                       {resource.icon} {resource.label}
                     </div>
-                    <div className="font-mono text-sm font-bold text-slate-200 mb-1.5">
+                    <div className="font-mono text-xs font-bold text-slate-200 mb-1">
                       {resource.value.toLocaleString()}
                     </div>
                     <div className="h-1 rounded-full bg-slate-800 overflow-hidden w-full">
@@ -443,60 +725,141 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   </button>
                 ))}
               </div>
-            )}
-            {activeTab === 'resources' && (
-              <div className="mt-2 grid grid-cols-4 gap-1.5">
+
+              <div className="grid grid-cols-4 gap-1.5 pt-1">
                 {([
-                  ['obsidianShard', '🌋', 'Obsidian'],
-                  ['soulFragments', '💀', language === 'TL' ? 'Kaluluwa' : 'Souls'],
-                  ['abyssalPearl', '🔮', language === 'TL' ? 'Perlas' : 'Pearl'],
-                  ['scrapMetal', '⚙️', 'Scrap'],
+                  ['obsidianShard', '🌋', isTL ? 'Obsidian' : 'Obsidian'],
+                  ['soulFragments', '💀', isTL ? 'Kaluluwa' : 'Souls'],
+                  ['abyssalPearl', '🔮', isTL ? 'Perlas' : 'Pearl'],
+                  ['scrapMetal', '⚙️', isTL ? 'Scrap' : 'Scrap'],
                 ] as const).map(([key, icon, label]) => (
-                  <div key={key} title={label} className="rounded-lg border border-slate-800 bg-slate-900/60 px-1.5 py-1 text-center">
+                  <div key={key} title={label} className="rounded-xl border border-slate-800 bg-slate-900/60 px-1.5 py-1.5 text-center">
                     <div className="text-sm leading-none">{icon}</div>
-                    <div className="mt-0.5 font-mono text-[11px] font-bold text-slate-200">{(resources[key] ?? 0).toLocaleString()}</div>
+                    <div className="mt-1 font-mono text-[10px] font-bold text-slate-200">{(resources[key] ?? 0).toLocaleString()}</div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+      )}
 
-          {/* 4. FOOTER CONTROLS */}
-          <div className="p-3 border-t border-slate-800/80 bg-slate-900 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+      {/* 4. FOOTER CONTROLS TOOLBAR */}
+      {isSidebarOpen ? (
+        <div className="p-2.5 border-t border-slate-800/80 bg-slate-900 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-1.5">
+            {/* Play / Pause & Speed */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => { soundFx.playClick(); togglePause(); }}
+                title={gameSpeed === 0 ? 'Play ( ` )' : 'Pause ( ` )'}
+                aria-label={gameSpeed === 0 ? 'Play' : 'Pause'}
+                className={`p-1.5 rounded-lg flex items-center justify-center transition cursor-pointer ${
+                  gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                }`}
+              >
+                {gameSpeed === 0 ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
+              </button>
+
+              {([2, 3] as const).map((speed, index) => (
                 <button
-                  onClick={() => { soundFx.playClick(); togglePause(); }}
-                  title={gameSpeed === 0 ? 'Play ( ` )' : 'Pause ( ` )'}
-                  aria-label={gameSpeed === 0 ? 'Play' : 'Pause'}
-                  className={`relative p-1.5 rounded flex-1 flex justify-center ${gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'}`}
+                  key={speed}
+                  onClick={() => { soundFx.playClick(); toggleFastSpeed(speed); }}
+                  title={`${speed}× speed (${index + 1})`}
+                  aria-pressed={gameSpeed === speed}
+                  className={`px-1.5 py-1 rounded-lg flex items-center gap-0.5 text-[10px] font-black font-mono transition cursor-pointer ${
+                    gameSpeed === speed ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'
+                  }`}
                 >
-                  {gameSpeed === 0 ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
-                  <kbd className="absolute -bottom-1 right-0 text-[8px] font-mono text-slate-500">`</kbd>
+                  <FastForward className="w-3 h-3 fill-current" />{speed}×
                 </button>
-                {([2, 3] as const).map((speed, index) => (
-                  <button
-                    key={speed}
-                    onClick={() => { soundFx.playClick(); toggleFastSpeed(speed); }}
-                    title={`${speed}× speed (${index + 1})`}
-                    aria-pressed={gameSpeed === speed}
-                    className={`relative px-1.5 py-1 rounded flex-1 flex items-center justify-center gap-0.5 text-[10px] font-black font-mono ${gameSpeed === speed ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
-                    <FastForward className="w-3 h-3 fill-current" />{speed}×
-                    <kbd className="absolute -bottom-1 right-0 text-[8px] font-mono text-slate-500">{index + 1}</kbd>
-                  </button>
-                ))}
-              </div>
+              ))}
+            </div>
 
-              <div className="flex items-center gap-1">
-                <button onClick={handleToggleAudio} className="p-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-800">{isAudioMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-sky-400" />}</button>
-                <button onClick={() => { soundFx.playClick(); onOpenSettings(); }} className="p-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-800"><Sliders className="w-4 h-4" /></button>
-                <button onClick={toggleFullscreen} className="p-2 rounded-lg border border-slate-800 text-slate-300 hover:bg-slate-800">{isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}</button>
-              </div>
+            {/* Utility Buttons: Min/Max Side Menu, Music, SFX, Fullscreen, Settings */}
+            <div className="flex items-center gap-1">
+              {/* Min/Max Side Menu Toggle */}
+              <button
+                onClick={() => { soundFx.playClick(); setIsSidebarOpen(false); }}
+                title={isTL ? 'I-collapse ang Menu' : 'Minimize Menu'}
+                className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+              >
+                <PanelRightClose className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Music ON/OFF */}
+              <button
+                onClick={handleToggleBgm}
+                title={isBgmOff ? 'Music: OFF' : 'Music: ON'}
+                className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                  isBgmOff ? 'border-rose-900/60 bg-rose-950/40 text-rose-400' : 'border-slate-800 bg-slate-950 text-indigo-300 hover:bg-slate-800'
+                }`}
+              >
+                <Music className="w-3.5 h-3.5" />
+              </button>
+
+              {/* SFX ON/OFF */}
+              <button
+                onClick={handleToggleSfx}
+                title={isSfxOff ? 'SFX: OFF' : 'SFX: ON'}
+                className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                  isSfxOff ? 'border-rose-900/60 bg-rose-950/40 text-rose-400' : 'border-slate-800 bg-slate-950 text-sky-300 hover:bg-slate-800'
+                }`}
+              >
+                {isSfxOff ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              </button>
+
+              {/* Fullscreen */}
+              <button
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+              >
+                {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+              </button>
+
+              {/* Settings */}
+              <button
+                onClick={() => { soundFx.playClick(); onOpenSettings(); }}
+                title={isTL ? 'Mga Setting' : 'Settings'}
+                className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
+      ) : (
+        /* Minimized State Footer: Clear Maximize / Expand button and essentials */
+        <div className="p-2 border-t border-slate-800/80 bg-slate-900 flex flex-col items-center gap-2">
+          <button
+            onClick={() => { soundFx.playClick(); togglePause(); }}
+            title={gameSpeed === 0 ? 'Play ( ` )' : 'Pause ( ` )'}
+            className={`w-10 h-8 rounded-lg flex items-center justify-center transition cursor-pointer border ${
+              gameSpeed === 0 ? 'bg-rose-500/30 border-rose-500/50 text-rose-300' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+            }`}
+          >
+            {gameSpeed === 0 ? <Play className="w-4 h-4 fill-current" /> : <Pause className="w-4 h-4 fill-current" />}
+          </button>
+
+          <button
+            onClick={() => { soundFx.playClick(); onOpenSettings(); }}
+            title={isTL ? 'Mga Setting' : 'Settings'}
+            className="w-10 h-8 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center cursor-pointer"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => { soundFx.playClick(); setIsSidebarOpen(true); }}
+            title={isTL ? 'I-expand ang Menu' : 'Maximize / Expand Menu'}
+            className="w-10 h-10 rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/40 flex items-center justify-center cursor-pointer transition transform hover:scale-105 animate-pulse"
+          >
+            <PanelRightOpen className="w-5 h-5" />
+          </button>
+        </div>
       )}
+      <WeatherModal isOpen={isWeatherModalOpen} onClose={() => setIsWeatherModalOpen(false)} />
     </aside>
   );
 };

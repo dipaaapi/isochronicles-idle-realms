@@ -1,6 +1,8 @@
 class SoundFxManager {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private isBgmDisabled: boolean = false;
+  private isSfxDisabled: boolean = false;
   private masterGain: GainNode | null = null;
   private listeners: Set<(muted: boolean) => void> = new Set();
   
@@ -14,6 +16,14 @@ class SoundFxManager {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('isochronicle_audio_muted') : null;
     if (saved !== null) {
       this.isMuted = saved === 'true';
+    }
+    const savedBgm = typeof window !== 'undefined' ? localStorage.getItem('isochronicle_bgm_disabled') : null;
+    if (savedBgm !== null) {
+      this.isBgmDisabled = savedBgm === 'true';
+    }
+    const savedSfx = typeof window !== 'undefined' ? localStorage.getItem('isochronicle_sfx_disabled') : null;
+    if (savedSfx !== null) {
+      this.isSfxDisabled = savedSfx === 'true';
     }
   }
 
@@ -42,6 +52,37 @@ class SoundFxManager {
     return this.isMuted;
   }
 
+  public getIsBgmDisabled(): boolean {
+    return this.isBgmDisabled;
+  }
+
+  public getIsSfxDisabled(): boolean {
+    return this.isSfxDisabled;
+  }
+
+  public toggleBgm(): boolean {
+    this.isBgmDisabled = !this.isBgmDisabled;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('isochronicle_bgm_disabled', String(this.isBgmDisabled));
+    }
+    if (this.isBgmDisabled) {
+      this.stopBackgroundMusic();
+    } else if (!this.isMuted) {
+      this.playBackgroundMusic(this.currentBgmMode);
+    }
+    this.listeners.forEach((cb) => cb(this.isMuted));
+    return this.isBgmDisabled;
+  }
+
+  public toggleSfx(): boolean {
+    this.isSfxDisabled = !this.isSfxDisabled;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('isochronicle_sfx_disabled', String(this.isSfxDisabled));
+    }
+    this.listeners.forEach((cb) => cb(this.isMuted));
+    return this.isSfxDisabled;
+  }
+
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     if (typeof window !== 'undefined') {
@@ -54,7 +95,7 @@ class SoundFxManager {
     
     if (this.isMuted) {
       this.stopBackgroundMusic();
-    } else {
+    } else if (!this.isBgmDisabled) {
       this.playBackgroundMusic(this.currentBgmMode);
     }
 
@@ -68,7 +109,7 @@ class SoundFxManager {
   }
 
   public playBackgroundMusic(mode: 'LIVELY' | 'BATTLE' | 'AMBIENT' | 'RAIN' | 'SNOW' | 'HEATWAVE' | 'TITLE' = 'LIVELY'): void {
-    if (this.isMuted) {
+    if (this.isMuted || this.isBgmDisabled) {
       this.currentBgmMode = mode;
       return;
     }

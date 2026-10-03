@@ -321,8 +321,8 @@ export const UnitRosterModal: React.FC<UnitRosterModalProps> = ({ isOpen, onClos
                 const cost = getSummonCost(cls);
                 const affordable = canAfford(cost);
                 const unlocked = isUnlocked(cls);
-                const countOfClass = roster.filter((u) => u.unitClass === cls).length;
-                const isMaxed = countOfClass >= (cls === 'AQUA_SLIME' ? 1 : 8);
+                const countOfClass = roster.filter((u) => u.unitClass === cls && !u.parentBuildingId && !u.id.startsWith('tenant_')).length;
+                const isMaxed = countOfClass >= 1;
 
                 return (
                   <div

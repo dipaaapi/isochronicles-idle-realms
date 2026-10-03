@@ -5,17 +5,17 @@ import { IntroNarrativeModal } from './ui/IntroNarrativeModal';
 import { GameHUD } from './ui/GameHUD';
 import { WelcomeBackModal } from './ui/WelcomeBackModal';
 import { CitadelCommandModal, CitadelTab } from './ui/CitadelCommandModal';
-import { CodexModal } from './ui/CodexModal';
+import { AtlasModal, AtlasTab } from './ui/AtlasModal';
 import { BestiaryModal } from './ui/BestiaryModal';
 import { SettingsDrawer } from './ui/SettingsDrawer';
 import { CastleBreachedModal } from './ui/CastleBreachedModal';
 import { QuickTradePopover } from './ui/QuickTradePopover';
 import { RegressionModal } from './ui/RegressionModal';
 import { PhaserGame } from './game/PhaserGame';
-import { FAQModal } from './ui/FAQModal';
 import { SkillTreeModal } from './ui/SkillTreeModal';
 import { EstablishmentModal } from './ui/EstablishmentModal';
 import { ActivityLogTray } from './ui/ActivityLogTray';
+import { BattleItemsToolbar } from './ui/BattleItemsToolbar';
 import { startActivityWatcher } from './state/activityWatcher';
 
 export const App: React.FC = () => {
@@ -25,7 +25,6 @@ export const App: React.FC = () => {
     layoutSeed,
     buildingPositions,
     setScreen,
-    completeIntro,
     checkOfflineProgress,
     isRegressionModalOpen,
     openRegressionModal,
@@ -35,10 +34,10 @@ export const App: React.FC = () => {
   } = useGameStore();
 
   const [citadelTab, setCitadelTab] = useState<CitadelTab | null>(null);
-  const [isCodexOpen, setIsCodexOpen] = useState(false);
+  const [isAtlasOpen, setIsAtlasOpen] = useState(false);
+  const [atlasInitialSection, setAtlasInitialSection] = useState<AtlasTab>('GUIDE');
   const [isBestiaryOpen, setIsBestiaryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isFAQOpen, setIsFAQOpen] = useState(false);
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [quickTradeResource, setQuickTradeResource] = useState<
     'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water' | null
@@ -47,9 +46,8 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (screen !== 'GAME') {
       setCitadelTab(null);
-      setIsCodexOpen(false);
+      setIsAtlasOpen(false);
       setIsBestiaryOpen(false);
-      setIsFAQOpen(false);
       setIsSkillTreeOpen(false);
       setQuickTradeResource(null);
     }
@@ -58,7 +56,7 @@ export const App: React.FC = () => {
   // Narrate realm events into the activity log tray
   useEffect(() => startActivityWatcher(), []);
 
-  // Check offline progression when landing in the active simulation
+  // Process offline progression when entering game simulation
   useEffect(() => {
     if (screen === 'GAME') {
       checkOfflineProgress();
@@ -73,17 +71,13 @@ export const App: React.FC = () => {
     setScreen('GAME');
   };
 
-  // A new realm starts from scratch; backing out of the story keeps the old save
   const handleBeginReconstruction = () => {
-    const { difficulty, resetRealm } = useGameStore.getState();
-    resetRealm();
-    useGameStore.setState({ difficulty });
-    completeIntro();
+    setScreen('GAME');
   };
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Screen 1: Title Screen */}
+      {/* Screen 1: Title Screen (No Atlas button here) */}
       {screen === 'TITLE' && (
         <TitleScreen
           onStartNewRealm={handleStartNewRealm}
@@ -100,7 +94,7 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Screen 3: Active Simulation (Flex layout: Canvas sa kaliwa, HUD Sidebar sa kanan) */}
+      {/* Screen 3: Active Simulation */}
       {screen === 'GAME' && (
         <div className="flex w-full h-full overflow-hidden">
           {/* Main Game Screen (Phaser Canvas) */}
@@ -112,18 +106,25 @@ export const App: React.FC = () => {
           {/* Dedicated Right Sidebar HUD */}
           <GameHUD
             onOpenCitadel={(tab) => setCitadelTab(tab || 'MINIONS')}
-            onOpenCodex={() => setIsCodexOpen(true)}
-            onOpenBestiary={() => setIsBestiaryOpen(true)}
+            onOpenAtlas={(section = 'GUIDE') => {
+              setAtlasInitialSection(section);
+              setIsAtlasOpen(true);
+            }}
+            onOpenBestiary={() => {
+              setAtlasInitialSection('BESTIARY');
+              setIsAtlasOpen(true);
+            }}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenFAQ={() => setIsFAQOpen(true)}
             onOpenSkillTree={() => setIsSkillTreeOpen(true)}
-            onOpenRegression={openRegressionModal}
+            onOpenRegression={() => {
+              setAtlasInitialSection('REGRESSION');
+              setIsAtlasOpen(true);
+            }}
             onOpenQuickTrade={(res) => setQuickTradeResource(res)}
           />
 
           {/* Modal & Popover Layers */}
           <WelcomeBackModal />
-          {isFAQOpen && <FAQModal onClose={() => setIsFAQOpen(false)} />}
           {isSkillTreeOpen && <SkillTreeModal onClose={() => setIsSkillTreeOpen(false)} />}
 
           <CitadelCommandModal
@@ -151,15 +152,19 @@ export const App: React.FC = () => {
             />
           )}
 
-          <CodexModal
-            isOpen={isCodexOpen}
-            onClose={() => setIsCodexOpen(false)}
+          {/* Atlas Knowledge Hub (Guide, Bestiary, Regression, FAQ, Lore) */}
+          <AtlasModal
+            isOpen={isAtlasOpen}
+            onClose={() => setIsAtlasOpen(false)}
+            initialSection={atlasInitialSection}
           />
 
-          <BestiaryModal
-            isOpen={isBestiaryOpen}
-            onClose={() => setIsBestiaryOpen(false)}
-          />
+          {isBestiaryOpen && (
+            <BestiaryModal
+              isOpen={isBestiaryOpen}
+              onClose={() => setIsBestiaryOpen(false)}
+            />
+          )}
         </div>
       )}
 

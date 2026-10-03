@@ -18,9 +18,11 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
   embedded = false,
 }) => {
   const state = useGameStore();
+  const isTL = state.language === 'TL';
+
   if (!isConstructionReady(state)) return null;
 
-  const checkTech = (key: 'golemSpeedLevel' | 'golemCapacityLevel', title: string) => {
+  const checkTech = (key: 'golemSpeedLevel' | 'golemCapacityLevel', title: string, titleTl: string) => {
     const level = state.upgrades[key];
     const nextLevel = level + 1;
     const prompted = state.promptedUpgrades[key] || 0;
@@ -36,13 +38,20 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
         state.resources.stone >= costStone
       ) {
         const costDisplay = `${costShards}💎 ${costWood}🌲 ${costStone}🪨`;
-        return { key, type: 'tech' as const, title, level: nextLevel, costDisplay, currency: 'shards' as const };
+        return {
+          key,
+          type: 'tech' as const,
+          title: isTL ? titleTl : title,
+          level: nextLevel,
+          costDisplay,
+          currency: 'shards' as const,
+        };
       }
     }
     return null;
   };
 
-  const checkDefense = (key: CastleUpgradeKey, title: string) => {
+  const checkDefense = (key: CastleUpgradeKey, title: string, titleTl: string) => {
     const level = key === 'beaconLevel' ? beaconLevelOf(state.defense) : state.defense[key];
     const nextLevel = level + 1;
     const prompted = state.promptedUpgrades[key] || 0;
@@ -50,13 +59,20 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
     if (nextLevel > prompted) {
       const cost = castleUpgradeCost(key, level);
       if (cost && canAfford(state.resources, cost)) {
-        return { key, type: 'defense' as const, title, level: nextLevel, costDisplay: formatCost(cost), currency: 'coins' as const };
+        return {
+          key,
+          type: 'defense' as const,
+          title: isTL ? titleTl : title,
+          level: nextLevel,
+          costDisplay: formatCost(cost),
+          currency: 'coins' as const,
+        };
       }
     }
     return null;
   };
 
-  const checkSummon = (cls: 'GOLEM' | 'LAVA_GARGOYLE' | 'SUCCUBUS' | 'NECROMANCER', title: string) => {
+  const checkSummon = (cls: 'GOLEM' | 'LAVA_GARGOYLE' | 'SUCCUBUS' | 'NECROMANCER', title: string, titleTl: string) => {
     const count = state.roster.filter(u => u.unitClass === cls).length;
     if (count >= 2) return null;
 
@@ -94,22 +110,29 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
         if (costWood) costDisplay += `${costWood}🌲 `;
         if (costStone) costDisplay += `${costStone}🪨`;
 
-        return { key: `summon_${cls}`, type: 'summon' as const, title, level: count + 1, costDisplay: costDisplay.trim(), currency: 'shards' as const };
+        return {
+          key: `summon_${cls}`,
+          type: 'summon' as const,
+          title: isTL ? titleTl : title,
+          level: count + 1,
+          costDisplay: costDisplay.trim(),
+          currency: 'shards' as const,
+        };
       }
     }
     return null;
   };
 
   const allPrompts = [
-    checkSummon('GOLEM', 'Earth Golem'),
-    checkSummon('LAVA_GARGOYLE', 'Lava Gargoyle'),
-    checkSummon('SUCCUBUS', 'Succubus'),
-    checkSummon('NECROMANCER', 'Lich Necromancer'),
-    checkTech('golemSpeedLevel', 'Servant Speed'),
-    checkTech('golemCapacityLevel', 'Servant Capacity'),
-    checkDefense('wallLevel', 'Castle Wall'),
-    checkDefense('beaconLevel', 'Provoke Beacon'),
-    checkDefense('shieldLevel', 'Arcane Shield')
+    checkSummon('GOLEM', 'Earth Golem', 'Batong Golem'),
+    checkSummon('LAVA_GARGOYLE', 'Lava Gargoyle', 'Lava Gargoyle'),
+    checkSummon('SUCCUBUS', 'Succubus', 'Succubus'),
+    checkSummon('NECROMANCER', 'Lich Necromancer', 'Lich Necromancer'),
+    checkTech('golemSpeedLevel', 'Minion Speed', 'Bilis ng Alagad'),
+    checkTech('golemCapacityLevel', 'Minion Capacity', 'Kapasidad ng Alagad'),
+    checkDefense('wallLevel', 'Castle Wall', 'Pader ng Kastilyo'),
+    checkDefense('beaconLevel', 'Provoke Beacon', 'Tore ng Beacon'),
+    checkDefense('shieldLevel', 'Arcane Shield', 'Kalasag ng Kuta'),
   ].filter(Boolean) as Array<{
     key: string;
     type: 'tech' | 'defense' | 'summon';
@@ -160,15 +183,17 @@ export const AutoEnhancePrompt: React.FC<AutoEnhancePromptProps> = ({
               {prompt.currency === 'shards' ? <Zap size={16} /> : <Coins size={16} />}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-emerald-400 font-bold text-[10px] tracking-wide uppercase truncate">Enhancement Available</h3>
+              <h3 className="text-emerald-400 font-bold text-[10px] tracking-wide uppercase truncate">
+                {isTL ? 'May Bagong Upgrade!' : 'Enhancement Available'}
+              </h3>
               <p className="text-slate-200 mt-0.5 text-xs font-medium leading-tight">
                 {prompt.type === 'summon' 
-                  ? `Can afford ${prompt.title} (${prompt.level}/2)` 
-                  : `Can afford ${prompt.title} Lv.${prompt.level}`
+                  ? (isTL ? `Kasyang ipatawag: ${prompt.title} (${prompt.level}/2)` : `Can afford ${prompt.title} (${prompt.level}/2)`)
+                  : (isTL ? `Kasyang i-upgrade: ${prompt.title} Lv.${prompt.level}` : `Can afford ${prompt.title} Lv.${prompt.level}`)
                 }
               </p>
               <div className="mt-1 text-slate-400 text-[10px] font-mono truncate">
-                Cost: <span className="text-emerald-300 ml-1">{prompt.costDisplay}</span>
+                {isTL ? 'Halaga:' : 'Cost:'} <span className="text-emerald-300 ml-1">{prompt.costDisplay}</span>
               </div>
             </div>
             <div className="shrink-0 text-slate-500 group-hover:text-emerald-400 transition-colors">

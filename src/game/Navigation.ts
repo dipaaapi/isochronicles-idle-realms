@@ -1,7 +1,7 @@
 import { GridPoint } from '../types/game';
 import { TILE_HEIGHT, TILE_WIDTH } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
-import { TileRect, distanceToRect } from '../state/buildingLayout';
+import { TileRect, distanceToRect, GRID_SIZE } from '../state/buildingLayout';
 
 const HALF_W = TILE_WIDTH / 2;
 const HALF_H = TILE_HEIGHT / 2;
@@ -92,6 +92,15 @@ export class Navigation {
   pushOut(x: number, y: number, radius: number = 0.22): { x: number; y: number } {
     let g = Navigation.toGrid(x, y);
     let moved = false;
+    
+    // Clamp to platform bounds
+    const minBound = 0 + radius;
+    const maxBound = GRID_SIZE - 1 - radius;
+    if (g.x < minBound) { g.x = minBound; moved = true; }
+    else if (g.x > maxBound) { g.x = maxBound; moved = true; }
+    if (g.y < minBound) { g.y = minBound; moved = true; }
+    else if (g.y > maxBound) { g.y = maxBound; moved = true; }
+
     for (let pass = 0; pass < 2; pass++) {
       const hit = this.solidAt(g.x, g.y, radius);
       if (!hit) break;
@@ -107,6 +116,13 @@ export class Navigation {
       else g = { x: g.x, y: g.y + bottom + 0.001 };
       moved = true;
     }
+    
+    // Clamp again after solid push-out
+    if (g.x < minBound) { g.x = minBound; moved = true; }
+    else if (g.x > maxBound) { g.x = maxBound; moved = true; }
+    if (g.y < minBound) { g.y = minBound; moved = true; }
+    else if (g.y > maxBound) { g.y = maxBound; moved = true; }
+    
     return moved ? Navigation.toWorld(g.x, g.y) : { x, y };
   }
 

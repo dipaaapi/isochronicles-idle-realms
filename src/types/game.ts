@@ -164,11 +164,21 @@ export interface GodBlessingConfig {
 
 export const GOD_BLESSINGS = godBlessings as unknown as Record<GodBlessingId, GodBlessingConfig>;
 
+export interface ChampionSkill {
+  name: string;
+  nameTl: string;
+  desc: string;
+  descTl: string;
+  icon: string;
+  type: 'BUFF_SELF_TENANTS' | 'ENHANCEMENT' | 'AOE_ULTIMATE';
+  cooldownSeconds: number;
+}
+
 export interface UnitClassConfig {
   classType: UnitClass;
   role: UnitRole;
-  /** Establishment that must stand before this beast can be summoned (its home). */
-  requiredBuilding?: ResourceBuildingId;
+  /** Establishment that this beast represents and establishes. */
+  requiredBuilding?: ResourceBuildingId | 'SPIRE';
   name: string;
   nameEn?: string;
   subtitle: string;
@@ -188,6 +198,12 @@ export interface UnitClassConfig {
   baseHp: number;
   baseAttack: number;
   attackRange: number;
+  scale?: number;
+  skills?: {
+    skill1: ChampionSkill;
+    skill2: ChampionSkill;
+    ultimate: ChampionSkill;
+  };
 }
 
 export interface WorkerData {

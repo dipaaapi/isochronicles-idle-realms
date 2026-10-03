@@ -112,6 +112,12 @@ export class StructureManager {
     this.syncSolids();
   }
 
+  private defenderSystem?: import('./DefenderSystem').DefenderSystem;
+
+  setDefenderSystem(defenders: import('./DefenderSystem').DefenderSystem): void {
+    this.defenderSystem = defenders;
+  }
+
   setInvaderProvider(provider: () => Provokable[]): void {
     this.invaderProvider = provider;
   }
@@ -242,6 +248,25 @@ export class StructureManager {
 
   // ── Damage ──────────────────────────────────────────────────────────────────
 
+  /** Local shudder effect for this structure only (no whole-game screen shake). */
+  private shakeContainer(view: StructureView, intensity: number = 3): void {
+    const container = view.container;
+    this.scene.tweens.killTweensOf(container);
+    container.setPosition(view.x, view.y);
+
+    this.scene.tweens.add({
+      targets: container,
+      x: view.x + (Math.random() > 0.5 ? intensity : -intensity),
+      y: view.y + (Math.random() > 0.5 ? intensity : -intensity),
+      duration: 35,
+      yoyo: true,
+      repeat: 3,
+      onComplete: () => {
+        if (container.active) container.setPosition(view.x, view.y);
+      },
+    });
+  }
+
   /** Applies invader damage to a structure; returns false if it was already down. */
   damage(target: StructureTarget, amount: number): boolean {
     const store = useGameStore.getState();
@@ -250,20 +275,43 @@ export class StructureManager {
       if (store.defense.castleHp <= 0) return false;
       store.damageCastle(amount);
       logMessage('castleDamage', {}, { mergeKey: 'castle-dmg', amount });
-      this.scene.cameras.main.shake(140, 0.004);
-    } else {
-      const wrecked = store.damageBuilding(target.id, amount);
-      const name = this.displayName(target.id);
-      logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount, icon: this.iconOf(target.id) });
-      if (wrecked) {
-        logMessage('buildingWrecked', { building: name }, { icon: this.iconOf(target.id) });
-        soundFx.playExplosion();
-        this.scene.cameras.main.shake(260, 0.008);
-        if (view) this.debris(view, 18);
+      if (view) {
+        this.flash(view);
+        this.shakeContainer(view, 4);
+        if (Math.random() < 0.5) this.debris(view, 4);
       }
+      return true;
     }
+
+    // Sacrificial defense layer: Garrisoned establishment minions absorb hits first!
+    const absorbed = this.defenderSystem?.absorbBuildingHit(target.id as TowerId, amount);
+    if (absorbed) {
+      const name = this.displayName(target.id);
+      logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount: 0, icon: '🛡️' });
+      if (view) {
+        this.flash(view);
+        this.shakeContainer(view, 2);
+      }
+      return true;
+    }
+
+    const wrecked = store.damageBuilding(target.id, amount);
+    const name = this.displayName(target.id);
+    logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount, icon: this.iconOf(target.id) });
+    if (wrecked) {
+      logMessage('buildingWrecked', { building: name }, { icon: this.iconOf(target.id) });
+      soundFx.playExplosion();
+      if (view) {
+        this.flash(view);
+        this.shakeContainer(view, 6);
+        this.debris(view, 18);
+      }
+      return true;
+    }
+
     if (view) {
       this.flash(view);
+      this.shakeContainer(view, 3);
       if (Math.random() < 0.5) this.debris(view, 4);
     }
     return true;
@@ -320,6 +368,13 @@ export class StructureManager {
     const construction = this.constructionProvider();
 
     for (const view of this.views.values()) {
+      // If not currently shaking via tween, ensure container is precisely at its home position
+      if (!this.scene.tweens.isTweening(view.container)) {
+        if (view.container.x !== view.x || view.container.y !== view.y) {
+          view.container.setPosition(view.x, view.y);
+        }
+      }
+
       let state: ViewState;
       let hp = 1;
       let maxHp = 1;
@@ -498,23 +553,28 @@ export class StructureManager {
       }
     }
 
-    // ── Skill status dots ──────────────────────────────────────────────────
-    if (view.id !== 'CASTLE' && view.id !== 'SPIRE') {
-      const bid = view.id;
-      const cooldowns = store.establishmentSkillCooldowns?.[bid] ?? { skill1: 0, skill2: 0 };
-      const skill1Ready = cooldowns.skill1 <= 0;
-      const skill2Ready = cooldowns.skill2 <= 0;
-      const dotsX = x + width + 22; // to the right of level dots
+    // ── 3 Skill status dots (Castle, Spire & Establishments) ─────────────────
+    {
+      const bid = view.id as import('../types/state').ResourceBuildingId | 'CASTLE' | 'SPIRE';
+      const cooldowns = store.establishmentSkillCooldowns?.[bid] ?? { skill1: 0, skill2: 0, skill3: 0 };
+      const skill1Ready = (cooldowns.skill1 ?? 0) <= 0;
+      const skill2Ready = (cooldowns.skill2 ?? 0) <= 0;
+      const skill3Ready = (cooldowns.skill3 ?? 0) <= 0;
+      const dotsX = view.id === 'CASTLE' ? x + width + 4 : x + width + 22; // position beside bar
       const dotsY = top + 1;
       const dotR = 2.5;
 
-      // Skill 1 dot
+      // Skill 1 dot (Cyan / Red)
       g.fillStyle(skill1Ready ? 0x22d3ee : 0xef4444, 1);
       g.fillCircle(dotsX, dotsY, dotR);
 
-      // Skill 2 dot
+      // Skill 2 dot (Purple / Red)
       g.fillStyle(skill2Ready ? 0xa855f7 : 0xef4444, 1);
       g.fillCircle(dotsX + dotR * 2 + 2, dotsY, dotR);
+
+      // Ultimate Skill 3 dot (Gold / Amber)
+      g.fillStyle(skill3Ready ? 0xf59e0b : 0x991b1b, 1);
+      g.fillCircle(dotsX + (dotR * 2 + 2) * 2, dotsY, dotR);
     }
   }
 

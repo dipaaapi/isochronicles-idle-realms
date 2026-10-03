@@ -1,9 +1,9 @@
 import type { HarvestTask, UnitClass } from '../../types/game';
 import { FIGHTER_CLASSES } from '../../state/store/rosterSlice';
-import type { GameStoreState, Resources } from '../../types/state';
+import type { GameStoreState, ResourceBuildingId, Resources } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { teamBonuses } from '../../state/skillTree';
-import { isBuildingOperational, isSpireOperational } from '../../state/defenseStats';
+import { buildingHpOf, buildingMaxHp, isBuildingOperational, isSpireOperational, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
 import { soundFx } from '../audio/soundFx';
 import { renderCargoGraphics } from './legacyWorkerArt';
 import { CRITICAL_HP, TASK_BUILDING, isEnrichableTask, type WorkerContext, type WorkerFrame, type WorkerInstance } from './types';
@@ -71,8 +71,18 @@ export function updateStatusEmote(worker: WorkerInstance, frame: WorkerFrame): v
   if (text !== undefined) worker.emoteText.setText(text);
 }
 
-/** Unbuilt or wrecked establishment: abandon the trip and pick another job from IDLE. */
+/** Unbuilt or wrecked establishment: abandon the trip and pick another job from IDLE (tenants wait for repair). */
 export function abandonUnavailableTask(worker: WorkerInstance, store: GameStoreState): void {
+  if (worker.parentBuildingId) {
+    const isOp = store.castleBuilt && isBuildingOperational(store.resourceBuildings?.[worker.parentBuildingId]);
+    if (!isOp && (worker.status === 'MOVING_TO_NODE' || worker.status === 'HARVESTING')) {
+      worker.status = 'IDLE';
+      worker.stateTimer = 1000;
+      worker.overrideEmote = '🔒';
+      worker.overrideEmoteTimer = 1200;
+    }
+    return;
+  }
   if (isTaskAvailable(store, worker.assignedTask)) return;
   if (worker.status === 'MOVING_TO_NODE' || worker.status === 'HARVESTING') {
     worker.status = 'IDLE';
@@ -142,8 +152,104 @@ function updateIdle(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFra
   else recoverAtNexus(ctx, worker);
 }
 
+export const isGeneral = (unitClass: UnitClass, worker?: WorkerInstance): boolean => {
+  if (worker && (worker.parentBuildingId || worker.id.startsWith('tenant_'))) return false;
+  return unitClass !== 'TREANT' && unitClass !== 'AQUA_SLIME';
+};
+
 function updateHarvesting(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
-  const { taskCfg } = frame;
+  const { taskCfg, store } = frame;
+  const isGeneralUnit = isGeneral(worker.unitClass, worker);
+  const isTenant = !!worker.parentBuildingId || worker.id.startsWith('tenant_');
+  const homeBuilding = frame.config.requiredBuilding || (worker.parentBuildingId as ResourceBuildingId | undefined);
+
+  // 1. General Defense, Repair & Scouting Station:
+  if (isGeneralUnit) {
+    worker.stateTimer -= frame.delta;
+
+    // Check if home establishment is damaged
+    if (homeBuilding) {
+      const b = towerBuildingOf(store, homeBuilding);
+      if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) {
+        worker.overrideEmote = '🔨';
+        worker.overrideEmoteTimer = 400;
+        if (Math.random() < 0.15) {
+          ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 12, 0x15803d, 4);
+        }
+        if (worker.stateTimer <= 0) {
+          const restored = useGameStore.getState().restoreBuildingHp(homeBuilding, 25);
+          if (restored > 0) {
+            ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 35, `🔨 General Repaired +${restored} HP!`, '#86efac');
+            soundFx.playHarvest('wood');
+          }
+          worker.stateTimer = 1200;
+        }
+        return;
+      }
+    }
+
+    // Check if Citadel Castle is damaged
+    if (store.defense.castleHp < store.defense.castleMaxHp) {
+      worker.overrideEmote = '🛡️';
+      worker.overrideEmoteTimer = 400;
+      if (worker.stateTimer <= 0) {
+        useGameStore.setState((prev) => ({
+          defense: {
+            ...prev.defense,
+            castleHp: Math.min(prev.defense.castleMaxHp, prev.defense.castleHp + 10),
+          },
+        }));
+        ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 35, `🛡️ Guarding Citadel`, '#38bdf8');
+        worker.stateTimer = 1500;
+      }
+      return;
+    }
+
+    // General Vigilance Station / Sector Patrol (never harvests cargo)
+    worker.overrideEmote = '🛡️';
+    worker.overrideEmoteTimer = 400;
+    if (worker.stateTimer <= 0) {
+      ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 25, `🧭 Sector Clear`, '#38bdf8');
+      worker.status = 'IDLE';
+      worker.stateTimer = 400 + Math.random() * 400;
+    }
+    return;
+  }
+
+  // 2. Tenant Repair at Parent Establishment: if establishment is damaged/wrecked, repair it!
+  if (isTenant && worker.parentBuildingId) {
+    const building = store.resourceBuildings?.[worker.parentBuildingId];
+    if (building && building.level >= 1 && buildingHpOf(building) < buildingMaxHp(towerLevelOf(building))) {
+      worker.stateTimer -= frame.delta;
+      worker.overrideEmote = '🔨';
+      worker.overrideEmoteTimer = 400;
+      if (Math.random() < 0.15) {
+        ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 12, 0x15803d, 4);
+      }
+      if (worker.stateTimer <= 0) {
+        const restored = useGameStore.getState().restoreBuildingHp(worker.parentBuildingId, 25);
+        if (restored > 0) {
+          ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 35, `🔨 Repaired +${restored} HP!`, '#86efac');
+          soundFx.playHarvest('wood');
+        }
+        worker.stateTimer = 1400;
+      }
+      return;
+    }
+  }
+
+  // 3. Normal Tenant Gathering: Visible and active ONLY when parent establishment is available and operational!
+  if (isTenant && worker.parentBuildingId) {
+    const parentBuilding = store.resourceBuildings?.[worker.parentBuildingId];
+    if (!parentBuilding || parentBuilding.level < 1 || buildingHpOf(parentBuilding) <= 0) {
+      worker.status = 'IDLE';
+      worker.stateTimer = 800;
+      worker.overrideEmote = '🔒';
+      worker.overrideEmoteTimer = 1000;
+      return;
+    }
+  }
+
   worker.stateTimer -= frame.delta;
   if (Math.random() < 0.08) {
     ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 12, taskCfg.color, 2);

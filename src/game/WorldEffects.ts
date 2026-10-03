@@ -650,30 +650,36 @@ export class WorldEffects {
 
   // ── Clouds ─────────────────────────────────────────────────────────────────
 
-  /** Paints a few chunky pixel-art cloud textures (lit tops, shaded bellies). */
+  /** Paints beautiful organic chunky pixel-art cloud textures (lit tops, shaded bellies) without any boundary clipping. */
   private createCloudTextures(): void {
     for (let v = 0; v < CLOUD_VARIANTS; v++) {
       const key = `pixel-cloud-${v}`;
       if (this.scene.textures.exists(key)) continue;
-      const w = 48, h = 22;
+      const w = 68, h = 28;
       const tex = this.scene.textures.createCanvas(key, w, h);
       if (!tex) continue;
       const img = tex.context.createImageData(w, h);
-      const puffs = Array.from({ length: 5 + v }, (_, i) => ({
-        x: 8 + (i * (w - 16)) / (4 + v) + Math.sin(i * 7.3 + v) * 3,
-        y: 13 - Math.abs(Math.sin(i * 2.1 + v)) * 5,
-        r: 5 + Math.abs(Math.cos(i * 3.7 + v * 1.3)) * 4,
-      }));
+      const count = 5 + v;
+      const puffs = Array.from({ length: count }, (_, i) => {
+        const spanT = i / (count - 1);
+        const r = 6 + Math.abs(Math.sin(i * 3.7 + v * 1.5)) * 3.5;
+        const x = 12 + spanT * (w - 24) + Math.sin(i * 4.3 + v) * 2;
+        const y = 14 - Math.sin(spanT * Math.PI) * 3 + Math.cos(i * 2.1 + v) * 1.5;
+        return { x, y, r };
+      });
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           let best = Infinity;
           let top = 0;
           for (const p of puffs) {
-            const d = Math.hypot((x - p.x) / p.r, ((y - p.y) * 1.4) / p.r);
-            if (d < best) { best = d; top = (y - p.y) / p.r; }
+            const d = Math.hypot((x - p.x) / p.r, ((y - p.y) * 1.35) / p.r);
+            if (d < best) {
+              best = d;
+              top = (y - p.y) / p.r;
+            }
           }
-          if (best > 1 || y > 17) continue;
-          const shade = top < -0.35 ? 255 : top < 0.3 ? 226 : 190;
+          if (best > 1) continue;
+          const shade = top < -0.3 ? 255 : top < 0.3 ? 230 : 195;
           const i = (y * w + x) * 4;
           img.data[i] = shade;
           img.data[i + 1] = shade;
@@ -798,7 +804,7 @@ export class WorldEffects {
 
     this.lightClouds(180);
     this.scene.cameras.main.flash(160, 190, 215, 255, true);
-    this.scene.cameras.main.shake(Phaser.Math.Between(220, 380), this.stormy ? 0.008 : 0.005, true);
+    // [Camera shake removed], this.stormy ? 0.008 : 0.005, true);
     this.scene.time.delayedCall(Phaser.Math.Between(120, 500), () => soundFx.playThunder(1));
   }
 

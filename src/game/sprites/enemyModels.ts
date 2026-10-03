@@ -1,10 +1,9 @@
 import type { InvaderType } from '../../types/game';
 import type { Part, Pose, Shape, Vec3, VoxelModel } from './VoxelSprite';
-import { recolorModel } from './VoxelSprite';
 
 /**
  * Voxel models for every invader, following the bestiary artwork in
- * public/backgrounds/bestiary-icons/. Coordinates are voxels in model space:
+ * public/portraits/. Coordinates are voxels in model space:
  * +x = the character's right, +y = forward, +z = up. Later shapes overwrite
  * earlier ones.
  */
@@ -20,6 +19,7 @@ const ell = (cx: number, cy: number, cz: number, rx: number, ry: number, rz: num
 const cyl = (cx: number, cy: number, z0: number, radius: number, height: number, mat: number): Shape => ({
   kind: 'cylinder', center: [cx, cy, z0], radius, height, mat,
 });
+const ball = (cx: number, cy: number, cz: number, r: number, mat: number): Shape => ell(cx, cy, cz, r, r, r, mat);
 
 /** Mirror shapes across the plane x = axis (for left/right limb pairs). */
 const mirrorX = (shapes: Shape[], axis: number): Shape[] =>
@@ -34,6 +34,12 @@ const mirrorX = (shapes: Shape[], axis: number): Shape[] =>
   });
 const mirrorPivot = (p: Vec3, axis: number): Vec3 => [2 * axis - p[0], p[1], p[2]];
 
+/** Adds a left part and its mirrored right twin. */
+const pair = (name: string, pivot: Vec3, shapes: Shape[], axis: number, parent?: string): Part[] => [
+  { name: `left${name}`, parent, pivot, shapes },
+  { name: `right${name}`, parent, pivot: mirrorPivot(pivot, axis), shapes: mirrorX(shapes, axis) },
+];
+
 /** Walk cycle phase per frame: stride, pass, opposite stride, pass. */
 const STRIDE = [1, 0, -1, 0];
 
@@ -43,7 +49,7 @@ export const breathe = (part: string, base: Pose = {}): Pose[] => [
   { ...base, [part]: { ...(base[part] ?? {}), offset: [0, 0, -1] } },
 ];
 
-// ── Crusader Knight — full silver plate, red plume, sword and kite shield ────
+// ── 1. Crusader Knight — full silver plate, red plume, sword and kite shield ────
 
 const knight = (): VoxelModel => {
   const M = { steel: 0, dark: 1, bright: 2, visor: 3, leather: 4, blade: 5, plume: 6, mail: 7 };
@@ -56,35 +62,35 @@ const knight = (): VoxelModel => {
     { name: 'rightLeg', pivot: mirrorPivot([12.5, 15, 11], cx), shapes: mirrorX(leftLeg, cx) },
     {
       name: 'torso', pivot: [15, 15, 11], shapes: [
-        box(10.5, 12.5, 9, 19.5, 17.5, 12, M.mail),           // mail skirt
-        box(10, 12, 11, 20, 18, 13, M.leather),               // belt
-        box(14, 17.9, 11.3, 16, 18.4, 12.7, M.bright),        // buckle
+        box(10.5, 12.5, 9, 19.5, 17.5, 12, M.mail),
+        box(10, 12, 11, 20, 18, 13, M.leather),
+        box(14, 17.9, 11.3, 16, 18.4, 12.7, M.bright),
         box(10, 12, 13, 20, 18, 23, M.steel),
-        box(11.5, 17.6, 15, 18.5, 18.6, 22, M.bright),        // breastplate ridge
-        ell(9.8, 15, 22, 2.6, 3.2, 2, M.bright),              // pauldrons
+        box(11.5, 17.6, 15, 18.5, 18.6, 22, M.bright),
+        ell(9.8, 15, 22, 2.6, 3.2, 2, M.bright),
         ell(20.2, 15, 22, 2.6, 3.2, 2, M.bright),
       ],
     },
     {
       name: 'head', parent: 'torso', pivot: [15, 15, 23], shapes: [
-        box(11.5, 11.5, 23, 18.5, 18.5, 31, M.steel),         // great helm
+        box(11.5, 11.5, 23, 18.5, 18.5, 31, M.steel),
         ell(15, 15, 31, 3.5, 3.5, 2, M.steel),
-        box(14.5, 18, 23, 15.5, 19, 31, M.bright),            // centre ridge
-        box(12, 18, 26.5, 18, 19, 27.8, M.visor),             // eye slit
-        box(12.5, 18, 24, 14, 19, 25, M.visor),               // breaths
+        box(14.5, 18, 23, 15.5, 19, 31, M.bright),
+        box(12, 18, 26.5, 18, 19, 27.8, M.visor),
+        box(12.5, 18, 24, 14, 19, 25, M.visor),
         box(16, 18, 24, 17.5, 19, 25, M.visor),
-        box(14, 11, 31.5, 16, 17, 34, M.plume),               // plume
+        box(14, 11, 31.5, 16, 17, 34, M.plume),
         box(14, 9.5, 28, 16, 12, 33, M.plume),
       ],
     },
     { name: 'leftArm', parent: 'torso', pivot: [8.5, 15, 22], shapes: leftArm },
     {
       name: 'shield', parent: 'leftArm', pivot: [8.5, 15, 14], shapes: [
-        box(4.8, 10.5, 12, 7, 20.5, 23, M.bright),            // kite shield
+        box(4.8, 10.5, 12, 7, 20.5, 23, M.bright),
         box(4.8, 12, 9, 7, 19, 12, M.bright),
         box(4.8, 13.5, 7, 7, 17.5, 9, M.bright),
-        box(4.3, 10, 22.5, 7, 21, 23.5, M.steel),             // rim
-        box(4.3, 14.5, 9, 4.8, 16.5, 22, M.steel),            // boss ridge
+        box(4.3, 10, 22.5, 7, 21, 23.5, M.steel),
+        box(4.3, 14.5, 9, 4.8, 16.5, 22, M.steel),
       ],
     },
     { name: 'rightArm', parent: 'torso', pivot: mirrorPivot([8.5, 15, 22], cx), shapes: mirrorX(leftArm, cx) },
@@ -124,7 +130,7 @@ const knight = (): VoxelModel => {
   };
 };
 
-// ── Elven Hunter — blond elf, pointed ears, green tunic, longbow ─────────────
+// ── 2. Elven Archer — green tunic, longbow, pointed ears, quiver ────────────
 
 const archer = (): VoxelModel => {
   const M = { tunic: 0, tunicLight: 1, leather: 2, pants: 3, skin: 4, eyes: 5, wood: 6, string: 7, fletch: 8, tip: 9, boots: 10, hair: 11 };
@@ -132,7 +138,7 @@ const archer = (): VoxelModel => {
   const leftLeg: Shape[] = [box(12, 13.5, 4, 14.5, 16.5, 11, M.pants), box(11.7, 13, 0, 14.8, 17.5, 4.5, M.boots)];
   const leftArm: Shape[] = [
     box(8.5, 13.8, 17, 11, 16.2, 22, M.tunicLight),
-    box(8.6, 13.9, 13, 10.9, 16.1, 17, M.leather),            // bracer
+    box(8.6, 13.9, 13, 10.9, 16.1, 17, M.leather),
     box(8.7, 14, 12, 10.8, 16, 13.5, M.skin),
   ];
 
@@ -142,10 +148,10 @@ const archer = (): VoxelModel => {
     {
       name: 'torso', pivot: [15, 15, 11], shapes: [
         box(11, 12.5, 9, 19, 17.5, 22, M.tunic),
-        box(11, 12.5, 12.5, 19, 17.8, 13.8, M.leather),       // belt
+        box(11, 12.5, 12.5, 19, 17.8, 13.8, M.leather),
         box(14, 17.6, 12.3, 16, 18.2, 14, M.tip),
-        box(12, 17.4, 14, 13.2, 18, 22, M.leather),           // quiver strap
-        box(11.5, 12.2, 19, 18.5, 17.8, 22.5, M.tunicLight),  // collar
+        box(12, 17.4, 14, 13.2, 18, 22, M.leather),
+        box(11.5, 12.2, 19, 18.5, 17.8, 22.5, M.tunicLight),
       ],
     },
     {
@@ -157,10 +163,10 @@ const archer = (): VoxelModel => {
     {
       name: 'head', parent: 'torso', pivot: [15, 15, 23], shapes: [
         box(12, 12.5, 23, 18, 18, 30, M.skin),
-        box(11.5, 11.8, 26, 18.5, 16.5, 31, M.hair),          // blond hair
-        box(12, 11.5, 22, 18, 13, 27, M.hair),                // hair down the back
-        box(12.3, 17, 29, 17.7, 18.3, 30.6, M.hair),          // fringe
-        box(10.3, 14, 26.5, 11.5, 15.5, 30.5, M.skin),        // pointed ears
+        box(11.5, 11.8, 26, 18.5, 16.5, 31, M.hair),
+        box(12, 11.5, 22, 18, 13, 27, M.hair),
+        box(12.3, 17, 29, 17.7, 18.3, 30.6, M.hair),
+        box(10.3, 14, 26.5, 11.5, 15.5, 30.5, M.skin),
         box(18.5, 14, 26.5, 19.7, 15.5, 30.5, M.skin),
         box(13, 17.6, 26, 14, 18.3, 27.5, M.eyes),
         box(16, 17.6, 26, 17, 18.3, 27.5, M.eyes),
@@ -197,7 +203,6 @@ const archer = (): VoxelModel => {
     arrow: { hidden: true },
     torso: { offset: [0, 0, s === 0 ? 1 : 0] },
   }));
-  // Bow and arrow counter-rotate against their arms so the bow stays upright
   const draw = (armFwd: number, pull: number, twist: number, showArrow: boolean): Pose => ({
     torso: { yaw: twist },
     leftArm: { pitch: armFwd },
@@ -221,233 +226,475 @@ const archer = (): VoxelModel => {
   };
 };
 
-// ── Mecha Scout — white round-headed robot rolling on two wheels ─────────────
+// ── 3. Mecha Scout — bipedal yellow cyber recon robot with sensor scanner ────
 
 const mechaScout = (): VoxelModel => {
-  const M = { shell: 0, shellShade: 1, dark: 2, lens: 3, lensRing: 4, tyre: 5, hub: 6, accent: 7, beam: 8 };
+  const M = { shell: 0, shellShade: 1, dark: 2, lens: 3, lensRing: 4, joint: 5, accent: 6, laser: 7 };
   const cx = 15;
-  const wheel: Shape[] = [
-    ell(8.5, 15, 5.5, 2.2, 5.5, 5.5, M.tyre),
-    ell(7.2, 15, 5.5, 0.9, 2.4, 2.4, M.hub),
-    box(6.6, 14.5, 1.5, 7.4, 15.5, 9.5, M.hub),               // spoke — shows the spin
+  const leg: Shape[] = [
+    box(11.5, 13, 6, 14.5, 17, 13, M.shellShade),
+    box(12, 13.5, 0, 14, 18.5, 6, M.joint),
+    box(10.5, 12.5, 0, 15.5, 19.5, 2.5, M.dark),              // magnetic foot
   ];
   const parts: Part[] = [
-    { name: 'leftWheel', pivot: [8.5, 15, 5.5], shapes: wheel },
-    { name: 'rightWheel', pivot: mirrorPivot([8.5, 15, 5.5], cx), shapes: mirrorX(wheel, cx) },
+    ...pair('Leg', [13, 15, 12], leg, cx),
     {
-      name: 'chassis', pivot: [15, 15, 8], shapes: [
-        box(10, 11, 3, 20, 19, 10, M.shellShade),             // axle body
-        box(11, 11.5, 9, 19, 18.5, 15, M.shell),
-        ell(15, 18.8, 12, 2, 0.6, 2, M.accent),                // chest ring emblem
-        ell(15, 18.9, 12, 1, 0.5, 1, M.lens),
-        box(9.5, 9.5, 14.5, 20.5, 20.5, 16, M.accent),         // neck band
-        ell(15, 15, 21, 6.5, 6, 6, M.shell),                   // round head
-        ell(15, 13, 22, 5.8, 3.5, 5, M.shellShade),            // back shading
-        ell(15, 20.6, 21.5, 3, 1.1, 3, M.lensRing),
-        ell(15, 21.3, 21.5, 1.8, 0.7, 1.8, M.lens),
-        box(9, 14, 19, 9.8, 16, 23, M.accent),                 // ear discs
-        box(20.2, 14, 19, 21, 16, 23, M.accent),
+      name: 'chassis', pivot: [15, 15, 12], shapes: [
+        box(10, 11, 10, 20, 19, 18, M.shell),                  // yellow chassis body
+        box(11, 18.2, 11, 19, 19.4, 17, M.shellShade),
+        ell(15, 15, 23, 6.5, 6.5, 5.5, M.shell),               // scanner dome
+        ell(15, 20.8, 23, 3, 1.2, 3, M.lensRing),
+        ell(15, 21.6, 23, 1.8, 0.8, 1.8, M.lens),              // glowing cyan eye
+        box(8, 13, 13, 10, 17, 17, M.dark),                    // side blaster mounts
+        box(20, 13, 13, 22, 17, 17, M.dark),
+        box(8.5, 17, 14, 9.5, 22, 16, M.laser),                // twin laser blasters
+        box(20.5, 17, 14, 21.5, 22, 16, M.laser),
       ],
     },
-    {
-      name: 'antenna', parent: 'chassis', pivot: [18.5, 13.5, 26], shapes: [
-        box(18, 13, 25.5, 19, 14, 32, M.shellShade),
-        ell(18.5, 13.5, 32.5, 1.1, 1.1, 1.1, M.accent),
-      ],
-    },
-    { name: 'beam', parent: 'chassis', pivot: [15, 22, 21.5], shapes: [ell(15, 27, 21.5, 1.2, 4.5, 1.2, M.beam)] },
   ];
 
-  const walk: Pose[] = [0, 1, 2, 3].map((f) => ({
-    leftWheel: { pitch: f * 0.8 },
-    rightWheel: { pitch: f * 0.8 },
-    chassis: { offset: [0, 0, f % 2], roll: f % 2 ? 0.04 : -0.04 },
-    antenna: { pitch: f % 2 ? -0.25 : 0.1 },
-    beam: { hidden: true },
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.6 * s },
+    rightLeg: { pitch: -0.6 * s },
+    chassis: { offset: [0, 0, s === 0 ? 1 : 0], roll: 0.04 * s },
   }));
   const attack: Pose[] = [
-    { chassis: { pitch: 0.06 }, beam: { hidden: true } },
-    { chassis: { offset: [0, -1, 0] }, antenna: { pitch: -0.3 } },
-    { chassis: { offset: [0, -0.5, 0] }, beam: { hidden: true }, antenna: { pitch: 0.15 } },
+    { chassis: { pitch: -0.1 } },
+    { chassis: { pitch: 0.15, offset: [0, 2, 0] } },
+    { chassis: { pitch: 0.05 } },
   ];
-  const idle = breathe('chassis', { beam: { hidden: true } });
+  const idle = breathe('chassis');
 
+  return {
+    size: [30, 32, 34],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0xeab308 }, { color: 0xca8a04 }, { color: 0x1e293b }, { color: 0x22d3ee, emissive: true },
+      { color: 0x0f766e }, { color: 0x475569 }, { color: 0xfacc15 }, { color: 0xef4444, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── 4. Mecha Titan — massive heavy industrial red/steel war colossus ─────────
+
+const mechaTitan = (): VoxelModel => {
+  const M = { armor: 0, armorLight: 1, armorDark: 2, dark: 3, grid: 4, cannon: 5, glow: 6 };
+  const cx = 22;
+  const parts: Part[] = [
+    ...pair('Leg', [15, 22, 12], [
+      box(11, 18, 2, 19, 26, 13, M.armorDark),
+      box(10, 17, 0, 20, 28, 3, M.dark),                       // heavy foot
+      box(12, 26.2, 5, 18, 27.4, 9, M.armorLight),
+    ], cx),
+    {
+      name: 'torso', pivot: [22, 22, 13], shapes: [
+        box(12, 14, 13, 32, 30, 29, M.armor),                  // heavy red chassis
+        box(14, 15, 29, 30, 29, 34, M.armorLight),
+        box(15, 29.5, 16, 29, 31, 27, M.dark),                 // grill
+        box(17, 30.5, 21, 27, 31.5, 23, M.glow),               // visor line
+        box(16, 12, 26, 18, 14, 35, M.dark),                   // exhaust
+        box(26, 12, 26, 28, 14, 35, M.dark),
+      ],
+    },
+    ...pair('Arm', [8, 22, 27], [
+      box(3, 16, 20, 11, 28, 31, M.armorDark),                 // massive pauldron
+      box(4, 18, 10, 10, 26, 20, M.armor),
+      box(3, 17, 1, 11, 27, 10, M.dark),                       // giant fist
+      box(4, 27.2, 13, 10, 34, 18, M.cannon),                  // forearm missile pod
+    ], cx, 'torso'),
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.35 * s },
+    rightLeg: { pitch: -0.35 * s },
+    leftArm: { pitch: -0.25 * s },
+    rightArm: { pitch: 0.25 * s },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0], roll: 0.04 * s },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 2.1 }, leftArm: { pitch: 0.3 }, torso: { yaw: 0.2 } },
+    { rightArm: { pitch: 0.8 }, leftArm: { pitch: 0.6 }, torso: { pitch: 0.2, offset: [0, 2, 0] } },
+    { rightArm: { pitch: 0.3 } },
+  ];
+  const idle = breathe('torso');
+  return {
+    size: [44, 44, 40],
+    foot: [22, 22, 0],
+    materials: [
+      { color: 0xdc2626 }, { color: 0xef4444 }, { color: 0x991b1b }, { color: 0x1f2937 },
+      { color: 0x475569 }, { color: 0x334155 }, { color: 0xfacc15, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── 5. High Priest — holy white & gold robes, papal mitre, crucifix staff ────
+
+const highPriest = (): VoxelModel => {
+  const M = { white: 0, gold: 1, robeDark: 2, skin: 3, beard: 4, holyStaff: 5, holyGlow: 6, eye: 7 };
+  const cx = 15;
+  const parts: Part[] = [
+    {
+      name: 'robe', pivot: [15, 15, 12], shapes: [
+        box(10, 10.5, 0, 20, 19.5, 5, M.white),
+        box(10.5, 11, 5, 19.5, 19, 12, M.white),
+        box(9.8, 10.2, 0, 20.2, 19.8, 1.5, M.gold),            // gold hem
+        box(13.5, 18.8, 0, 16.5, 19.8, 12, M.gold),            // golden stole
+      ],
+    },
+    {
+      name: 'torso', parent: 'robe', pivot: [15, 15, 12], shapes: [
+        box(11, 12, 12, 19, 18, 22, M.white),
+        box(13.2, 17.6, 12, 16.8, 18.6, 22, M.gold),           // golden sash
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 22], shapes: [
+        box(12.5, 13, 22, 17.5, 17.5, 27, M.skin),
+        box(13, 17.8, 25, 14, 18.4, 26, M.eye),
+        box(16, 17.8, 25, 17, 18.4, 26, M.eye),
+        box(12.8, 17.2, 19, 17.2, 18.8, 24, M.beard),          // holy white beard
+        box(11.5, 11.5, 27, 18.5, 18.5, 34, M.white),          // papal mitre hat
+        box(12.5, 12.5, 34, 17.5, 17.5, 38, M.gold),           // golden mitre peak
+        box(14, 18.4, 29, 16, 18.8, 33, M.gold),               // golden cross on hat
+        box(13, 18.4, 31, 17, 18.8, 32, M.gold),
+      ],
+    },
+    ...pair('Arm', [10, 15, 21], [
+      box(8, 13, 13, 11.5, 17, 21, M.white),
+      box(7.5, 12.5, 12, 12, 17.5, 14, M.gold),               // gold cuff
+      ball(9.7, 15.5, 11.5, 1.4, M.skin),
+    ], cx, 'torso'),
+    {
+      name: 'staff', parent: 'rightArm', pivot: [20.5, 15.5, 12], shapes: [
+        box(20, 15, 1, 21, 16, 33, M.holyStaff),               // golden staff
+        box(18.5, 15, 33, 22.5, 16, 34.5, M.holyStaff),        // crucifix cross
+        box(20, 15, 31, 21, 16, 38, M.holyStaff),
+        ball(20.5, 15.5, 34, 2.5, M.holyGlow),                  // divine halo
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    robe: { roll: 0.04 * s, offset: [0, 0, s === 0 ? 1 : 0] },
+    leftArm: { pitch: -0.25 * s },
+    rightArm: { pitch: 0.15 * s },
+    staff: { pitch: -0.15 * s },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 1.2 }, staff: { pitch: -1.2 }, leftArm: { pitch: 0.6 } },
+    { rightArm: { pitch: 1.8 }, staff: { pitch: -1.8, scale: [1.3, 1.3, 1.3] }, leftArm: { pitch: 1.2 } },
+    { rightArm: { pitch: 1.0 }, staff: { pitch: -1.0 } },
+  ];
+  const idle = breathe('torso');
+  return {
+    size: [30, 32, 42],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0xf8fafc }, { color: 0xfbbf24 }, { color: 0xe2e8f0 }, { color: 0xf3c6a5 },
+      { color: 0xffffff }, { color: 0xd97706 }, { color: 0xfef08a, emissive: true }, { color: 0x0f172a },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── 6. Mecha Valkyrie — aerial cyber warrior with cyan energy wings & lance ──
+
+const valkyrie = (): VoxelModel => {
+  const M = { armor: 0, steel: 1, dark: 2, wing: 3, wingGlow: 4, lance: 5, visor: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    ...pair('Leg', [13.5, 15, 11], [
+      box(12, 13.5, 2, 15, 16.5, 11, M.armor),
+      box(11.5, 13, 0, 15.5, 17.5, 3, M.steel),
+    ], cx),
+    {
+      name: 'torso', pivot: [15, 15, 11], shapes: [
+        box(11.5, 13, 11, 18.5, 17, 22, M.armor),
+        box(12, 16.8, 14, 18, 17.8, 20, M.steel),              // chest plate
+        box(14, 17.2, 16, 16, 18, 18, M.wingGlow),             // cyan chest core
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 22], shapes: [
+        box(12, 12.5, 22, 18, 17.5, 28, M.armor),
+        box(13, 17.2, 24.5, 17, 18, 26, M.visor),              // glowing cyan visor
+        box(9.5, 13, 25, 12, 16.5, 30, M.steel),               // aerodynamic ear wings
+        box(18, 13, 25, 20.5, 16.5, 30, M.steel),
+      ],
+    },
+    ...pair('Arm', [9.5, 15, 21], [
+      box(7.5, 13.5, 13, 11, 16.5, 21, M.armor),
+      box(7.2, 13.2, 10, 11.3, 16.8, 13.5, M.steel),
+    ], cx, 'torso'),
+    ...pair('Wing', [10, 12, 20], [
+      box(2, 11, 19, 11, 12, 23, M.wing),                     // holographic wings
+      box(0, 11, 16, 6, 12, 30, M.wingGlow),
+    ], cx, 'torso'),
+    {
+      name: 'lance', parent: 'rightArm', pivot: [21, 15, 12], shapes: [
+        box(20.5, 14.5, 0, 21.5, 15.5, 36, M.steel),           // lightning spear
+        box(19.5, 13.5, 28, 22.5, 16.5, 38, M.lance),
+        box(20, 14, 38, 22, 16, 42, M.wingGlow),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.5 * s },
+    rightLeg: { pitch: -0.5 * s },
+    leftWing: { roll: 0.25 * s, yaw: 0.15 * s },
+    rightWing: { roll: -0.25 * s, yaw: -0.15 * s },
+    torso: { pitch: 0.1, offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 1.4 }, lance: { pitch: -1.4 }, leftWing: { yaw: 0.4 }, rightWing: { yaw: -0.4 } },
+    { rightArm: { pitch: 1.9, offset: [0, 3, 0] }, lance: { pitch: -1.9 }, torso: { pitch: 0.2 } },
+    { rightArm: { pitch: 1.1 } },
+  ];
+  const idle = breathe('torso', { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } });
+  return {
+    size: [34, 32, 42],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0xcbd5e1 }, { color: 0x94a3b8 }, { color: 0x1e293b },
+      { color: 0x38bdf8, emissive: true }, { color: 0x7dd3fc, emissive: true },
+      { color: 0x0284c7 }, { color: 0x22d3ee, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── 7. Assassin — dual-blade stealth killer in dark hooded leather ───────────
+
+const assassin = (): VoxelModel => {
+  const M = { cloak: 0, leather: 1, mask: 2, eye: 3, blade: 4, poison: 5, skin: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    ...pair('Leg', [13.5, 15, 11], [
+      box(12, 13.5, 3, 15, 16.5, 11, M.leather),
+      box(11.5, 13, 0, 15.5, 17, 3.5, M.cloak),
+    ], cx),
+    {
+      name: 'torso', pivot: [15, 15, 11], shapes: [
+        box(11, 13, 11, 19, 17, 21, M.cloak),
+        box(11.5, 16.8, 12, 18.5, 17.6, 20, M.leather),        // straps
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 21], shapes: [
+        box(11.5, 12, 21, 18.5, 18, 28, M.cloak),              // cowl
+        box(12.5, 16.8, 22, 17.5, 18.2, 25, M.mask),           // face mask
+        box(13, 17.5, 25.5, 14.2, 18.3, 26.5, M.eye),          // glowing crimson eyes
+        box(15.8, 17.5, 25.5, 17, 18.3, 26.5, M.eye),
+      ],
+    },
+    ...pair('Arm', [9.5, 15, 20], [
+      box(8, 13.5, 12, 11, 16.5, 20, M.cloak),
+      box(7.8, 13.2, 9, 11.2, 16.8, 12.5, M.leather),
+    ], cx, 'torso'),
+    // Left Dagger
+    {
+      name: 'leftDagger', parent: 'leftArm', pivot: [9, 15, 10], shapes: [
+        box(8.5, 14, 9, 9.5, 16, 11, M.leather),
+        box(8.8, 14.5, 2, 9.2, 15.5, 9, M.blade),              // reverse grip blade
+        box(8.7, 14.8, 2, 9.3, 15.2, 6, M.poison),             // poison drip
+      ],
+    },
+    // Right Dagger
+    {
+      name: 'rightDagger', parent: 'rightArm', pivot: [21, 15, 10], shapes: [
+        box(20.5, 14, 9, 21.5, 16, 11, M.leather),
+        box(20.8, 14.5, 2, 21.2, 15.5, 9, M.blade),
+        box(20.7, 14.8, 2, 21.3, 15.2, 6, M.poison),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.65 * s },
+    rightLeg: { pitch: -0.65 * s },
+    leftArm: { pitch: -0.5 * s },
+    rightArm: { pitch: 0.5 * s },
+    torso: { pitch: 0.18, offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  const attack: Pose[] = [
+    { leftArm: { pitch: 1.2 }, rightArm: { pitch: 1.2 }, torso: { pitch: 0.2 } },
+    { leftArm: { pitch: 1.8, offset: [0, 2, 0] }, rightArm: { pitch: 1.8, offset: [0, 2, 0] }, torso: { pitch: 0.3 } },
+    { leftArm: { pitch: 0.8 }, rightArm: { pitch: 0.8 } },
+  ];
+  const idle = breathe('torso');
   return {
     size: [30, 32, 36],
     foot: [15, 15, 0],
     materials: [
-      { color: 0xe8ecf1 }, { color: 0x9aa4b2 }, { color: 0x1f2937 }, { color: 0x22d3ee, emissive: true },
-      { color: 0x0e7490 }, { color: 0x1a1f2b }, { color: 0x6b7280 }, { color: 0x38bdf8 }, { color: 0x67e8f9, emissive: true },
+      { color: 0x0f172a }, { color: 0x334155 }, { color: 0x1e293b },
+      { color: 0xef4444, emissive: true }, { color: 0xe2e8f0 }, { color: 0x10b981, emissive: true }, { color: 0xfecdd3 },
     ],
     parts,
     animations: { walk, attack, idle },
   };
 };
 
-// ── Heavy Mecha Titan — khaki four-legged walker with shoulder cannon pods ───
+// ── 8. Mecha Drone — hovering quad-thruster drone with central laser cannon ──
 
-const mechaTitan = (): VoxelModel => {
-  const M = { armor: 0, armorLight: 1, armorDark: 2, dark: 3, grid: 4, gridDim: 5, flash: 6 };
-  const cx = 23;
-  const frontLeg: Shape[] = [
-    box(9, 28, 13, 15, 33, 19, M.armorDark),                  // hip
-    box(7.5, 30, 1.5, 11, 33.5, 15, M.armor),                 // shin
-    box(6.5, 29, 0, 12, 35.5, 2, M.dark),                     // foot
-  ];
-  const backLeg: Shape[] = [
-    box(9, 13, 13, 15, 18, 19, M.armorDark),
-    box(7.5, 12.5, 1.5, 11, 16, 15, M.armor),
-    box(6.5, 10.5, 0, 12, 17, 2, M.dark),
-  ];
-  const pod: Shape[] = [
-    box(3, 16, 20, 12.5, 31, 30, M.armor),
-    box(3.5, 16.5, 30, 12, 30.5, 31.2, M.armorLight),
-    box(3, 30.5, 21, 12.5, 32, 29, M.armorDark),              // barrel mount
-    box(4, 32, 22, 7, 41, 25, M.dark),                        // four chunky barrels
-    box(8.5, 32, 22, 11.5, 41, 25, M.dark),
-    box(4, 32, 26, 7, 41, 29, M.dark),
-    box(8.5, 32, 26, 11.5, 41, 29, M.dark),
-  ];
-  const gridPanel: Shape[] = [];
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 3; j++) {
-      gridPanel.push(box(18.5 + i * 3, 32.3, 19.5 + j * 3, 20.5 + i * 3, 33.2, 21.5 + j * 3, (i + j) % 2 ? M.gridDim : M.grid));
-    }
-  }
-
+const drone = (): VoxelModel => {
+  const M = { hull: 0, dark: 1, thruster: 2, thrusterGlow: 3, eye: 4, cannon: 5 };
+  const c = 14;
   const parts: Part[] = [
-    { name: 'leftFrontLeg', pivot: [12, 30.5, 18], shapes: frontLeg },
-    { name: 'rightFrontLeg', pivot: mirrorPivot([12, 30.5, 18], cx), shapes: mirrorX(frontLeg, cx) },
-    { name: 'leftBackLeg', pivot: [12, 15.5, 18], shapes: backLeg },
-    { name: 'rightBackLeg', pivot: mirrorPivot([12, 15.5, 18], cx), shapes: mirrorX(backLeg, cx) },
     {
-      name: 'hull', pivot: [23, 23, 16], shapes: [
-        box(13, 14, 16, 33, 32, 33, M.armor),
-        box(14, 15, 33, 32, 31, 35, M.armorLight),
-        box(16, 31.5, 18, 30, 32.6, 30.5, M.armorDark),       // front plate
-        ...gridPanel,
-        box(17, 32.3, 27.5, 29, 33.2, 29.5, M.dark),          // sensor slit
-        box(18, 12, 30, 20, 14, 37, M.dark),                  // exhaust stacks
-        box(26, 12, 30, 28, 14, 37, M.dark),
+      name: 'body', pivot: [c, c, 10], shapes: [
+        ell(c, c, 10, 6, 6, 4, M.hull),                         // main disc
+        ell(c, c, 11, 4.5, 4.5, 4, M.dark),
+        box(c - 2, c + 5.5, 8.5, c + 2, c + 6.5, 11.5, M.eye), // glowing red sensor
+        box(c - 1, c + 6, 5, c + 1, c + 11, 7.5, M.cannon),    // underslung laser
       ],
     },
-    { name: 'leftPod', parent: 'hull', pivot: [8, 23, 25], shapes: pod },
-    { name: 'leftFlash', parent: 'leftPod', pivot: [8, 41, 25.5], shapes: [ell(8, 42.5, 25.5, 3.4, 2.2, 3.4, M.flash)] },
-    { name: 'rightPod', parent: 'hull', pivot: mirrorPivot([8, 23, 25], cx), shapes: mirrorX(pod, cx) },
-    { name: 'rightFlash', parent: 'rightPod', pivot: mirrorPivot([8, 41, 25.5], cx), shapes: mirrorX([ell(8, 42.5, 25.5, 3.4, 2.2, 3.4, M.flash)], cx) },
+    // 4 Quad Rotor Pods
+    ...pair('FrontPod', [c - 7, c + 7, 10], [
+      box(c - 9, c + 5, 8, c - 5, c + 9, 12, M.dark),
+      cyl(c - 7, c + 7, 7, 2, 2, M.thrusterGlow),
+    ], c, 'body'),
+    ...pair('BackPod', [c - 7, c - 7, 10], [
+      box(c - 9, c - 9, 8, c - 5, c - 5, 12, M.dark),
+      cyl(c - 7, c - 7, 7, 2, 2, M.thrusterGlow),
+    ], c, 'body'),
   ];
-
-  const noFlash = { leftFlash: { hidden: true }, rightFlash: { hidden: true } };
-  // Diagonal leg pairs step together, spider-style
   const walk: Pose[] = STRIDE.map((s) => ({
-    leftFrontLeg: { pitch: 0.3 * s },
-    rightBackLeg: { pitch: 0.3 * s },
-    rightFrontLeg: { pitch: -0.3 * s },
-    leftBackLeg: { pitch: -0.3 * s },
-    hull: { offset: [0, 0, s === 0 ? 1 : 0], roll: 0.03 * s },
-    ...noFlash,
+    body: { offset: [0, 0, s === 0 ? 1.5 : -0.5], roll: 0.08 * s, pitch: 0.1 },
   }));
   const attack: Pose[] = [
-    { leftPod: { pitch: -0.1 }, rightPod: { pitch: -0.1 }, ...noFlash },
-    { leftPod: { offset: [0, -2, 0] }, rightPod: { offset: [0, -2, 0] }, hull: { offset: [0, -1, 0] } },
-    { leftPod: { offset: [0, -1, 0] }, rightPod: { offset: [0, -1, 0] }, ...noFlash },
+    { body: { pitch: -0.15 } },
+    { body: { pitch: 0.25, offset: [0, 2, 0] } },
+    { body: { pitch: 0.05 } },
   ];
-  const idle = breathe('hull', noFlash);
-
+  const idle: Pose[] = [{ body: { offset: [0, 0, 1] } }, { body: { offset: [0, 0, -1] } }];
   return {
-    size: [46, 46, 42],
-    foot: [23, 23, 0],
-    materials: [
-      { color: 0xa89f7e }, { color: 0xc9c0a0 }, { color: 0x6e6650 }, { color: 0x2b2b26 },
-      { color: 0xef4444, emissive: true }, { color: 0x7f1d1d }, { color: 0xfff3b0, emissive: true },
-    ],
-    parts,
-    animations: { walk, attack, idle },
-  };
-};
-
-// ── Deep One — green octopus horror with orange eyes and purple fins ─────────
-
-const deepOne = (): VoxelModel => {
-  const M = { skin: 0, skinDark: 1, skinLight: 2, eye: 3, pupil: 4, fin: 5, sucker: 6 };
-  const c = 18;
-  const tentacleAngles = [25, 70, 115, 160, 200, 245, 290, 335].map((deg) => (deg * Math.PI) / 180);
-  const parts: Part[] = [
-    {
-      name: 'body', pivot: [c, c, 8], shapes: [
-        ell(c, 16.5, 22, 6.8, 6.8, 8.5, M.skin),              // bulbous head
-        ell(c, 15, 26, 4.5, 5, 5, M.skinLight),
-        ell(c, 19, 14.5, 5.2, 4.2, 4.2, M.skin),              // face
-        ell(15.2, 22.3, 17.6, 1.7, 0.9, 1.7, M.eye),
-        ell(20.8, 22.3, 17.6, 1.7, 0.9, 1.7, M.eye),
-        box(15, 23, 16.6, 15.6, 23.6, 18.8, M.pupil),
-        box(20.6, 23, 16.6, 21.2, 23.6, 18.8, M.pupil),
-        box(13.5, 21.5, 19.3, 17, 22.8, 20.3, M.skinDark),    // brows
-        box(19, 21.5, 19.3, 22.5, 22.8, 20.3, M.skinDark),
-        ell(11, 17, 20, 0.9, 3, 4.2, M.fin),                  // side fins
-        ell(25, 17, 20, 0.9, 3, 4.2, M.fin),
-      ],
-    },
-  ];
-
-  // Each tentacle is a 3-segment chain so it can sway and curl
-  tentacleAngles.forEach((angle, i) => {
-    const dx = Math.sin(angle);
-    const dy = Math.cos(angle);
-    let parent = 'body';
-    for (let k = 0; k < 3; k++) {
-      const dist = 5 + k * 3.2;
-      const center: Vec3 = [c + dx * dist, c + dy * dist, 8 - k * 2.6 + (k === 2 ? 1.5 : 0)];
-      const r = 2 - k * 0.4;
-      const name = `t${i}_${k}`;
-      parts.push({
-        name,
-        parent,
-        pivot: [c + dx * (dist - 1.6), c + dy * (dist - 1.6), center[2] + 1.3],
-        shapes: [
-          ell(center[0], center[1], center[2], r, r, r * 0.9, k === 2 ? M.skinDark : M.skin),
-          ell(center[0], center[1], center[2] - r * 0.6, r * 0.6, r * 0.6, 0.6, M.sucker),
-        ],
-      });
-      parent = name;
-    }
-  });
-
-  const tentaclePose = (phase: number, lift: (i: number) => number): Pose => {
-    const pose: Pose = {};
-    tentacleAngles.forEach((_, i) => {
-      for (let k = 0; k < 3; k++) {
-        pose[`t${i}_${k}`] = {
-          yaw: 0.22 * Math.sin(phase + i * 1.1 + k * 0.6),
-          offset: [0, 0, k === 0 ? lift(i) : 0],
-        };
-      }
-    });
-    return pose;
-  };
-
-  const walk: Pose[] = STRIDE.map((s, f) => ({
-    ...tentaclePose((f * Math.PI) / 2, (i) => (i % 2 === (f % 2) ? 1 : 0)),
-    body: { offset: [0, 0, s === 0 ? 1.5 : 0], roll: 0.05 * s },
-  }));
-  // Front tentacles (either side of +y) rise and lash forward
-  const front = (i: number, amount: number) => (i === 0 || i === 7 ? amount : 0);
-  const attack: Pose[] = [
-    { ...tentaclePose(0, (i) => front(i, 4)), body: { pitch: -0.12, offset: [0, -1, 1] } },
-    { ...tentaclePose(1, (i) => front(i, 2)), body: { pitch: 0.25, offset: [0, 2.5, 0] } },
-    { ...tentaclePose(2, () => 0), body: { pitch: 0.1, offset: [0, 1, 0] } },
-  ];
-  const idle: Pose[] = [
-    { ...tentaclePose(0, () => 0), body: {} },
-    { ...tentaclePose(1.6, () => 0), body: { offset: [0, 0, 1] } },
-  ];
-
-  return {
-    size: [36, 36, 34],
+    size: [28, 28, 24],
     foot: [c, c, 0],
     materials: [
-      { color: 0x3f8f5a }, { color: 0x2c6641 }, { color: 0x6fbf73 }, { color: 0xf59e0b, emissive: true },
-      { color: 0x1c1917 }, { color: 0x9d4edd }, { color: 0xc4b5fd },
+      { color: 0x475569 }, { color: 0x1e293b }, { color: 0x0f172a },
+      { color: 0x38bdf8, emissive: true }, { color: 0xef4444, emissive: true }, { color: 0x94a3b8 },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── 9. Mecha Siege Tank — heavy treaded combat chassis with artillery cannon ─
+
+const siegeTank = (): VoxelModel => {
+  const M = { olive: 0, oliveDark: 1, tread: 2, steel: 3, muzzle: 4, optic: 5 };
+  const cx = 18;
+  const parts: Part[] = [
+    // Left & Right Track Treads
+    ...pair('Track', [8, 18, 5], [
+      box(3, 6, 0, 8.5, 30, 8, M.tread),
+      box(2.5, 8, 7.5, 9, 28, 9.5, M.oliveDark),              // armored track skirt
+    ], cx),
+    {
+      name: 'hull', pivot: [18, 18, 6], shapes: [
+        box(9, 8, 4, 27, 28, 12, M.olive),                     // main hull
+        box(11, 27.5, 5, 25, 29, 11, M.steel),                 // front glacis
+      ],
+    },
+    {
+      name: 'turret', parent: 'hull', pivot: [18, 18, 12], shapes: [
+        box(11, 11, 12, 25, 25, 18, M.olive),                  // turret dome
+        box(12, 12, 18, 24, 24, 20, M.oliveDark),
+        box(16, 24.5, 14, 20, 25.5, 16.5, M.optic),
+        box(16.5, 23, 13.5, 19.5, 37, 16.5, M.steel),          // long cannon barrel
+        box(15.5, 37, 12.5, 20.5, 40, 17.5, M.muzzle),         // heavy muzzle brake
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    hull: { offset: [0, 0, s === 0 ? 0.5 : 0] },
+    turret: { yaw: 0.05 * s },
+  }));
+  const attack: Pose[] = [
+    { turret: { pitch: -0.1 } },
+    { turret: { pitch: 0.1, offset: [0, -2, 0] } },
+    { turret: { offset: [0, -0.5, 0] } },
+  ];
+  const idle = breathe('hull');
+  return {
+    size: [36, 42, 26],
+    foot: [18, 18, 0],
+    materials: [
+      { color: 0x4d5f2c }, { color: 0x36441e }, { color: 0x1f2937 },
+      { color: 0x64748b }, { color: 0xf97316, emissive: true }, { color: 0xef4444, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
+// ── 10. Chrono Time Mage — starry midnight robes, clockwork, hourglass staff ─
+
+const chronoMage = (): VoxelModel => {
+  const M = { robe: 0, robeDark: 1, gold: 2, skin: 3, beard: 4, staff: 5, glass: 6, sand: 7, hat: 8, eye: 9 };
+  const cx = 15;
+  const parts: Part[] = [
+    {
+      name: 'robe', pivot: [15, 15, 12], shapes: [
+        box(10, 10.5, 0, 20, 19.5, 4, M.robeDark),
+        box(10.5, 11, 4, 19.5, 19, 12, M.robe),
+        box(9.8, 10.3, 0, 20.2, 19.7, 1.2, M.gold),
+      ],
+    },
+    {
+      name: 'torso', parent: 'robe', pivot: [15, 15, 12], shapes: [
+        box(11, 12, 12, 19, 18, 22, M.robe),
+        box(12.5, 17.5, 14, 17.5, 18.5, 19, M.gold),           // clockwork gears mantle
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 22], shapes: [
+        box(12.5, 13, 22, 17.5, 18, 28, M.skin),
+        box(13, 17.8, 25, 14, 18.4, 26, M.eye),
+        box(16, 17.8, 25, 17, 18.4, 26, M.eye),
+        box(12.8, 17, 18, 17.2, 18.8, 24, M.beard),
+        ell(15, 15, 28.5, 6.5, 6.5, 0.9, M.hat),               // wizard hat brim
+        box(12, 12, 29, 18, 18, 33, M.hat),
+        box(13, 13, 33, 17, 17, 37, M.gold),
+        box(14, 14, 37, 16, 16, 40, M.hat),
+      ],
+    },
+    ...pair('Arm', [10, 15, 21], [
+      box(8, 13, 13, 11.5, 17, 21, M.robe),
+      box(7.5, 12.5, 12, 12, 17.5, 14, M.gold),
+      ball(9.7, 15.5, 11.5, 1.4, M.skin),
+    ], cx, 'torso'),
+    {
+      name: 'staff', parent: 'rightArm', pivot: [20.5, 15.5, 12], shapes: [
+        box(20, 15, 1, 21, 16, 32, M.staff),
+        box(18.5, 14, 31, 22.5, 17, 37, M.gold),               // hourglass frame
+        ell(20.5, 15.5, 34, 1.6, 1.6, 2.4, M.glass),            // glowing hourglass
+        ball(20.5, 15.5, 34, 0.9, M.sand),
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    robe: { roll: 0.05 * s, offset: [0, 0, s === 0 ? 1 : 0] },
+    leftArm: { pitch: -0.2 * s },
+    rightArm: { pitch: 0.15 * s },
+    staff: { pitch: -0.15 * s },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 1.2 }, staff: { pitch: -1.2, scale: [1.2, 1.2, 1.2] }, leftArm: { pitch: 0.5 } },
+    { rightArm: { pitch: 1.8 }, staff: { pitch: -1.8, scale: [1.5, 1.5, 1.5] }, leftArm: { pitch: 1.0 } },
+    { rightArm: { pitch: 1.0 }, staff: { pitch: -1.0 } },
+  ];
+  const idle = breathe('torso');
+  return {
+    size: [30, 32, 44],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0x1e1b4b }, { color: 0x0f0e26 }, { color: 0xf59e0b }, { color: 0xfde047 },
+      { color: 0xe2e8f0 }, { color: 0x78350f }, { color: 0x38bdf8, emissive: true },
+      { color: 0xfacc15, emissive: true }, { color: 0x312e81 }, { color: 0x60a5fa, emissive: true },
     ],
     parts,
     animations: { walk, attack, idle },
@@ -457,7 +704,7 @@ const deepOne = (): VoxelModel => {
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type EnemySpriteKey =
-  | 'knight' | 'archer' | 'mechaScout' | 'mechaTitan' | 'deepOne'
+  | 'knight' | 'archer' | 'mechaScout' | 'mechaTitan'
   | 'highPriest' | 'valkyrie' | 'assassin' | 'drone' | 'siegeTank' | 'chronoMage';
 
 export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
@@ -465,24 +712,22 @@ export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   archer,
   mechaScout,
   mechaTitan,
-  deepOne,
-  // Variants of the base models, recoloured to match the codex artwork
-  highPriest: () => recolorModel(archer(), 0xfff7e0, 0xfde047, 0.75),
-  valkyrie: () => recolorModel(mechaScout(), 0xdbeafe, 0x38bdf8, 0.55),
-  assassin: () => recolorModel(knight(), 0x1f2937, 0xdc2626, 0.75),
-  drone: () => recolorModel(mechaScout(), 0x4d7c0f, 0xef4444, 0.6, 0.7),
-  siegeTank: () => recolorModel(mechaTitan(), 0x4d5a2a, 0xf97316, 0.6),
-  chronoMage: () => recolorModel(archer(), 0x1e293b, 0xfbbf24, 0.7),
+  highPriest,
+  valkyrie,
+  assassin,
+  drone,
+  siegeTank,
+  chronoMage,
 };
 
 /** Which sprite each invader type uses. */
 export const INVADER_SPRITE: Record<InvaderType, EnemySpriteKey> = {
-  HIGH_PRIEST: 'highPriest',
-  MECHA_VALKYRIE: 'valkyrie',
   HUMAN_KNIGHT: 'knight',
   HUMAN_ARCHER: 'archer',
   MECHA_SCOUT: 'mechaScout',
   MECHA_TITAN: 'mechaTitan',
+  HIGH_PRIEST: 'highPriest',
+  MECHA_VALKYRIE: 'valkyrie',
   ASSASSIN: 'assassin',
   MECHA_DRONE: 'drone',
   MECHA_SIEGE_TANK: 'siegeTank',

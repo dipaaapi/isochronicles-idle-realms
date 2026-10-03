@@ -3,85 +3,99 @@
     "aetherShards": {
       "sell": 10,
       "buy": 25,
-      "label": "Kristal (Gems)",
+      "label": "Kristal",
+      "labelEn": "Crystals",
       "icon": "💎"
     },
     "wood": {
       "sell": 6,
       "buy": 15,
-      "label": "Kahoy (Wood)",
+      "label": "Kahoy",
+      "labelEn": "Wood",
       "icon": "🌲"
     },
     "stone": {
       "sell": 8,
       "buy": 20,
-      "label": "Bato (Stone)",
+      "label": "Bato",
+      "labelEn": "Stone",
       "icon": "🪨"
     },
     "arcaneEssence": {
       "sell": 25,
       "buy": 60,
-      "label": "Magic (Potion)",
+      "label": "Mahika",
+      "labelEn": "Arcane Essence",
       "icon": "🔮"
     },
     "fish": {
       "sell": 4,
       "buy": 10,
-      "label": "Isda (Fish)",
+      "label": "Isda",
+      "labelEn": "Fish",
       "icon": "🐟"
     },
     "water": {
       "sell": 2,
       "buy": 5,
-      "label": "Tubig (Water)",
+      "label": "Tubig",
+      "labelEn": "Water",
       "icon": "💧"
     },
     "metal": {
       "sell": 12,
       "buy": 30,
       "label": "Metal",
+      "labelEn": "Metal",
       "icon": "🔩"
     },
     "charcoal": {
       "sell": 10,
       "buy": 24,
-      "label": "Charcoal",
+      "label": "Uling",
+      "labelEn": "Charcoal",
       "icon": "🪵"
     },
     "coal": {
       "sell": 14,
       "buy": 32,
-      "label": "Coal",
+      "label": "Uling na Bato",
+      "labelEn": "Coal",
       "icon": "⚫"
     },
     "minerals": {
       "sell": 18,
       "buy": 40,
-      "label": "Minerals",
+      "label": "Mineral",
+      "labelEn": "Minerals",
       "icon": "💠"
     },
     "obsidianShard": {
       "sell": 20,
       "buy": 50,
       "label": "Obsidian Shard",
+      "labelEn": "Obsidian Shard",
       "icon": "🌋"
     },
     "soulFragments": {
       "sell": 22,
       "buy": 55,
-      "label": "Soul Fragments",
+      "label": "Pira-pirasong Kaluluwa",
+      "labelEn": "Soul Fragments",
       "icon": "💀"
     },
     "abyssalPearl": {
       "sell": 30,
       "buy": 75,
       "label": "Abyssal Pearl",
+      "labelEn": "Abyssal Pearl",
       "icon": "🔮"
     },
     "scrapMetal": {
       "sell": 9,
       "buy": 22,
-      "label": "Scrap Metal",
+      "label": "Lumamang Bakal",
+      "labelEn": "Scrap Metal",
       "icon": "⚙️"
     }
   },
@@ -278,6 +292,34 @@
           "coins": 100
         }
       ]
+    },
+    "SPIRE": {
+      "label": "Tore ng Kristal",
+      "labelEn": "Crystal Spire",
+      "icon": "💎",
+      "outputs": [
+        "aetherShards",
+        "arcaneEssence"
+      ],
+      "costs": [
+        {
+          "wood": 25,
+          "stone": 30,
+          "coins": 35
+        },
+        {
+          "wood": 45,
+          "stone": 50,
+          "aetherShards": 25,
+          "coins": 75
+        },
+        {
+          "wood": 75,
+          "stone": 80,
+          "aetherShards": 50,
+          "coins": 140
+        }
+      ]
     }
   },
   "castleConstructionCost": {
@@ -291,7 +333,7 @@
     "stone": 20
   },
   "unitSummon": {
-    "maxPerClass": 2,
+    "maxPerClass": 1,
     "maxTreants": 1,
     "costs": {
       "GOLEM": {
@@ -462,42 +504,89 @@
   },
   "kennelWaveSpeedBonus": 0.15,
   "munitions": {
-    "maxLevel": 3,
+    "maxLevel": 5,
     "armorPiercing": {
-      "perLevel": 0.2,
+      "name": "Armor-Piercing Rounds",
+      "nameTl": "Bala na Lumalagos sa Armor",
+      "icon": "⚙️",
+      "perLevel": 0.25,
       "cost": {
-        "scrapMetal": 10,
-        "coins": 60
+        "scrapMetal": 6,
+        "coins": 40
       }
     },
     "incendiary": {
-      "burnDpsPerLevel": 2,
-      "burnSeconds": 2,
+      "name": "Incendiary Blast Shells",
+      "nameTl": "Sumasabog na Incendiary",
+      "icon": "🌋",
+      "burnDpsPerLevel": 12,
+      "burnSeconds": 4,
       "cost": {
-        "obsidianShard": 6,
-        "coins": 60
+        "obsidianShard": 4,
+        "coins": 45
+      }
+    },
+    "cryoFrost": {
+      "name": "Cryo-Frost Shards",
+      "nameTl": "Malamig na Yelong Shards",
+      "icon": "❄️",
+      "slowPercentPerLevel": 0.08,
+      "slowDuration": 4,
+      "cost": {
+        "abyssalPearl": 2,
+        "coins": 45
+      }
+    },
+    "teslaChain": {
+      "name": "Tesla Chain Overcharge",
+      "nameTl": "Kuryenteng Tesla Chain",
+      "icon": "⚡",
+      "chainTargetsPerLevel": 1,
+      "chainDamageRatio": 0.35,
+      "cost": {
+        "aetherShards": 12,
+        "arcaneEssence": 8,
+        "coins": 50
+      }
+    },
+    "voidFlak": {
+      "name": "Void Flak Cannonade",
+      "nameTl": "Kanyon na Void Flak",
+      "icon": "🔮",
+      "flakRadius": 2.0,
+      "airBonusPerLevel": 0.3,
+      "cost": {
+        "soulFragments": 4,
+        "arcaneEssence": 10,
+        "coins": 55
       }
     }
   },
   "battleItems": {
-    "LAVA_BOMB": {
+    "MINION_FRENZY": {
       "cost": {
         "obsidianShard": 4
-      },
-      "damage": 60
+      }
     },
-    "DEATH_CURSE": {
+    "FORCE_FIELD": {
       "cost": {
         "soulFragments": 5
-      },
-      "burnDps": 8,
-      "burnSeconds": 8
+      }
     },
-    "KINETIC_RESTORE": {
+    "MASS_REGEN": {
       "cost": {
         "abyssalPearl": 2
-      },
-      "shieldFraction": 0.5
+      }
+    },
+    "SHIELD_OVERLOAD": {
+      "cost": {
+        "aetherShards": 3
+      }
+    },
+    "CHRONO_SURGE": {
+      "cost": {
+        "arcaneEssence": 10
+      }
     }
   }
 }

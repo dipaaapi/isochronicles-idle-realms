@@ -29,7 +29,7 @@ const equipStat = (worker: WorkerInstance, stat: 'bonusSpeed' | 'bonusCargo' | '
   slots.reduce((sum, slot) => sum + (worker.equipment?.[slot]?.stats[stat] || 0), 0);
 
 /**
- * Applies this frame's timed buffs (motivation, Titan shield) and cargo capacity
+ * Applies this frame's timed buffs (motivation, Slime Morale Buffs, Titan shield) and cargo capacity
  * to `worker`, and returns its effective speed / attack / stamina modifiers.
  * `treantLevel` is the Ent's evolution level (Citadel Majesty speed bonus).
  */
@@ -51,6 +51,24 @@ export function computeWorkerFrame(
   if (worker.unitClass === 'GOLEM' && (worker.assignedTask === 'STONE' || worker.assignedTask === 'AETHER')) {
     classCapacityBonus = 1;
   }
+
+  // Slime Morale Buff calculation & timer update
+  let slimeBuffSpeedMult = 1.0;
+  let slimeBuffAttackMult = 1.0;
+  if (worker.activeSlimeBuff && worker.activeSlimeBuff.duration > 0) {
+    worker.activeSlimeBuff.duration -= deltaSec;
+    const b = worker.activeSlimeBuff;
+    if (b.speedMultiplier) slimeBuffSpeedMult = b.speedMultiplier;
+    if (b.attackMultiplier) slimeBuffAttackMult = b.attackMultiplier;
+    if (b.cargoBonus) classCapacityBonus += b.cargoBonus;
+    if (b.regenPerSec && worker.hp < worker.maxHp) {
+      worker.hp = Math.min(worker.maxHp, worker.hp + b.regenPerSec * deltaSec);
+    }
+    if (worker.activeSlimeBuff.duration <= 0) {
+      worker.activeSlimeBuff = undefined;
+    }
+  }
+
   worker.maxCargo = config.cargoCapacity + (store.upgrades.golemCapacityLevel - 1) + classCapacityBonus +
     equipStat(worker, 'bonusCargo', ['tool', 'relic']);
 
@@ -61,8 +79,10 @@ export function computeWorkerFrame(
 
   // Titan Awakening: +150% combat attack power (2.5x)
   const titanAttackBonus = isTitanBlessingActive ? 2.5 : 1.0;
+  const frenzyAttackBonus = store.defense.minionFrenzyTimer > 0 ? 2.0 : 1.0;
   const effectiveAttack = Math.round(
-    ((worker.attackPower || 22) + equipStat(worker, 'bonusAttack', ['tool', 'armor', 'relic'])) * titanAttackBonus * skills.attack
+    ((worker.attackPower || 22) + equipStat(worker, 'bonusAttack', ['tool', 'armor', 'relic'])) *
+      titanAttackBonus * frenzyAttackBonus * slimeBuffAttackMult * skills.attack
   );
 
   // Titan Awakening: Radiant Armor Shield to all non-slime minions
@@ -75,8 +95,9 @@ export function computeWorkerFrame(
     if (worker.armorShieldTimer <= 0) worker.armorShield = 0;
   }
 
-  // Titan Awakening eliminates stamina drain completely (0 drain)
-  const drainReduction = isTitanBlessingActive
+  // Titan Awakening / Infernal Vigor eliminates stamina drain completely (0 drain)
+  const isInfiniteStamina = isTitanBlessingActive || (worker.activeSlimeBuff?.infiniteStamina ?? false);
+  const drainReduction = isInfiniteStamina
     ? 100
     : Phaser.Math.Clamp(equipStat(worker, 'staminaDrainReduction', ['armor', 'relic']), 0, 70);
 
@@ -105,7 +126,7 @@ export function computeWorkerFrame(
     (worker.speed + equipStat(worker, 'bonusSpeed', ['tool', 'armor', 'relic'])) *
     (1 + (store.upgrades.golemSpeedLevel - 1) * 0.2) *
     motivationMult * taskSpecialtySpeed * weather.speed * slimeMovementBonus *
-    blessingSpeedBonus * citadelMajestySpeedBonus * skills.speed;
+    blessingSpeedBonus * citadelMajestySpeedBonus * slimeBuffSpeedMult * skills.speed;
 
   return {
     store,
@@ -118,7 +139,8 @@ export function computeWorkerFrame(
     drainReduction,
     weatherDrainMult: weather.drain,
     // Raiding scouts between waves also call the minions to arms
-    isInvasionActive: store.invasion.isActive || aliveInvaders.some((i) => i.isScout && !i.isDead && !i.isRetreating),
+    isInvasionActive: store.invasion.isActive || aliveInvaders.some((i) => !i.isDead && !i.isRetreating),
     aliveInvaders,
   };
 }
+

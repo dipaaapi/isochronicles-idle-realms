@@ -123,83 +123,149 @@ const workSpotFor = (footprint: TileRect): GridPoint => {
     .sort((a, b) => Math.hypot(a.x - CASTLE_GATE.x, a.y - CASTLE_GATE.y) - Math.hypot(b.x - CASTLE_GATE.x, b.y - CASTLE_GATE.y))[0];
 };
 
+export interface LayoutResult {
+  sites: Record<ResourceBuildingId, BuildingSite>;
+  roads: GridPoint[];
+  roadsByBuilding: Record<ResourceBuildingId | 'SPIRE', GridPoint[]>;
+}
+
 export function generateLayout(
   seed: number,
   positions: BuildingPositions = {}
-): { sites: Record<ResourceBuildingId, BuildingSite>; roads: GridPoint[] } {
-  const { size, castleClearance, minGap, edgeMargin } = layout.establishments;
+): LayoutResult {
+  const { size, edgeMargin } = layout.establishments;
+  const castleClearance = 3;
+  const preferredGap = 2;
+  const fallbackGap = 1;
   const random = seededRandom(seed);
   const key = (x: number, y: number) => `${x},${y}`;
-  const blocked = new Set<string>();
-  const block = (rect: TileRect) => {
-    for (let y = rect.y; y < rect.y + rect.h; y++) for (let x = rect.x; x < rect.x + rect.w; x++) blocked.add(key(x, y));
-  };
-
-  block(expandRect(CASTLE_FOOTPRINT, castleClearance));
-  block(expandRect(SPIRE_FOOTPRINT, minGap));
-  block(expandRect({ ...SPIRE_WORK_SPOT, w: 1, h: 1 }, 1));
-  for (const portal of PORTAL_SITES) block(expandRect({ ...portal.exit, w: 1, h: 1 }, minGap));
 
   const minPos = edgeMargin;
   const maxX = GRID_SIZE - 1 - edgeMargin - (size.w - 1);
   const maxY = GRID_SIZE - 1 - edgeMargin - (size.h - 1);
-  const fits = (x: number, y: number) => {
-    for (let dy = 0; dy < size.h; dy++) for (let dx = 0; dx < size.w; dx++) {
-      if (blocked.has(key(x + dx, y + dy))) return false;
-    }
-    return true;
+
+  const createBlocked = (gap: number) => {
+    const blocked = new Set<string>();
+    const block = (rect: TileRect) => {
+      for (let y = rect.y; y < rect.y + rect.h; y++) for (let x = rect.x; x < rect.x + rect.w; x++) blocked.add(key(x, y));
+    };
+    block(expandRect(CASTLE_FOOTPRINT, castleClearance));
+    block(expandRect(SPIRE_FOOTPRINT, gap));
+    block(expandRect({ ...SPIRE_WORK_SPOT, w: 1, h: 1 }, 1));
+    for (const portal of PORTAL_SITES) block(expandRect({ ...portal.exit, w: 1, h: 1 }, gap));
+    return { blocked, block };
   };
 
   const gate = CASTLE_GATE;
   const sites = {} as Record<ResourceBuildingId, BuildingSite>;
-  // Relocated establishments claim their tiles first; the rest are placed around them
+  const placedRects: TileRect[] = [];
+
+  // Relocated establishments claim their tiles first
   for (const id of BUILDING_IDS) {
-    const moved = positions[id];
-    if (moved) block(expandRect({ ...moved, ...size }, minGap));
+    if (positions[id]) {
+      const moved = { ...positions[id]!, ...size };
+      placedRects.push(moved);
+    }
   }
+
+  // General builds establishments: separated from castle & other establishments, biased towards outer edge with random chance
   for (const id of BUILDING_IDS) {
-    let spot: GridPoint | null = positions[id] ? { ...positions[id]! } : null;
-    for (let attempt = 0; attempt < 400 && !spot; attempt++) {
-      const x = minPos + Math.floor(random() * (maxX - minPos + 1));
-      const y = minPos + Math.floor(random() * (maxY - minPos + 1));
-      if (fits(x, y)) spot = { x, y };
+    if (positions[id]) {
+      const footprint: TileRect = { ...positions[id]!, ...size };
+      sites[id] = { id, footprint, workSpot: workSpotFor(footprint) };
+      continue;
     }
-    // Deterministic fallback scan (never expected on a 20×20 platform)
-    for (let y = minPos; y <= maxY && !spot; y++) for (let x = minPos; x <= maxX && !spot; x++) {
-      if (fits(x, y)) spot = { x, y };
+
+    let spot: GridPoint | null = null;
+    for (const gap of [preferredGap, fallbackGap]) {
+      const { blocked, block } = createBlocked(gap);
+      for (const pr of placedRects) block(expandRect(pr, gap));
+
+      const fits = (x: number, y: number) => {
+        for (let dy = 0; dy < size.h; dy++) for (let dx = 0; dx < size.w; dx++) {
+          if (blocked.has(key(x + dx, y + dy))) return false;
+        }
+        return true;
+      };
+
+      const edgeCandidates: GridPoint[] = [];
+      const innerCandidates: GridPoint[] = [];
+
+      for (let y = minPos; y <= maxY; y++) {
+        for (let x = minPos; x <= maxX; x++) {
+          if (!fits(x, y)) continue;
+          const distToEdge = Math.min(x - 1, (GRID_SIZE - 2) - (x + size.w - 1), y - 1, (GRID_SIZE - 2) - (y + size.h - 1));
+          if (distToEdge <= 2) {
+            edgeCandidates.push({ x, y });
+          } else {
+            innerCandidates.push({ x, y });
+          }
+        }
+      }
+
+      const totalCandidates = [...edgeCandidates, ...innerCandidates];
+      if (totalCandidates.length === 0) continue;
+
+      // 80% chance to place near the edge of the map, 20% random inner chance
+      if (edgeCandidates.length > 0 && (random() < 0.8 || innerCandidates.length === 0)) {
+        spot = edgeCandidates[Math.floor(random() * edgeCandidates.length)];
+      } else if (innerCandidates.length > 0) {
+        spot = innerCandidates[Math.floor(random() * innerCandidates.length)];
+      } else {
+        spot = totalCandidates[Math.floor(random() * totalCandidates.length)];
+      }
+
+      if (spot) break;
     }
+
     if (!spot) throw new Error(`No room to place ${id}`);
 
     const footprint: TileRect = { ...spot, ...size };
     const workSpot = workSpotFor(footprint);
-
     sites[id] = { id, footprint, workSpot };
-    if (!positions[id]) block(expandRect(footprint, minGap));
+    placedRects.push(footprint);
   }
 
   // Roads: an L from the gate to each work spot, never paving over a footprint
   const solids = [CASTLE_FOOTPRINT, SPIRE_FOOTPRINT, ...BUILDING_IDS.map((id) => sites[id].footprint)];
   const roads = new Map<string, GridPoint>();
-  const pave = (x: number, y: number) => {
-    if (!solids.some((r) => rectContainsTile(r, x, y))) roads.set(key(x, y), { x, y });
-  };
-  // The Crystal Spire gets a road too (it can be relocated like the establishments)
-  for (const workSpot of [SPIRE_WORK_SPOT, ...BUILDING_IDS.map((id) => sites[id].workSpot)]) {
-    const stepX = Math.sign(workSpot.x - gate.x);
-    const stepY = Math.sign(workSpot.y - gate.y);
-    for (let x = gate.x; x !== workSpot.x; x += stepX) pave(x, gate.y);
-    for (let y = gate.y; ; y += stepY) {
-      pave(workSpot.x, y);
-      if (y === workSpot.y) break;
+  const roadsByBuilding = {} as Record<ResourceBuildingId | 'SPIRE', GridPoint[]>;
+
+  const computeRoad = (target: GridPoint): GridPoint[] => {
+    const list: GridPoint[] = [];
+    const stepX = Math.sign(target.x - gate.x) || 1;
+    const stepY = Math.sign(target.y - gate.y) || 1;
+    for (let x = gate.x; x !== target.x; x += stepX) {
+      if (!solids.some((r) => rectContainsTile(r, x, gate.y))) {
+        list.push({ x, y: gate.y });
+        roads.set(key(x, gate.y), { x, y: gate.y });
+      }
     }
+    for (let y = gate.y; ; y += stepY) {
+      if (!solids.some((r) => rectContainsTile(r, target.x, y))) {
+        list.push({ x: target.x, y });
+        roads.set(key(target.x, y), { x: target.x, y });
+      }
+      if (y === target.y) break;
+    }
+    return list;
+  };
+
+  roadsByBuilding.SPIRE = computeRoad(SPIRE_WORK_SPOT);
+  for (const id of BUILDING_IDS) {
+    roadsByBuilding[id] = computeRoad(sites[id].workSpot);
   }
-  return { sites, roads: Array.from(roads.values()) };
+
+  return { sites, roads: Array.from(roads.values()), roadsByBuilding };
 }
 
 /** Current establishment sites. Entries are updated in place by applyLayoutSeed. */
-export const BUILDING_SITES: Record<ResourceBuildingId, BuildingSite> = generateLayout(1).sites;
+const initialLayout = generateLayout(1);
+export const BUILDING_SITES: Record<ResourceBuildingId, BuildingSite> = initialLayout.sites;
 /** Current decorative road tiles (updated in place). */
-export const ROAD_TILES: GridPoint[] = [];
+export const ROAD_TILES: GridPoint[] = [...initialLayout.roads];
+/** Roads mapped by building/spire. */
+export const ROADS_BY_BUILDING: Record<ResourceBuildingId | 'SPIRE', GridPoint[]> = { ...initialLayout.roadsByBuilding };
 
 let activeSeed = 0;
 let activePositions = '{}';
@@ -219,12 +285,15 @@ export function applyLayoutSeed(seed: number, positions: BuildingPositions = {})
   const spire = positions.SPIRE;
   Object.assign(SPIRE_FOOTPRINT, spire ? { ...spire, w: layout.spire.footprint.w, h: layout.spire.footprint.h } : layout.spire.footprint);
   Object.assign(SPIRE_WORK_SPOT, spire ? workSpotFor(SPIRE_FOOTPRINT) : layout.spire.workSpot);
-  const { sites, roads } = generateLayout(seed, positions);
+  const { sites, roads, roadsByBuilding } = generateLayout(seed, positions);
   for (const id of BUILDING_IDS) {
     Object.assign(BUILDING_SITES[id].footprint, sites[id].footprint);
     Object.assign(BUILDING_SITES[id].workSpot, sites[id].workSpot);
   }
   ROAD_TILES.splice(0, ROAD_TILES.length, ...roads);
+  for (const key of Object.keys(roadsByBuilding) as (ResourceBuildingId | 'SPIRE')[]) {
+    ROADS_BY_BUILDING[key] = roadsByBuilding[key];
+  }
 }
 applyLayoutSeed(1);
 
@@ -233,6 +302,7 @@ export const footprintOf = (id: MovableId): TileRect => (id === 'SPIRE' ? SPIRE_
 
 /**
  * Whether establishment `id` may be moved so its top-left tile is (x, y): fully
+
  * on land, clear of the citadel, spire, portals and one free tile away from
  * every other establishment.
  */

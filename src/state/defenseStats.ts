@@ -44,10 +44,9 @@ export const buildingHpOf = (b?: ResourceBuildingState): number =>
 
 export const isBuildingOperational = (b?: ResourceBuildingState): boolean => !!b && b.level >= 1 && buildingHpOf(b) > 0;
 
-/** The Crystal Spire viewed as a building (level 1 once raised) so the helpers above apply to it too. */
 export const spireAsBuilding = (spireBuilt: boolean, spire?: Partial<SpireTowerState>): ResourceBuildingState => ({
-  level: spireBuilt ? 1 : 0,
-  unlockedOutputs: [],
+  level: spireBuilt ? (spire?.towerLevel ?? 1) : 0,
+  unlockedOutputs: ['aetherShards', 'arcaneEssence'],
   towerLevel: spire?.towerLevel ?? 1,
   hp: spire?.hp,
 });

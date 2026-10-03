@@ -1,6 +1,7 @@
 import config from '../data/economy.json';
-import type { ResourceBuildingId, Resources } from '../types/state';
+import type { ResourceBuildingId, Resources, UpgradesState } from '../types/state';
 import type { UnitClass } from '../types/game';
+import { RESEARCH_CATEGORIES, calcResearchCost } from '../data/researchConfig';
 
 /**
  * Prices, build costs and progression formulas — pure lookups over src/data/economy.json.
@@ -10,7 +11,7 @@ export const ECONOMY_CONFIG = config;
 
 export type TradeableResource = keyof Omit<Resources, 'coins'>;
 
-export const RESOURCE_PRICES: Record<TradeableResource, { sell: number; buy: number; label: string; icon: string }> =
+export const RESOURCE_PRICES: Record<TradeableResource, { sell: number; buy: number; label: string; labelEn?: string; icon: string }> =
   config.resourcePrices;
 
 export const RESOURCE_BUILDING_CONFIG: Record<ResourceBuildingId, {
@@ -50,7 +51,18 @@ export const slimeEvolutionCost = (currentLevel: number): Partial<Resources> =>
 export const slimeEvolutionKillsRequired = (currentLevel: number): number =>
   currentLevel * config.slimeEvolution.killsPerLevel;
 
-export const techUpgradeCost = (currentLevel: number): Partial<Resources> => {
+export const techUpgradeCost = (techKey: keyof UpgradesState | number, levelFallback?: number): Partial<Resources> => {
+  // If techKey is a key of UpgradesState
+  if (typeof techKey === 'string') {
+    for (const cat of RESEARCH_CATEGORIES) {
+      const node = cat.nodes.find((n) => n.key === techKey);
+      if (node) {
+        return calcResearchCost(node, levelFallback ?? 1);
+      }
+    }
+  }
+
+  const currentLevel = typeof techKey === 'number' ? techKey : (levelFallback ?? 1);
   const cost: Partial<Resources> = {};
   for (const [key, { base, growth }] of Object.entries(config.techUpgrade) as [keyof Resources, { base: number; growth: number }][]) {
     cost[key] = Math.floor(base * Math.pow(growth, currentLevel - 1));
@@ -60,3 +72,4 @@ export const techUpgradeCost = (currentLevel: number): Partial<Resources> => {
 
 export const enemiesInWave = (wave: number): number =>
   config.invasion.baseEnemies + wave * config.invasion.enemiesPerWave;
+

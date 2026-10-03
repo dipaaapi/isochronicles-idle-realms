@@ -47,8 +47,8 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
 
   upgradeTech: (techKey: keyof UpgradesState): boolean => {
     const state = get();
-    const currentLevel = state.upgrades[techKey];
-    const cost = techUpgradeCost(currentLevel);
+    const currentLevel = state.upgrades[techKey] ?? 1;
+    const cost = techUpgradeCost(techKey, currentLevel);
     if (!canAfford(state.resources, cost)) return false;
 
     set({
@@ -107,7 +107,7 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
         ...createInitialWorldClock(),
         layoutSeed,
         buildingPositions: {},
-        munitions: { armorPiercing: 0, incendiary: 0 },
+        munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0 },
         platformPhase: 1,
         // Skills belong to a realm: refunded here and earned again from wave 1.
         // The new tier's permanent team boosts come from regressionCount.

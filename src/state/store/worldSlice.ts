@@ -60,7 +60,11 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
   },
 
   setWeather: (weather: WeatherType) => {
-    set({ weather });
+    set({ weather, lastSavedTimestamp: Date.now() });
+  },
+
+  setRandomWeatherEnabled: (enabled: boolean) => {
+    set({ randomWeatherEnabled: enabled, lastSavedTimestamp: Date.now() });
   },
 
   setDayProgress: (progress: number) => {
@@ -77,7 +81,8 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
         year += 1;
       }
       const season = getSeasonFromDay(day);
-      return { day, year, season, weather: rollWeather(season), lastSavedTimestamp: Date.now() };
+      const nextWeather = state.randomWeatherEnabled !== false ? rollWeather(season) : state.weather;
+      return { day, year, season, weather: nextWeather, lastSavedTimestamp: Date.now() };
     });
   },
 

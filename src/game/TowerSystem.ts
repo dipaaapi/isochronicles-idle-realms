@@ -70,6 +70,12 @@ export class TowerSystem {
     private nav: Navigation
   ) {}
 
+  private defenderSystem?: import('./DefenderSystem').DefenderSystem;
+
+  setDefenderSystem(defenders: import('./DefenderSystem').DefenderSystem): void {
+    this.defenderSystem = defenders;
+  }
+
   /** Saplings block and absorb invader attacks. */
   getBlockers(): InvaderBlocker[] {
     return this.saplings;
@@ -102,7 +108,11 @@ export class TowerSystem {
     const invaders = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isRetreating && !(i.emerge && i.emerge > 0));
 
     for (const tower of this.structures.getTowers()) {
-      const stats = towerStats(tower.id, tower.towerLevel, damageMultiplier);
+      // Garrison bonus: Each garrisoned minion enhances establishment attack power (+25% per minion)
+      const garrisonCount = this.defenderSystem?.getGarrisonCount(tower.id) ?? 0;
+      const garrisonDamageMult = 1 + garrisonCount * 0.25;
+
+      const stats = towerStats(tower.id, tower.towerLevel, damageMultiplier * garrisonDamageMult);
       // Eagle Eye (Perch) and Arcane Overcharge (Spire) double the fire rate
       const boosted = (tower.id === 'PERCH' && isModActive('eagleEye')) || (tower.id === 'SPIRE' && isModActive('spireOvercharge'));
       const cd = (this.cooldowns.get(tower.id) ?? 0.8) - dt * (aegis ? 2 : 1) * (boosted ? 2 : 1);
@@ -127,24 +137,92 @@ export class TowerSystem {
   }
 
   /**
-   * One tower hit, with Armory munitions applied: armor-piercing rounds against
-   * Mecha, incendiary rounds set targets burning, and anti-air bonus vs flyers.
-   * Returns the damage dealt.
+   * One tower hit, with Armory munitions applied:
+   * - Armor-Piercing: extra damage vs Mecha & Elite/Bosses, penetrates defenses.
+   * - Incendiary: ignites targets with burning damage over time.
+   * - Cryo-Frost: sub-zero slow + shatter damage multiplier.
+   * - Tesla Chain: electric arcs jumping to adjacent invaders.
+   * - Void Flak: anti-air devastation + area splash blast.
+   * Returns the total damage dealt.
    */
   private hit(inv: ActiveInvader, damage: number, quiet = false, flyingMultiplier = 1): number {
     const { munitions } = useGameStore.getState();
     const cfg = INVADER_CONFIGS[inv.type];
     let dealt = damage;
-    if (cfg.category === 'MECHA') dealt *= 1 + ECONOMY_CONFIG.munitions.armorPiercing.perLevel * (munitions?.armorPiercing ?? 0);
-    if (cfg.flying) dealt *= flyingMultiplier;
-    if (inv.type === 'HUMAN_KNIGHT') dealt *= 0.4; // Shield Wall blocks ranged fire
+
+    // 1. Armor-Piercing Munitions
+    const ap = munitions?.armorPiercing ?? 0;
+    if (ap > 0) {
+      const apMult = (ECONOMY_CONFIG.munitions as any).armorPiercing?.perLevel ?? 0.25;
+      if (cfg.category === 'MECHA' || cfg.role === 'RULER') {
+        dealt *= 1 + apMult * ap;
+      }
+    }
+
+    // 2. Void Flak (Anti-Air Bonus & Area Blast)
+    const voidFlak = munitions?.voidFlak ?? 0;
+    if (cfg.flying) {
+      const airMult = (ECONOMY_CONFIG.munitions as any).voidFlak?.airBonusPerLevel ?? 0.3;
+      dealt *= flyingMultiplier * (1 + airMult * voidFlak);
+    } else if (flyingMultiplier !== 1) {
+      dealt *= flyingMultiplier;
+    }
+
+    if (inv.type === 'HUMAN_KNIGHT') {
+      // AP rounds bypass Knight shield wall reduction
+      dealt *= ap > 0 ? Math.min(0.85, 0.4 + ap * 0.1) : 0.4;
+    }
+
+    // 3. Cryo-Frost Shatter Bonus (bonus damage if target is already slowed)
+    const cryo = munitions?.cryoFrost ?? 0;
+    if (cryo > 0 && (inv.slowTimer ?? 0) > 0) {
+      dealt *= 1 + cryo * 0.08;
+    }
+
     dealt = Math.round(dealt);
     this.invasion.damageInvader(inv, dealt, undefined, quiet);
+
+    // Apply Incendiary Burn
     const incendiary = munitions?.incendiary ?? 0;
     if (incendiary > 0) {
-      const { burnDpsPerLevel, burnSeconds } = ECONOMY_CONFIG.munitions.incendiary;
+      const { burnDpsPerLevel, burnSeconds } = (ECONOMY_CONFIG.munitions as any).incendiary;
       this.invasion.applyBurn(inv, burnDpsPerLevel * incendiary, burnSeconds);
     }
+
+    // Apply Cryo-Frost Slow
+    if (cryo > 0) {
+      const slowPct = (ECONOMY_CONFIG.munitions as any).cryoFrost?.slowPercentPerLevel ?? 0.08;
+      const slowDuration = (ECONOMY_CONFIG.munitions as any).cryoFrost?.slowDuration ?? 4;
+      const slowFactor = Math.max(0.45, 1 - slowPct * cryo);
+      this.invasion.applySlow(inv, slowFactor, slowDuration);
+    }
+
+    // Apply Tesla Chain Lightning
+    const tesla = munitions?.teslaChain ?? 0;
+    if (tesla > 0 && !quiet) {
+      const maxChains = Math.min(4, tesla);
+      const chainDmg = Math.max(1, Math.round(dealt * ((ECONOMY_CONFIG.munitions as any).teslaChain?.chainDamageRatio ?? 0.35)));
+      const otherInvaders = this.invasion.getInvaders().filter(
+        (other) => other !== inv && !other.isDead && !(other.emerge && other.emerge > 0)
+      );
+      let chained = 0;
+      for (const other of otherInvaders) {
+        if (chained >= maxChains) break;
+        const dist = Math.hypot(other.container.x - inv.container.x, other.container.y - inv.container.y);
+        if (dist <= 140) {
+          this.invasion.damageInvader(other, chainDmg, undefined, true);
+          chained++;
+        }
+      }
+    }
+
+    // Apply Void Flak Area Splash
+    if (voidFlak > 0 && !quiet) {
+      const splashDmg = Math.max(1, Math.round(dealt * 0.2 * voidFlak));
+      const splashRadius = (ECONOMY_CONFIG.munitions as any).voidFlak?.flakRadius ?? 2.0;
+      this.splash(inv.container.x, inv.container.y, splashRadius, splashDmg, true);
+    }
+
     return dealt;
   }
 
@@ -209,7 +287,7 @@ export class TowerSystem {
           shadow.destroy();
           this.impactDust(tx, ty, 0xa8a29e, stats.splashTiles);
           soundFx.playExplosion();
-          this.scene.cameras.main.shake(90, 0.003);
+          // [Camera shake removed]
           this.credit(tower, this.splash(tx, ty, stats.splashTiles, stats.damage));
         },
       });

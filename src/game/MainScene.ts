@@ -15,6 +15,7 @@ import {
 import { PathfindingService } from './PathfindingService';
 import { WorkerManager } from './WorkerManager';
 import { InvasionManager } from './InvasionManager';
+import { GroundLootManager } from './GroundLootManager';
 import { FPSController } from './FPSController';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
@@ -35,6 +36,7 @@ import {
   CASTLE_FOOTPRINT,
   CASTLE_GATE,
   ROAD_TILES,
+  ROADS_BY_BUILDING,
   SPIRE_FOOTPRINT,
   TileRect,
   rectCenter,
@@ -43,6 +45,7 @@ import {
   type MovableId,
   rectContainsTile,
 } from '../state/buildingLayout';
+import type { ResourceBuildingId } from '../types/state';
 
 const DAY_NIGHT_CYCLE_DURATION_MS = 240000; // 4 minutes full cycle
 
@@ -75,7 +78,9 @@ export class MainScene extends Phaser.Scene {
   private pathfinder!: PathfindingService;
   private workerManager!: WorkerManager;
   private invasionManager!: InvasionManager;
+  private groundLoot!: GroundLootManager;
   private fpsController!: FPSController;
+  private pavedStructures: Set<string> = new Set();
 
   // Island Root Container for gentle floating bobbing
   private islandContainer!: Phaser.GameObjects.Container;
@@ -222,6 +227,8 @@ export class MainScene extends Phaser.Scene {
       CASTLE_GATE, // Deposits and spawns happen at the citadel gate
       this.entityLayer
     );
+    this.groundLoot = new GroundLootManager(this, this.islandContainer);
+    this.workerManager.setGroundLoot(this.groundLoot);
     this.workerManager.setWorld({ nav: this.nav, portals: this.portals });
 
     // Sync workers with the Zustand roster (initial, forced)
@@ -234,9 +241,13 @@ export class MainScene extends Phaser.Scene {
       this.pathfinder,
       this.entityLayer
     );
+    this.invasionManager.setGroundLoot(this.groundLoot);
     this.invasionManager.setWorkerProvider(() => this.workerManager.getWorkers());
     this.towers = new TowerSystem(this, this.entityLayer, this.groundFxLayer, this.structures, this.invasionManager, this.nav);
     this.defenders = new DefenderSystem(this, this.entityLayer, this.structures, this.invasionManager, this.nav);
+    this.workerManager.setDefenderSystem(this.defenders);
+    this.structures.setDefenderSystem(this.defenders);
+    this.towers.setDefenderSystem(this.defenders);
     this.invasionManager.setWorld({
       nav: this.nav,
       structures: this.structures,
@@ -380,8 +391,32 @@ export class MainScene extends Phaser.Scene {
 
   private generateIslandData(): void {
     const matrix: TileInfo[][] = [];
-    const footprints: TileRect[] = [CASTLE_FOOTPRINT, ...BUILDING_IDS.map((id) => BUILDING_SITES[id].footprint)];
-    const roads = new Set(ROAD_TILES.map((t) => `${t.x},${t.y}`));
+    const store = useGameStore.getState();
+
+    // Track initial built structures so only their pavement is visible
+    this.pavedStructures.clear();
+    const builtFootprints: TileRect[] = [];
+    const builtRoads = new Set<string>();
+
+    if (store.castleBuilt) {
+      this.pavedStructures.add('CASTLE');
+      builtFootprints.push(CASTLE_FOOTPRINT);
+    }
+    if (store.spireBuilt) {
+      this.pavedStructures.add('SPIRE');
+      builtFootprints.push(SPIRE_FOOTPRINT);
+      const spireRoad = ROADS_BY_BUILDING.SPIRE ?? [];
+      for (const r of spireRoad) builtRoads.add(`${r.x},${r.y}`);
+    }
+    for (const id of BUILDING_IDS) {
+      const b = store.resourceBuildings?.[id];
+      if (b && b.level >= 1) {
+        this.pavedStructures.add(id);
+        builtFootprints.push(BUILDING_SITES[id].footprint);
+        const bRoads = ROADS_BY_BUILDING[id] ?? [];
+        for (const r of bRoads) builtRoads.add(`${r.x},${r.y}`);
+      }
+    }
 
     for (let y = 0; y < this.mapHeight; y++) {
       const row: TileInfo[] = [];
@@ -395,10 +430,10 @@ export class MainScene extends Phaser.Scene {
           type = 'OCEAN_BLOCK';
           walkable = false;
         } else if (rectContainsTile(CASTLE_FOOTPRINT, x, y)) {
-          type = 'NEXUS_BASE';
+          type = store.castleBuilt ? 'NEXUS_BASE' : 'AETHER_GRASS';
         } else if (rectContainsTile(SPIRE_FOOTPRINT, x, y)) {
-          type = 'AETHER_GRASS';
-        } else if (footprints.some((f) => rectContainsTile(f, x, y)) || roads.has(`${x},${y}`)) {
+          type = store.spireBuilt ? 'ANCIENT_STONE' : 'AETHER_GRASS';
+        } else if (builtFootprints.some((f) => rectContainsTile(f, x, y)) || builtRoads.has(`${x},${y}`)) {
           type = 'ANCIENT_STONE'; // paved foundations and roads
         }
 
@@ -556,6 +591,177 @@ export class MainScene extends Phaser.Scene {
     atlas.refresh();
   }
 
+  /** Repaints a single tile frame in the atlas canvas dynamically without refreshing the page or scene. */
+  public repaintSingleTile(x: number, y: number): void {
+    const atlas = this.tileAtlas;
+    if (!atlas) return;
+    const tile = this.tiles[y]?.[x];
+    if (!tile) return;
+    const colors = getTileColors(tile.type, (x + y) % 2 === 0, this.currentPlatformPhase);
+    if (!colors) return;
+    const imgData = atlas.context.createImageData(TILE_ART_W, TILE_ART_H);
+    const buffer = { data: imgData.data, width: TILE_ART_W };
+    paintTile(buffer, 0, 0, {
+      type: tile.type,
+      colors,
+      gridX: x,
+      gridY: y,
+      cliffLeft: y === this.mapHeight - 1,
+      cliffRight: x === this.mapWidth - 1,
+      platformPhase: this.currentPlatformPhase,
+    });
+    atlas.context.putImageData(imgData, x * TILE_ART_W, y * TILE_ART_H);
+    atlas.refresh();
+  }
+
+  /**
+   * Automatically and animatedly draws the pavement (roads and foundation)
+   * on the platform when an establishment or spire or castle is successfully built.
+   */
+  public paveEstablishment(id: ResourceBuildingId | 'SPIRE' | 'CASTLE', animated: boolean = true): void {
+    this.pavedStructures.add(id);
+
+    const tilesToPave: Array<{ x: number; y: number }> = [];
+    const footprint = id === 'CASTLE' ? CASTLE_FOOTPRINT : id === 'SPIRE' ? SPIRE_FOOTPRINT : BUILDING_SITES[id]?.footprint;
+    const roads = id === 'CASTLE' ? [] : (ROADS_BY_BUILDING[id] ?? []);
+
+    // 1. Road tiles: paved in sequence from castle gate towards establishment workSpot
+    for (const r of roads) {
+      if (this.tiles[r.y]?.[r.x] && this.tiles[r.y][r.x].type !== 'ANCIENT_STONE' && this.tiles[r.y][r.x].type !== 'NEXUS_BASE') {
+        tilesToPave.push({ x: r.x, y: r.y });
+      }
+    }
+
+    // 2. Footprint tiles: foundation
+    if (footprint) {
+      for (let y = footprint.y; y < footprint.y + footprint.h; y++) {
+        for (let x = footprint.x; x < footprint.x + footprint.w; x++) {
+          if (this.tiles[y]?.[x]) {
+            const targetType = id === 'CASTLE' ? 'NEXUS_BASE' : 'ANCIENT_STONE';
+            if (this.tiles[y][x].type !== targetType) {
+              tilesToPave.push({ x, y });
+            }
+          }
+        }
+      }
+    }
+
+    if (tilesToPave.length === 0) return;
+
+    if (!animated) {
+      for (const { x, y } of tilesToPave) {
+        this.tiles[y][x].type = id === 'CASTLE' ? 'NEXUS_BASE' : 'ANCIENT_STONE';
+        this.repaintSingleTile(x, y);
+      }
+      return;
+    }
+
+    // Animate the road and foundation tiles dynamically drawing onto the platform
+    tilesToPave.forEach(({ x, y }, index) => {
+      const delay = index * 40;
+      this.time.delayedCall(delay, () => {
+        if (!this.scene.isActive()) return;
+        const targetType = id === 'CASTLE' ? 'NEXUS_BASE' : 'ANCIENT_STONE';
+        this.tiles[y][x].type = targetType;
+        this.repaintSingleTile(x, y);
+
+        const screenPos = IsometricHelper.gridToScreen(x, y);
+        this.spawnPavementTileFx(screenPos.x, screenPos.y, id === 'CASTLE' ? 0xc084fc : 0x38bdf8);
+      });
+    });
+
+    soundFx.playHarvest('stone');
+
+    if (footprint) {
+      this.time.delayedCall(tilesToPave.length * 40 + 80, () => {
+        if (!this.scene.isActive()) return;
+        const center = rectCenter(footprint);
+        const pos = IsometricHelper.gridToScreen(center.x, center.y);
+        this.spawnPavementBurst(pos.x, pos.y);
+      });
+    }
+  }
+
+  private spawnPavementTileFx(x: number, y: number, color: number): void {
+    const flash = this.add.graphics();
+    flash.lineStyle(2, color, 0.9);
+    flash.fillStyle(color, 0.45);
+    const hw = 18;
+    const hh = 9;
+    flash.beginPath();
+    flash.moveTo(x, y - hh);
+    flash.lineTo(x + hw, y);
+    flash.lineTo(x, y + hh);
+    flash.lineTo(x - hw, y);
+    flash.closePath();
+    flash.fillPath();
+    flash.strokePath();
+    this.groundFxLayer.add(flash);
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scaleX: 1.15,
+      scaleY: 1.15,
+      duration: 350,
+      ease: 'Quad.easeOut',
+      onComplete: () => flash.destroy(),
+    });
+
+    // Rise sparkles
+    for (let i = 0; i < 3; i++) {
+      const spark = this.add.circle(
+        x + Phaser.Math.Between(-10, 10),
+        y + Phaser.Math.Between(-5, 5),
+        Phaser.Math.FloatBetween(1.2, 2.4),
+        color,
+        0.9
+      );
+      this.groundFxLayer.add(spark);
+      this.tweens.add({
+        targets: spark,
+        y: spark.y - Phaser.Math.Between(12, 24),
+        alpha: 0,
+        scale: 0.2,
+        duration: Phaser.Math.Between(300, 500),
+        ease: 'Cubic.easeOut',
+        onComplete: () => spark.destroy(),
+      });
+    }
+  }
+
+  private spawnPavementBurst(x: number, y: number): void {
+    const burst = this.add.graphics();
+    burst.lineStyle(2.5, 0x67e8f9, 0.85);
+    burst.strokeCircle(x, y, 12);
+    this.groundFxLayer.add(burst);
+
+    this.tweens.add({
+      targets: burst,
+      scaleX: 2.6,
+      scaleY: 2.6,
+      alpha: 0,
+      duration: 500,
+      ease: 'Cubic.easeOut',
+      onComplete: () => burst.destroy(),
+    });
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const spark = this.add.circle(x, y, 2.2, 0xfacc15, 0.95);
+      this.groundFxLayer.add(spark);
+      this.tweens.add({
+        targets: spark,
+        x: x + Math.cos(angle) * 32,
+        y: y + Math.sin(angle) * 20 - 8,
+        alpha: 0,
+        duration: 450,
+        ease: 'Cubic.easeOut',
+        onComplete: () => spark.destroy(),
+      });
+    }
+  }
+
   private setupDayNightLighting(): void {
     // Global ambient tint overlay
     this.dayNightOverlay = this.add.graphics();
@@ -609,7 +815,7 @@ export class MainScene extends Phaser.Scene {
     if (phaseChanged || darknessChanged) {
       if (phaseChanged && this.currentPhase === 'NIGHT' && phase === 'DAWN') {
         useGameStore.getState().incrementDay();
-        this.randomizeWeather();
+        // Weather updated via store
       }
       if (phaseChanged) {
         this.currentPhase = phase;
@@ -934,6 +1140,19 @@ export class MainScene extends Phaser.Scene {
 
     this.updateDynamicLandmarks();
 
+    // Automatically trigger animated pavement drawing when a new structure is built
+    if (store.castleBuilt && !this.pavedStructures.has('CASTLE')) {
+      this.paveEstablishment('CASTLE', true);
+    }
+    if (store.spireBuilt && !this.pavedStructures.has('SPIRE')) {
+      this.paveEstablishment('SPIRE', true);
+    }
+    for (const id of BUILDING_IDS) {
+      if ((store.resourceBuildings?.[id]?.level ?? 0) >= 1 && !this.pavedStructures.has(id)) {
+        this.paveEstablishment(id, true);
+      }
+    }
+
     this._rosterSyncTimer += effectiveDelta;
     if (this._rosterSyncTimer >= MainScene.ROSTER_SYNC_INTERVAL_MS) {
       this._rosterSyncTimer = 0;
@@ -961,6 +1180,7 @@ export class MainScene extends Phaser.Scene {
     this.towers.update(effectiveDelta);
     this.defenders.update(effectiveDelta);
     this.skills.update(effectiveDelta);
+    this.groundLoot?.update(effectiveDelta / 1000);
     this.sortEntities();
 
     this.updateWeatherParticles(effectiveDelta, store.targetFps, weather);
@@ -977,7 +1197,17 @@ export class MainScene extends Phaser.Scene {
       const seconds = this._blessingTickAccum / 1000;
       this._blessingTickAccum = 0;
       store.tickGodBlessings(seconds);
-      store.tickLandmarks(seconds);
+        store.tickLandmarks(seconds);
+        store.tickEstablishmentSkills(seconds);
+        store.tickDefenseTimers(seconds);
+        if (store.defense.massRegenTimer > 0) {
+          for (const key of Object.keys(store.resourceBuildings)) {
+            store.restoreBuildingHp(key as any, 25 * seconds);
+          }
+          if (store.spireBuilt) {
+            store.restoreBuildingHp('SPIRE', 25 * seconds);
+          }
+        }
     }
 
     if (this._fpsDebugText) {
@@ -993,8 +1223,10 @@ export class MainScene extends Phaser.Scene {
           const tier = stats.qualityTier;
           const tierColor = tier === 'HIGH' ? '🟢' : tier === 'MEDIUM' ? '🟡' : '🔴';
           this._fpsDebugText.setText(
-            `FPS: ${stats.measured} / ${stats.target} ${tierColor}\n` +
-            `Frame: ${stats.frameTimeMs.toFixed(1)}ms  Jank: ${stats.jankCount}\n` +
+            `FPS: ${stats.measured} / ${stats.target} ${tierColor}
+` +
+            `Frame: ${stats.frameTimeMs.toFixed(1)}ms  Jank: ${stats.jankCount}
+` +
             `Quality: ${tier}${stats.performanceWarning ? '  ⚠️ PERF WARN' : ''}`
           );
           store.setMeasuredFps(stats.measured);
@@ -1023,6 +1255,7 @@ export class MainScene extends Phaser.Scene {
     this.portals?.destroy();
     this.structures?.destroy();
     this.worldEffects?.destroy();
+    this.groundLoot?.destroy();
   }
 
   private randomizeWeather(): void {
