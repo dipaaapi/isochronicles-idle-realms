@@ -19,6 +19,7 @@ import { GroundLootManager } from './GroundLootManager';
 import { FPSController } from './FPSController';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
+import { spawnPavementBurst, spawnPavementTileFx } from './scene/pavementFx';
 import { prepareCharacterSprites } from './sprites/CharacterSprites';
 import { prepareStructureSprites } from './sprites/StructureSprites';
 import { WorldEffects } from './WorldEffects';
@@ -666,7 +667,7 @@ export class MainScene extends Phaser.Scene {
         this.repaintSingleTile(x, y);
 
         const screenPos = IsometricHelper.gridToScreen(x, y);
-        this.spawnPavementTileFx(screenPos.x, screenPos.y, id === 'CASTLE' ? 0xc084fc : 0x38bdf8);
+        spawnPavementTileFx(this, this.groundFxLayer, screenPos.x, screenPos.y, id === 'CASTLE' ? 0xc084fc : 0x38bdf8);
       });
     });
 
@@ -677,87 +678,7 @@ export class MainScene extends Phaser.Scene {
         if (!this.scene.isActive()) return;
         const center = rectCenter(footprint);
         const pos = IsometricHelper.gridToScreen(center.x, center.y);
-        this.spawnPavementBurst(pos.x, pos.y);
-      });
-    }
-  }
-
-  private spawnPavementTileFx(x: number, y: number, color: number): void {
-    const flash = this.add.graphics();
-    flash.lineStyle(2, color, 0.9);
-    flash.fillStyle(color, 0.45);
-    const hw = 18;
-    const hh = 9;
-    flash.beginPath();
-    flash.moveTo(x, y - hh);
-    flash.lineTo(x + hw, y);
-    flash.lineTo(x, y + hh);
-    flash.lineTo(x - hw, y);
-    flash.closePath();
-    flash.fillPath();
-    flash.strokePath();
-    this.groundFxLayer.add(flash);
-
-    this.tweens.add({
-      targets: flash,
-      alpha: 0,
-      scaleX: 1.15,
-      scaleY: 1.15,
-      duration: 350,
-      ease: 'Quad.easeOut',
-      onComplete: () => flash.destroy(),
-    });
-
-    // Rise sparkles
-    for (let i = 0; i < 3; i++) {
-      const spark = this.add.circle(
-        x + Phaser.Math.Between(-10, 10),
-        y + Phaser.Math.Between(-5, 5),
-        Phaser.Math.FloatBetween(1.2, 2.4),
-        color,
-        0.9
-      );
-      this.groundFxLayer.add(spark);
-      this.tweens.add({
-        targets: spark,
-        y: spark.y - Phaser.Math.Between(12, 24),
-        alpha: 0,
-        scale: 0.2,
-        duration: Phaser.Math.Between(300, 500),
-        ease: 'Cubic.easeOut',
-        onComplete: () => spark.destroy(),
-      });
-    }
-  }
-
-  private spawnPavementBurst(x: number, y: number): void {
-    const burst = this.add.graphics();
-    burst.lineStyle(2.5, 0x67e8f9, 0.85);
-    burst.strokeCircle(x, y, 12);
-    this.groundFxLayer.add(burst);
-
-    this.tweens.add({
-      targets: burst,
-      scaleX: 2.6,
-      scaleY: 2.6,
-      alpha: 0,
-      duration: 500,
-      ease: 'Cubic.easeOut',
-      onComplete: () => burst.destroy(),
-    });
-
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const spark = this.add.circle(x, y, 2.2, 0xfacc15, 0.95);
-      this.groundFxLayer.add(spark);
-      this.tweens.add({
-        targets: spark,
-        x: x + Math.cos(angle) * 32,
-        y: y + Math.sin(angle) * 20 - 8,
-        alpha: 0,
-        duration: 450,
-        ease: 'Cubic.easeOut',
-        onComplete: () => spark.destroy(),
+        spawnPavementBurst(this, this.groundFxLayer, pos.x, pos.y);
       });
     }
   }

@@ -19,6 +19,7 @@ import { renderCargoGraphics, renderWorkerGraphics } from './workers/legacyWorke
 import { computeWorkerFrame } from './workers/modifiers';
 import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
+import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
 import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
@@ -309,158 +310,41 @@ export class WorkerManager implements WorkerContext {
 
     this.workers.push(worker);
 
-    // Support Healing Slime Heavenly Descent & Genesis Summon
+    const nexusDepth = IsometricHelper.getDepth(this.nexusGridPos.x, this.nexusGridPos.y, 5);
     if (item.unitClass === 'AQUA_SLIME') {
-      const targetY = startIso.y;
-      const ritualGfx = this.scene.add.graphics();
-      ritualGfx.setPosition(startIso.x, targetY + 8);
-      ritualGfx.setDepth(IsometricHelper.getDepth(this.nexusGridPos.x, this.nexusGridPos.y, 5));
-      ritualGfx.lineStyle(3, 0x67e8f9, 0.9);
-      ritualGfx.strokeEllipse(0, 0, 82, 28);
-      ritualGfx.lineStyle(2, 0x22d3ee, 0.65);
-      ritualGfx.strokeEllipse(0, 0, 120, 42);
-      ritualGfx.lineStyle(1, 0x38bdf8, 0.5);
-      ritualGfx.strokeEllipse(0, 0, 160, 56);
-      if (this.parentContainer) {
-        this.parentContainer.add(ritualGfx);
-      }
+      playSummonRitual(this.scene, this.parentContainer, container, startIso, nexusDepth, SUMMON_RITUALS.AQUA_SLIME, () => {
+        soundFx.playFanfare();
+        this.spawnHarvestBurst(startIso.x, startIso.y, 0x38bdf8, 14);
+        this.spawnHarvestBurst(startIso.x, startIso.y, 0x22c55e, 10);
+        this.spawnFloatingPopup(startIso.x, startIso.y - 45, '✨ Heavenly Descent! ✨', '#38bdf8');
 
-      container.y = targetY - 450;
-      container.alpha = 0.2;
-      container.setScale(0.4);
-      ritualGfx.alpha = 0;
-      ritualGfx.scaleX = 0.35;
-      ritualGfx.scaleY = 0.35;
-
-      this.scene.tweens.add({
-        targets: container,
-        y: targetY,
-        alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 1300,
-        ease: 'Bounce.easeOut',
-        onComplete: () => {
-          soundFx.playFanfare();
-          this.spawnHarvestBurst(startIso.x, targetY, 0x38bdf8, 14);
-          this.spawnHarvestBurst(startIso.x, targetY, 0x22c55e, 10);
-          this.spawnFloatingPopup(startIso.x, targetY - 45, '✨ Heavenly Descent! ✨', '#38bdf8');
-
-          // If no Treant / Ent exists on the platform, Support Slime performs Genesis Summon for Sprout Ent at no cost!
-          const store = useGameStore.getState();
-          const hasTreant = store.roster.some((u) => u.unitClass === 'TREANT');
-          if (!hasTreant) {
-            this.scene.time.delayedCall(600, () => {
-              this.spawnHarvestBurst(startIso.x, targetY - 12, 0x22d3ee, 20);
-              this.spawnFloatingPopup(startIso.x, targetY - 55, '🌟 Slime Summoned: Sprout Ent! (Free) 🌟', '#22c55e');
-              soundFx.playGolemCheer();
-              store.summonUnit('TREANT', 'BUILD', true);
-            });
-          }
-        },
-      });
-
-      this.scene.tweens.add({
-        targets: ritualGfx,
-        alpha: 0.9,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 700,
-        yoyo: true,
-        repeat: 1,
-        ease: 'Sine.easeInOut',
-        onComplete: () => ritualGfx.destroy(),
+        // If no Treant / Ent exists on the platform, Support Slime performs Genesis Summon for Sprout Ent at no cost!
+        const store = useGameStore.getState();
+        const hasTreant = store.roster.some((u) => u.unitClass === 'TREANT');
+        if (!hasTreant) {
+          this.scene.time.delayedCall(600, () => {
+            this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22d3ee, 20);
+            this.spawnFloatingPopup(startIso.x, startIso.y - 55, '🌟 Slime Summoned: Sprout Ent! (Free) 🌟', '#22c55e');
+            soundFx.playGolemCheer();
+            store.summonUnit('TREANT', 'BUILD', true);
+          });
+        }
       });
     } else if (item.unitClass === 'TREANT') {
-      const ritualGfx = this.scene.add.graphics();
-      ritualGfx.setPosition(startIso.x, startIso.y + 8);
-      ritualGfx.setDepth(IsometricHelper.getDepth(this.nexusGridPos.x, this.nexusGridPos.y, 5));
-      ritualGfx.lineStyle(3, 0x86efac, 0.9);
-      ritualGfx.strokeEllipse(0, 0, 96, 34);
-      ritualGfx.lineStyle(2, 0x22c55e, 0.65);
-      ritualGfx.strokeEllipse(0, 0, 144, 50);
-      if (this.parentContainer) this.parentContainer.add(ritualGfx);
-
-      container.y = startIso.y - 360;
-      container.alpha = 0;
-      container.setScale(0.35);
-      ritualGfx.alpha = 0;
-      ritualGfx.scaleX = 0.25;
-      ritualGfx.scaleY = 0.25;
-
-      this.scene.tweens.add({
-        targets: container,
-        y: startIso.y,
-        alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 1600,
-        ease: 'Cubic.easeOut',
-        onComplete: () => {
-          soundFx.playFanfare();
-          this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x86efac, 34);
-          this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 24);
-          this.spawnFloatingPopup(startIso.x, startIso.y - 58, '🌳 ANCIENT ENT AWAKENS! 🌳', '#86efac');
-        },
-      });
-      this.scene.tweens.add({
-        targets: ritualGfx,
-        alpha: 0.95,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 900,
-        yoyo: true,
-        repeat: 1,
-        ease: 'Sine.easeInOut',
-        onComplete: () => ritualGfx.destroy(),
+      playSummonRitual(this.scene, this.parentContainer, container, startIso, nexusDepth, SUMMON_RITUALS.TREANT, () => {
+        soundFx.playFanfare();
+        this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x86efac, 34);
+        this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 24);
+        this.spawnFloatingPopup(startIso.x, startIso.y - 58, '🌳 ANCIENT ENT AWAKENS! 🌳', '#86efac');
       });
     } else if (isGeneral) {
-      // Mother Ancient Ent General Summoning Emergence Animation
-      const ritualGfx = this.scene.add.graphics();
-      ritualGfx.setPosition(startIso.x, startIso.y + 6);
-      ritualGfx.setDepth(IsometricHelper.getDepth(startX, startY, 5));
-      ritualGfx.lineStyle(3, 0x22c55e, 0.95);
-      ritualGfx.strokeEllipse(0, 0, 72, 26);
-      ritualGfx.lineStyle(2, 0x86efac, 0.7);
-      ritualGfx.strokeEllipse(0, 0, 108, 38);
-      ritualGfx.lineStyle(1, 0xfbbf24, 0.6);
-      ritualGfx.strokeEllipse(0, 0, 140, 48);
-      if (this.parentContainer) this.parentContainer.add(ritualGfx);
-
-      container.alpha = 0;
-      container.setScale(0.15);
-      container.y = startIso.y + 8;
-      ritualGfx.alpha = 0;
-      ritualGfx.scaleX = 0.25;
-      ritualGfx.scaleY = 0.25;
-
-      this.scene.tweens.add({
-        targets: container,
-        y: startIso.y,
-        alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 1300,
-        ease: 'Back.easeOut',
-        onComplete: () => {
-          this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 18);
-          this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0xfbbf24, 14);
-          this.spawnFloatingPopup(startIso.x, startIso.y - 48, `🌳 Mother Ent summoned ${config.name}! 🌟`, '#86efac');
-          soundFx.playGolemCheer();
-          soundFx.playFanfare();
-        },
-      });
-
-      this.scene.tweens.add({
-        targets: ritualGfx,
-        alpha: 0.95,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 850,
-        yoyo: true,
-        repeat: 1,
-        ease: 'Sine.easeInOut',
-        onComplete: () => ritualGfx.destroy(),
+      const spawnDepth = IsometricHelper.getDepth(startX, startY, 5);
+      playSummonRitual(this.scene, this.parentContainer, container, startIso, spawnDepth, SUMMON_RITUALS.GENERAL, () => {
+        this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 18);
+        this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0xfbbf24, 14);
+        this.spawnFloatingPopup(startIso.x, startIso.y - 48, `🌳 Mother Ent summoned ${config.name}! 🌟`, '#86efac');
+        soundFx.playGolemCheer();
+        soundFx.playFanfare();
       });
     } else if (isTenant) {
       this.spawnHarvestBurst(startIso.x, startIso.y - 10, 0x10b981, 10);
