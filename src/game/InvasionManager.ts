@@ -12,7 +12,7 @@ import { soundFx } from './audio/soundFx';
 import type { GroundLootManager } from './GroundLootManager';
 import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import type { WorkerInstance } from './WorkerManager';
-import { DIFFICULTIES, normalizeDifficulty } from '../state/difficulty';
+import { normalizeDifficulty } from '../state/difficulty';
 import { DEFENSE_CONFIG } from '../state/defenseStats';
 import { ECONOMY_CONFIG } from '../state/economy';
 import { auras, isModActive } from './skills/combatMods';
@@ -28,6 +28,11 @@ import type { InvaderContext } from './invaders/context';
 import { approachStructure, chase, EMERGE_SECONDS, ENTER_SECONDS, followPath, stepToward, updatePortalTransit } from './invaders/movement';
 import { chooseTarget, isTargetValid } from './invaders/targeting';
 import { pickWaveInvader } from './invaders/wavePool';
+import type { Resources } from '../types/state';
+import { pickScout, rollScoutDrops } from '../state/scoutLoot';
+import { buildWavePlan, type PlannedSpawn } from './invaders/wavePlan';
+import { WAVE_BALANCE, invaderStats, portalHpMultiplier, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
+import { TACTIC_EFFECTS, tacticOf, type WaveTactic } from '../state/waveTactics';
 
 export type { ActiveInvader, InvaderBlocker } from './invaders/types';
 export class InvasionManager {
@@ -40,7 +45,7 @@ export class InvasionManager {
   /** Invader name for the activity log in both languages ("BOSS " prefix kept). */
   private logName(invader: ActiveInvader): { en: string; tl: string } {
     const cfg = INVADER_CONFIGS[invader.type];
-    if (invader.isScout) return { en: invader.name, tl: 'Palaboy na Espiya' };
+    if (invader.isScout) return { en: invader.name, tl: invader.scoutKind === 'MECHA' ? 'Mekanikong Espiya' : 'Palaboy na Espiya' };
     if (!cfg) return { en: invader.name, tl: invader.name };
     const boss = invader.name.startsWith('BOSS ') ? 'BOSS ' : '';
     return { en: invader.name, tl: `${boss}${cfg.name}` };
@@ -52,6 +57,10 @@ export class InvasionManager {
   private spawnTimer: number = 0;
   private totalEnemiesToSpawn: number = 0;
   private enemiesSpawnedCount: number = 0;
+  /** This wave's formation, spawn order and the invaders left in the current burst. */
+  private tactic: WaveTactic = tacticOf(undefined);
+  private spawnPlan: PlannedSpawn[] = [];
+  private burstLeft = 0;
   private workerProvider?: () => WorkerInstance[];
   private blockerProvider: () => InvaderBlocker[] = () => [];
   private nav?: Navigation;
@@ -163,9 +172,13 @@ export class InvasionManager {
     if (this.totalEnemiesToSpawn === 0 && store.invasion.totalEnemiesInWave > 0) {
       this.totalEnemiesToSpawn = store.invasion.totalEnemiesInWave;
       this.enemiesSpawnedCount = 0;
-      this.spawnTimer = 900;
-      const enemyMultiplier = DIFFICULTIES[normalizeDifficulty(store.difficulty)].enemyMultiplier;
-      this.portals?.open(store.invasion.waveNumber, enemyMultiplier);
+      const difficulty = normalizeDifficulty(store.difficulty);
+      const wave = store.invasion.waveNumber;
+      this.tactic = tacticOf(store.invasion.tactic);
+      this.spawnPlan = buildWavePlan(wave, this.totalEnemiesToSpawn, this.tactic, difficulty);
+      this.burstLeft = Math.max(1, this.tactic.burst);
+      this.spawnTimer = WAVE_BALANCE.spawn.firstDelayMs;
+      this.portals?.open(wave, portalHpMultiplier(wave, difficulty, this.tactic.portalHp), this.tactic.portals, this.tactic.rotateEvery);
     }
 
     // Every portal smashed: the rest of the wave never arrives
@@ -178,7 +191,15 @@ export class InvasionManager {
     if (this.enemiesSpawnedCount < this.totalEnemiesToSpawn) {
       this.spawnTimer -= delta;
       if (this.spawnTimer <= 0 && useGameStore.getState().invasion.isActive) {
-        this.spawnTimer = 1800 + Math.random() * 800; // Spawn every ~2 seconds
+        // Bursts step out back-to-back, then the formation pauses
+        this.burstLeft--;
+        if (this.burstLeft > 0) {
+          this.spawnTimer = 260;
+        } else {
+          this.burstLeft = Math.max(1, this.tactic.burst);
+          const burstGap = Math.max(1, this.tactic.burst) * 0.75 + 0.25;
+          this.spawnTimer = spawnIntervalMs(store.invasion.waveNumber, normalizeDifficulty(store.difficulty), (this.tactic.interval ?? 1) * burstGap);
+        }
         if (this.spawnSingleInvader(store.invasion.waveNumber)) this.enemiesSpawnedCount++;
       }
     }
@@ -191,7 +212,7 @@ export class InvasionManager {
     ) {
       this.totalEnemiesToSpawn = 0;
       this.enemiesSpawnedCount = 0;
-      const victoryBounty = 80 + store.invasion.waveNumber * 45;
+      const victoryBounty = waveVictoryBounty(store.invasion.waveNumber);
       store.resolveInvasionVictory(victoryBounty);
 
       const nexusScreen = this.castleCenter();
@@ -250,11 +271,13 @@ export class InvasionManager {
       ? fromPortal.site.exit
       : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
 
-    const type: InvaderType = 'HUMAN_ARCHER'; // re-use archer sprite for now, but weak stats
+    // A random human or mecha scout (scoutLoot.json)
+    const scout = pickScout();
+    const type: InvaderType = scout.type;
 
     // Weak raiders: they march on the citadel, but towers and establishments cut them down
-    const finalMaxHp = 25;
-    const finalDamage = 4;
+    const finalMaxHp = scout.hp;
+    const finalDamage = scout.damage;
     const finalBounty = 0; // custom drop is handled in strike function
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
@@ -275,7 +298,8 @@ export class InvasionManager {
     const invader: ActiveInvader = {
       id: `scout_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       type,
-      name: 'Wandering Scout',
+      name: scout.kind === 'MECHA' ? 'Mecha Scout Drone' : 'Wandering Scout',
+      scoutKind: scout.kind,
       isScout: true,
       container,
       shadow,
@@ -288,7 +312,7 @@ export class InvasionManager {
       pathIndex: 0,
       hp: finalMaxHp,
       maxHp: finalMaxHp,
-      speed: 65, // Movement uses pixels per second, like regular invaders.
+      speed: scout.speed, // Movement uses pixels per second, like regular invaders.
       damage: finalDamage,
       bountyCoins: finalBounty,
       attackTimer: 0,
@@ -326,34 +350,34 @@ export class InvasionManager {
       ? portal.site.exit
       : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
 
-    // Boss waves every 5 waves, and massive Phase Climax Bosses at 25, 50, 75, 100
-    const isPhaseClimaxBoss = waveNumber === 25 || waveNumber === 50 || waveNumber === 75 || waveNumber === 100;
-    const isBossWave = (waveNumber % 5 === 0) || isPhaseClimaxBoss;
-    const isLastEnemyOfWave = this.enemiesSpawnedCount === this.totalEnemiesToSpawn - 1;
-
-    // The alliance's rulers lead the boss waves; everyone else is drawn from the unlocked pool
-    const type: InvaderType = (isPhaseClimaxBoss || isBossWave) && isLastEnemyOfWave
-      ? (Math.floor(waveNumber / 5) % 2 === 1 ? 'HIGH_PRIEST' : 'MECHA_VALKYRIE')
-      : pickWaveInvader(waveNumber);
+    // Next invader of the formation (boss last, escort mid-wave); tests spawn without a plan
+    const planned: PlannedSpawn = this.spawnPlan[this.enemiesSpawnedCount]
+      ?? { type: pickWaveInvader(waveNumber, this.tactic.bias), rank: 'normal' as InvaderRank };
+    const type = planned.type;
+    const rank = planned.rank;
 
     // Auto-discover invader in Demon Lord Bestiary!
     useGameStore.getState().discoverEntry('invader', type);
 
     const cfg = INVADER_CONFIGS[type];
-    // Smooth difficulty multiplier from 1.0 at Wave 1 up to ~6.0 at Wave 100
-    const enemyMultiplier = DIFFICULTIES[normalizeDifficulty(useGameStore.getState().difficulty)].enemyMultiplier;
-    const difficultyMultiplier = (1 + (waveNumber - 1) * 0.05) * enemyMultiplier;
-    const isBoss = (isBossWave || isPhaseClimaxBoss) && isLastEnemyOfWave;
-    const bossHpMultiplier = isPhaseClimaxBoss ? 4.5 : isBoss ? 2.5 : 1;
-    const bossDmgMultiplier = isPhaseClimaxBoss ? 2.0 : isBoss ? 1.4 : 1;
-    const bossBountyMultiplier = isPhaseClimaxBoss ? 8.0 : isBoss ? 3.5 : 1;
-
-    const finalMaxHp = Math.round((cfg.hp + (waveNumber - 1) * 18) * difficultyMultiplier * bossHpMultiplier);
-    const finalDamage = Math.round(cfg.damage * (1 + (waveNumber - 1) * 0.035) * bossDmgMultiplier * enemyMultiplier);
-    const finalBounty = Math.round(cfg.bountyCoins * (1 + (waveNumber - 1) * 0.04) * bossBountyMultiplier);
+    const store = useGameStore.getState();
+    const stats = invaderStats(
+      cfg,
+      { wave: waveNumber, difficulty: normalizeDifficulty(store.difficulty), day: store.day, year: store.year, season: store.season },
+      rank,
+      { hp: this.tactic.hp, damage: this.tactic.damage },
+    );
+    const isBoss = rank === 'boss' || rank === 'climax';
+    const isElite = rank === 'elite';
+    const finalMaxHp = stats.hp;
+    const finalDamage = stats.damage;
+    const finalBounty = stats.bounty;
     // A random few ignore everything else and charge the citadel
     const rush = DEFENSE_CONFIG?.rushers;
-    const isRusher = !!rush && !isBoss && waveNumber >= rush.fromWave && Math.random() < rush.chance;
+    const rushChance = (rush?.chance ?? 0) + (this.tactic.rusherBonus ?? 0);
+    const isRusher = !!rush && !isBoss && !planned.escort && waveNumber >= rush.fromWave && Math.random() < rushChance;
+    let speed = cfg.speed * (this.tactic.speed ?? 1) * (isRusher ? rush.speedMultiplier : 1);
+    if (this.tactic.effect === 'OVERCLOCK' && cfg.category === 'MECHA') speed *= TACTIC_EFFECTS.OVERCLOCK.mechaSpeed;
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
     const container = this.scene.add.container(startIso.x, startIso.y);
@@ -367,10 +391,11 @@ export class InvasionManager {
     this.renderHpBar(hpBarGfx, finalMaxHp, finalMaxHp);
     container.setDepth(IsometricHelper.getDepth(spawnGrid.x, spawnGrid.y, 7));
 
-    if (isBoss) {
-      container.setScale(1.5);
-      shadow.setScale(1.5);
+    if (stats.scale !== 1) {
+      container.setScale(stats.scale);
+      shadow.setScale(stats.scale);
     }
+    if (isElite && sprite) sprite.setTint(0xfde68a);
 
     if (this.parentContainer) {
       this.parentContainer.add(container);
@@ -379,7 +404,7 @@ export class InvasionManager {
     const invader: ActiveInvader = {
       id: `invader_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       type,
-      name: isBoss ? `BOSS ${cfg.nameEn ?? cfg.name}` : (cfg.nameEn ?? cfg.name),
+      name: isBoss ? `BOSS ${cfg.nameEn ?? cfg.name}` : isElite ? `Elite ${cfg.nameEn ?? cfg.name}` : (cfg.nameEn ?? cfg.name),
       container,
       shadow,
       bodyGfx,
@@ -391,14 +416,15 @@ export class InvasionManager {
       pathIndex: 0,
       hp: finalMaxHp,
       maxHp: finalMaxHp,
-      speed: isRusher ? cfg.speed * rush.speedMultiplier : cfg.speed,
+      speed,
       damage: finalDamage,
       bountyCoins: finalBounty,
       attackTimer: 0,
       isDead: false,
       isRetreating: false,
       spawnGrid: { x: spawnGrid.x, y: spawnGrid.y },
-      baseScale: isBoss ? 1.5 : 1,
+      baseScale: stats.scale,
+      isElite,
       portal: portal ?? undefined,
       retargetTimer: 0,
       isRusher,
@@ -416,7 +442,10 @@ export class InvasionManager {
     if (portal) this.beginEmerge(invader, portal);
     this.invaders.push(invader);
     soundFx.playCastleHit();
+    if (this.tactic.effect === 'PHASE_VEIL') invader.invulnTimer = Math.max(invader.invulnTimer ?? 0, TACTIC_EFFECTS.PHASE_VEIL.veilSeconds);
     if (isBoss) logMessage('bossArrives', { name: this.logName(invader) });
+    else if (planned.escort) logMessage('escortArrives', { name: this.logName(invader) });
+    else if (isElite) logMessage('eliteArrives', { name: this.logName(invader) });
     if (isRusher) logMessage('rusherCharges', { name: this.logName(invader) });
     return true;
   }
@@ -649,6 +678,10 @@ export class InvasionManager {
   /** Armor shred (+30%) and the High Priest's Divine Aura (-20% for nearby humans). */
   private modifiedDamage(invader: ActiveInvader, damage: number): number {
     let mult = (invader.vulnTimer ?? 0) > 0 ? 1.3 : 1;
+    // Shield Wall: the melee front line shrugs off part of every hit
+    if (this.tactic.effect === 'SHIELD_WALL' && (INVADER_CONFIGS[invader.type].attackRange ?? 50) <= TACTIC_EFFECTS.SHIELD_WALL.meleeRange) {
+      mult *= TACTIC_EFFECTS.SHIELD_WALL.meleeDamageTaken;
+    }
     if (INVADER_CONFIGS[invader.type].category === 'HUMAN') {
       const blessed = this.invaders.some((p) => p.type === 'HIGH_PRIEST' && !p.isDead &&
         Math.hypot(p.container.x - invader.container.x, p.container.y - invader.container.y) <= 130);
@@ -688,7 +721,9 @@ export class InvasionManager {
 
   /** Cyber Command: mecha attack 25% faster while a Mecha Valkyrie lives. */
   private attackRate(invader: ActiveInvader): number {
-    return auras.cyberCommand && INVADER_CONFIGS[invader.type].category === 'MECHA' ? 0.8 : 1;
+    const mecha = INVADER_CONFIGS[invader.type].category === 'MECHA';
+    const overclock = this.tactic.effect === 'OVERCLOCK' && mecha && !invader.isScout ? TACTIC_EFFECTS.OVERCLOCK.mechaAttackRate : 1;
+    return (auras.cyberCommand && mecha ? 0.8 : 1) * overclock;
   }
 
   /** Ice storms slow invaders (the strongest active slow wins). */
@@ -720,6 +755,7 @@ export class InvasionManager {
   }
 
   private tickStatus(invader: ActiveInvader, deltaSec: number): void {
+    if (!invader.isScout) this.tickTacticEffect(invader, deltaSec);
     if ((invader.slowTimer ?? 0) > 0) {
       invader.slowTimer = (invader.slowTimer ?? 0) - deltaSec;
       if ((invader.slowTimer ?? 0) <= 0) {
@@ -739,6 +775,45 @@ export class InvasionManager {
     }
   }
 
+  /** Wave-wide tactic effects: Sanctuary mends humans, War Cry enrages the wounded. */
+  private tickTacticEffect(invader: ActiveInvader, deltaSec: number): void {
+    const effect = this.tactic.effect;
+    if (!effect || invader.isDead || !useGameStore.getState().invasion.isActive) return;
+    if (effect === 'SANCTUARY' && INVADER_CONFIGS[invader.type].category === 'HUMAN' && invader.hp < invader.maxHp) {
+      invader.hp = Math.min(invader.maxHp, invader.hp + invader.maxHp * TACTIC_EFFECTS.SANCTUARY.humanRegenPctPerSec * deltaSec);
+      this.renderHpBar(invader.hpBarGfx, invader.hp, invader.maxHp);
+    } else if (effect === 'WAR_CRY' && !invader.enraged && invader.hp < invader.maxHp * TACTIC_EFFECTS.WAR_CRY.lowHpThreshold) {
+      invader.enraged = true;
+      invader.damage = Math.round(invader.damage * TACTIC_EFFECTS.WAR_CRY.lowHpDamage);
+      if (invader.sprite?.active) invader.sprite.setTint(0xfca5a5);
+    }
+  }
+
+  /** Scouts scatter coins and supplies on the ground for minions to pick up, and sometimes an item. */
+  private dropScoutLoot(invader: ActiveInvader): void {
+    const store = useGameStore.getState();
+    const drops = rollScoutDrops(invader.scoutKind ?? 'HUMAN', store.invasion.waveNumber);
+    const { x, y } = invader.container;
+    const coins = drops.coinPiles.reduce((sum, n) => sum + n, 0);
+    if (this.groundLoot) {
+      for (const pile of drops.coinPiles) this.groundLoot.dropLoot(x, y, 'coins', pile);
+      for (const [key, amount] of drops.resources) this.groundLoot.dropLoot(x, y, key, amount);
+    } else {
+      // No ground loot layer (tests): credit the drops directly
+      const bundle: Partial<Resources> = { coins };
+      for (const [key, amount] of drops.resources) bundle[key] = (bundle[key] ?? 0) + amount;
+      store.addResources(bundle);
+    }
+    logMessage('scoutLoot', { name: this.logName(invader), coins }, { mergeKey: 'scoutLoot' });
+    if (drops.itemId) {
+      const item = store.grantEquipmentDrop(drops.itemId);
+      if (item) {
+        soundFx.playCoin();
+        logMessage('scoutItem', { name: this.logName(invader), item: { en: `${item.icon} ${item.name}`, tl: `${item.icon} ${item.nameTl ?? item.name}` } });
+      }
+    }
+  }
+
   private emberPuff(invader: ActiveInvader): void {
     if (!invader.container.active) return;
     const ember = this.scene.add.circle(invader.container.x + Phaser.Math.Between(-6, 6), invader.container.y - 14, 3, 0xf97316, 0.9);
@@ -754,9 +829,7 @@ export class InvasionManager {
       invader.isDead = true;
       invader.hp = 0;
       soundFx.playExplosion();
-      useGameStore.getState().grantRandomLoot();
-      this.spawnFloatingPopup(invader.container.x, invader.container.y - 30,
-        'Castle supplies: +Wood, +Stone, +Shards, +Coins', '#fbbf24');
+      this.dropScoutLoot(invader);
       invader.container.destroy();
       this.invaders = this.invaders.filter((i) => i.id !== invader.id);
       return;

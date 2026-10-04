@@ -1,5 +1,6 @@
 import { GraphicsFx } from './graphicsFx';
 import Phaser from 'phaser';
+import { normalizeDifficulty, type Difficulty } from '../state/difficulty';
 import { TileInfo, TileType } from '../types/game';
 import { TimeOfDayPhase, WeatherType } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
@@ -107,6 +108,8 @@ export class MainScene extends Phaser.Scene {
   private tileCoordinateLabels: Phaser.GameObjects.Text[] = [];
   private static readonly TILE_ATLAS_KEY = 'iso-pixel-tiles';
   private currentPlatformPhase: 1 | 2 | 3 | 4 = 1;
+  /** Platform theme follows the difficulty (platformThemes.json). */
+  private currentDifficulty: Difficulty = 'NORMAL';
 
   // Continuous Day / Night System
   private cycleTimer: number = 120000; // Start at Day (0.5 progress)
@@ -457,6 +460,7 @@ export class MainScene extends Phaser.Scene {
 
   private renderIsland(showTileCoordinates: boolean): void {
     this.currentPlatformPhase = useGameStore.getState().platformPhase || 1;
+    this.currentDifficulty = normalizeDifficulty(useGameStore.getState().difficulty);
 
     // Sun, moon and stars sit behind the tiles so the island hides them at the horizon
     this.skyFxLayer = this.add.container(0, 0);
@@ -587,6 +591,7 @@ export class MainScene extends Phaser.Scene {
           cliffLeft: y === this.mapHeight - 1,
           cliffRight: x === this.mapWidth - 1,
           platformPhase: this.currentPlatformPhase,
+          difficulty: this.currentDifficulty,
         });
       }
     }
@@ -613,6 +618,7 @@ export class MainScene extends Phaser.Scene {
       cliffLeft: y === this.mapHeight - 1,
       cliffRight: x === this.mapWidth - 1,
       platformPhase: this.currentPlatformPhase,
+      difficulty: this.currentDifficulty,
     });
     atlas.context.putImageData(imgData, x * TILE_ART_W, y * TILE_ART_H);
     atlas.refresh();
@@ -1057,8 +1063,10 @@ export class MainScene extends Phaser.Scene {
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
     const storePhase = store.platformPhase || 1;
-    if (storePhase !== this.currentPlatformPhase) {
+    const storeDifficulty = normalizeDifficulty(store.difficulty);
+    if (storePhase !== this.currentPlatformPhase || storeDifficulty !== this.currentDifficulty) {
       this.currentPlatformPhase = storePhase;
+      this.currentDifficulty = storeDifficulty;
       this.renderPlatformTiles();
     }
 

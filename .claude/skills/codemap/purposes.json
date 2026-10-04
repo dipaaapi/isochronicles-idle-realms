@@ -1,11 +1,9 @@
 {
   "scripts/test-construction.cjs": "Logic test: runs the Ent construction / General summoning routine in a Node VM (Phaser, audio, storage stubbed); asserts General ↔ establishment pairing",
   "scripts/test-invasions.cjs": "Logic test: invasion waves, targeting and breach handling in a Node VM with stubs",
-
   "src/App.tsx": "Screen coordinator (TITLE → STORY → GAME) and owner of every modal's open/close state",
   "src/main.tsx": "React entry point; mounts App",
   "src/index.css": "Tailwind/DaisyUI imports and global CSS",
-
   "src/data/buildingLayout.json": "20×20 platform: castle footprint/gate, spire, portals, establishment site sizes and layout rules",
   "src/data/craftableItems.json": "Armory equipment (tools, weapons, armour, relics): slot, stats, cost, EN/TL text",
   "src/data/defenseConfig.json": "Towers, building HP/repair, castle fortifications, Provoke Beacon, portal stats and their EN/TL text",
@@ -24,7 +22,6 @@
   "src/data/treantEvolution.json": "Ancient Ent's 5 evolution levels: repair, replenish, labels",
   "src/data/units.ts": "Minion/General classes: stats, required establishment, preferred task, palette, skills, EN/TL text",
   "src/data/wavePool.json": "Which fighters join waves, from which wave, with what weight",
-
   "src/game/DefenderSystem.ts": "Spawns and runs establishment tenants (5 per General) and temporary summons (skeletons); garrison + counter-attack",
   "src/game/FPSController.ts": "Rolling-average FPS tracker and quality-tier detection",
   "src/game/GroundLootManager.ts": "Loot drops from slain invaders: arc, bounce, pickup by minions",
@@ -53,6 +50,7 @@
   "src/game/skills/SkillSystem.ts": "Casting establishment and General skills: effects, knockback, cooldowns",
   "src/game/skills/combatMods.ts": "Timed realm-wide combat modifiers switched on by skills",
   "src/game/skills/skillCastFx.ts": "Visual effects for skill casts and auras",
+  "src/game/skills/glowFx.ts": "Additive glow halos, spark bursts, rune circles and cast squash for skill FX (gated by the Glow setting)",
   "src/game/sprites/CharacterSprites.ts": "Phaser glue for baked 8-direction character sheets (textures, anims, facing)",
   "src/game/sprites/StructureSprites.ts": "Phaser glue for baked structure strips",
   "src/game/sprites/VoxelSprite.ts": "Voxel model types, voxelize, ray-cast renderer (renderSheet / renderStrip), recolorModel",
@@ -70,7 +68,6 @@
   "src/game/workers/supportSlime.ts": "Support Slime: healing, resurrection, auto-summon, morale pulses",
   "src/game/workers/treant.ts": "Ancient Ent: builds castle/spire, summons Generals in order, repairs, enriches soil",
   "src/game/workers/types.ts": "WorkerInstance and worker-related types/constants",
-
   "src/i18n/activityMessages.json": "Activity log wording (EN/TL), phrases table, resource names",
   "src/i18n/atlasGuide.json": "Atlas Guide steps (EN/TL, **bold** supported)",
   "src/i18n/faqTranslations.ts": "FAQ questions/answers in EN and TL",
@@ -78,7 +75,6 @@
   "src/i18n/translations.ts": "t(key) / useTranslation over uiStrings.json, pick(), unitName()",
   "src/i18n/uiStrings.json": "UI strings (EN/TL) keyed for t()",
   "src/i18n/useLanguage.ts": "useLanguage hook over the store's language",
-
   "src/state/activityLog.ts": "Session activity log store: logMessage, merging repeated events ×N, floating-text classifier",
   "src/state/activityWatcher.ts": "Narrates store diffs (day, weather, waves, construction, roster, achievements…) into the activity log",
   "src/state/buildingLayout.ts": "Typed 20×20 layout: GRID_SIZE, BUILDING_SITES, ROAD_TILES, generateLayout(seed), applyLayoutSeed",
@@ -102,10 +98,8 @@
   "src/state/store/rosterSlice.ts": "Roster: summon/craft costs, summon locks, Generals, castle/refinery levels",
   "src/state/store/types.ts": "Slice helper types (StoreSet, StoreGet, SliceArgs)",
   "src/state/store/worldSlice.ts": "Day/season/weather, time of day, FPS target, layout seed",
-
   "src/types/game.ts": "Shared game types; re-exports lookup tables (units, invaders, seasons…)",
   "src/types/state.ts": "Store contracts and save shape (Resources, buildings, battle items…)",
-
   "src/ui/ActivityLogTray.tsx": "Bottom-left activity log tray",
   "src/ui/AtlasModal.tsx": "Atlas: Guide, Bestiary, Structures, Regression, FAQ and Lore tabs (parses LORE.md)",
   "src/ui/AutoEnhancePrompt.tsx": "Prompt suggesting affordable tech/defense upgrades",
@@ -136,5 +130,14 @@
   "src/ui/UpgradesModal.tsx": "Tech upgrades (speed, capacity…)",
   "src/ui/WeatherModal.tsx": "Weather/season info",
   "src/ui/WelcomeBackModal.tsx": "Offline gains summary on return",
-  "src/ui/costDisplay.ts": "resourceIcon and formatCost helpers"
+  "src/ui/costDisplay.ts": "resourceIcon and formatCost helpers",
+  "src/data/waveBalance.json": "Invader stat curves: wave 1-100, day 1-365, difficulty, boss/elite ranks, spawn pacing, skill power",
+  "src/data/waveTactics.json": "Per-wave tactics (formations): portal pattern, bursts, spawn order, type bias, escorts, wave-wide effects, EN/TL text",
+  "src/state/waveBalance.ts": "Typed wave balance: invaderStats, eliteChance, scaledEnemyCount, spawnIntervalMs, portalHpMultiplier, skillPower",
+  "src/state/waveTactics.ts": "Typed wave tactics: WAVE_TACTICS, TACTIC_EFFECTS, tacticOf, rollWaveTactic",
+  "src/game/invaders/wavePlan.ts": "Builds a wave spawn queue from its tactic: biased picks, formation order, elites, escort, boss last",
+  "scripts/balance-sim.cjs": "Balance model: measured tenant income, waves 1-100 load per difficulty on day 1 and 365 incl. tactics and skills",
+  "src/data/platformThemes.json": "Platform look per difficulty (tint, flowers, glowing cracks, rubble, cliff shade) and per-realm glow/blossom colours",
+  "src/data/scoutLoot.json": "Peacetime scouts: random human/mecha types and stats, ground coin/resource drops, equipment drop chance and pools",
+  "src/state/scoutLoot.ts": "Typed scout table: SCOUTS, pickScout, rollScoutDrops (coin piles, supplies, item id)"
 }

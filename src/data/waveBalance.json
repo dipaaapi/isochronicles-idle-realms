@@ -1,0 +1,29 @@
+{
+  "_doc": "Invader stat curves. Typed access: src/state/waveBalance.ts. Re-run scripts/balance-sim.cjs after changing these numbers.",
+  "stats": {
+    "hpFlatPerWave": 16,
+    "hpGrowthPerWave": 0.045,
+    "damageGrowthPerWave": 0.032,
+    "bountyGrowthPerWave": 0.04,
+    "realmMultiplier": [1, 1.05, 1.1, 1.15]
+  },
+  "day": {
+    "_doc": "Pressure from the days the realm has lasted (day 1 to 365, capped). Winter hardens invaders a little more.",
+    "maxDay": 365,
+    "hpAtMaxDay": 0.2,
+    "damageAtMaxDay": 0.15,
+    "seasonHp": { "SPRING": 1, "SUMMER": 1.03, "AUTUMN": 1, "WINTER": 1.06 }
+  },
+  "difficulty": {
+    "EASY": { "hp": 0.72, "damage": 0.7, "count": 0.85, "spawnInterval": 1.15, "eliteChance": 0.03, "portalHp": 0.75, "tacticDepth": 0.6 },
+    "NORMAL": { "hp": 1, "damage": 1, "count": 1, "spawnInterval": 1, "eliteChance": 0.07, "portalHp": 1, "tacticDepth": 1 },
+    "HARD": { "hp": 1.2, "damage": 1.2, "count": 1.1, "spawnInterval": 0.9, "eliteChance": 0.12, "portalHp": 1.35, "tacticDepth": 1.4 }
+  },
+  "boss": { "hp": 2.5, "damage": 1.4, "bounty": 3.5, "scale": 1.5 },
+  "climax": { "waves": [25, 50, 75, 100], "hp": 4.5, "damage": 2, "bounty": 8, "scale": 1.5 },
+  "elite": { "fromWave": 6, "chancePerWave": 0.0015, "hp": 1.6, "damage": 1.25, "bounty": 2, "scale": 1.2 },
+  "spawn": { "intervalMs": 1800, "jitterMs": 800, "intervalPerWave": -6, "minIntervalMs": 900, "firstDelayMs": 900 },
+  "portal": { "hpGrowthPerWave": 0.012 },
+  "victory": { "coins": 80, "coinsPerWave": 45 },
+  "skills": { "_doc": "Flat structure-skill damage grows with the wave so ultimates stay relevant against late invaders.", "powerPerWave": 0.08 }
+}

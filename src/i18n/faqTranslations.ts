@@ -17,12 +17,24 @@ export const faqTranslations: Record<Language, FAQContent> = {
     close: 'Close',
     entries: [
       {
+        question: '🧭 Why does every wave fight differently?',
+        answer: 'Each wave rolls a formation: a skirmish line, a vanguard rush, a pincer from two opposite rifts, a shield wall, a spearhead through one hardened rift, a war of attrition, a Mecha blitz, a siege column, a shadow infiltration, a holy crusade, a storm of steel or a grand offensive. The banner and the activity log name it. Formations choose which rifts open, the order invaders march in, and a wave-wide effect (shield wall, overclock, sanctuary healing, phase veil or war cry). Some bring a High Priest or Mecha Valkyrie mid-wave. If only one or two rifts are open, smashing them ends the wave early.',
+      },
+      {
+        question: '📈 How do invaders get stronger?',
+        answer: 'Invader health and damage rise every wave and step up with each realm, and the longer the realm has lasted (up to day 365) the tougher they get, a little more in winter. Elite invaders (gold tint, bigger, richer bounty) appear from wave 6 and grow more common. Difficulty sets health, damage, wave size, spawn speed and how early formations appear. Your establishment skills grow stronger with the wave too, so ultimates stay useful to the end.',
+      },
+      {
+        question: '🗺️ Why does the platform look different?',
+        answer: 'Each realm (waves 1-25, 26-50, 51-75, 76-100) repaints the island in its own palette, and the difficulty changes it too: Easy blooms with flowers, Normal is the plain realm, and Hard darkens the ground and splits it with cracks glowing in the realm\'s colour.',
+      },
+      {
         question: '🌳 Who builds the castle and buildings?',
         answer: 'Your starting Slime summons the Ent for free. The Ent raises the Castle first, then the Crystal Spire, then summons the Generals one by one — and each General builds its own establishment, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders walk to their site and build once you have the supplies. There is no build button — it\'s all on autopilot.',
       },
       {
         question: '🎁 How do I get supplies early on?',
-        answer: 'Lone scouts wander the island between waves. Click them to strike them down and their loot goes straight into your stores. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Ent simply waits while supplies are short.',
+        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground for your minions to collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal), and now and then a piece of equipment that goes straight into your Armory inventory. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Ent simply waits while supplies are short.',
       },
       {
         question: '⚔️ When do minions and waves unlock?',
@@ -83,12 +95,24 @@ export const faqTranslations: Record<Language, FAQContent> = {
     close: 'Isara',
     entries: [
       {
+        question: '🧭 Bakit iba-iba ang laban sa bawat alon?',
+        answer: 'Bawat alon ay may hanay: linya ng sagupaan, sugod ng taliba, sipit mula sa dalawang magkatapat na lagusan, pader ng kalasag, dulo ng sibat sa iisang matibay na lagusan, digmaan ng pagpapagod, bagyong Mecha, hanay ng pagkubkob, pagpasok sa anino, banal na krusada, bagyo ng bakal o malaking opensiba. Nakasulat ito sa banner at sa tala ng mga pangyayari. Ang hanay ang pumipili kung aling lagusan ang bubukas, ang pagkakasunod ng mga kalaban at isang epekto sa buong alon (pader ng kalasag, overclock, banal na paggaling, tabing ng anino o sigaw ng digmaan). May hanay na may kasamang Punong Pari o Mecha Valkyrie sa gitna ng alon. Kapag isa o dalawa lang ang bukas na lagusan, matatapos agad ang alon kapag nawasak mo sila.',
+      },
+      {
+        question: '📈 Paano lumalakas ang mga kalaban?',
+        answer: 'Tumataas ang buhay at pinsala ng kalaban bawat alon at lalo pa sa bawat kaharian, at habang tumatagal ang kaharian (hanggang ika-365 na araw) ay lalo silang tumitibay, mas lalo sa taglamig. Lumalabas ang mga elite (kulay ginto, mas malaki, mas malaking gantimpala) mula alon 6 at dumarami habang tumatagal. Ang hirap ng laro ang nagtatakda ng buhay, pinsala, dami, bilis ng paglabas at kung kailan lalabas ang mga hanay. Lumalakas din ang mga kasanayan ng gusali mo bawat alon kaya may silbi pa rin ang mga ultimate hanggang dulo.',
+      },
+      {
+        question: '🗺️ Bakit nag-iiba ang itsura ng plataporma?',
+        answer: 'Bawat kaharian (alon 1-25, 26-50, 51-75, 76-100) ay may sariling kulay ng isla, at nagbabago rin ito ayon sa hirap: namumulaklak sa Madali, karaniwan sa Katamtaman, at sa Mahirap ay dumidilim ang lupa at nabibitak na may liwanag na kulay ng kaharian.',
+      },
+      {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
         answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — at bawat Heneral ang magtatayo ng sariling pasilidad, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ang bawat nagtatayo sa puwesto nito at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',
-        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon. I-click sila para tamaan at diretsong mapupunta sa imbak mo ang nakaw nila. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Ent habang kulang ang supply.',
+        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa na pupulutin ng mga alagad mo (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha), at paminsan-minsan ay isang kagamitan na diretsong mapupunta sa imbentaryo ng Armory. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Ent habang kulang ang supply.',
       },
       {
         question: '⚔️ Kailan magbubukas ang mga alagad at alon?',

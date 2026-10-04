@@ -1,3 +1,4 @@
+import { tacticOf } from './waveTactics';
 import { GOD_BLESSINGS, GodBlessingId, PLATFORM_CONFIGS, UNIT_CLASSES } from '../types/game';
 import { GameStoreState } from '../types/state';
 import { useGameStore, RESOURCE_BUILDING_CONFIG } from './useGameStore';
@@ -24,6 +25,10 @@ function diff(state: GameStoreState, prev: GameStoreState): void {
   // Invasions
   if (state.invasion.isActive && !prev.invasion.isActive) {
     logMessage('waveAttack', { wave: state.invasion.waveNumber });
+    if (state.invasion.tactic && state.invasion.tactic !== 'SKIRMISH') {
+      const tactic = tacticOf(state.invasion.tactic);
+      logMessage('waveTactic', { wave: state.invasion.waveNumber, tactic: tactic.name, desc: tactic.desc });
+    }
     if ((state.invasion.vengeanceExtra ?? 0) > 0) {
       logMessage('waveVengeance', { wave: state.invasion.waveNumber, extra: state.invasion.vengeanceExtra ?? 0 });
     }

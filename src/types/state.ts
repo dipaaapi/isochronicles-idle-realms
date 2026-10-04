@@ -122,6 +122,8 @@ export interface InvasionState {
   vengeance?: number;
   /** Extra invaders the current/last wave brought for that vengeance. */
   vengeanceExtra?: number;
+  /** Formation of the current/last wave (id in src/data/waveTactics.json). */
+  tactic?: string;
 }
 
 export interface Achievement {
@@ -363,6 +365,7 @@ export interface GameStoreState {
   // Equipment & Crafting Actions
   craftEquipment: (item: EquipmentItem) => boolean;
   purchaseEquipment: (item: EquipmentItem) => boolean;
+  grantEquipmentDrop: (itemId: string) => EquipmentItem | null;
   equipItem: (unitId: string, item: EquipmentItem) => void;
   unequipItem: (unitId: string, slot: EquipmentSlot) => void;
 

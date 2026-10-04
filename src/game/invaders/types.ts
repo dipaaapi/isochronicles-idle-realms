@@ -41,6 +41,8 @@ export interface ActiveInvader extends NavAgent {
   attackTimer: number;
   isDead: boolean;
   isScout?: boolean;
+  /** Peacetime scout's side: decides its drops (scoutLoot.json). */
+  scoutKind?: 'HUMAN' | 'MECHA';
   isRetreating?: boolean;
   spawnGrid: GridPoint;
   /** Full-size scale (bosses are bigger). */
@@ -55,6 +57,10 @@ export interface ActiveInvader extends NavAgent {
   provokedTimer?: number;
   /** Rushers ignore defenders and establishments and charge straight at the citadel. */
   isRusher?: boolean;
+  /** Promoted fighter (bigger, tougher, richer bounty). */
+  isElite?: boolean;
+  /** War Cry already raised this invader's damage. */
+  enraged?: boolean;
   slowTimer?: number;
   slowFactor?: number;
   burnTimer?: number;

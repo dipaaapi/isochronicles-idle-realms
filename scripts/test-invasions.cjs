@@ -5,11 +5,13 @@ const ts = require('typescript');
 
 const state = {
   lootBundles: 0,
-  grantRandomLoot() { this.lootBundles++; },
+  // A scout's drop bundle: coins plus supplies in one call (bounties are coins alone)
+  addScoutBundle(b) { if (b && b.coins && Object.keys(b).length > 1) this.lootBundles++; },
+  grantEquipmentDrop() { return null; },
   invasion: { isActive: false }, defense: { castleHp: 100 },
   weather: 'CLEAR', autoSettings: {},
   tickInvasionCountdown() {}, setEnemiesRemaining() {},
-  takeBattleEffects() { return []; }, roster: [], resourceBuildings: {}, addResources() {},
+  takeBattleEffects() { return []; }, roster: [], resourceBuildings: {}, addResources(b) { this.addScoutBundle(b); },
 };
 const exportsObject = {};
 const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts', 'utf8'), {
@@ -18,11 +20,23 @@ const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts',
 vm.runInNewContext(source, {
   exports: exportsObject,
   require: function stubRequire(name) {
-    if (name.endsWith('.json')) return JSON.parse(fs.readFileSync(`src/${name.replace(/^(\.\.\/)+/, '')}`, 'utf8'));
+    if (name.endsWith('.json')) {
+      const json = JSON.parse(fs.readFileSync(`src/${name.replace(/^(\.\.\/)+/, '')}`, 'utf8'));
+      return Object.assign(json, { default: json });
+    }
     // Pure helpers split out of InvasionManager load for real
     if (name.startsWith('./invaders/')) {
       const exports = {};
       vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/game/${name.slice(2)}.ts`, 'utf8'), {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+      }).outputText, { exports, require: stubRequire });
+      return exports;
+    }
+    // Pure balance tables (src/state) load for real too
+    const pure = name.match(/(waveBalance|waveTactics|difficulty|scoutLoot)$/);
+    if (pure) {
+      const exports = {};
+      vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/state/${pure[1]}.ts`, 'utf8'), {
         compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
       }).outputText, { exports, require: stubRequire });
       return exports;

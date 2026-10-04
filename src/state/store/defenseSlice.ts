@@ -4,6 +4,8 @@ import { isConstructionReady } from '../constructionProgress';
 import { DEFENSE_CONFIG, beaconLevelOf, castleUpgradeCost } from '../defenseStats';
 import { ECONOMY_CONFIG, enemiesInWave } from '../economy';
 import { vengeanceExtraInvaders } from '../establishmentCrews';
+import { scaledEnemyCount } from '../waveBalance';
+import { rollWaveTactic, tacticOf } from '../waveTactics';
 import { lootResources } from '../resources';
 import { availableSkillPoints, teamBonuses } from '../skillTree';
 import { restoreWreckedBuildings, restoreWreckedSpire } from './buildingsSlice';
@@ -117,11 +119,15 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     if (!isConstructionReady(state) || state.invasion.isActive) return;
     // Human gatherers come along to avenge the demons' raids into their realm
     const vengeanceExtra = vengeanceExtraInvaders(state.invasion.vengeance ?? 0);
-    const totalEnemies = enemiesInWave(state.invasion.waveNumber) + vengeanceExtra;
+    // Each wave marches in a random formation (waveTactics.json)
+    const difficulty = normalizeDifficulty(state.difficulty);
+    const tactic = tacticOf(rollWaveTactic(state.invasion.waveNumber, difficulty, state.invasion.tactic));
+    const totalEnemies = scaledEnemyCount(enemiesInWave(state.invasion.waveNumber), difficulty, tactic.count) + vengeanceExtra;
     set((prev) => ({
       invasion: {
         ...prev.invasion,
         isActive: true,
+        tactic: tactic.id,
         enemiesRemaining: totalEnemies,
         totalEnemiesInWave: totalEnemies,
         countdown: 0,

@@ -69,6 +69,11 @@
     "expeditionDeparts": { "category": "minions", "tone": "neutral", "icon": "🌀", "en": "{name} slipped through the {portal} into the human realm", "tl": "Pumasok ang {name} sa {portal} patungo sa kaharian ng tao" },
     "expeditionReturns": { "category": "economy", "tone": "good", "icon": "🏰", "en": "{name} came back from the human realm with {loot}", "tl": "Bumalik ang {name} mula sa kaharian ng tao dala ang {loot}" },
     "vengeanceStirs": { "category": "combat", "tone": "bad", "icon": "😠", "en": "The humans noticed the raids: {extra} more will come to avenge them", "tl": "Napansin ng mga tao ang pagnanakaw: {extra} pa ang darating upang maghiganti" },
+    "scoutLoot": { "category": "combat", "tone": "good", "icon": "💰", "en": "{name} dropped {coins} coins and supplies", "tl": "Naghulog ang {name} ng {coins} barya at suplay" },
+    "scoutItem": { "category": "combat", "tone": "epic", "icon": "🎁", "en": "{name} dropped {item}! Added to the inventory", "tl": "Naghulog ang {name} ng {item}! Nasa imbentaryo na" },
+    "waveTactic": { "category": "combat", "tone": "bad", "icon": "🧭", "en": "Wave {wave} formation: {tactic} — {desc}", "tl": "Hanay ng Alon {wave}: {tactic} — {desc}" },
+    "eliteArrives": { "category": "combat", "tone": "bad", "icon": "💠", "en": "Elite {name} steps out of the rift", "tl": "Lumabas sa lagusan ang elite na {name}" },
+    "escortArrives": { "category": "combat", "tone": "bad", "icon": "👑", "en": "{name} joins the formation mid-wave", "tl": "Sumama sa hanay ang {name} sa gitna ng alon" },
     "waveVengeance": { "category": "combat", "tone": "bad", "icon": "🔥", "en": "{extra} human gatherers join Wave {wave} to avenge the raids", "tl": "{extra} taong mangangalap ang sumama sa Alon {wave} upang maghiganti" },
 
     "unitJoins": { "category": "minions", "tone": "good", "icon": "✨", "en": "{name} the {unitClass} joins your army", "tl": "Sumali si {name} ({unitClass}) sa hukbo" },
