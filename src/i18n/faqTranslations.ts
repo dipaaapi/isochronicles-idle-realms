@@ -26,7 +26,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🗺️ Why does the platform look different?',
-        answer: 'Each realm (waves 1-25, 26-50, 51-75, 76-100) repaints the island in its own palette, and the difficulty changes it too: Easy blooms with flowers, Normal is the plain realm, and Hard darkens the ground and splits it with cracks glowing in the realm\'s colour.',
+        answer: 'Each realm (waves 1-25, 26-50, 51-75, 76-100) repaints the island in its own palette, and the difficulty changes it too: Easy blooms with flowers, Normal is the plain realm, and Hard darkens the ground and splits it with dark fissures smouldering faintly in the realm\'s colour.',
       },
       {
         question: '🌳 Who builds the castle and buildings?',
@@ -34,7 +34,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🎁 How do I get supplies early on?',
-        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground for your minions to collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal), and now and then a piece of equipment that goes straight into your Armory inventory. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Ent simply waits while supplies are short.',
+        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground as gold-glowing spoils that only your Generals can collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal), and now and then a piece of equipment that joins your Armory inventory when a General picks it up. Spoils fade after two minutes. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Ent simply waits while supplies are short.',
       },
       {
         question: '⚔️ When do minions and waves unlock?',
@@ -104,7 +104,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🗺️ Bakit nag-iiba ang itsura ng plataporma?',
-        answer: 'Bawat kaharian (alon 1-25, 26-50, 51-75, 76-100) ay may sariling kulay ng isla, at nagbabago rin ito ayon sa hirap: namumulaklak sa Madali, karaniwan sa Katamtaman, at sa Mahirap ay dumidilim ang lupa at nabibitak na may liwanag na kulay ng kaharian.',
+        answer: 'Bawat kaharian (alon 1-25, 26-50, 51-75, 76-100) ay may sariling kulay ng isla, at nagbabago rin ito ayon sa hirap: namumulaklak sa Madali, karaniwan sa Katamtaman, at sa Mahirap ay dumidilim ang lupa at nabibitak na may mahinang baga na kulay ng kaharian.',
       },
       {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
@@ -112,7 +112,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',
-        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa na pupulutin ng mga alagad mo (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha), at paminsan-minsan ay isang kagamitan na diretsong mapupunta sa imbentaryo ng Armory. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Ent habang kulang ang supply.',
+        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa bilang kumikinang-gintong samsam na ang mga Heneral mo lang ang makakapulot (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha), at paminsan-minsan ay isang kagamitan na mapupunta sa imbentaryo ng Armory kapag pinulot ng Heneral. Naglalaho ang samsam pagkalipas ng dalawang minuto. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Ent habang kulang ang supply.',
       },
       {
         question: '⚔️ Kailan magbubukas ang mga alagad at alon?',

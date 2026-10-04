@@ -246,9 +246,16 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
         if (theme.tintAmount > 0) c = mix(c, theme.tint, theme.tintAmount);
         if (hash(gx, gy, Math.floor(px / 2), py + 700) < theme.rubble) c = shade(c, 0.7);
         if (theme.crack > 0 && hash(gx, gy, 0, 800) < theme.crack * 40) {
-          // A short diagonal crack across this tile, lit by the realm's glow
-          const start = Math.floor(hash(gx, gy, 1, 801) * TILE_ART_W * 0.5) + TILE_ART_W * 0.25;
-          if (Math.abs(px - start - (py - HALF_H) * 2) < 1.6 && d < 0.75) c = mix(REALM_GLOW[platformPhase], 0xffffff, 0.15);
+          // A short jagged fissure: dark rim, with an ember of the realm's glow deep inside
+          const start = Math.floor(hash(gx, gy, 1, 801) * TILE_ART_W * 0.4) + TILE_ART_W * 0.3;
+          const len = 3 + Math.floor(hash(gx, gy, 2, 802) * 3);
+          const row = py - HALF_H;
+          if (Math.abs(row) <= len) {
+            const jitter = Math.floor(hash(gx, gy, py, 803) * 3) - 1;
+            const off = Math.abs(px - (start + row * 2 + jitter));
+            if (off < 0.5 && Math.abs(row) < len) c = mix(REALM_GLOW[platformPhase], 0x000000, 0.35);
+            else if (off < 1.5) c = shade(c, 0.45);
+          }
         }
       }
 

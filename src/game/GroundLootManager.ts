@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
-import { logFloatingText } from '../state/activityLog';
+import { logFloatingText, logMessage } from '../state/activityLog';
 import { IsometricHelper } from './IsometricHelper';
 import { GRID_SIZE } from '../state/buildingLayout';
 import type { Resources } from '../types/state';
@@ -26,7 +26,21 @@ export interface GroundLootItem {
   bobTimer: number;
   lifeTimer: number;
   maxLife: number;
+  /** Scout spoils: only Generals may pick these up. */
+  generalsOnly?: boolean;
+  /** Equipment piece (craftableItems.json id) granted on pickup instead of a resource. */
+  itemId?: string;
 }
+
+export interface DropOptions {
+  generalsOnly?: boolean;
+  itemId?: string;
+  /** Seconds on the ground before it fades (default 45). */
+  life?: number;
+}
+
+/** Who is looking for loot: tenants skip General-only spoils. */
+export type LootSeeker = 'tenant' | 'general';
 
 export class GroundLootManager {
   private scene: Phaser.Scene;
@@ -47,7 +61,8 @@ export class GroundLootManager {
     y: number,
     resourceKey: keyof Resources,
     amount: number,
-    customIcon?: string
+    customIcon?: string,
+    options: DropOptions = {}
   ): GroundLootItem | null {
     if (!this.scene || !this.scene.add) return null;
 
@@ -72,7 +87,8 @@ export class GroundLootManager {
     container.add(shadow);
 
     // Soft Ambient Glow
-    const glowColor = this.getGlowColor(resourceKey);
+    // General-only spoils glow gold so they stand out from ordinary drops
+    const glowColor = options.generalsOnly ? 0xfbbf24 : this.getGlowColor(resourceKey);
     const glow = this.scene.add.arc(0, -4, 8, 0, 360, false, glowColor, 0.45);
     container.add(glow);
 
@@ -112,7 +128,9 @@ export class GroundLootManager {
       isLanded: false,
       bobTimer: Math.random() * Math.PI * 2,
       lifeTimer: 0,
-      maxLife: 45, // stays on ground for 45s before despawning
+      maxLife: options.life ?? 45, // stays on the ground this long before despawning
+      generalsOnly: options.generalsOnly,
+      itemId: options.itemId,
     };
 
     // Parabolic pop animation
@@ -184,12 +202,13 @@ export class GroundLootManager {
   /**
    * Find nearest unclaimed loot item within maxDist.
    */
-  public getNearestLoot(x: number, y: number, maxDist: number = 320): GroundLootItem | null {
+  public getNearestLoot(x: number, y: number, maxDist: number = 320, seeker: LootSeeker = 'tenant'): GroundLootItem | null {
     let nearest: GroundLootItem | null = null;
     let minDistSq = maxDist * maxDist;
 
     this.lootItems.forEach((loot) => {
       if (!loot.isLanded) return;
+      if (loot.generalsOnly && seeker !== 'general') return;
       const dx = loot.container.x - x;
       const dy = loot.container.y - y;
       const distSq = dx * dx + dy * dy;
@@ -212,13 +231,24 @@ export class GroundLootManager {
 
     this.lootItems.delete(id);
 
-    // Grant resources to store
     const store = useGameStore.getState();
-    store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
-    soundFx.playDeposit();
-
-    // Narrated in the activity log tray (no floating text over the map)
-    logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
+    if (loot.itemId) {
+      // An equipment piece: straight into the Armory inventory
+      const item = store.grantEquipmentDrop(loot.itemId);
+      soundFx.playCoin();
+      if (item) {
+        logMessage('scoutItem', {
+          name: collectorName ?? 'General',
+          item: { en: `${item.icon} ${item.name}`, tl: `${item.icon} ${item.nameTl ?? item.name}` },
+        });
+      }
+    } else {
+      // Grant resources to store
+      store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
+      soundFx.playDeposit();
+      // Narrated in the activity log tray (no floating text over the map)
+      logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
+    }
 
     // Animate item flying upward & shrinking
     this.scene.tweens.add({

@@ -4,7 +4,11 @@ import {
   GridPoint,
   InvaderType,
   INVADER_CONFIGS,
+  CRAFTABLE_ITEMS,
 } from '../types/game';
+
+/** Seconds scout spoils wait on the ground for a General (they roam farther than tenants). */
+const SCOUT_SPOILS_LIFE = 120;
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
@@ -796,8 +800,14 @@ export class InvasionManager {
     const { x, y } = invader.container;
     const coins = drops.coinPiles.reduce((sum, n) => sum + n, 0);
     if (this.groundLoot) {
-      for (const pile of drops.coinPiles) this.groundLoot.dropLoot(x, y, 'coins', pile);
-      for (const [key, amount] of drops.resources) this.groundLoot.dropLoot(x, y, key, amount);
+      // Scout spoils wait on the ground for a General to collect them (gold glow)
+      const spoils = { generalsOnly: true, life: SCOUT_SPOILS_LIFE };
+      for (const pile of drops.coinPiles) this.groundLoot.dropLoot(x, y, 'coins', pile, undefined, spoils);
+      for (const [key, amount] of drops.resources) this.groundLoot.dropLoot(x, y, key, amount, undefined, spoils);
+      if (drops.itemId) {
+        const item = CRAFTABLE_ITEMS.find((i) => i.id === drops.itemId);
+        if (item) this.groundLoot.dropLoot(x, y, 'coins', 0, item.icon, { ...spoils, itemId: item.id });
+      }
     } else {
       // No ground loot layer (tests): credit the drops directly
       const bundle: Partial<Resources> = { coins };
@@ -805,7 +815,7 @@ export class InvasionManager {
       store.addResources(bundle);
     }
     logMessage('scoutLoot', { name: this.logName(invader), coins }, { mergeKey: 'scoutLoot' });
-    if (drops.itemId) {
+    if (drops.itemId && !this.groundLoot) {
       const item = store.grantEquipmentDrop(drops.itemId);
       if (item) {
         soundFx.playCoin();
