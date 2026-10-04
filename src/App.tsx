@@ -15,6 +15,7 @@ import { RegressionModal } from './ui/RegressionModal';
 import { PhaserGame } from './game/PhaserGame';
 import { EstablishmentModal } from './ui/EstablishmentModal';
 import { ActivityLogTray } from './ui/ActivityLogTray';
+import { MusicPlayer } from './ui/MusicPlayer';
 import { BattleItemsToolbar } from './ui/BattleItemsToolbar';
 import { startActivityWatcher } from './state/activityWatcher';
 
@@ -99,6 +100,7 @@ export const App: React.FC = () => {
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
             <PhaserGame key={`${regressionCount}-${layoutSeed}-${JSON.stringify(buildingPositions)}`} />
             <ActivityLogTray />
+            <MusicPlayer />
           </div>
 
           {/* Dedicated Right Sidebar HUD */}

@@ -13,6 +13,8 @@ class SoundFxManager {
   // 0..1 volume per bus, persisted like the on/off toggles
   private musicVolume = 1;
   private sfxVolume = 1;
+  // A YouTube / Spotify player is open: the procedural BGM steps aside (SFX stay)
+  private isExternalMusicActive = false;
 
   private bgmOscillators: OscillatorNode[] = [];
   private bgmGain: GainNode | null = null;
@@ -75,7 +77,12 @@ class SoundFxManager {
     this.masterGain.gain.cancelScheduledValues(now);
     this.masterGain.gain.setValueAtTime(this.isSfxDisabled ? 0 : this.sfxVolume, now);
     this.musicBus.gain.cancelScheduledValues(now);
-    this.musicBus.gain.setValueAtTime(this.isBgmDisabled ? 0 : this.musicVolume, now);
+    this.musicBus.gain.setValueAtTime(this.isBgmDisabled || this.isExternalMusicActive ? 0 : this.musicVolume, now);
+  }
+
+  public setExternalMusicActive(active: boolean): void {
+    this.isExternalMusicActive = active;
+    this.applyBusGains();
   }
 
   public getMusicVolume(): number { return this.musicVolume; }

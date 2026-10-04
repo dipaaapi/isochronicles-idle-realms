@@ -41,13 +41,14 @@ Probe by writing malformed saves to the scratchpad and feeding them through the 
 - Grep `src/` for `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval(`, `new Function`, `setTimeout(` with a string, `href={` / `src={` built from state. Any hit fed by save data is high severity.
 - `realmName` and other free-text fields: length limit, rendered as text (React escapes by default — confirm no bypass). Phaser `Text` is canvas-only, but very long strings still hurt layout and performance.
 - `LORE.md` / `LORE.tl.md` are imported raw — confirm they are rendered as text or through a renderer that does not allow raw HTML.
+- External music (`src/state/externalMusic.ts`, `src/ui/MusicPlayer.tsx`): only `parseMusicLink` output may reach the iframe; the embed URL must always be rebuilt from provider + validated id (never the pasted text or a pasted snippet), and `scripts/test-music-links.cjs` must keep covering hostile inputs.
 - Activity log (`src/state/activityLog.ts`, `src/i18n/activityMessages.json`): `logMessage(key, vars)` interpolation must not treat vars as markup; unknown keys should not throw.
 
 ### 3. PWA, service worker and page config
 
 Files: `vite.config.ts`, `index.html`, `public/`.
 - `workbox.globPatterns` precaches only first-party build output; `maximumFileSizeToCacheInBytes` is deliberate; `registerType: 'autoUpdate'` means a bad build propagates to every player — note it, don't change it without asking.
-- `index.html` has no Content-Security-Policy. Recommend a CSP meta tag that fits the app (`default-src 'self'`; `worker-src 'self' blob:` for the sprite bake workers; `img-src 'self' data: blob:`; `style-src 'self' 'unsafe-inline'` only if Tailwind/DaisyUI or Phaser need it). Verify in the browser that the game still loads, workers still bake sprites, and the console is clean before recommending a final policy.
+- `index.html` has no Content-Security-Policy. Recommend a CSP meta tag that fits the app (`default-src 'self'`; `worker-src 'self' blob:` for the sprite bake workers; `img-src 'self' data: blob:`; `frame-src https://www.youtube-nocookie.com https://open.spotify.com` for the external music player; `style-src 'self' 'unsafe-inline'` only if Tailwind/DaisyUI or Phaser need it). Verify in the browser that the game still loads, workers still bake sprites, and the console is clean before recommending a final policy.
 - No secrets, API keys or tokens anywhere in `src/`, `public/`, `.env*`, or git history (`git log -p -S` for suspicious strings).
 - `public/` contains nothing private (source art, notes, backups).
 

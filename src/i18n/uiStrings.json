@@ -610,5 +610,89 @@
   "skyRandomOff": {
     "en": "Locked",
     "tl": "Nakapirmi"
+  },
+  "musicPlayerSection": {
+    "en": "Music Player",
+    "tl": "Music Player"
+  },
+  "musicPlayerTitle": {
+    "en": "Your Music",
+    "tl": "Iyong Musika"
+  },
+  "musicPlayerDesc": {
+    "en": "Play your own YouTube or Spotify music while you play. Paste a link to a playlist, album, track or video.",
+    "tl": "Patugtugin ang sarili mong musika mula sa YouTube o Spotify habang naglalaro. I-paste ang link ng playlist, album, kanta o video."
+  },
+  "musicPlayerPlaceholder": {
+    "en": "Paste a YouTube or Spotify link…",
+    "tl": "I-paste ang link ng YouTube o Spotify…"
+  },
+  "musicPlayerSave": {
+    "en": "Save",
+    "tl": "I-save"
+  },
+  "musicPlayerRemove": {
+    "en": "Remove",
+    "tl": "Alisin"
+  },
+  "musicPlayerOpen": {
+    "en": "Open player",
+    "tl": "Buksan ang player"
+  },
+  "musicPlayerClose": {
+    "en": "Close player",
+    "tl": "Isara ang player"
+  },
+  "musicPlayerInvalid": {
+    "en": "That isn't a YouTube or Spotify link we can play.",
+    "tl": "Hindi iyan link ng YouTube o Spotify na kayang patugtugin."
+  },
+  "musicPlayerCurrent": {
+    "en": "Now set",
+    "tl": "Nakatakda"
+  },
+  "musicPlayerNote": {
+    "en": "Needs an internet connection. The game's own music goes quiet while the player is open; sound effects keep playing. Spotify plays full tracks only when you're logged in to Spotify in this browser.",
+    "tl": "Kailangan ng internet. Tumatahimik ang sariling musika ng laro habang bukas ang player; tuloy pa rin ang sound effects. Buong kanta lang ang pinapatugtog ng Spotify kapag naka-login ka sa Spotify sa browser na ito."
+  },
+  "musicPlayerOffline": {
+    "en": "You're offline. The music player needs an internet connection.",
+    "tl": "Offline ka. Kailangan ng internet ng music player."
+  },
+  "musicPlayerEmpty": {
+    "en": "No music set yet. Add a YouTube or Spotify link in Settings.",
+    "tl": "Wala pang nakatakdang musika. Maglagay ng link ng YouTube o Spotify sa Settings."
+  },
+  "hudMusicPlayer": {
+    "en": "Your music (YouTube / Spotify)",
+    "tl": "Iyong musika (YouTube / Spotify)"
+  },
+  "musicKind_playlist": {
+    "en": "Playlist",
+    "tl": "Playlist"
+  },
+  "musicKind_video": {
+    "en": "Video",
+    "tl": "Video"
+  },
+  "musicKind_album": {
+    "en": "Album",
+    "tl": "Album"
+  },
+  "musicKind_track": {
+    "en": "Track",
+    "tl": "Kanta"
+  },
+  "musicKind_artist": {
+    "en": "Artist",
+    "tl": "Artist"
+  },
+  "musicKind_show": {
+    "en": "Podcast",
+    "tl": "Podcast"
+  },
+  "musicKind_episode": {
+    "en": "Episode",
+    "tl": "Episode"
   }
 }

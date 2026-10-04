@@ -37,6 +37,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Zap,
+  ListMusic,
 } from 'lucide-react';
 import { PLATFORM_CONFIGS, SEASON_CONFIGS } from '../types/game';
 import { CitadelTab } from './CitadelCommandModal';
@@ -47,6 +48,7 @@ import { ECONOMY_CONFIG, RESOURCE_PRICES } from '../state/economy';
 import type { BattleItemId } from '../types/state';
 import { HoverTooltip } from './HoverTooltip';
 import { useTranslation } from '../i18n/translations';
+import { useExternalMusic } from '../state/externalMusic';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
@@ -186,6 +188,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   const isTL = language === 'TL';
   const { t: tr } = useTranslation();
+  const externalMusic = useExternalMusic((s) => s.source);
+  const isMusicPlayerOpen = useExternalMusic((s) => s.isPlayerOpen);
+  const setMusicPlayerOpen = useExternalMusic((s) => s.setPlayerOpen);
   const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
   const [isFullscreen, setIsFullscreen] = useState(
@@ -745,6 +750,21 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 }`}
               >
                 <Music className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Your music: YouTube / Spotify player (opens Settings when no link is set) */}
+              <button
+                onClick={() => {
+                  soundFx.playClick();
+                  if (externalMusic) setMusicPlayerOpen(!isMusicPlayerOpen);
+                  else onOpenSettings();
+                }}
+                title={tr('hudMusicPlayer')}
+                className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                  isMusicPlayerOpen ? 'border-indigo-500/60 bg-indigo-500/20 text-indigo-200' : 'border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <ListMusic className="w-3.5 h-3.5" />
               </button>
 
               {/* SFX ON/OFF */}
