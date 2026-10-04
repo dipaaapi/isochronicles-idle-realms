@@ -1,5 +1,6 @@
 import { GraphicsFx } from './graphicsFx';
 import Phaser from 'phaser';
+import { normalizeDifficulty, type Difficulty } from '../state/difficulty';
 import { TileInfo, TileType } from '../types/game';
 import { TimeOfDayPhase, WeatherType } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
@@ -20,7 +21,7 @@ import { GroundLootManager } from './GroundLootManager';
 import { FPSController } from './FPSController';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
-import { spawnPavementBurst, spawnPavementTileFx } from './scene/pavementFx';
+import { pickPavementFxStyle, spawnPavementBurst, spawnPavementTileFx } from './scene/pavementFx';
 import { prepareCharacterSprites } from './sprites/CharacterSprites';
 import { prepareStructureSprites } from './sprites/StructureSprites';
 import { WorldEffects } from './WorldEffects';
@@ -107,6 +108,8 @@ export class MainScene extends Phaser.Scene {
   private tileCoordinateLabels: Phaser.GameObjects.Text[] = [];
   private static readonly TILE_ATLAS_KEY = 'iso-pixel-tiles';
   private currentPlatformPhase: 1 | 2 | 3 | 4 = 1;
+  /** Platform theme follows the difficulty (platformThemes.json). */
+  private currentDifficulty: Difficulty = 'NORMAL';
 
   // Continuous Day / Night System
   private cycleTimer: number = 120000; // Start at Day (0.5 progress)
@@ -405,6 +408,7 @@ export class MainScene extends Phaser.Scene {
     if (store.castleBuilt) {
       this.pavedStructures.add('CASTLE');
       builtFootprints.push(CASTLE_FOOTPRINT);
+      for (const r of ROADS_BY_BUILDING.CASTLE ?? []) builtRoads.add(`${r.x},${r.y}`);
     }
     if (store.spireBuilt) {
       this.pavedStructures.add('SPIRE');
@@ -457,6 +461,7 @@ export class MainScene extends Phaser.Scene {
 
   private renderIsland(showTileCoordinates: boolean): void {
     this.currentPlatformPhase = useGameStore.getState().platformPhase || 1;
+    this.currentDifficulty = normalizeDifficulty(useGameStore.getState().difficulty);
 
     // Sun, moon and stars sit behind the tiles so the island hides them at the horizon
     this.skyFxLayer = this.add.container(0, 0);
@@ -587,6 +592,7 @@ export class MainScene extends Phaser.Scene {
           cliffLeft: y === this.mapHeight - 1,
           cliffRight: x === this.mapWidth - 1,
           platformPhase: this.currentPlatformPhase,
+          difficulty: this.currentDifficulty,
         });
       }
     }
@@ -613,6 +619,7 @@ export class MainScene extends Phaser.Scene {
       cliffLeft: y === this.mapHeight - 1,
       cliffRight: x === this.mapWidth - 1,
       platformPhase: this.currentPlatformPhase,
+      difficulty: this.currentDifficulty,
     });
     atlas.context.putImageData(imgData, x * TILE_ART_W, y * TILE_ART_H);
     atlas.refresh();
@@ -627,7 +634,7 @@ export class MainScene extends Phaser.Scene {
 
     const tilesToPave: Array<{ x: number; y: number }> = [];
     const footprint = id === 'CASTLE' ? CASTLE_FOOTPRINT : id === 'SPIRE' ? SPIRE_FOOTPRINT : BUILDING_SITES[id]?.footprint;
-    const roads = id === 'CASTLE' ? [] : (ROADS_BY_BUILDING[id] ?? []);
+    const roads = ROADS_BY_BUILDING[id] ?? [];
 
     // 1. Road tiles: paved in sequence from castle gate towards establishment workSpot
     for (const r of roads) {
@@ -651,26 +658,32 @@ export class MainScene extends Phaser.Scene {
     }
 
     if (tilesToPave.length === 0) return;
+    // Castle floor inside its footprint; roads (incl. the castle ring) are plain paving
+    const typeFor = (x: number, y: number) =>
+      id === 'CASTLE' && footprint && rectContainsTile(footprint, x, y) ? 'NEXUS_BASE' as const : 'ANCIENT_STONE' as const;
 
     if (!animated) {
       for (const { x, y } of tilesToPave) {
-        this.tiles[y][x].type = id === 'CASTLE' ? 'NEXUS_BASE' : 'ANCIENT_STONE';
+        this.tiles[y][x].type = typeFor(x, y);
         this.repaintSingleTile(x, y);
       }
       return;
     }
 
-    // Animate the road and foundation tiles dynamically drawing onto the platform
+    // Animate the road and foundation tiles dynamically drawing onto the platform.
+    // One random effect style per paving; only some tiles show it.
+    const fxStyle = pickPavementFxStyle();
+    const fxChance = Phaser.Math.FloatBetween(0.35, 0.75);
     tilesToPave.forEach(({ x, y }, index) => {
       const delay = index * 40;
       this.time.delayedCall(delay, () => {
         if (!this.scene.isActive()) return;
-        const targetType = id === 'CASTLE' ? 'NEXUS_BASE' : 'ANCIENT_STONE';
-        this.tiles[y][x].type = targetType;
+        this.tiles[y][x].type = typeFor(x, y);
         this.repaintSingleTile(x, y);
 
+        if (Math.random() > fxChance) return;
         const screenPos = IsometricHelper.gridToScreen(x, y);
-        spawnPavementTileFx(this, this.groundFxLayer, screenPos.x, screenPos.y, id === 'CASTLE' ? 0xc084fc : 0x38bdf8);
+        spawnPavementTileFx(this, this.groundFxLayer, screenPos.x, screenPos.y, id === 'CASTLE' ? 0xc084fc : 0x38bdf8, fxStyle);
       });
     });
 
@@ -1057,8 +1070,10 @@ export class MainScene extends Phaser.Scene {
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
     const storePhase = store.platformPhase || 1;
-    if (storePhase !== this.currentPlatformPhase) {
+    const storeDifficulty = normalizeDifficulty(store.difficulty);
+    if (storePhase !== this.currentPlatformPhase || storeDifficulty !== this.currentDifficulty) {
       this.currentPlatformPhase = storePhase;
+      this.currentDifficulty = storeDifficulty;
       this.renderPlatformTiles();
     }
 

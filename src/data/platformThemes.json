@@ -1,0 +1,10 @@
+{
+  "_doc": "How the platform tiles change with difficulty, on top of each realm's palette (platforms.ts). Painted by PixelTileArt.paintTile. tint/tintAmount shift land tiles; blossom = flower chance on grass; crack = glowing-crack chance on land (colour from realmGlow); rubble = darker cobble chance; cliffDarken multiplies the cliff rock.",
+  "difficulty": {
+    "EASY": { "tint": "0xa7f3d0", "tintAmount": 0.12, "blossom": 0.03, "crack": 0, "rubble": 0, "cliffDarken": 1.05 },
+    "NORMAL": { "tint": "0x000000", "tintAmount": 0, "blossom": 0.004, "crack": 0, "rubble": 0.01, "cliffDarken": 1 },
+    "HARD": { "tint": "0x450a0a", "tintAmount": 0.22, "blossom": 0, "crack": 0.016, "rubble": 0.08, "cliffDarken": 0.75 }
+  },
+  "realmGlow": { "1": "0xc026d3", "2": "0xf97316", "3": "0x22d3ee", "4": "0xfbbf24" },
+  "realmBlossom": { "1": ["0xf472b6", "0xfde047"], "2": ["0xfb923c", "0xfef08a"], "3": ["0xe0f2fe", "0x93c5fd"], "4": ["0xfde68a", "0xf0abfc"] }
+}

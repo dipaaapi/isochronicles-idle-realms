@@ -41,6 +41,7 @@ import {
 import { PLATFORM_CONFIGS, SEASON_CONFIGS } from '../types/game';
 import { CitadelTab } from './CitadelCommandModal';
 import { WeatherModal } from './WeatherModal';
+import { SkyStatusPanel } from './SkyStatusPanel';
 import { AutoEnhancePrompt } from '../ui/AutoEnhancePrompt';
 import { ECONOMY_CONFIG, RESOURCE_PRICES } from '../state/economy';
 import type { BattleItemId } from '../types/state';
@@ -414,82 +415,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       {isSidebarOpen && (
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
           
-          {/* SECTION A: ANIMATED TIME OF DAY & WEATHER (ROUNDED CORNERS) */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Box 1: Animated Morning-till-Dawn Section */}
-            <div className={`relative p-2.5 rounded-2xl border border-slate-800/80 bg-gradient-to-br ${timeOfDayConfig.skyGradient} flex flex-col justify-between overflow-hidden shadow-inner`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="p-1 rounded-lg bg-black/40 border border-white/10 shadow-sm">
-                    {timeOfDayConfig.icon}
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-white">
-                      {timeOfDayConfig.label}
-                    </span>
-                    <div className="text-[9px] font-mono text-slate-300">
-                      Y{year || 1} • D{day || 1}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => { soundFx.playClick(); setConfirmAction('SKIP_DAY'); }}
-                  title={isTL ? 'Laktawan ang araw' : 'Skip day'}
-                  className="p-1 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition cursor-pointer"
-                >
-                  <FastForward className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Day cycle progress bar */}
-              <div className="mt-2">
-                <div className="h-1.5 rounded-full bg-black/50 overflow-hidden border border-white/10">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-sky-400 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, Math.max(5, dayProgress * 100))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Box 2: Animated Weather Section (Clickable) */}
-            <button
-              type="button"
-              onClick={() => {
-                soundFx.playClick();
-                setIsWeatherModalOpen(true);
-              }}
-              title={isTL ? 'Kontrol ng Panahon (I-click para baguhin)' : 'Weather Control (Click to customize)'}
-              className={`relative p-2.5 rounded-2xl border ${weatherConfig.border} ${weatherConfig.bg} hover:border-sky-400/60 hover:shadow-lg hover:shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition flex flex-col justify-between overflow-hidden shadow-inner text-left cursor-pointer group`}
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1.5">
-                  <div className="p-1 rounded-lg bg-black/40 border border-white/10 shadow-sm group-hover:border-sky-400/40 transition">
-                    {weatherConfig.icon}
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-white flex items-center gap-1">
-                      {weatherConfig.badge}
-                      <span className="text-[9px] text-sky-400 opacity-80 font-normal">⚙️</span>
-                    </span>
-                    <div className="text-[9px] font-medium text-slate-300 flex items-center gap-1">
-                      <span>{currentSeason.icon}</span>
-                      <span>{isTL ? currentSeason.name : currentSeason.nameEn}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-2 text-[9px] text-slate-400 font-medium truncate flex items-center justify-between w-full">
-                <span>{weatherConfig.label}</span>
-                <span className="text-[8px] text-purple-400 font-bold uppercase tracking-wider group-hover:text-sky-300">
-                  {isTL ? 'Palitan' : 'Change'}
-                </span>
-              </div>
-            </button>
-          </div>
+          {/* SECTION A: ANIMATED TIME OF DAY & WEATHER */}
+          <SkyStatusPanel
+            timeOfDayConfig={timeOfDayConfig}
+            weatherConfig={weatherConfig}
+            onSkipDay={() => { soundFx.playClick(); setConfirmAction('SKIP_DAY'); }}
+            onOpenWeather={() => { soundFx.playClick(); setIsWeatherModalOpen(true); }}
+          />
 
           {/* SECTION B: QWERT BATTLE SKILLS TOOLBAR (INTEGRATED IN SIDE MENU) */}
           <div className="p-2 rounded-2xl bg-slate-900/60 border border-purple-500/30">

@@ -93,31 +93,31 @@ const { crewGeneralOf } = load('src/state/establishmentCrews.ts');
 manager.nexusGridPos = { x: 10, y: 10 };
 Object.assign(worker.container, IsometricHelper.gridToScreen(10, 10));
 const order = ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT', 'FOUNDRY', 'PAVILION', 'VOIDGATE', 'OSSUARY'];
-for (const id of order) {
-  const next = nextGeneralToSummon(state());
-  assert.equal(next.buildingId, id, 'Generals are summoned in construction order');
-  assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), true);
-  assert.ok(state().roster.some((u) => u.unitClass === crewGeneralOf(id)), `${id} General summoned before its home stands`);
-  assert.equal(state().resourceBuildings[id].level, 0, 'the Ent does not build establishments');
-}
-assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), false, 'Ent moves on once all Generals stand');
-
 const general = (id) => {
   const unit = state().roster.find((u) => u.unitClass === crewGeneralOf(id));
   const spot = load('src/state/buildingLayout.ts').BUILDING_SITES[id].workSpot;
   return { id: unit.id, name: unit.name, unitClass: unit.unitClass, container: { ...IsometricHelper.gridToScreen(spot.x, spot.y), setDepth() {} } };
 };
-store.setState({ resources: { ...state().resources, wood: 0, coins: 0 } });
-const woodGeneral = general('WOOD');
-updateGeneralConstruction(manager, woodGeneral, state(), 20, 65);
-assert.equal(state().resourceBuildings.WOOD.level, 0, 'General waits for supplies');
-store.setState({ resources: Object.fromEntries(Object.keys(state().resources).map(k => [k, 10000])) });
-for (const id of order) {
+const savedResources = { ...state().resources };
+for (const [i, id] of order.entries()) {
+  const next = nextGeneralToSummon(state());
+  assert.equal(next.buildingId, id, 'Generals are summoned in construction order');
+  assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), true);
+  assert.ok(state().roster.some((u) => u.unitClass === crewGeneralOf(id)), `${id} General summoned before its home stands`);
+  assert.equal(state().resourceBuildings[id].level, 0, 'the Ent does not build establishments');
+  assert.equal(nextGeneralToSummon(state()), undefined, 'Ent waits until the newest General builds its home');
   const g = general(id);
+  if (i === 0) {
+    store.setState({ resources: { ...state().resources, wood: 0, coins: 0 } });
+    updateGeneralConstruction(manager, g, state(), 20, 65);
+    assert.equal(state().resourceBuildings.WOOD.level, 0, 'General waits for supplies');
+    store.setState({ resources: Object.fromEntries(Object.keys(savedResources).map(k => [k, 10000])) });
+  }
   assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), true);
   assert.equal(state().resourceBuildings[id].level, 1, `${id} built by its General`);
   assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), false, 'General resumes duties once home stands');
 }
+assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), false, 'Ent moves on once all Generals stand');
 console.log('Construction progression checks passed.');
 const beforePurchase = { ...state().resources };
 for (const amount of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {
@@ -197,15 +197,18 @@ const { normalizeDifficulty, DIFFICULTIES } = load('src/state/difficulty.ts');
 assert.equal(normalizeDifficulty(undefined), 'NORMAL', 'old saves use normal difficulty');
 assert.equal(normalizeDifficulty('invalid'), 'NORMAL');
 const display = (x = 0, y = 0) => ({ x, y, setDepth() {}, add() {}, setSize() {}, setInteractive() {}, on() {} });
-for (const [difficulty, multiplier] of Object.entries(DIFFICULTIES).map(([k, d]) => [k, d.enemyMultiplier])) {
+const { WAVE_BALANCE } = load('src/state/waveBalance.ts');
+for (const difficulty of Object.keys(DIFFICULTIES)) {
+  const curve = WAVE_BALANCE.difficulty[difficulty];
+  assert.equal(DIFFICULTIES[difficulty].enemyMultiplier, curve.hp, 'intro multiplier mirrors waveBalance.json');
   store.setState({ difficulty, invasion: { ...initial.invasion, isActive: true, totalEnemiesInWave: 6 } });
   const invasionManager = new InvasionManager({ add: { graphics: display, container: display, ellipse: display } }, { findPath: () => null });
   invasionManager.renderInvaderBody = () => {};
   invasionManager.renderHpBar = () => {};
   invasionManager.spawnSingleInvader(1);
   const enemy = invasionManager.getInvaders()[0];
-  assert.equal(enemy.maxHp, Math.round(INVADER_CONFIGS[enemy.type].hp * multiplier));
-  assert.equal(enemy.damage, Math.round(INVADER_CONFIGS[enemy.type].damage * multiplier));
+  assert.equal(enemy.maxHp, Math.round(INVADER_CONFIGS[enemy.type].hp * curve.hp));
+  assert.equal(enemy.damage, Math.round(INVADER_CONFIGS[enemy.type].damage * curve.damage));
   assert.equal(JSON.parse(state().exportSave()).difficulty, difficulty);
 }
 state().resetRealm();
@@ -573,4 +576,59 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.ok((state().resources.metal ?? 0) > metalBefore, 'metal reaches the citadel');
   assert.ok((state().invasion.vengeance ?? 0) > 0, 'raids stir human vengeance');
   console.log('Headless tenant gathering and expedition checks passed.');
+}
+
+// Wave balance: stats grow with wave, day and difficulty; tactics and formations stay valid
+{
+  const balance = load('src/state/waveBalance.ts');
+  const tactics = load('src/state/waveTactics.ts');
+  const { buildWavePlan } = load('src/game/invaders/wavePlan.ts');
+  const knight = INVADER_CONFIGS.HUMAN_KNIGHT;
+  const hp = (wave, difficulty, day = 1) => balance.invaderStats(knight, { wave, difficulty, day, year: 1 }).hp;
+  for (const d of ['EASY', 'NORMAL', 'HARD']) {
+    for (let w = 2; w <= 100; w++) assert.ok(hp(w, d) > hp(w - 1, d), `${d} wave ${w} is tougher than wave ${w - 1}`);
+    assert.ok(hp(50, d, 365) > hp(50, d, 1), 'a year-old realm faces tougher invaders');
+  }
+  assert.equal(hp(50, 'NORMAL', 999), hp(50, 'NORMAL', 365), 'day pressure caps at 365');
+  assert.ok(hp(60, 'EASY') < hp(60, 'NORMAL') && hp(60, 'NORMAL') < hp(60, 'HARD'));
+  assert.ok(balance.skillPower(100) > balance.skillPower(1), 'skills scale with the wave');
+
+  assert.equal(tactics.rollWaveTactic(1, 'HARD'), 'SKIRMISH', 'the first waves are plain skirmishes');
+  const ids = new Set(tactics.WAVE_TACTICS.map((t) => t.id));
+  for (const t of tactics.WAVE_TACTICS) {
+    assert.ok(t.name.en && t.name.tl && t.desc.en && t.desc.tl, `${t.id} has EN/TL text`);
+    if (t.effect) assert.ok(tactics.TACTIC_EFFECTS[t.effect], `${t.id} effect is configured`);
+    for (const type of Object.keys(t.bias ?? {})) assert.ok(INVADER_CONFIGS[type], `${t.id} bias names a real invader`);
+  }
+  for (let w = 3; w <= 100; w++) {
+    const id = tactics.rollWaveTactic(w, 'NORMAL', 'SKIRMISH');
+    assert.ok(ids.has(id) && id !== 'SKIRMISH' || w < 5, `wave ${w} rolls a known tactic without repeating`);
+  }
+  for (const t of tactics.WAVE_TACTICS) {
+    const plan = buildWavePlan(25, 40, t, 'HARD');
+    assert.equal(plan.length, 40, `${t.id} plans the whole wave`);
+    assert.equal(plan[plan.length - 1].rank, 'climax', 'the realm climax boss comes last');
+    if (t.escort) assert.ok(plan.some((s) => s.escort && s.type === t.escort.type), `${t.id} brings its escort`);
+  }
+  console.log('Wave balance, tactic and formation checks passed.');
+}
+
+// Scouts: random humans and mecha drop coins, supplies and sometimes real equipment
+{
+  const scouts = load('src/state/scoutLoot.ts');
+  const { CRAFTABLE_ITEMS } = load('src/types/game.ts');
+  const ids = new Set(CRAFTABLE_ITEMS.map((i) => i.id));
+  const cfg = JSON.parse(fs.readFileSync('src/data/scoutLoot.json', 'utf8'));
+  for (const kind of ['HUMAN', 'MECHA']) {
+    for (const id of cfg.drops[kind].itemPool) assert.ok(ids.has(id), `${kind} scouts drop a real item (${id})`);
+    for (const r of cfg.drops[kind].resources) assert.ok(r.key in state().resources, `${r.key} is a resource`);
+    const drop = scouts.rollScoutDrops(kind, 40, () => 0.01);
+    assert.ok(drop.coinPiles.reduce((a, b) => a + b, 0) > 0 && drop.resources.length > 0 && drop.itemId, `${kind} scouts drop coins, supplies and items`);
+  }
+  assert.ok(scouts.SCOUTS.some((s) => s.kind === 'MECHA') && scouts.SCOUTS.some((s) => s.kind === 'HUMAN'));
+  const before = state().inventory.length;
+  assert.ok(state().grantEquipmentDrop(cfg.drops.MECHA.itemPool[0]));
+  assert.equal(state().inventory.length, before + 1, 'dropped equipment lands in the inventory');
+  assert.equal(state().grantEquipmentDrop('nope'), null);
+  console.log('Scout drop checks passed.');
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { halo, sparkBurst } from './glowFx';
 import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../../data/establishmentSkills';
 
 type Point = { x: number; y: number };
@@ -67,6 +68,8 @@ export class SkillCastFx {
     this.shockwave(origin, ult ? 5 : 2.4, 0xffffff, 140);
     if (ult) this.shockwave(origin, 9, color, 280);
     this.sparkColumn(origin, color, ult ? 22 : 12);
+    halo(this.scene, this.layer, origin, this.tilePx * (ult ? 5 : 3), color, ult ? 1100 : 750);
+    sparkBurst(this.scene, this.layer, origin, color, ult ? 24 : 12, this.tilePx * (ult ? 4 : 2.2));
     if (ult) this.scene.cameras.main.shake(260, 0.004);
 
     const seconds = def?.effectDuration || BUFF_SECONDS[id] || 0;
@@ -91,6 +94,8 @@ export class SkillCastFx {
     g.setPosition(at.x, at.y - 14);
     this.layer.add(g);
     this.scene.tweens.add({ targets: g, scale: 2.2, alpha: 0, duration: 380, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+    halo(this.scene, this.layer, at, this.tilePx * 0.9, color, 380, 14);
+    sparkBurst(this.scene, this.layer, at, color, 6, this.tilePx * 0.7, 14);
   }
 
   update(dt: number): void {

@@ -13,7 +13,9 @@ import { isBuildingOperational } from '../../state/defenseStats';
 import { soundFx } from '../audio/soundFx';
 import { activateMod, advanceCombatClock, auras, isModActive, resetCombatMods } from './combatMods';
 import { SkillCastFx, skillDef } from './skillCastFx';
+import { castPop, halo, runeCircle, sparkBurst } from './glowFx';
 import { logMessage } from '../../state/activityLog';
+import { skillPower } from '../../state/waveBalance';
 
 /** Screen pixels per grid tile along one axis (for knockbacks and visuals). */
 const TILE_PX = (() => {
@@ -59,6 +61,8 @@ export class SkillSystem {
   private repairCarry = 0;
   private auraTick = 0;
   private castFx: SkillCastFx;
+  /** Colour of the latest ring/beam, so the caster's rune circle matches the skill. */
+  private lastFxColor = 0xfde68a;
 
   constructor(
     private scene: Phaser.Scene,
@@ -791,6 +795,9 @@ export class SkillSystem {
     invaders: ActiveInvader[],
     workers: WorkerInstance[]
   ): void {
+    // Flat skill damage grows with the wave (waveBalance.json skills.powerPerWave)
+    const power = skillPower(useGameStore.getState().invasion.waveNumber);
+    const p = (n: number) => Math.round(n * power);
 
     switch (id) {
       // ── Codex landmarks ──
@@ -800,7 +807,7 @@ export class SkillSystem {
         break;
       case 'FOUNDRY_ANVIL_QUAKE':
         for (const i of zoneInvaders) {
-          this.invasion.damageInvader(i, 110, '🔨');
+          this.invasion.damageInvader(i, p(110), '🔨');
           this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 2);
         }
         this.ring(origin, 3, 0xf97316);
@@ -819,19 +826,19 @@ export class SkillSystem {
       case 'PAVILION_NIGHTMARE_ACT':
         for (const i of nearest(4)) {
           this.beam(origin, i.container, 0xc084fc);
-          this.invasion.damageInvader(i, 90, '🎭');
+          this.invasion.damageInvader(i, p(90), '🎭');
         }
         break;
       case 'PAVILION_ECLIPSE':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 150, '🌘');
+          this.invasion.damageInvader(i, p(150), '🌘');
           this.invasion.applySlow(i, 0.5, 8);
         }
         this.ring(origin, 8, 0x6d28d9);
         break;
       case 'VOIDGATE_GRAVITY_WELL':
         for (const i of zoneInvaders) {
-          this.invasion.damageInvader(i, 60, '🕳️');
+          this.invasion.damageInvader(i, p(60), '🕳️');
           this.invasion.applySlow(i, 0.2, 4);
         }
         this.ring(origin, 3, 0xa855f7);
@@ -839,19 +846,19 @@ export class SkillSystem {
       case 'VOIDGATE_VOID_GAZE':
         for (const i of nearest(3)) {
           this.beam(origin, i.container, 0xf0abfc);
-          this.invasion.damageInvader(i, 140, '👁️');
+          this.invasion.damageInvader(i, p(140), '👁️');
         }
         break;
       case 'VOIDGATE_SINGULARITY':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 250, '🌀');
+          this.invasion.damageInvader(i, p(250), '🌀');
           i.frozenTimer = 3;
         }
         this.ring(origin, 8, 0x7e22ce);
         break;
       case 'OSSUARY_BONE_SPUR':
         for (const i of zoneInvaders) {
-          this.invasion.damageInvader(i, 100, '🦴');
+          this.invasion.damageInvader(i, p(100), '🦴');
           this.invasion.applySlow(i, 0.6, 4);
         }
         this.ring(origin, 3, 0xe7dcc0);
@@ -864,7 +871,7 @@ export class SkillSystem {
         }
         break;
       case 'OSSUARY_DANSE_MACABRE':
-        for (const i of invaders) this.invasion.damageInvader(i, 200, '☠️');
+        for (const i of invaders) this.invasion.damageInvader(i, p(200), '☠️');
         for (let n = 0; n < 4; n++) {
           this.defenders.summon(origin.x + (n % 2 === 0 ? 24 : -24), origin.y + 8 + n * 4, {
             tag: 'skeleton_champion', unitClass: 'NECROMANCER', tint: 0x5eead4, hp: 180, damage: 25, life: 30,
@@ -873,7 +880,7 @@ export class SkillSystem {
         this.ring(origin, 7, 0x14b8a6);
         break;
       case 'QUARRY_SEISMIC_SHATTER':
-        for (const i of zoneInvaders) this.invasion.damageInvader(i, 120, '💥');
+        for (const i of zoneInvaders) this.invasion.damageInvader(i, p(120), '💥');
         this.ring(origin, 3, 0xf59e0b);
         break;
       case 'QUARRY_STONE_FORTRESS':
@@ -882,7 +889,7 @@ export class SkillSystem {
       case 'MINE_SPIKE_VOLLEY':
         for (const i of nearest(3)) {
           this.beam(origin, i.container, 0xd1d5db);
-          this.invasion.damageInvader(i, 90, '🔩');
+          this.invasion.damageInvader(i, p(90), '🔩');
         }
         break;
       case 'MINE_IRON_SKIN':
@@ -901,7 +908,7 @@ export class SkillSystem {
         break;
       case 'PORT_TIDAL_WAVE':
         for (const i of zoneInvaders) {
-          this.invasion.damageInvader(i, 80, '🌊');
+          this.invasion.damageInvader(i, p(80), '🌊');
           this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 2);
         }
         this.ring(origin, 3, 0x38bdf8);
@@ -917,7 +924,7 @@ export class SkillSystem {
         for (const i of zoneInvaders) {
           const take = Math.min(30, i.hp);
           drained += take;
-          this.invasion.damageInvader(i, 30, '🔮');
+          this.invasion.damageInvader(i, p(30), '🔮');
         }
         if (drained > 0) {
           useGameStore.setState((s) => ({ defense: { ...s.defense, castleHp: Math.min(s.defense.castleMaxHp, s.defense.castleHp + drained) } }));
@@ -927,8 +934,8 @@ export class SkillSystem {
       case 'CAVE_INFERNO_BURST': {
         const target = nearest(1)[0];
         if (!target) break;
-        this.invasion.damageInvader(target, 200, '🔥');
-        for (const o of invaders) if (o !== target && tilesBetween(o.container, target.container) <= 1.5) this.invasion.damageInvader(o, 60, undefined, true);
+        this.invasion.damageInvader(target, p(200), '🔥');
+        for (const o of invaders) if (o !== target && tilesBetween(o.container, target.container) <= 1.5) this.invasion.damageInvader(o, p(60), undefined, true);
         this.ring(target.container, 1.5, 0xf97316);
         break;
       }
@@ -952,7 +959,7 @@ export class SkillSystem {
         for (const i of invaders) {
           if (!INVADER_CONFIGS[i.type].flying) continue;
           this.beam(origin, i.container, 0xf97316);
-          this.invasion.damageInvader(i, 120, '🌋');
+          this.invasion.damageInvader(i, p(120), '🌋');
         }
         break;
       case 'PERCH_EAGLE_EYE':
@@ -962,14 +969,14 @@ export class SkillSystem {
         activateMod('bloodFrenzy', 12);
         break;
       case 'KENNEL_HELLFIRE_CHARGE':
-        for (const i of zoneInvaders) this.invasion.applyBurn(i, 10, 3);
+        for (const i of zoneInvaders) this.invasion.applyBurn(i, p(10), 3);
         this.ring(origin, 3, 0xef4444);
         break;
       case 'CASTLE_AEGIS_SHIELD':
       case 'CASTLE_OVERDRIVE':
         for (const i of invaders) {
           if (castle && tilesBetween(i.container, castle) > 4) continue;
-          this.invasion.damageInvader(i, 50, '🌀');
+          this.invasion.damageInvader(i, p(50), '🌀');
           this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 3);
         }
         useGameStore.setState((s) => ({
@@ -986,7 +993,7 @@ export class SkillSystem {
         break;
       case 'CASTLE_APOCALYPSE_RAY':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 350, '⚡');
+          this.invasion.damageInvader(i, p(350), '⚡');
           this.beam(origin, i.container, 0xf59e0b);
         }
         this.ring(origin, 8, 0xf59e0b);
@@ -1018,21 +1025,21 @@ export class SkillSystem {
         break;
       case 'QUARRY_EARTH_TITAN':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 250, '⛰️');
+          this.invasion.damageInvader(i, p(250), '⛰️');
           i.frozenTimer = 4;
         }
         this.ring(origin, 6, 0xb45309);
         break;
       case 'MINE_MOLTEN_BARRAGE':
         for (const i of invaders) {
-          this.invasion.applyBurn(i, 45, 6);
-          this.invasion.damageInvader(i, 80, '🌋');
+          this.invasion.applyBurn(i, p(45), 6);
+          this.invasion.damageInvader(i, p(80), '🌋');
         }
         this.ring(origin, 5, 0xea580c);
         break;
       case 'WOOD_WRATH_OF_THE_FOREST':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 300, '🌳');
+          this.invasion.damageInvader(i, p(300), '🌳');
           if (!INVADER_CONFIGS[i.type].flying) {
             i.frozenTimer = 8;
           }
@@ -1041,7 +1048,7 @@ export class SkillSystem {
         break;
       case 'PORT_LEVIATHAN_MAELSTROM':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 280, '🌊');
+          this.invasion.damageInvader(i, p(280), '🌊');
           this.invasion.knockback(i, origin.x, origin.y, TILE_PX * 3);
           i.frozenTimer = 4;
         }
@@ -1056,7 +1063,7 @@ export class SkillSystem {
         break;
       case 'TRENCH_KRAKEN_WRATH':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 320, '🦑');
+          this.invasion.damageInvader(i, p(320), '🦑');
           i.vulnTimer = 8;
         }
         this.ring(origin, 6, 0x0369a1);
@@ -1068,14 +1075,14 @@ export class SkillSystem {
           });
         }
         for (const i of invaders) {
-          this.invasion.applyBurn(i, 20, 8);
+          this.invasion.applyBurn(i, p(20), 8);
         }
         this.ring(origin, 6, 0x16a34a);
         break;
       case 'PERCH_DRAGON_INFERNO':
         for (const i of invaders) {
-          this.invasion.damageInvader(i, 300, '🐲');
-          this.invasion.applyBurn(i, 30, 5);
+          this.invasion.damageInvader(i, p(300), '🐲');
+          this.invasion.applyBurn(i, p(30), 5);
         }
         this.ring(origin, 7, 0xc2410c);
         break;
@@ -1136,25 +1143,54 @@ export class SkillSystem {
   // ── Visuals ─────────────────────────────────────────────────────────────────
 
   private ring(at: Point, radiusTiles: number, color: number): void {
-    const g = this.scene.add.graphics();
-    g.lineStyle(3, color, 0.9);
-    g.strokeEllipse(0, 0, radiusTiles * TILE_PX * 2.2, radiusTiles * TILE_PX * 1.1);
-    g.setPosition(at.x, at.y);
-    g.setScale(0.2);
-    this.layer.add(g);
-    this.scene.tweens.add({ targets: g, scale: 1, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+    this.lastFxColor = color;
+    const w = radiusTiles * TILE_PX * 2.2;
+    const h = radiusTiles * TILE_PX * 1.1;
+    // Filled flash under the wave
+    const flash = this.scene.add.graphics();
+    flash.fillStyle(color, 0.22);
+    flash.fillEllipse(0, 0, w, h);
+    flash.setPosition(at.x, at.y);
+    flash.setScale(0.4);
+    this.layer.add(flash);
+    this.scene.tweens.add({ targets: flash, scale: 1, alpha: 0, duration: 620, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+    // Leading wave (thick, coloured) and a trailing white rim
+    for (const [width, c, delay] of [[5, color, 0], [2, 0xffffff, 90]] as const) {
+      const g = this.scene.add.graphics();
+      g.lineStyle(width, c, 0.95);
+      g.strokeEllipse(0, 0, w, h);
+      g.setPosition(at.x, at.y);
+      g.setScale(0.15);
+      if (delay) g.setAlpha(0);
+      this.layer.add(g);
+      this.scene.tweens.add({ targets: g, scale: 1, alpha: { from: 1, to: 0 }, delay, duration: 560, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+    }
+    halo(this.scene, this.layer, at, Math.min(w * 0.5, TILE_PX * 4), color, 650);
+    sparkBurst(this.scene, this.layer, at, color, Math.min(18, 6 + radiusTiles * 2), w * 0.45, 4);
   }
 
   private beam(from: Point, to: Point, color: number): void {
+    this.lastFxColor = color;
+    // Glow core: wide soft stroke under a bright thin one
     const g = this.scene.add.graphics();
-    g.lineStyle(3, color, 0.95);
+    g.lineStyle(9, color, 0.25);
+    g.lineBetween(from.x, from.y - 14, to.x, to.y - 14);
+    g.lineStyle(4, color, 0.95);
+    g.lineBetween(from.x, from.y - 14, to.x, to.y - 14);
+    g.lineStyle(1.5, 0xffffff, 1);
     g.lineBetween(from.x, from.y - 14, to.x, to.y - 14);
     g.setDepth(9990);
     this.layer.add(g);
-    this.scene.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 320, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
+    halo(this.scene, this.layer, from, TILE_PX * 0.8, color, 300, 14);
+    halo(this.scene, this.layer, to, TILE_PX * 1.1, color, 420, 14);
+    sparkBurst(this.scene, this.layer, to, color, 8, TILE_PX * 0.9, 14);
   }
 
   private shout(w: WorkerInstance, text: string): void {
+    // Every General/beast skill cast: wind-up squash + rune circle at their feet
+    castPop(this.scene, w.container);
+    runeCircle(this.scene, this.layer, w.container, TILE_PX * 1.1, this.lastFxColor);
     this.workers.spawnFloatingPopup(w.container.x, w.container.y - 50, text, '#fde68a');
   }
 

@@ -59,18 +59,24 @@ const isGeneralUnit = (u: UnitRosterItem) => !u.parentBuildingId && !u.id.starts
  * The next General the Ent must summon, in construction order: once castle and
  * spire stand, the Ent's first duty is to call every establishment's General
  * (who then builds that establishment), until all thirteen are present.
+ * The Ent waits while a summoned General's establishment is still unbuilt: the
+ * newest General must finish its home before the next one is called.
  */
 export const nextGeneralToSummon = (state: {
   castleBuilt: boolean;
   spireBuilt?: boolean;
   roster: UnitRosterItem[];
+  resourceBuildings?: ResourceBuildingsState;
 }): { buildingId: ResourceBuildingId; unitClass: UnitClass } | undefined => {
   if (nextEntConstruction(state)) return undefined;
   for (const buildingId of BUILDING_IDS) {
     const unitClass = crewGeneralOf(buildingId);
-    if (unitClass && !state.roster.some((u) => u.unitClass === unitClass && isGeneralUnit(u))) {
+    if (!unitClass) continue;
+    if (!state.roster.some((u) => u.unitClass === unitClass && isGeneralUnit(u))) {
       return { buildingId, unitClass };
     }
+    // Summoned but its establishment is not up yet: hold the next summon.
+    if (state.resourceBuildings && (state.resourceBuildings[buildingId]?.level ?? 0) < 1) return undefined;
   }
   return undefined;
 };

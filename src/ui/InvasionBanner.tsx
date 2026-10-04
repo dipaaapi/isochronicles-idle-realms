@@ -1,9 +1,12 @@
 import React from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { Swords, ShieldAlert, Zap, AlertTriangle } from 'lucide-react';
+import { tacticOf } from '../state/waveTactics';
 
 export const InvasionBanner: React.FC = () => {
-  const { invasion, defense } = useGameStore();
+  const { invasion, defense, language } = useGameStore();
+  const tactic = tacticOf(invasion.tactic);
+  const tl = language === 'TL';
 
   const isImminent = !invasion.isActive && invasion.countdown <= 30;
   const isActive = invasion.isActive;
@@ -26,6 +29,10 @@ export const InvasionBanner: React.FC = () => {
               <span className="rounded-lg bg-rose-500/40 px-2 py-0.5 text-[10px] text-rose-200 font-bold">
                 {invasion.enemiesRemaining} / {invasion.totalEnemiesInWave} Kalaban Natitira
               </span>
+            </div>
+            <div className="text-[10px] font-semibold text-rose-100" title={tl ? tactic.desc.tl : tactic.desc.en}>
+              {tactic.icon} {tl ? tactic.name.tl : tactic.name.en}
+              <span className="font-normal text-rose-200/80"> — {tl ? tactic.desc.tl : tactic.desc.en}</span>
             </div>
             <div className="text-[10px] font-medium text-amber-300">
               ⚡ Demon Lord, pindutin ang screen para tamaan sila ng Kidlat ng Kadiliman!

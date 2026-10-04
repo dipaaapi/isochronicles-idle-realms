@@ -1,0 +1,36 @@
+{
+  "_doc": "Peacetime wandering scouts (InvasionManager.spawnSingleScout): who comes, their stats, and what they drop on the ground when slain. Amounts grow by perWave per wave. itemChance = chance to drop one equipment piece (craftableItems.json) into the inventory; itemPool lists the ids each kind favours.",
+  "scouts": [
+    { "type": "HUMAN_ARCHER", "kind": "HUMAN", "weight": 3, "hp": 25, "speed": 65, "damage": 4 },
+    { "type": "HUMAN_KNIGHT", "kind": "HUMAN", "weight": 2, "hp": 35, "speed": 55, "damage": 5 },
+    { "type": "ASSASSIN", "kind": "HUMAN", "weight": 1, "hp": 22, "speed": 80, "damage": 5 },
+    { "type": "MECHA_SCOUT", "kind": "MECHA", "weight": 2, "hp": 40, "speed": 60, "damage": 5 },
+    { "type": "MECHA_DRONE", "kind": "MECHA", "weight": 1.5, "hp": 28, "speed": 75, "damage": 4 }
+  ],
+  "drops": {
+    "HUMAN": {
+      "coins": { "min": 6, "max": 18, "perWave": 0.6 },
+      "resources": [
+        { "key": "wood", "min": 2, "max": 8, "perWave": 0.2 },
+        { "key": "stone", "min": 2, "max": 8, "perWave": 0.2 },
+        { "key": "fish", "min": 1, "max": 4, "perWave": 0.1 },
+        { "key": "aetherShards", "min": 1, "max": 4, "perWave": 0.1 }
+      ],
+      "resourceRolls": 2,
+      "itemChance": 0.04,
+      "itemPool": ["lumberjack_cleaver", "verdant_cloak", "swift_boots", "vitality_charm", "rune_pickaxe", "tidal_amulet"]
+    },
+    "MECHA": {
+      "coins": { "min": 8, "max": 22, "perWave": 0.7 },
+      "resources": [
+        { "key": "scrapMetal", "min": 2, "max": 6, "perWave": 0.15 },
+        { "key": "metal", "min": 1, "max": 5, "perWave": 0.15 },
+        { "key": "aetherShards", "min": 1, "max": 4, "perWave": 0.1 }
+      ],
+      "resourceRolls": 2,
+      "itemChance": 0.05,
+      "itemPool": ["ironstone_plating", "scrapforged_plating", "aegis_core", "granite_sledge", "dimensional_pouch"]
+    }
+  },
+  "coinPiles": 3
+}

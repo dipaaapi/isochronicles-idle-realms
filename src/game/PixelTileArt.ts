@@ -1,5 +1,7 @@
 import { TileType } from '../types/game';
 import { TILE_WIDTH, TILE_HEIGHT, TILE_DEPTH } from './IsometricHelper';
+import PLATFORM_THEMES from '../data/platformThemes.json';
+import type { Difficulty } from '../state/difficulty';
 
 /**
  * PixelTileArt — pure (DOM-free) pixel painter for the 2.5D isometric tiles.
@@ -44,7 +46,16 @@ export interface TileArtSpec {
   /** Right (south-east) face is on the island's outer edge — extend into a cliff. */
   cliffRight: boolean;
   platformPhase: 1 | 2 | 3 | 4;
+  /** Difficulty theme (platformThemes.json): Easy blooms, Hard cracks and darkens. Defaults to NORMAL. */
+  difficulty?: Difficulty;
 }
+
+type Phase = 1 | 2 | 3 | 4;
+const hex = (v: string) => Number(v);
+const THEMES = Object.fromEntries(Object.entries(PLATFORM_THEMES.difficulty).map(([k, t]) => [k, { ...t, tint: hex(t.tint) }])) as
+  Record<Difficulty, { tint: number; tintAmount: number; blossom: number; crack: number; rubble: number; cliffDarken: number }>;
+const REALM_GLOW = Object.fromEntries(Object.entries(PLATFORM_THEMES.realmGlow).map(([k, v]) => [k, hex(v)])) as unknown as Record<Phase, number>;
+const REALM_BLOSSOM = Object.fromEntries(Object.entries(PLATFORM_THEMES.realmBlossom).map(([k, v]) => [k, v.map(hex)])) as unknown as Record<Phase, number[]>;
 
 export interface PixelBuffer {
   data: Uint8ClampedArray;
@@ -108,6 +119,8 @@ const TOP_BOTTOM_ROW: number[] = Array.from({ length: TILE_ART_W }, (_, px) => {
 
 export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileArtSpec): void {
   const { type, colors, gridX: gx, gridY: gy, platformPhase } = spec;
+  const theme = THEMES[spec.difficulty ?? 'NORMAL'] ?? THEMES.NORMAL;
+  const isLand = type !== 'OCEAN_BLOCK' && type !== 'SPAWN_BLOCK' && type !== 'NEXUS_BASE';
   const isWater = type === 'OCEAN_BLOCK';
   const yOff = isWater ? WATER_ART_DROP : 0;
   const sideDepth = LAND_DEPTH - yOff;
@@ -130,7 +143,7 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
     // Chunky 2-px wide jag so the underside reads as pixel-art rock
     const jag = Math.floor(hash(gx, gy, Math.floor(px / 2), 7) * CLIFF_JAG);
     const end = hasCliff ? sideEnd + CLIFF_DEPTH - CLIFF_JAG + jag : sideEnd;
-    const rock = mix(faceColor, CLIFF_ROCK[platformPhase], 0.75);
+    const rock = shade(mix(faceColor, CLIFF_ROCK[platformPhase], 0.75), theme.cliffDarken);
 
     for (let py = start; py < end; py++) {
       const depthIn = py - start;
@@ -189,7 +202,9 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
           if (py > 0 && hash(gx, gy, px, py + 300) > 0.985 && inTop(px, py - 1)) {
             put(px, py - 1 + yOff, shade(colors.strokeColor, 1.1));
           }
-          if (platformPhase === 1 && hash(gx, gy, px, py + 400) > 0.994) c = n > 0.5 ? 0xf472b6 : 0xfde047;
+          const bloom = hash(gx, gy, px, py + 400);
+          if (platformPhase === 1 && bloom > 0.994) c = n > 0.5 ? 0xf472b6 : 0xfde047;
+          else if (bloom < theme.blossom) c = REALM_BLOSSOM[platformPhase][n > 0.5 ? 0 : 1];
           break;
         }
         case 'ANCIENT_STONE': {
@@ -223,6 +238,24 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
           // Resource-node bases: runic glints
           if (hash(gx, gy, px, py + 600) > 0.95) c = mix(c, colors.strokeColor, 0.8);
           if (d > 0.62 && d < 0.68 && (px + py) % 3 !== 0) c = mix(c, colors.strokeColor, 0.35);
+        }
+      }
+
+      // Difficulty theme: tint, rubble and glowing cracks in the realm's colour
+      if (isLand) {
+        if (theme.tintAmount > 0) c = mix(c, theme.tint, theme.tintAmount);
+        if (hash(gx, gy, Math.floor(px / 2), py + 700) < theme.rubble) c = shade(c, 0.7);
+        if (theme.crack > 0 && hash(gx, gy, 0, 800) < theme.crack * 40) {
+          // A short jagged fissure: dark rim, with an ember of the realm's glow deep inside
+          const start = Math.floor(hash(gx, gy, 1, 801) * TILE_ART_W * 0.4) + TILE_ART_W * 0.3;
+          const len = 3 + Math.floor(hash(gx, gy, 2, 802) * 3);
+          const row = py - HALF_H;
+          if (Math.abs(row) <= len) {
+            const jitter = Math.floor(hash(gx, gy, py, 803) * 3) - 1;
+            const off = Math.abs(px - (start + row * 2 + jitter));
+            if (off < 0.5 && Math.abs(row) < len) c = mix(REALM_GLOW[platformPhase], 0x000000, 0.35);
+            else if (off < 1.5) c = shade(c, 0.45);
+          }
         }
       }
 

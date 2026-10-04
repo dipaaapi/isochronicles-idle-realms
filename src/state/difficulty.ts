@@ -4,7 +4,7 @@ export interface DifficultyConfig {
   label: string;
   labelTl: string;
   icon: string;
-  /** Enemy and portal HP / damage multiplier (InvasionManager, PortalManager) */
+  /** Enemy HP multiplier shown in the intro; mirrors waveBalance.json difficulty.hp (the curves live there) */
   enemyMultiplier: number;
   /** Multiplier on the new-realm starting stockpile (applied when the intro begins) */
   startingSupplies: number;
@@ -19,7 +19,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     label: 'Easy',
     labelTl: 'Madali',
     icon: '🌙',
-    enemyMultiplier: 0.75,
+    enemyMultiplier: 0.72,
     startingSupplies: 1.5,
     bountyMultiplier: 1,
     tagline: 'A gentle return. Learn the realm at your own pace.',
@@ -39,7 +39,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyConfig> = {
     label: 'Hard',
     labelTl: 'Mahirap',
     icon: '🔥',
-    enemyMultiplier: 1.35,
+    enemyMultiplier: 1.2,
     startingSupplies: 0.9,
     bountyMultiplier: 1.4,
     tagline: 'Tougher invaders and thin supplies, but richer bounties.',

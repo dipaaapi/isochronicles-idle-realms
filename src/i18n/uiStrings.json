@@ -548,12 +548,12 @@
     "tl": "Anino sa ilalim ng mga yunit at gusali."
   },
   "gfxGlow": {
-    "en": "Glow (bloom)",
-    "tl": "Liwanag (bloom)"
+    "en": "Skill glow",
+    "tl": "Liwanag ng skill"
   },
   "gfxGlowHint": {
-    "en": "Soft glow on magic, fire and lights. Heaviest option.",
-    "tl": "Malambot na liwanag sa mahika, apoy at ilaw. Pinakamabigat na opsyon."
+    "en": "Additive glow halos and sparks on skill casts and hits.",
+    "tl": "Kumikinang na halo at kislap sa mga skill at tama."
   },
   "gfxBrightness": {
     "en": "Brightness",
@@ -566,5 +566,49 @@
   "audioSfxVolume": {
     "en": "Sound effects volume",
     "tl": "Lakas ng sound effects"
+  },
+  "skyDawn": {
+    "en": "Dawn",
+    "tl": "Bukang-liwayway"
+  },
+  "skyDay": {
+    "en": "Day",
+    "tl": "Araw"
+  },
+  "skyDusk": {
+    "en": "Dusk",
+    "tl": "Takipsilim"
+  },
+  "skyNight": {
+    "en": "Night",
+    "tl": "Gabi"
+  },
+  "skyNextIn": {
+    "en": "{phase} in {pct}%",
+    "tl": "{phase} sa {pct}%"
+  },
+  "skyDaysPassed": {
+    "en": "{n} days survived",
+    "tl": "{n} araw nang nakaligtas"
+  },
+  "skyNewDay": {
+    "en": "Day {n} begins",
+    "tl": "Simula ng Araw {n}"
+  },
+  "skyTomorrow": {
+    "en": "Tomorrow",
+    "tl": "Bukas"
+  },
+  "skyWeatherNow": {
+    "en": "Now",
+    "tl": "Ngayon"
+  },
+  "skyWeatherShift": {
+    "en": "Weather shifts",
+    "tl": "Nagbago ang panahon"
+  },
+  "skyRandomOff": {
+    "en": "Locked",
+    "tl": "Nakapirmi"
   }
 }

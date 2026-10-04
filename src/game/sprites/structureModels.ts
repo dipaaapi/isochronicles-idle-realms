@@ -843,7 +843,7 @@ const spire = (): StructureModel => {
 // ── 2. Invasion Rift Portal — gothic stone arch round a pink-blue spiral rift ──
 
 const portal = (): StructureModel => {
-  const M = { stone: 0, stoneDark: 1, stoneLight: 2, rune: 3, mid: 4, light: 5, core: 6, arm: 7, ember: 8, floor: 9 };
+  const M = { stone: 0, stoneDark: 1, stoneLight: 2, rune: 3, mid: 4, light: 5, core: 6, arm: 7, ember: 8, floor: 9, bone: 10, swirl: 11 };
   const C = 17;   // model centre
   const RZ = 22;  // rift centre height
   // Pointed arch: two arcs whose centres sit either side of the middle
@@ -856,6 +856,8 @@ const portal = (): StructureModel => {
         const z = 14 + 17 * Math.sin(a);
         if (z < from || z >= to || Math.abs(x - C) < 0.5) continue;
         out.push(box(x - 2, C - 2, z - 2, x + 2, C + 2, z + 2, i % 3 === 0 ? M.stoneLight : M.stone));
+        // Glowing rune carved into every other block's face
+        if (i % 2 === 1) out.push(box(x - 0.6, C + 2, z - 0.8, x + 0.6, C + 2.4, z + 0.8, M.rune));
       }
     }
     return out;
@@ -869,8 +871,13 @@ const portal = (): StructureModel => {
         box(2, 13.5, 0, 8, 20.5, 16, M.stone), box(26, 13.5, 0, 32, 20.5, 16, M.stone),
         box(1.5, 13, 0, 8.5, 21, 3, M.stoneDark), box(25.5, 13, 0, 32.5, 21, 3, M.stoneDark),
         box(4.4, 20.4, 4, 5.6, 21, 14, M.rune), box(28.4, 20.4, 4, 29.6, 21, 14, M.rune),
-        // Broken outer arch stubs either side
-        box(0, 4, 0, 3, 8, 9, M.stoneDark), box(31, 26, 0, 33.5, 30, 6, M.stoneDark),
+        // Broken outer arches either side (one still has its lintel)
+        box(0, 2, 0, 2.6, 4.6, 11, M.stoneDark), box(0, 8.4, 0, 2.6, 11, 9, M.stoneDark),
+        box(0, 2, 11, 2.6, 7.5, 13, M.stone), box(0.5, 2.6, 6, 1.1, 3.4, 9, M.rune),
+        box(31, 23, 0, 33.6, 25.6, 8, M.stoneDark), box(31, 29.4, 0, 33.6, 32, 5, M.stoneDark),
+        box(31.5, 25.6, 4, 32.1, 26.4, 7, M.rune),
+        // Cracked flagstones
+        box(C - 6, C + 5, 1.6, C + 6, C + 5.6, 1.8, M.stoneDark), box(C + 4, C - 7, 1.6, C + 4.6, C + 3, 1.8, M.stoneDark),
       ],
     },
     { name: 'ringLow', parent: 'frame', pivot: [C, C, RZ], shapes: arch(0, 24) },
@@ -879,10 +886,15 @@ const portal = (): StructureModel => {
         ...arch(24, 40),
         box(C - 2.2, C - 2.2, 29, C + 2.2, C + 2.2, 34, M.stoneLight),          // keystone
         ell(C, C + 2.2, 31.5, 1.2, 0.5, 1.4, M.rune),
+        // Skull crowning the keystone, eyes lit by the rift
+        ell(C, C + 0.5, 36, 2.6, 2.4, 2.4, M.bone),
+        box(C - 1.6, C + 1, 33.4, C + 1.6, C + 2.6, 35, M.bone),
+        box(C - 1.5, C + 2.6, 35.6, C - 0.4, C + 3, 36.8, M.rune), box(C + 0.4, C + 2.6, 35.6, C + 1.5, C + 3, 36.8, M.rune),
       ],
     },
     {
       name: 'vortex', parent: 'frame', pivot: [C, C, RZ], shapes: [
+        ell(C, C - 0.2, RZ, 10.6, 0.9, 11.4, M.swirl),
         ell(C, C, RZ, 9.6, 1.1, 10.5, M.mid),
         ell(C, C + 0.3, RZ, 6.6, 1.3, 7.4, M.light),
         ell(C, C + 0.5, RZ, 2.8, 1.6, 3, M.core),
@@ -930,6 +942,7 @@ const portal = (): StructureModel => {
       { color: 0x6b6475 }, { color: 0x45404f }, { color: 0x857d91 }, { color: 0xd946ef, emissive: true },
       { color: 0x7c3aed, emissive: true }, { color: 0xec4899, emissive: true }, { color: 0xffffff, emissive: true },
       { color: 0x60a5fa, emissive: true }, { color: 0xf0abfc, emissive: true }, { color: 0x57534e },
+      { color: 0xd6d3d1 }, { color: 0x1d4ed8, emissive: true },
     ],
     parts,
     animations: { dormant, idle, spawn, absorb, destroyed },

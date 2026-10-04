@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
-import { logFloatingText } from '../state/activityLog';
+import { logFloatingText, logMessage } from '../state/activityLog';
 import { IsometricHelper } from './IsometricHelper';
-import { GRID_SIZE } from '../state/buildingLayout';
+import { GRID_SIZE, isLandTile } from '../state/buildingLayout';
 import type { Resources } from '../types/state';
 
 export interface GroundLootItem {
@@ -26,7 +26,27 @@ export interface GroundLootItem {
   bobTimer: number;
   lifeTimer: number;
   maxLife: number;
+  /** Scout spoils: only Generals may pick these up. */
+  generalsOnly?: boolean;
+  /** Equipment piece (craftableItems.json id) granted on pickup instead of a resource. */
+  itemId?: string;
+  /** Worker heading for / carrying this drop; others leave it alone. */
+  claimedBy?: string;
+  /** Picked up: rides with its carrier and only counts once delivered to the castle. */
+  isCarried?: boolean;
+  /** Seconds since the carrier last moved it (a lost carrier drops it back on the ground). */
+  carryIdle?: number;
 }
+
+export interface DropOptions {
+  generalsOnly?: boolean;
+  itemId?: string;
+  /** Seconds on the ground before it fades (default 45). */
+  life?: number;
+}
+
+/** Who is looking for loot: tenants skip General-only spoils. */
+export type LootSeeker = 'tenant' | 'general';
 
 export class GroundLootManager {
   private scene: Phaser.Scene;
@@ -47,22 +67,41 @@ export class GroundLootManager {
     y: number,
     resourceKey: keyof Resources,
     amount: number,
-    customIcon?: string
+    customIcon?: string,
+    options: DropOptions = {}
   ): GroundLootItem | null {
     if (!this.scene || !this.scene.add) return null;
 
     const id = `loot_${this.nextId++}_${Date.now()}`;
     const icon = customIcon || this.getDefaultIcon(resourceKey);
 
-    // Random scattering landing spot within 30-70px
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 25 + Math.random() * 45;
-    const targetX = x + Math.cos(angle) * distance;
-    const targetY = y + Math.sin(angle) * distance;
+    // Random scattering landing spot within 25-70px, always on the platform's land
+    // (Generals can't reach drops in the ocean ring or off the edge).
+    let targetX = x;
+    let targetY = y;
+    let landed = false;
+    for (let attempt = 0; attempt < 8 && !landed; attempt++) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = (25 + Math.random() * 45) * (1 - attempt / 10);
+      targetX = x + Math.cos(angle) * distance;
+      targetY = y + Math.sin(angle) * distance;
+      const g = IsometricHelper.screenToGrid(targetX, targetY);
+      landed = isLandTile(g.x, g.y);
+    }
+    if (!landed) {
+      // Snap to the nearest land tile
+      const g = IsometricHelper.screenToGrid(x, y);
+      const snapped = IsometricHelper.gridToScreen(
+        Phaser.Math.Clamp(g.x, 1, GRID_SIZE - 2) + 0.5 + Phaser.Math.FloatBetween(-0.2, 0.2),
+        Phaser.Math.Clamp(g.y, 1, GRID_SIZE - 2) + 0.5 + Phaser.Math.FloatBetween(-0.2, 0.2)
+      );
+      targetX = snapped.x;
+      targetY = snapped.y;
+    }
 
     const grid = IsometricHelper.screenToGrid(targetX, targetY);
-    const gridX = Phaser.Math.Clamp(grid.x, 0, GRID_SIZE - 1);
-    const gridY = Phaser.Math.Clamp(grid.y, 0, GRID_SIZE - 1);
+    const gridX = Phaser.Math.Clamp(grid.x, 1, GRID_SIZE - 2);
+    const gridY = Phaser.Math.Clamp(grid.y, 1, GRID_SIZE - 2);
 
     const container = this.scene.add.container(x, y);
     container.setDepth(6000 + y);
@@ -72,7 +111,8 @@ export class GroundLootManager {
     container.add(shadow);
 
     // Soft Ambient Glow
-    const glowColor = this.getGlowColor(resourceKey);
+    // General-only spoils glow gold so they stand out from ordinary drops
+    const glowColor = options.generalsOnly ? 0xfbbf24 : this.getGlowColor(resourceKey);
     const glow = this.scene.add.arc(0, -4, 8, 0, 360, false, glowColor, 0.45);
     container.add(glow);
 
@@ -112,7 +152,9 @@ export class GroundLootManager {
       isLanded: false,
       bobTimer: Math.random() * Math.PI * 2,
       lifeTimer: 0,
-      maxLife: 45, // stays on ground for 45s before despawning
+      maxLife: options.life ?? 45, // stays on the ground this long before despawning
+      generalsOnly: options.generalsOnly,
+      itemId: options.itemId,
     };
 
     // Parabolic pop animation
@@ -157,6 +199,12 @@ export class GroundLootManager {
     const toRemove: string[] = [];
 
     this.lootItems.forEach((loot, id) => {
+      if (loot.claimedBy) {
+        loot.carryIdle = (loot.carryIdle ?? 0) + deltaSec;
+        // Carrier gone (died, despawned, remounted): put the drop back up for grabs
+        if (loot.carryIdle > 3) this.release(loot);
+        else if (loot.isCarried) return;
+      }
       loot.lifeTimer += deltaSec;
       if (loot.lifeTimer >= loot.maxLife) {
         toRemove.push(id);
@@ -184,12 +232,13 @@ export class GroundLootManager {
   /**
    * Find nearest unclaimed loot item within maxDist.
    */
-  public getNearestLoot(x: number, y: number, maxDist: number = 320): GroundLootItem | null {
+  public getNearestLoot(x: number, y: number, maxDist: number = 320, seeker: LootSeeker = 'tenant'): GroundLootItem | null {
     let nearest: GroundLootItem | null = null;
     let minDistSq = maxDist * maxDist;
 
     this.lootItems.forEach((loot) => {
-      if (!loot.isLanded) return;
+      if (!loot.isLanded || loot.claimedBy) return;
+      if (loot.generalsOnly && seeker !== 'general') return;
       const dx = loot.container.x - x;
       const dy = loot.container.y - y;
       const distSq = dx * dx + dy * dy;
@@ -202,6 +251,57 @@ export class GroundLootManager {
     return nearest;
   }
 
+  /** Reserve a drop for a worker walking over to it. */
+  public claim(loot: GroundLootItem, workerId: string): void {
+    loot.claimedBy = workerId;
+    loot.carryIdle = 0;
+  }
+
+  /** Keeps a claim alive while its worker is still on the way. */
+  public touchClaim(id: string): GroundLootItem | null {
+    const loot = this.lootItems.get(id);
+    if (loot) loot.carryIdle = 0;
+    return loot ?? null;
+  }
+
+  /** The worker reached the drop: it now rides above them (not credited yet). */
+  public pickUp(loot: GroundLootItem): void {
+    loot.isCarried = true;
+    loot.carryIdle = 0;
+    loot.container.setAlpha(1);
+    loot.shadow.setVisible(false);
+    loot.glow.setVisible(false);
+    soundFx.playClick();
+  }
+
+  /** Moves a carried drop along with its carrier (stacked above the head). */
+  public carry(id: string, x: number, y: number, stackIndex: number): boolean {
+    const loot = this.lootItems.get(id);
+    if (!loot || !loot.isCarried) return false;
+    loot.carryIdle = 0;
+    loot.container.setPosition(x, y - 26 - stackIndex * 7);
+    loot.container.setDepth(6000 + y + 1);
+    loot.sprite.setY(0);
+    return true;
+  }
+
+  /** Drops a carried / claimed item back onto the ground where it is. */
+  private release(loot: GroundLootItem): void {
+    loot.claimedBy = undefined;
+    loot.carryIdle = 0;
+    if (loot.isCarried) {
+      loot.isCarried = false;
+      const g = IsometricHelper.screenToGrid(loot.container.x, loot.container.y + 26);
+      const pos = IsometricHelper.gridToScreen(
+        Phaser.Math.Clamp(g.x, 1, GRID_SIZE - 2) + 0.5,
+        Phaser.Math.Clamp(g.y, 1, GRID_SIZE - 2) + 0.5
+      );
+      loot.container.setPosition(pos.x, pos.y);
+      loot.shadow.setVisible(true);
+      loot.glow.setVisible(true);
+    }
+  }
+
   /**
    * Collect loot item, play pick-up chime and fly towards castle or worker, grant resource to store.
    */
@@ -212,13 +312,24 @@ export class GroundLootManager {
 
     this.lootItems.delete(id);
 
-    // Grant resources to store
     const store = useGameStore.getState();
-    store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
-    soundFx.playDeposit();
-
-    // Narrated in the activity log tray (no floating text over the map)
-    logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
+    if (loot.itemId) {
+      // An equipment piece: straight into the Armory inventory
+      const item = store.grantEquipmentDrop(loot.itemId);
+      soundFx.playCoin();
+      if (item) {
+        logMessage('scoutItem', {
+          name: collectorName ?? 'General',
+          item: { en: `${item.icon} ${item.name}`, tl: `${item.icon} ${item.nameTl ?? item.name}` },
+        });
+      }
+    } else {
+      // Grant resources to store
+      store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
+      soundFx.playDeposit();
+      // Narrated in the activity log tray (no floating text over the map)
+      logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
+    }
 
     // Animate item flying upward & shrinking
     this.scene.tweens.add({

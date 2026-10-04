@@ -91,6 +91,9 @@ export interface WorkerInstance extends NavAgent {
   treantRepairId?: TowerId;
   entGearTimer?: number;
   autoSummonTimer?: number;
+  /** General looting: drop it is walking to, and drops it carries to the castle. */
+  lootTargetId?: string;
+  carriedLoot?: string[];
   skill1Cooldown?: number;
   skill2Cooldown?: number;
   ultimateCooldown?: number;
@@ -154,7 +157,7 @@ export interface WorkerContext {
   readonly portals?: PortalManager;
   readonly groundLoot?: import('../GroundLootManager').GroundLootManager;
   readonly defenders?: import('../DefenderSystem').DefenderSystem;
-  getNearestGroundLoot?(x: number, y: number, maxDist?: number): import('../GroundLootManager').GroundLootItem | null;
+  getNearestGroundLoot?(x: number, y: number, maxDist?: number, seeker?: import('../GroundLootManager').LootSeeker): import('../GroundLootManager').GroundLootItem | null;
   collectGroundLoot?(item: import('../GroundLootManager').GroundLootItem, name?: string): void;
   getWorkers(): WorkerInstance[];
   getDefenders?(): import('../DefenderSystem').Defender[];

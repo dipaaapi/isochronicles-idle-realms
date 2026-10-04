@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { IsometricHelper } from './IsometricHelper';
 import { PORTAL_SITES, PortalSite } from '../state/buildingLayout';
 import { portalBounty, portalMaxHp } from '../state/defenseStats';
+import type { PortalPattern } from '../state/waveTactics';
 import { useGameStore } from '../state/useGameStore';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
@@ -37,6 +38,9 @@ export interface PortalState {
  */
 export class PortalManager {
   private portals: PortalState[] = [];
+  /** ROTATE pattern: spawns per rift before moving on, and the running count. */
+  private rotateEvery = 0;
+  private rotateCount = 0;
 
   constructor(private scene: Phaser.Scene, private layer: Phaser.GameObjects.Container) {
     for (const site of PORTAL_SITES) {
@@ -111,26 +115,47 @@ export class PortalManager {
     return this.portals.filter((p) => p.mode === 'open');
   }
 
-  /** True once every portal has been destroyed this wave. */
+  /** No rift is left open (smashed, or the formation only opened the ones now destroyed). */
   allSealed(): boolean {
-    return this.portals.every((p) => p.mode === 'destroyed');
+    return !this.portals.some((p) => p.mode === 'open');
   }
 
-  /** Tears every portal open for a new wave (destroyed ones re-form). */
-  open(wave: number, enemyMultiplier: number): void {
-    const maxHp = portalMaxHp(wave, enemyMultiplier);
+  /**
+   * Tears the rifts open for a new wave (destroyed ones re-form). The wave's
+   * tactic decides which: ALL / ROTATE open every rift, PAIR two opposite
+   * corners, SINGLE just one (the others stay dormant).
+   */
+  open(wave: number, hpMultiplier: number, pattern: PortalPattern = 'ALL', rotateEvery = 0): void {
+    const maxHp = portalMaxHp(wave, hpMultiplier);
     soundFx.playPortalOpen();
     for (const p of this.portals) {
+      p.mode = 'dormant';
+      p.busy = 0;
+      this.applyMode(p);
+    }
+    const chosen = this.pickPattern(pattern);
+    this.rotateEvery = pattern === 'ROTATE' ? Math.max(1, rotateEvery) : 0;
+    this.rotateCount = 0;
+    for (const p of chosen) {
       p.mode = 'open';
       p.maxHp = maxHp;
       p.hp = maxHp;
-      p.busy = 0;
       this.applyMode(p);
       if (p.sprite) playStructureAnim(p.sprite, 'spawn', true);
       p.container.setScale(0.2);
       this.scene.tweens.add({ targets: p.container, scale: 1, duration: 650, ease: 'Back.easeOut' });
     }
-    logMessage('portalsOpen', { count: this.portals.length });
+    logMessage('portalsOpen', { count: chosen.length });
+  }
+
+  private pickPattern(pattern: PortalPattern): PortalState[] {
+    if (pattern !== 'PAIR' && pattern !== 'SINGLE') return [...this.portals];
+    const first = this.portals[Math.floor(Math.random() * this.portals.length)];
+    if (pattern === 'SINGLE' || this.portals.length < 2) return [first];
+    const opposite = this.portals
+      .filter((p) => p !== first)
+      .sort((a, b) => Math.hypot(b.x - first.x, b.y - first.y) - Math.hypot(a.x - first.x, a.y - first.y))[0];
+    return [first, opposite];
   }
 
   /** Wave over: rifts shrink back to dormant embers. */
@@ -146,7 +171,13 @@ export class PortalManager {
   /** A random open portal for the next invader, or null when all are sealed. */
   pickSpawn(): PortalState | null {
     const open = this.getOpen();
-    return open.length ? open[Math.floor(Math.random() * open.length)] : null;
+    if (!open.length) return null;
+    if (this.rotateEvery > 0) {
+      // Rotating rifts: one at a time, moving on every few invaders
+      const index = Math.floor(this.rotateCount++ / this.rotateEvery) % open.length;
+      return open[index];
+    }
+    return open[Math.floor(Math.random() * open.length)];
   }
 
   /** Any portal that is not destroyed (scouts slip through dormant rifts too). */

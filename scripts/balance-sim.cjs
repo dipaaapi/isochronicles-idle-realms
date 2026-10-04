@@ -5,8 +5,10 @@
 //   node scripts/balance-sim.cjs            (all difficulties)
 //   node scripts/balance-sim.cjs HARD       (one difficulty)
 //
-// It is a model, not a replay: combat is reduced to "wave HP vs tower DPS", tenants fighting and
-// the Slime/Ent support are left out, and the player is assumed to keep towers levelled on a schedule.
+// It is a model, not a replay: combat is reduced to "wave HP vs tower + tenant + skill DPS", the
+// Slime/Ent support is left out, and the player is assumed to keep towers levelled on a schedule.
+// Invader stats come from src/state/waveBalance.ts (the game's own curves) and the expected wave
+// tactic mix from src/state/waveTactics.ts; each wave is shown on day 1 and day 365 of the realm.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -54,6 +56,9 @@ const { DefenderSystem } = load('src/game/DefenderSystem.ts');
 const ECON = JSON.parse(fs.readFileSync('src/data/economy.json', 'utf8'));
 const WAVE_POOL = JSON.parse(fs.readFileSync('src/data/wavePool.json', 'utf8'));
 const DEF = JSON.parse(fs.readFileSync('src/data/defenseConfig.json', 'utf8'));
+const balance = load('src/state/waveBalance.ts');
+const tactics = load('src/state/waveTactics.ts');
+const SKILL_SRC = fs.readFileSync('src/game/skills/SkillSystem.ts', 'utf8');
 const state = () => store.getState();
 
 const CORE = ['WOOD', 'QUARRY', 'MINE', 'PORT'];
@@ -116,21 +121,41 @@ function avgInvader(wave) {
   return { hp, dmg, bounty };
 }
 
-/** Wave strength, mirroring InvasionManager.spawnSingleInvader. */
-function waveStats(wave, enemyMult) {
-  const count = ECON.invasion.baseEnemies + ECON.invasion.enemiesPerWave * (wave - 1);
-  const a = avgInvader(wave);
-  const climax = [25, 50, 75, 100].includes(wave);
-  const boss = wave % 5 === 0 || climax;
-  const hpMul = (1 + (wave - 1) * 0.05) * enemyMult;
-  const unitHp = (a.hp + (wave - 1) * 18) * hpMul;
-  const unitDmg = a.dmg * (1 + (wave - 1) * 0.035) * enemyMult;
-  const bossHp = boss ? (INVADER_CONFIGS.HIGH_PRIEST.hp + (wave - 1) * 18) * hpMul * (climax ? 4.5 : 2.5) : 0;
-  const totalHp = unitHp * (boss ? count - 1 : count) + bossHp;
-  const bounty = a.bounty * (1 + (wave - 1) * 0.04) * (boss ? count - 1 : count) + (boss ? 95 * (climax ? 8 : 3.5) : 0);
-  const portalHp = (DEF.portal.hp + DEF.portal.hpPerWave * (wave - 1)) * enemyMult;
-  return { count, unitHp, unitDmg, totalHp, bounty, portalHp, boss, climax };
+/** Expected tactic multipliers at a wave (weighted over the tactics unlocked on that difficulty). */
+function tacticMix(wave, difficulty) {
+  const pool = wave <= 2 ? [tactics.WAVE_TACTICS[0]] : tactics.WAVE_TACTICS.filter((t) => wave >= tactics.tacticUnlockWave(t, difficulty));
+  const total = pool.reduce((sum, t) => sum + t.weight, 0);
+  const avg = (key) => pool.reduce((sum, t) => sum + (t[key] ?? 1) * t.weight, 0) / total;
+  return { hp: avg('hp'), damage: avg('damage'), count: avg('count'), interval: avg('interval'), portalHp: avg('portalHp') };
 }
+
+/** Wave strength, mirroring InvasionManager.spawnSingleInvader (balance.invaderStats). */
+function waveStats(wave, difficulty, day = 1) {
+  const mix = tacticMix(wave, difficulty);
+  const count = balance.scaledEnemyCount(economy.enemiesInWave(wave), difficulty, mix.count);
+  const a = avgInvader(wave);
+  const ctx = { wave, difficulty, day, year: 1 };
+  const climax = balance.isClimaxWave(wave);
+  const boss = balance.isBossWave(wave);
+  const unit = balance.invaderStats({ hp: a.hp, damage: a.dmg, bountyCoins: a.bounty }, ctx, 'normal', mix);
+  const elite = balance.eliteChance(wave, difficulty);
+  const eliteMul = 1 + elite * (balance.WAVE_BALANCE.elite.hp - 1);
+  const bossUnit = boss ? balance.invaderStats(INVADER_CONFIGS.HIGH_PRIEST, ctx, climax ? 'climax' : 'boss') : null;
+  const fighters = boss ? count - 1 : count;
+  const totalHp = unit.hp * eliteMul * fighters + (bossUnit ? bossUnit.hp : 0);
+  const bounty = unit.bounty * (1 + elite * (balance.WAVE_BALANCE.elite.bounty - 1)) * fighters + (bossUnit ? bossUnit.bounty : 0);
+  const portalHp = defense.portalMaxHp(wave, balance.portalHpMultiplier(wave, difficulty, mix.portalHp));
+  const spawnGap = balance.spawnIntervalMs(wave, difficulty, mix.interval, () => 0.5) / 1000;
+  return { count, unitHp: unit.hp, unitDmg: unit.damage, totalHp, bounty, portalHp, boss, climax, spawnGap };
+}
+
+/**
+ * Structure-skill DPS: every flat damage number in applyStructureSkill (p(N)), each assumed to hit
+ * ~6 invaders once per ~75 s cooldown, scaled by skillPower(wave). A rough upper bound, since the
+ * player (or auto-cast) must actually fire them.
+ */
+const SKILL_FLAT = [...SKILL_SRC.matchAll(/damageInvader\(\w+(?:\(\d\)\[0\])?, p\((\d+)\)/g)].reduce((sum, m) => sum + Number(m[1]), 0);
+const skillDps = (wave, count) => (SKILL_FLAT * Math.min(6, count)) / 75 * balance.skillPower(wave);
 
 /** Effective single-target DPS of a tower (volleys, chains and summons counted as extra hits). */
 function towerDps(id, level) {
@@ -203,22 +228,26 @@ for (const d of diffs) {
   const cfg = DIFFICULTIES[d];
   p(`## ${d}: waves vs defenses`);
   p();
-  p(`Every establishment stands, towers at the scheduled level. "Clear time" = wave HP / (tower + tenant DPS), portals excluded. Defenses keep up while clear time < arrival time (${SPAWN_SECONDS}s per invader + ${CLEANUP_SECONDS}s).`);
+  p(`Every establishment stands, towers at the scheduled level. "Clear time" = wave HP / (tower + tenant + skill DPS), portals excluded, with the expected tactic mix. Load = clear time / arrival time (spawn gap per invader + ${CLEANUP_SECONDS}s); defenses keep up while load < 1. Day 365 = the same wave a full year into the realm.`);
   p();
-  p('| Wave | Enemies | Wave HP | Hit dmg | Tower Lv | Tower DPS | Tenant DPS | Clear time (s) | Bounty |');
-  p('|---:|---:|---:|---:|---:|---:|---:|---:|---:|');
+  p('| Wave | Enemies | Wave HP (day 1) | Wave HP (day 365) | Hit dmg | Tower Lv | Tower DPS | Tenant DPS | Skill DPS | Clear (s) | Load d1 | Load d365 | Bounty |');
+  p('|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|');
   const flags = [];
   for (const wave of [1, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 90, 100]) {
-    const w = waveStats(wave, cfg.enemyMultiplier);
+    const w = waveStats(wave, d);
+    const late = waveStats(wave, d, 365);
     const lvl = towerLevelAt(wave);
     const dps = layout.BUILDING_IDS.concat(['SPIRE']).filter((id) => DEF.towers[id]).reduce((s, id) => s + towerDps(id, lvl), 0);
     const tdps = tenantDps(wave);
-    const clear = w.totalHp / (dps + tdps);
+    const sdps = skillDps(wave, w.count);
+    const clear = w.totalHp / (dps + tdps + sdps);
+    const budget = w.count * w.spawnGap + CLEANUP_SECONDS;
+    const load = clear / budget;
+    const loadLate = (late.totalHp / (dps + tdps + sdps)) / budget;
     const bounty = w.bounty * (cfg.bountyMultiplier ?? 1);
-    p(`| ${wave}${w.climax ? ' ★' : w.boss ? ' ☆' : ''} | ${w.count} | ${fmt(w.totalHp)} | ${fmt(w.unitDmg)} | ${lvl} | ${fmt(dps)} | ${fmt(tdps)} | ${fmt(clear)} | ${fmt(bounty)} |`);
+    p(`| ${wave}${w.climax ? ' ★' : w.boss ? ' ☆' : ''} | ${w.count} | ${fmt(w.totalHp)} | ${fmt(late.totalHp)} | ${fmt(w.unitDmg)} | ${lvl} | ${fmt(dps)} | ${fmt(tdps)} | ${fmt(sdps)} | ${fmt(clear)} | ${load.toFixed(2)} | ${loadLate.toFixed(2)} | ${fmt(bounty)} |`);
     // Invaders arrive one by one, so defenses keep up when they clear the wave before it finishes arriving
-    const budget = w.count * SPAWN_SECONDS + CLEANUP_SECONDS;
-    if (clear > budget) flags.push(`wave ${wave}: clear time ${fmt(clear)}s exceeds the ${fmt(budget)}s it takes the wave to arrive`);
+    if (loadLate > 1) flags.push(`wave ${wave}: load ${loadLate.toFixed(2)} on day 365 (clear time exceeds the ${fmt(budget)}s it takes the wave to arrive)`);
   }
   p();
   p('☆ boss wave, ★ realm climax boss.');
@@ -236,7 +265,7 @@ p();
 p('Each cell: max over the cost resources of (amount needed / income per wave). Coins income = measured coins + average wave bounty around wave 20 (NORMAL).');
 p();
 const perWave = Object.fromEntries(Object.entries(incomeAll).map(([k, v]) => [k, v * (WAVE_SECONDS / 60)]));
-perWave.coins = (perWave.coins ?? 0) + waveStats(20, 1).bounty;
+perWave.coins = (perWave.coins ?? 0) + waveStats(20, 'NORMAL').bounty;
 const wavesFor = (c) => Math.max(0, ...Object.entries(c).filter(([, v]) => v).map(([k, v]) => v / Math.max(0.01, perWave[k] ?? 0)));
 p('| Upgrade | Lv2 | Lv3 | Lv4 | Lv5 | Lv10 |');
 p('|---|---:|---:|---:|---:|---:|');

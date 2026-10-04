@@ -9,7 +9,7 @@ import {
   slimeEvolutionKillsRequired,
 } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
-import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
+import { CRAFTABLE_ITEMS, TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { EquipmentItem, EquipmentSlot, HarvestTask, InvaderType, UnitClass } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import type { SliceArgs } from './types';
@@ -244,6 +244,14 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
       '⚒️'
     );
     return true;
+  },
+
+  /** A slain scout dropped an equipment piece: it goes straight to the inventory, free. */
+  grantEquipmentDrop: (itemId: string) => {
+    const item = CRAFTABLE_ITEMS.find((i) => i.id === itemId);
+    if (!item) return null;
+    set((prev) => ({ inventory: [...prev.inventory, { ...item }], lastSavedTimestamp: Date.now() }));
+    return item;
   },
 
   purchaseEquipment: (item: EquipmentItem) => {

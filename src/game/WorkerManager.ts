@@ -14,13 +14,14 @@ import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playChar
 import { Navigation } from './Navigation';
 import type { PortalManager } from './PortalManager';
 import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, GRID_CENTER, GRID_SIZE, PORTAL_SITES, SPIRE_WORK_SPOT } from '../state/buildingLayout';
-import type { GroundLootItem, GroundLootManager } from './GroundLootManager';
+import type { GroundLootItem, GroundLootManager, LootSeeker } from './GroundLootManager';
 import { isEnrichableTask, type WorkerContext, type WorkerFrame, type WorkerInstance } from './workers/types';
 import { renderCargoGraphics, renderWorkerGraphics } from './workers/legacyWorkerArt';
 import { computeWorkerFrame } from './workers/modifiers';
 import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
 import { generalHomeSite, updateGeneralConstruction } from './workers/generalConstruction';
+import { updateGeneralLooting } from './workers/generalLooting';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
@@ -59,8 +60,8 @@ export class WorkerManager implements WorkerContext {
     this.groundLoot = loot;
   }
 
-  public getNearestGroundLoot(x: number, y: number, maxDist: number = 320): GroundLootItem | null {
-    return this.groundLoot ? this.groundLoot.getNearestLoot(x, y, maxDist) : null;
+  public getNearestGroundLoot(x: number, y: number, maxDist: number = 320, seeker: LootSeeker = 'tenant'): GroundLootItem | null {
+    return this.groundLoot ? this.groundLoot.getNearestLoot(x, y, maxDist, seeker) : null;
   }
 
   public collectGroundLoot(item: GroundLootItem, collectorName?: string): void {
@@ -610,8 +611,12 @@ export class WorkerManager implements WorkerContext {
       const isTenant = !!worker.parentBuildingId || worker.id.startsWith('tenant_');
       const isGeneral = !isTenant && !isSupportSlime && !isTreant && !isHealer;
       if (isGeneral) {
+        // Generals loot the platform's drops and haul them to the castle (credited on delivery)
         if (worker.status === 'COMBAT') {
           updateCombat(this, worker, frame);
+          for (const [i, id] of (worker.carriedLoot ?? []).entries()) this.groundLoot?.carry(id, worker.container.x, worker.container.y, i);
+        } else if (updateGeneralLooting(this, this.groundLoot, worker, frame.deltaSec, frame.effectiveSpeed)) {
+          // busy looting / hauling
         } else if (!updateGeneralConstruction(this, worker, store, frame.deltaSec, frame.effectiveSpeed)) {
           // Each General raises its own establishment first, then guards and scouts
           this.updateGeneralScouting(worker, frame);
@@ -858,6 +863,15 @@ export class WorkerManager implements WorkerContext {
     // Generals prioritize repairing their damaged home establishment and Citadel Castle, then scout/patrol
     const isGeneral = isGatherer(worker.unitClass) && !worker.id.startsWith('tenant_') && !worker.parentBuildingId;
     if (isGeneral) {
+      // Scout spoils on the ground: only Generals collect them
+      const spoils = this.getNearestGroundLoot(worker.container.x, worker.container.y, 480, 'general');
+      if (spoils) {
+        this.followPathTo(worker, { x: spoils.gridX, y: spoils.gridY });
+        worker.status = 'MOVING_TO_NODE';
+        worker.overrideEmote = '🎒';
+        worker.overrideEmoteTimer = 2000;
+        return;
+      }
       const homeBuilding = UNIT_CLASSES[worker.unitClass]?.requiredBuilding;
       if (homeBuilding) {
         const b = towerBuildingOf(store, homeBuilding);
