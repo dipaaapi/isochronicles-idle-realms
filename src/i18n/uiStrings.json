@@ -566,5 +566,49 @@
   "audioSfxVolume": {
     "en": "Sound effects volume",
     "tl": "Lakas ng sound effects"
+  },
+  "skyDawn": {
+    "en": "Dawn",
+    "tl": "Bukang-liwayway"
+  },
+  "skyDay": {
+    "en": "Day",
+    "tl": "Araw"
+  },
+  "skyDusk": {
+    "en": "Dusk",
+    "tl": "Takipsilim"
+  },
+  "skyNight": {
+    "en": "Night",
+    "tl": "Gabi"
+  },
+  "skyNextIn": {
+    "en": "{phase} in {pct}%",
+    "tl": "{phase} sa {pct}%"
+  },
+  "skyDaysPassed": {
+    "en": "{n} days survived",
+    "tl": "{n} araw nang nakaligtas"
+  },
+  "skyNewDay": {
+    "en": "Day {n} begins",
+    "tl": "Simula ng Araw {n}"
+  },
+  "skyTomorrow": {
+    "en": "Tomorrow",
+    "tl": "Bukas"
+  },
+  "skyWeatherNow": {
+    "en": "Now",
+    "tl": "Ngayon"
+  },
+  "skyWeatherShift": {
+    "en": "Weather shifts",
+    "tl": "Nagbago ang panahon"
+  },
+  "skyRandomOff": {
+    "en": "Locked",
+    "tl": "Nakapirmi"
   }
 }

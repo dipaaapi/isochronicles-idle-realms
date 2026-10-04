@@ -91,6 +91,9 @@ export interface WorkerInstance extends NavAgent {
   treantRepairId?: TowerId;
   entGearTimer?: number;
   autoSummonTimer?: number;
+  /** General looting: drop it is walking to, and drops it carries to the castle. */
+  lootTargetId?: string;
+  carriedLoot?: string[];
   skill1Cooldown?: number;
   skill2Cooldown?: number;
   ultimateCooldown?: number;

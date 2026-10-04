@@ -30,7 +30,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Who builds the castle and buildings?',
-        answer: 'Your starting Slime summons the Ent for free. The Ent raises the Castle first, then the Crystal Spire, then summons the Generals one by one — and each General builds its own establishment, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders walk to their site and build once you have the supplies. There is no build button — it\'s all on autopilot.',
+        answer: 'Your starting Slime summons the Ent for free. The Ent raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General builds its own establishment, and the Ent calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders walk to their site and build once you have the supplies. There is no build button — it\'s all on autopilot.',
       },
       {
         question: '🎁 How do I get supplies early on?',
@@ -108,7 +108,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
-        answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — at bawat Heneral ang magtatayo ng sariling pasilidad, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ang bawat nagtatayo sa puwesto nito at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
+        answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ang magtatayo ng sariling pasilidad, at tatawagin lang ng Ent ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ang bawat nagtatayo sa puwesto nito at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',

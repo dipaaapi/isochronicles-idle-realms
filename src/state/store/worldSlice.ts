@@ -81,8 +81,11 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
         year += 1;
       }
       const season = getSeasonFromDay(day);
-      const nextWeather = state.randomWeatherEnabled !== false ? rollWeather(season) : state.weather;
-      return { day, year, season, weather: nextWeather, lastSavedTimestamp: Date.now() };
+      const random = state.randomWeatherEnabled !== false;
+      const nextWeather = random ? (state.weatherForecast ?? rollWeather(season)) : state.weather;
+      // Roll tomorrow now so the HUD can show what is coming
+      const weatherForecast = random ? rollWeather(getSeasonFromDay(day >= 365 ? 1 : day + 1)) : undefined;
+      return { day, year, season, weather: nextWeather, weatherForecast, lastSavedTimestamp: Date.now() };
     });
   },
 

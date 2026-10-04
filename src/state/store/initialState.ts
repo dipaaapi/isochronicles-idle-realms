@@ -14,6 +14,7 @@ import type {
   SpireTowerState,
   UnitRosterItem,
   UpgradesState,
+  WeatherType,
 } from '../../types/state';
 import { buildingMaxHp } from '../defenseStats';
 import type { GodBlessingId, InvaderType, UnitClass } from '../../types/game';
@@ -165,6 +166,7 @@ export const createInitialWorldClock = () => ({
   dayProgress: 0,
   timeOfDay: 'DAY' as const,
   weather: 'CLEAR' as const,
+  weatherForecast: undefined as WeatherType | undefined,
   randomWeatherEnabled: true,
   ambientDarkness: 0,
   gameSpeed: 1 as GameSpeed,

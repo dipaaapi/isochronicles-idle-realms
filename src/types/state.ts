@@ -237,6 +237,8 @@ export interface GameStoreState {
   // Audio & Environment & Seasons
   timeOfDay: TimeOfDayPhase;
   weather: WeatherType;
+  /** Tomorrow's weather, rolled a day ahead so the HUD can forecast it. */
+  weatherForecast?: WeatherType;
   randomWeatherEnabled: boolean;
   day: number; // 1 to 365
   year: number; // 1, 2, 3...

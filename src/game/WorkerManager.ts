@@ -21,6 +21,7 @@ import { computeWorkerFrame } from './workers/modifiers';
 import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
 import { generalHomeSite, updateGeneralConstruction } from './workers/generalConstruction';
+import { updateGeneralLooting } from './workers/generalLooting';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
@@ -610,17 +611,12 @@ export class WorkerManager implements WorkerContext {
       const isTenant = !!worker.parentBuildingId || worker.id.startsWith('tenant_');
       const isGeneral = !isTenant && !isSupportSlime && !isTreant && !isHealer;
       if (isGeneral) {
-        // Generals alone loot the spoils that scouts leave behind
-        if (worker.status !== 'COMBAT') {
-          const spoils = this.getNearestGroundLoot(worker.container.x, worker.container.y, 32, 'general');
-          if (spoils) {
-            this.collectGroundLoot(spoils, worker.name);
-            worker.overrideEmote = '✨';
-            worker.overrideEmoteTimer = 1000;
-          }
-        }
+        // Generals loot the platform's drops and haul them to the castle (credited on delivery)
         if (worker.status === 'COMBAT') {
           updateCombat(this, worker, frame);
+          for (const [i, id] of (worker.carriedLoot ?? []).entries()) this.groundLoot?.carry(id, worker.container.x, worker.container.y, i);
+        } else if (updateGeneralLooting(this, this.groundLoot, worker, frame.deltaSec, frame.effectiveSpeed)) {
+          // busy looting / hauling
         } else if (!updateGeneralConstruction(this, worker, store, frame.deltaSec, frame.effectiveSpeed)) {
           // Each General raises its own establishment first, then guards and scouts
           this.updateGeneralScouting(worker, frame);

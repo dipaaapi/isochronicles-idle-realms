@@ -47,6 +47,8 @@ export const SPIRE_WORK_SPOT: GridPoint = { ...layout.spire.workSpot };
 
 /** Buildings the player can pick up and move. */
 export type MovableId = ResourceBuildingId | 'SPIRE';
+/** Pavement owners: the castle's ring road plus one road per establishment. */
+export type RoadOwner = MovableId | 'CASTLE';
 
 export const BUILDING_IDS: ResourceBuildingId[] = layout.constructionOrder as ResourceBuildingId[];
 
@@ -126,7 +128,7 @@ const workSpotFor = (footprint: TileRect): GridPoint => {
 export interface LayoutResult {
   sites: Record<ResourceBuildingId, BuildingSite>;
   roads: GridPoint[];
-  roadsByBuilding: Record<ResourceBuildingId | 'SPIRE', GridPoint[]>;
+  roadsByBuilding: Record<RoadOwner, GridPoint[]>;
 }
 
 /**
@@ -257,29 +259,50 @@ function tryLayout(
     placedRects.push(footprint);
   }
 
-  // Roads: an L from the gate to each work spot, never paving over a footprint
+  // Roads: a paved ring around the castle, then a shortest walk (around every
+  // footprint, never through one) from that ring to each work spot, so no road is cut.
   const solids = [CASTLE_FOOTPRINT, SPIRE_FOOTPRINT, ...BUILDING_IDS.map((id) => sites[id].footprint)];
+  const isSolid = (x: number, y: number) => solids.some((r) => rectContainsTile(r, x, y));
   const roads = new Map<string, GridPoint>();
-  const roadsByBuilding = {} as Record<ResourceBuildingId | 'SPIRE', GridPoint[]>;
+  const roadsByBuilding = {} as Record<RoadOwner, GridPoint[]>;
+
+  const ring: GridPoint[] = [];
+  const around = expandRect(CASTLE_FOOTPRINT, 1);
+  for (let y = around.y; y < around.y + around.h; y++) {
+    for (let x = around.x; x < around.x + around.w; x++) {
+      if (!rectContainsTile(CASTLE_FOOTPRINT, x, y) && isLandTile(x, y) && !isSolid(x, y)) ring.push({ x, y });
+    }
+  }
+  roadsByBuilding.CASTLE = ring;
+  for (const t of ring) roads.set(key(t.x, t.y), t);
+  void gate;
 
   const computeRoad = (target: GridPoint): GridPoint[] => {
+    // BFS from the work spot back to the nearest ring tile (4-way, land only)
+    const prev = new Map<string, string | null>([[key(target.x, target.y), null]]);
+    const queue: GridPoint[] = [target];
+    const ringKeys = new Set(ring.map((t) => key(t.x, t.y)));
+    let end: GridPoint | null = ringKeys.has(key(target.x, target.y)) ? target : null;
+    while (queue.length && !end) {
+      const cur = queue.shift()!;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cur.x + dx;
+        const ny = cur.y + dy;
+        const k = key(nx, ny);
+        if (prev.has(k) || !isLandTile(nx, ny) || isSolid(nx, ny)) continue;
+        prev.set(k, key(cur.x, cur.y));
+        if (ringKeys.has(k)) { end = { x: nx, y: ny }; break; }
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    if (!end) return [target];
     const list: GridPoint[] = [];
-    const stepX = Math.sign(target.x - gate.x) || 1;
-    const stepY = Math.sign(target.y - gate.y) || 1;
-    for (let x = gate.x; x !== target.x; x += stepX) {
-      if (!solids.some((r) => rectContainsTile(r, x, gate.y))) {
-        list.push({ x, y: gate.y });
-        roads.set(key(x, gate.y), { x, y: gate.y });
-      }
+    for (let k: string | null | undefined = key(end.x, end.y); k; k = prev.get(k)) {
+      const [x, y] = k.split(',').map(Number);
+      list.push({ x, y });
+      roads.set(k, { x, y });
     }
-    for (let y = gate.y; ; y += stepY) {
-      if (!solids.some((r) => rectContainsTile(r, target.x, y))) {
-        list.push({ x: target.x, y });
-        roads.set(key(target.x, y), { x: target.x, y });
-      }
-      if (y === target.y) break;
-    }
-    return list;
+    return list; // ordered castle → work spot
   };
 
   roadsByBuilding.SPIRE = computeRoad(SPIRE_WORK_SPOT);
@@ -290,13 +313,33 @@ function tryLayout(
   return { sites, roads: Array.from(roads.values()), roadsByBuilding };
 }
 
+/**
+ * Seeded Crystal Spire spot, so the spire lands somewhere different each realm
+ * like the establishments: any clear inland tile off the castle and the rifts
+ * (kept a few tiles from the shore so the thirteen sites still fit around it).
+ */
+export function randomSpireSpot(seed: number): GridPoint {
+  const { w, h } = layout.spire.footprint;
+  const random = seededRandom((seed ^ 0x5f1e3d) >>> 0);
+  const blocked = [expandRect(CASTLE_FOOTPRINT, 2), ...PORTAL_SITES.map((p) => expandRect({ ...p.exit, w: 1, h: 1 }, 2))];
+  const hits = (r: TileRect, x: number, y: number) => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y;
+  const candidates: GridPoint[] = [];
+  for (let y = 3; y <= GRID_SIZE - 4 - (h - 1); y++) {
+    for (let x = 3; x <= GRID_SIZE - 4 - (w - 1); x++) {
+      if (!blocked.some((r) => hits(r, x, y))) candidates.push({ x, y });
+    }
+  }
+  if (candidates.length === 0) return { x: layout.spire.footprint.x, y: layout.spire.footprint.y };
+  return candidates[Math.floor(random() * candidates.length)];
+}
+
 /** Current establishment sites. Entries are updated in place by applyLayoutSeed. */
 const initialLayout = generateLayout(1);
 export const BUILDING_SITES: Record<ResourceBuildingId, BuildingSite> = initialLayout.sites;
 /** Current decorative road tiles (updated in place). */
 export const ROAD_TILES: GridPoint[] = [...initialLayout.roads];
 /** Roads mapped by building/spire. */
-export const ROADS_BY_BUILDING: Record<ResourceBuildingId | 'SPIRE', GridPoint[]> = { ...initialLayout.roadsByBuilding };
+export const ROADS_BY_BUILDING: Record<RoadOwner, GridPoint[]> = { ...initialLayout.roadsByBuilding };
 
 let activeSeed = 0;
 let activePositions = '{}';
@@ -313,16 +356,16 @@ export function applyLayoutSeed(seed: number, positions: BuildingPositions = {})
   activeSeed = seed;
   activePositions = posKey;
   // The spire moves first so establishments are placed (and roads routed) around it
-  const spire = positions.SPIRE;
-  Object.assign(SPIRE_FOOTPRINT, spire ? { ...spire, w: layout.spire.footprint.w, h: layout.spire.footprint.h } : layout.spire.footprint);
-  Object.assign(SPIRE_WORK_SPOT, spire ? workSpotFor(SPIRE_FOOTPRINT) : layout.spire.workSpot);
+  const spire = positions.SPIRE ?? randomSpireSpot(seed);
+  Object.assign(SPIRE_FOOTPRINT, { ...spire, w: layout.spire.footprint.w, h: layout.spire.footprint.h });
+  Object.assign(SPIRE_WORK_SPOT, workSpotFor(SPIRE_FOOTPRINT));
   const { sites, roads, roadsByBuilding } = generateLayout(seed, positions);
   for (const id of BUILDING_IDS) {
     Object.assign(BUILDING_SITES[id].footprint, sites[id].footprint);
     Object.assign(BUILDING_SITES[id].workSpot, sites[id].workSpot);
   }
   ROAD_TILES.splice(0, ROAD_TILES.length, ...roads);
-  for (const key of Object.keys(roadsByBuilding) as (ResourceBuildingId | 'SPIRE')[]) {
+  for (const key of Object.keys(roadsByBuilding) as RoadOwner[]) {
     ROADS_BY_BUILDING[key] = roadsByBuilding[key];
   }
 }
@@ -338,18 +381,26 @@ export const footprintOf = (id: MovableId): TileRect => (id === 'SPIRE' ? SPIRE_
  * every other establishment.
  */
 export function canPlaceEstablishment(id: MovableId, x: number, y: number): boolean {
-  const { castleClearance, edgeMargin } = layout.establishments;
+  const { castleClearance } = layout.establishments;
   const size = id === 'SPIRE' ? layout.spire.footprint : layout.establishments.size;
-  const rect: TileRect = { x, y, ...size };
+  const rect: TileRect = { x, y, w: size.w, h: size.h };
   const overlaps = (other: TileRect) =>
     rect.x < other.x + other.w && rect.x + rect.w > other.x && rect.y < other.y + other.h && rect.y + rect.h > other.y;
-  if (x < edgeMargin - 1 || y < edgeMargin - 1) return false;
-  if (x + size.w - 1 > GRID_SIZE - edgeMargin || y + size.h - 1 > GRID_SIZE - edgeMargin) return false;
+  const tile = (p: GridPoint): TileRect => ({ ...p, w: 1, h: 1 });
+  for (let ty = y; ty < y + size.h; ty++) for (let tx = x; tx < x + size.w; tx++) if (!isLandTile(tx, ty)) return false;
   if (overlaps(expandRect(CASTLE_FOOTPRINT, castleClearance - 1))) return false;
-  if (id !== 'SPIRE' && overlaps(expandRect(SPIRE_FOOTPRINT, 1))) return false;
-  if (id !== 'SPIRE' && overlaps({ ...SPIRE_WORK_SPOT, w: 1, h: 1 })) return false;
-  if (PORTAL_SITES.some((p) => overlaps(expandRect({ ...p.exit, w: 1, h: 1 }, 1)))) return false;
-  return BUILDING_IDS.every((other) => other === id || !overlaps(expandRect(BUILDING_SITES[other].footprint, 1)));
+  // Portals: only the rift tile itself is off limits; building right next to it is fine
+  if (PORTAL_SITES.some((p) => overlaps(tile(p.exit)) || overlaps(tile(p.tile)))) return false;
+  // Other establishments (the spire counts as one): no overlap, and never on their work spot
+  const others: Array<{ footprint: TileRect; workSpot: GridPoint }> = [
+    ...BUILDING_IDS.filter((o) => o !== id).map((o) => BUILDING_SITES[o]),
+    ...(id === 'SPIRE' ? [] : [{ footprint: SPIRE_FOOTPRINT, workSpot: SPIRE_WORK_SPOT }]),
+  ];
+  if (others.some((o) => overlaps(o.footprint) || overlaps(tile(o.workSpot)))) return false;
+  // Our own work spot must be free and reachable
+  const spot = workSpotFor(rect);
+  if (!spot || others.some((o) => rectContainsTile(o.footprint, spot.x, spot.y))) return false;
+  return true;
 }
 
 /** Resource-node positions (where minions harvest) derived from the layout. */

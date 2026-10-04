@@ -165,3 +165,68 @@
     inset -2px -2px 0 0 rgba(255, 255, 255, 0.12);
   transform: translateY(1px);
 }
+
+/* ── HUD sky / weather panel (SkyStatusPanel) ─────────────────────────── */
+@keyframes sky-sweep {
+  0% { transform: translateX(-120%); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+@keyframes sky-pop {
+  0% { transform: scale(0.6) translateY(4px); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes sky-banner {
+  0% { transform: translateY(-110%); opacity: 0; }
+  12%, 80% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-110%); opacity: 0; }
+}
+@keyframes sky-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@keyframes sky-glow {
+  0%, 100% { box-shadow: 0 0 6px 1px currentColor; }
+  50% { box-shadow: 0 0 14px 4px currentColor; }
+}
+@keyframes wx-rain {
+  0% { transform: translate(0, -20px) rotate(12deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  100% { transform: translate(-14px, 110px) rotate(12deg); opacity: 0; }
+}
+@keyframes wx-snow {
+  0% { transform: translate(0, -10px); opacity: 0; }
+  10% { opacity: 0.9; }
+  50% { transform: translate(8px, 45px); }
+  100% { transform: translate(-6px, 100px); opacity: 0; }
+}
+@keyframes wx-heat {
+  0%, 100% { transform: translateY(0) scaleX(1); opacity: 0.15; }
+  50% { transform: translateY(-6px) scaleX(1.15); opacity: 0.4; }
+}
+@keyframes wx-rays {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes wx-lightning {
+  0%, 91%, 95%, 100% { opacity: 0; }
+  92%, 94% { opacity: 0.55; }
+}
+.sky-sweep { animation: sky-sweep 1.1s ease-out forwards; }
+.sky-pop { animation: sky-pop 0.6s cubic-bezier(.2,.9,.3,1.3) both; }
+.sky-banner { animation: sky-banner 2.8s ease-in-out forwards; }
+.sky-twinkle { animation: sky-twinkle 2.4s ease-in-out infinite; }
+.sky-glow { animation: sky-glow 2.6s ease-in-out infinite; }
+.wx-rain { animation: wx-rain 0.9s linear infinite; }
+.wx-snow { animation: wx-snow 3.6s linear infinite; }
+.wx-heat { animation: wx-heat 2.2s ease-in-out infinite; }
+.wx-rays { animation: wx-rays 18s linear infinite; }
+.wx-lightning { animation: wx-lightning 6s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sky-sweep, .sky-pop, .sky-banner, .sky-twinkle, .sky-glow,
+  .wx-rain, .wx-snow, .wx-heat, .wx-rays, .wx-lightning { animation: none; }
+}
+.wx-rays-slow { animation: wx-rays 40s linear infinite; }
+.wx-rays, .wx-rays-slow { transform-box: fill-box; }
+@media (prefers-reduced-motion: reduce) { .wx-rays-slow { animation: none; } }
