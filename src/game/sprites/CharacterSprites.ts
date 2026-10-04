@@ -4,6 +4,7 @@ import { ANIMATION_ORDER, AnimationName, DIRECTION_COUNT, directionFromVector } 
 import { ENEMY_MODELS, INVADER_SPRITE } from './enemyModels';
 import { MINION_MODELS, UNIT_SPRITE } from './minionModels';
 import type { BakedSheet } from './spriteBake.worker';
+import { useLoadProgress } from '../loadProgress';
 
 /**
  * Phaser glue for the baked 8-direction character sprite sheets (minions and
@@ -60,6 +61,9 @@ function installSheet(scene: Phaser.Scene, sheet: BakedSheet): void {
  */
 export function prepareCharacterSprites(scene: Phaser.Scene): void {
   for (const sheet of bakedSheets.values()) installSheet(scene, sheet);
+  const progress = useLoadProgress.getState();
+  progress.setTotal('characters', Object.keys(MINION_MODELS).length + Object.keys(ENEMY_MODELS).length);
+  progress.setDone('characters', bakedSheets.size);
 
   const onSheet = (sheet: BakedSheet) => {
     if (scene.sys.isActive() || scene.sys.isSleeping()) installSheet(scene, sheet);
@@ -78,6 +82,7 @@ export function prepareCharacterSprites(scene: Phaser.Scene): void {
       const worker = new Worker(new URL('./spriteBake.worker.ts', import.meta.url), { type: 'module' });
       worker.onmessage = (event: MessageEvent<BakedSheet>) => {
         bakedSheets.set(event.data.key, event.data);
+        useLoadProgress.getState().setDone('characters', bakedSheets.size);
         listeners.forEach((listener) => listener(event.data));
       };
       worker.postMessage(batch);

@@ -13,18 +13,20 @@ import { CastleBreachedModal } from './ui/CastleBreachedModal';
 import { QuickTradePopover } from './ui/QuickTradePopover';
 import { RegressionModal } from './ui/RegressionModal';
 import { PhaserGame } from './game/PhaserGame';
+import { LoadingScreen } from './ui/LoadingScreen';
+import { DifficultyFrame } from './ui/DifficultyFrame';
 import { EstablishmentModal } from './ui/EstablishmentModal';
 import { ActivityLogTray } from './ui/ActivityLogTray';
-import { MusicPlayer } from './ui/MusicPlayer';
+import { MusicManagerModal, MusicPlayer, MusicPlayerHost } from './ui/MusicPlayer';
 import { BattleItemsToolbar } from './ui/BattleItemsToolbar';
 import { startActivityWatcher } from './state/activityWatcher';
 
 export const App: React.FC = () => {
+  const difficulty = useGameStore((s) => s.difficulty);
   const {
     screen,
     regressionCount,
     layoutSeed,
-    buildingPositions,
     setScreen,
     checkOfflineProgress,
     isRegressionModalOpen,
@@ -76,6 +78,10 @@ export const App: React.FC = () => {
 
   return (
     <main className="pixel-ui relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
+      {/* Screen-edge frame in the realm's difficulty colour (the story screen shows the one being picked) */}
+      {screen !== 'STORY' && <DifficultyFrame difficulty={difficulty} />}
+      {/* Screen-edge frame in the realm's difficulty colour (the story screen shows the one being picked) */}
+      {screen !== 'STORY' && <DifficultyFrame difficulty={difficulty} />}
       {/* Screen 1: Title Screen (No Atlas button here) */}
       {screen === 'TITLE' && (
         <TitleScreen
@@ -96,11 +102,15 @@ export const App: React.FC = () => {
       {/* Screen 3: Active Simulation */}
       {screen === 'GAME' && (
         <div className="flex w-full h-full overflow-hidden">
+          {/* Covers canvas + HUD while the scene and baked art load behind it */}
+          <LoadingScreen key={`load-${regressionCount}-${layoutSeed}`} />
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
-            <PhaserGame key={`${regressionCount}-${layoutSeed}-${JSON.stringify(buildingPositions)}`} />
+            <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
             <ActivityLogTray />
-            <MusicPlayer />
+            <MusicPlayer placement="FLOAT" />
+            {/* The one real player: laid over the FLOAT or SIDEBAR slot, never remounted when it moves */}
+            <MusicPlayerHost />
           </div>
 
           {/* Dedicated Right Sidebar HUD */}
@@ -177,6 +187,9 @@ export const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         onReturnToTitle={screen === 'GAME' ? () => setScreen('TITLE') : undefined}
       />
+
+      {/* YouTube / Spotify music library */}
+      <MusicManagerModal />
 
       {/* In-game confirm / alert (native dialogs would drop fullscreen) */}
       <GameDialogHost />

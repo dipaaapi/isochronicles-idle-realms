@@ -93,6 +93,9 @@ export interface WorkerInstance extends NavAgent {
   autoSummonTimer?: number;
   /** General looting: drop it is walking to, and drops it carries to the castle. */
   lootTargetId?: string;
+  /** Closest the General got to its loot target, and for how long it has not got closer. */
+  lootBestDist?: number;
+  lootStuckTimer?: number;
   carriedLoot?: string[];
   skill1Cooldown?: number;
   skill2Cooldown?: number;

@@ -1,6 +1,6 @@
 import crewData from '../data/establishmentCrews.json';
 import type { UnitClass } from '../types/game';
-import type { ResourceBuildingId, Resources } from '../types/state';
+import type { Resources, TowerId } from '../types/state';
 
 /** Which tiles a tenant works: the ocean ring, open grass, roads, its own building, or around a rift. */
 export type GatherSource = 'OCEAN' | 'GRASS' | 'PAVEMENT' | 'ESTABLISHMENT' | 'PORTAL';
@@ -37,13 +37,13 @@ export const CREW_CONFIG = crewData as unknown as {
     maxExtraInvaders: number;
   };
   sources: Record<GatherSource | 'HUMAN_REALM', { icon: string; en: string; tl: string }>;
-  crews: Record<ResourceBuildingId, EstablishmentCrew>;
+  crews: Record<TowerId, EstablishmentCrew>;
 };
 
 export const ESTABLISHMENT_CREWS = CREW_CONFIG.crews;
 
-/** The General (and tenant kind) of an establishment. */
-export const crewGeneralOf = (buildingId: ResourceBuildingId): UnitClass | undefined => ESTABLISHMENT_CREWS[buildingId]?.general;
+/** The General (and tenant kind) of an establishment, the Crystal Spire included. */
+export const crewGeneralOf = (buildingId: TowerId): UnitClass | undefined => ESTABLISHMENT_CREWS[buildingId]?.general;
 
 /** Extra invaders the next wave brings for the vengeance stirred up by portal expeditions. */
 export const vengeanceExtraInvaders = (vengeance: number): number => {
@@ -52,7 +52,7 @@ export const vengeanceExtraInvaders = (vengeance: number): number => {
 };
 
 /** "🌊 Ocean · 🏰 Human realm" — where an establishment's tenants gather, for the UI. */
-export const crewSourceLabels = (buildingId: ResourceBuildingId, tagalog: boolean): string => {
+export const crewSourceLabels = (buildingId: TowerId, tagalog: boolean): string => {
   const crew = ESTABLISHMENT_CREWS[buildingId];
   if (!crew) return '';
   const sources: Array<GatherSource | 'HUMAN_REALM'> = [...new Set(crew.gather.map((g) => g.source))];

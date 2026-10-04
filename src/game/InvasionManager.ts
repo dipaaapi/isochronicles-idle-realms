@@ -22,7 +22,13 @@ import { ECONOMY_CONFIG } from '../state/economy';
 import { auras, isModActive } from './skills/combatMods';
 import { teamBonuses } from '../state/skillTree';
 import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
-import { Navigation } from './Navigation';
+import { applyLocomotion, locomotionOf } from './locomotion';
+import { Navigation, TILES_FOR } from './Navigation';
+import { invaderMoveMode } from './terrain';
+import { TECHNICIANS, chooseHackTarget, escortType, escortsFor, hackSeconds, hackersForWave } from './invaders/hacking';
+import { clearHacks, hackedIds, setHacked } from './hackState';
+import { COMMANDER_FROM_WAVE, SQUADS, pickByShare, rollSquads, squadBias, type SquadId } from './invaders/riftSquads';
+import type { TowerId } from '../types/state';
 import type { StructureManager, StructureTarget } from './StructureManager';
 import type { PortalManager, PortalState } from './PortalManager';
 import { CASTLE_FOOTPRINT, PORTAL_SITES, rectCenter } from '../state/buildingLayout';
@@ -167,6 +173,7 @@ export class InvasionManager {
 
     // 3. Update living invaders movement and attacks
     this.updateInvaders(deltaSec);
+    this.tidyHacks();
   }
 
   private handleActiveIncursion(delta: number, _deltaSec: number): void {
@@ -183,6 +190,10 @@ export class InvasionManager {
       this.burstLeft = Math.max(1, this.tactic.burst);
       this.spawnTimer = WAVE_BALANCE.spawn.firstDelayMs;
       this.portals?.open(wave, portalHpMultiplier(wave, difficulty, this.tactic.portalHp), this.tactic.portals, this.tactic.rotateEvery);
+      this.assignSquads(wave);
+      // Technician raid part-way through the wave
+      this.raidsLeft = hackersForWave(wave);
+      this.raidAt = Math.max(1, Math.floor(this.totalEnemiesToSpawn * TECHNICIANS.spawnAtFraction));
     }
 
     // Every portal smashed: the rest of the wave never arrives
@@ -205,6 +216,7 @@ export class InvasionManager {
           this.spawnTimer = spawnIntervalMs(store.invasion.waveNumber, normalizeDifficulty(store.difficulty), (this.tactic.interval ?? 1) * burstGap);
         }
         if (this.spawnSingleInvader(store.invasion.waveNumber)) this.enemiesSpawnedCount++;
+        if (this.raidsLeft > 0 && this.enemiesSpawnedCount >= this.raidAt) this.spawnTechnicianRaid(store.invasion.waveNumber);
       }
     }
 
@@ -342,21 +354,38 @@ export class InvasionManager {
   }
 
   /** Returns false when no portal is left to spawn from. */
-  private spawnSingleInvader(waveNumber: number): boolean {
-    if (!useGameStore.getState().invasion.isActive) return false;
+  private spawnSingleInvader(
+    waveNumber: number,
+    extra?: { type: InvaderType; portal?: PortalState; escortOf?: ActiveInvader; hacker?: boolean }
+  ): ActiveInvader | null {
+    if (!useGameStore.getState().invasion.isActive) return null;
 
-    let portal: PortalState | null = null;
-    if (this.portals) {
-      portal = this.portals.pickSpawn();
-      if (!portal) return false;
+    // Next invader of the formation (boss last, escort mid-wave); tests spawn without a plan
+    let planned: PlannedSpawn = extra
+      ? { type: extra.type, rank: 'normal' as InvaderRank, escort: true }
+      : this.spawnPlan[this.enemiesSpawnedCount] ?? { type: pickWaveInvader(waveNumber, this.tactic.bias), rank: 'normal' as InvaderRank };
+
+    let portal: PortalState | null = extra?.portal ?? null;
+    if (this.portals && !portal) {
+      portal = this.pickSquadPortal(planned);
+      if (!portal) return null;
     }
+    // The rift's squad shapes ordinary fighters: its General first, then its favoured kinds
+    const squad = portal ? this.squads.get(portal) : undefined;
+    if (!extra && squad && planned.rank !== 'boss' && planned.rank !== 'climax' && !planned.escort) {
+      const due = this.commandersDue.indexOf(portal!);
+      if (due >= 0 && SQUADS[squad].commander) {
+        this.commandersDue.splice(due, 1);
+        planned = { type: SQUADS[squad].commander!, rank: 'elite', escort: true };
+      } else {
+        planned = { ...planned, type: pickWaveInvader(waveNumber, squadBias(this.tactic.bias, squad)) };
+      }
+    }
+    const mods = squad && !extra ? SQUADS[squad].mods : { hp: 1, speed: 1, damage: 1 };
     const spawnGrid = portal
       ? portal.site.exit
       : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
 
-    // Next invader of the formation (boss last, escort mid-wave); tests spawn without a plan
-    const planned: PlannedSpawn = this.spawnPlan[this.enemiesSpawnedCount]
-      ?? { type: pickWaveInvader(waveNumber, this.tactic.bias), rank: 'normal' as InvaderRank };
     const type = planned.type;
     const rank = planned.rank;
 
@@ -373,14 +402,14 @@ export class InvasionManager {
     );
     const isBoss = rank === 'boss' || rank === 'climax';
     const isElite = rank === 'elite';
-    const finalMaxHp = stats.hp;
-    const finalDamage = stats.damage;
+    const finalMaxHp = Math.max(1, Math.round(stats.hp * mods.hp));
+    const finalDamage = Math.max(1, Math.round(stats.damage * mods.damage));
     const finalBounty = stats.bounty;
     // A random few ignore everything else and charge the citadel
     const rush = DEFENSE_CONFIG?.rushers;
     const rushChance = (rush?.chance ?? 0) + (this.tactic.rusherBonus ?? 0);
     const isRusher = !!rush && !isBoss && !planned.escort && waveNumber >= rush.fromWave && Math.random() < rushChance;
-    let speed = cfg.speed * (this.tactic.speed ?? 1) * (isRusher ? rush.speedMultiplier : 1);
+    let speed = cfg.speed * (this.tactic.speed ?? 1) * mods.speed * (isRusher ? rush.speedMultiplier : 1);
     if (this.tactic.effect === 'OVERCLOCK' && cfg.category === 'MECHA') speed *= TACTIC_EFFECTS.OVERCLOCK.mechaSpeed;
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
@@ -432,6 +461,8 @@ export class InvasionManager {
       portal: portal ?? undefined,
       retargetTimer: 0,
       isRusher,
+      isHacker: extra?.hacker,
+      escortOf: extra?.escortOf,
     };
 
     // Interactive Clicking: Demon Lord Lightning Smite! ⚡
@@ -447,11 +478,133 @@ export class InvasionManager {
     this.invaders.push(invader);
     soundFx.playCastleHit();
     if (this.tactic.effect === 'PHASE_VEIL') invader.invulnTimer = Math.max(invader.invulnTimer ?? 0, TACTIC_EFFECTS.PHASE_VEIL.veilSeconds);
-    if (isBoss) logMessage('bossArrives', { name: this.logName(invader) });
+    if (extra) {
+      // Raid members are narrated by spawnTechnicianRaid
+    } else if (isBoss) logMessage('bossArrives', { name: this.logName(invader) });
     else if (planned.escort) logMessage('escortArrives', { name: this.logName(invader) });
     else if (isElite) logMessage('eliteArrives', { name: this.logName(invader) });
     if (isRusher) logMessage('rusherCharges', { name: this.logName(invader) });
+    return invader;
+  }
+
+  /** Each open rift rolls its own squad (riftSquads.json); command squads queue their General. */
+  private assignSquads(wave: number): void {
+    this.squads.clear();
+    const open = this.portals?.getOpen() ?? [];
+    const ids = rollSquads(open.length, wave);
+    const lang = useGameStore.getState().language;
+    open.forEach((p, i) => {
+      this.squads.set(p, ids[i]);
+      const def = SQUADS[ids[i]];
+      logMessage('riftSquad', {
+        portal: lang === 'TL' ? p.site.name.tl : p.site.name.en,
+        squad: `${def.icon} ${lang === 'TL' ? def.name.tl : def.name.en}`,
+        desc: lang === 'TL' ? def.desc.tl : def.desc.en,
+      });
+    });
+    this.commandersDue = wave >= COMMANDER_FROM_WAVE ? open.filter((p) => SQUADS[this.squads.get(p)!].commander) : [];
+  }
+
+  /**
+   * Which rift the next invader uses: rotating formations keep their order;
+   * otherwise the squads' shares decide (a Probe rift sends only a few). The
+   * boss marches from the command rift of its own side when there is one.
+   */
+  private pickSquadPortal(planned: PlannedSpawn): PortalState | null {
+    const open = (this.portals?.getOpen() ?? []).filter((p) => this.squads.has(p));
+    if (!open.length || this.tactic.portals === 'ROTATE') return this.portals?.pickSpawn() ?? null;
+    if (planned.rank === 'boss' || planned.rank === 'climax') {
+      const home = open.find((p) => SQUADS[this.squads.get(p)!].commander === planned.type);
+      if (home) return home;
+    }
+    return open[pickByShare(open.map((p) => this.squads.get(p)!))];
+  }
+
+  /** A Technician (or more, late on) steps out of one rift with its escort; extra invaders on top of the wave. */
+  private spawnTechnicianRaid(wave: number): void {
+    const difficulty = normalizeDifficulty(useGameStore.getState().difficulty);
+    while (this.raidsLeft > 0) {
+      this.raidsLeft--;
+      const portal = this.portals?.pickSpawn() ?? undefined;
+      const hacker = this.spawnSingleInvader(wave, { type: 'TECHNICIAN', portal, hacker: true });
+      if (!hacker) return;
+      const escorts = escortsFor(wave, difficulty);
+      for (let i = 0; i < escorts; i++) this.spawnSingleInvader(wave, { type: escortType(i), portal, escortOf: hacker });
+      const rift = portal ? (useGameStore.getState().language === 'TL' ? portal.site.name.tl : portal.site.name.en) : '';
+      logMessage('technicianRaid', { portal: rift, escorts });
+    }
+    useGameStore.getState().setEnemiesRemaining(this.invaders.filter((i) => !i.isDead).length);
+  }
+
+  /**
+   * Technician: walks to the nearest establishment still on the player's side
+   * and channels a hack; when it completes the establishment turns hostile
+   * until the wave ends and the Technician moves on to the next one.
+   * Returns false when there is nothing left to hack (it then fights normally).
+   */
+  private updateHacker(invader: ActiveInvader, speed: number, deltaSec: number): boolean {
+    const target = chooseHackTarget(this.ctx, invader);
+    if (!target) return false;
+    if (invader.hackTargetId !== target.id) {
+      invader.hackTargetId = target.id;
+      invader.hackProgress = 0;
+    }
+    const dist = this.nav ? this.nav.distanceToRect(invader.container.x, invader.container.y, target.rect) : 0;
+    if (dist > TECHNICIANS.hackReachTiles) {
+      approachStructure(this.ctx, invader, target, speed * deltaSec, deltaSec);
+      return true;
+    }
+    this.faceInvader(invader, target.x - invader.container.x, target.y - invader.container.y, false);
+    const total = hackSeconds(normalizeDifficulty(useGameStore.getState().difficulty));
+    const before = invader.hackProgress ?? 0;
+    invader.hackProgress = before + deltaSec;
+    const name = this.structures?.displayName(target.id) ?? target.id;
+    if (before === 0) logMessage('hackStarted', { building: name });
+    this.drawHackBar(invader, target, invader.hackProgress / total);
+    if (invader.hackProgress >= total) {
+      setHacked(target.id as TowerId);
+      invader.hackProgress = 0;
+      invader.hackTargetId = undefined;
+      logMessage('establishmentHacked', { building: name });
+      soundFx.playCastleHit();
+    }
     return true;
+  }
+
+  /** Progress bar + code sparks above the establishment being hacked. */
+  private drawHackBar(invader: ActiveInvader, target: StructureTarget, progress: number): void {
+    let g = this.hackBars.get(invader.id);
+    if (!g) {
+      g = this.scene.add.graphics();
+      g.setDepth(9995);
+      this.parentContainer?.add(g);
+      this.hackBars.set(invader.id, g);
+    }
+    g.clear();
+    const x = target.x;
+    const y = target.y - 96;
+    g.fillStyle(0x000000, 0.75);
+    g.fillRect(x - 25, y - 1, 50, 7);
+    g.fillStyle(0xe879f9, 1);
+    g.fillRect(x - 24, y, 48 * Math.min(1, progress), 5);
+    g.lineStyle(1, 0x22d3ee, 0.8);
+    g.lineBetween(invader.container.x, invader.container.y - 18, x, y + 6);
+    g.fillStyle(0x4ade80, 0.9);
+    for (let i = 0; i < 3; i++) g.fillRect(x - 20 + Math.random() * 40, y - 6 - Math.random() * 10, 2, 2);
+  }
+
+  /** Drops hack bars of dead / retargeted hackers; hacks lapse when the wave ends. */
+  private tidyHacks(): void {
+    for (const [id, g] of this.hackBars) {
+      const inv = this.invaders.find((i) => i.id === id);
+      if (inv && !inv.isDead && (inv.hackProgress ?? 0) > 0) continue;
+      if (inv?.isDead && (inv.hackProgress ?? 0) > 0) logMessage('hackStopped', {});
+      g.destroy();
+      this.hackBars.delete(id);
+    }
+    if (!useGameStore.getState().invasion.isActive && hackedIds().length) {
+      for (const id of clearHacks()) logMessage('establishmentRestored', { building: this.structures?.displayName(id) ?? id });
+    }
   }
 
   /** Starts an invader small and faded at the portal's heart; it grows as it steps onto the exit tile. */
@@ -705,7 +858,7 @@ export class InvasionManager {
     const len = Math.hypot(dx, dy) || 1;
     const nx = invader.container.x + (dx / len) * distance;
     const ny = invader.container.y + (dy / len) * distance;
-    const pos = this.nav ? this.nav.pushOut(nx, ny, 0.2) : { x: nx, y: ny };
+    const pos = this.nav ? this.nav.pushOut(nx, ny, 0.2, invaderMoveMode(invader.type)) : { x: nx, y: ny };
     this.scene.tweens.add({ targets: invader.container, x: pos.x, y: pos.y, duration: 260, ease: 'Quad.easeOut' });
     invader.structPath = undefined;
     invader.retargetTimer = 0;
@@ -719,6 +872,13 @@ export class InvasionManager {
 
   /** Target Lock: structures marked by a Mecha Scout take 20% more damage until this scene time. */
   private markedStructures = new Map<string, number>();
+  /** Technician raid: hackers still to send this wave and the spawn count that triggers them. */
+  private raidsLeft = 0;
+  /** This wave's squad at each open rift, and the rifts whose General has yet to step out. */
+  private squads = new Map<PortalState, SquadId>();
+  private commandersDue: PortalState[] = [];
+  private raidAt = 0;
+  private hackBars = new Map<string, Phaser.GameObjects.Graphics>();
   public markStructure(id: string, seconds: number): void {
     this.markedStructures.set(id, this.scene.time.now + seconds * 1000);
   }
@@ -918,6 +1078,11 @@ export class InvasionManager {
 
     for (const invader of [...this.invaders]) {
       if (invader.isDead) continue;
+      // Winged / rotor invaders fly above their shadow
+      if (invader.sprite) {
+        const loco = locomotionOf(invader.type);
+        if (loco !== 'walk') invader.sprite.setY(applyLocomotion(invader.sprite, invader.shadow, loco, this.scene.time.now, invader.container.x * 0.07, invader.container.x, invader.container.y));
+      }
       if (updatePortalTransit(this.ctx, invader, deltaSec)) continue;
 
       this.tickStatus(invader, deltaSec);
@@ -938,6 +1103,23 @@ export class InvasionManager {
 
       const weather = invaderWeather(currentWeather, INVADER_CONFIGS[invader.type].category);
       const speed = invader.speed * weather.speed * slow;
+
+      // Technician: hack establishments instead of fighting
+      if (invader.isHacker && (invader.charmTimer ?? 0) <= 0 && this.updateHacker(invader, speed, deltaSec)) continue;
+      // Escort: guard the Technician — only engage minions near it, otherwise stay at its side
+      const ward = invader.escortOf;
+      if (ward && !ward.isDead && (invader.charmTimer ?? 0) <= 0 && (invader.tauntTimer ?? 0) <= 0) {
+        const near = availableDefenders.filter((w) => w.container?.active &&
+          Math.hypot(w.container.x - ward.container.x, w.container.y - ward.container.y) <= TECHNICIANS.guardRadius);
+        const foe = near.sort((a, b) => Math.hypot(a.container.x - invader.container.x, a.container.y - invader.container.y)
+          - Math.hypot(b.container.x - invader.container.x, b.container.y - invader.container.y))[0];
+        if (foe) {
+          this.fightUnit(invader, { kind: 'worker', worker: foe }, speed, weather.damage, deltaSec);
+        } else if (Math.hypot(ward.container.x - invader.container.x, ward.container.y - invader.container.y) > TECHNICIANS.leash) {
+          chase(this.ctx, invader, ward.container.x, ward.container.y, speed * 1.1 * deltaSec, deltaSec);
+        }
+        continue;
+      }
 
       // Pick (or re-pick) a target a few times per second
       invader.retargetTimer = (invader.retargetTimer ?? 0) - deltaSec;
@@ -1054,9 +1236,15 @@ export class InvasionManager {
     }
   }
 
+  /** Rift / Rift Sentinel strike on a minion (same armor, shield and death handling, no invader source). */
+  public hurtWorkerFromRift(worker: WorkerInstance, damage: number): void {
+    if (worker.hp <= 0 || !worker.container?.active) return;
+    this.hitWorker(null, worker, damage);
+  }
+
   /** Invader strike on a defending minion (armor, shields, gore, death / retreat). */
-  private hitWorker(invader: ActiveInvader, closestDefender: WorkerInstance, baseDmg: number): void {
-    const invaderConfig = INVADER_CONFIGS[invader.type];
+  private hitWorker(invader: ActiveInvader | null, closestDefender: WorkerInstance, baseDmg: number): void {
+    const invaderConfig = invader ? INVADER_CONFIGS[invader.type] : null;
     // Seismic Taunt halves damage; Target Lock adds 20%
     const weatherDmg = Math.round(baseDmg *
       ((closestDefender.armorBuffTimer ?? 0) > 0 ? 0.5 : 1) *
@@ -1086,11 +1274,11 @@ export class InvasionManager {
     );
 
     // Visual projectile / slash from Invader
-    if (invaderConfig.attackRange > 60) {
+    if (invader && invaderConfig && invaderConfig.attackRange > 60) {
       this.spawnDeathBurst(invader.container.x, invader.container.y - 15, invaderConfig.color, true);
       this.spawnDeathBurst(defenderX, defenderY - 15, invaderConfig.color, true);
       soundFx.playLaser();
-    } else {
+    } else if (invader) {
       this.meleeSound(invader);
     }
 
@@ -1201,7 +1389,7 @@ export class InvasionManager {
         : this.portals?.nearest(invader.container.x, invader.container.y) ?? undefined;
       invader.exitPortal = portal;
       const exitEdge: GridPoint = portal ? portal.site.exit : invader.spawnGrid || { x: 1, y: 1 };
-      const allowedTiles = INVADER_CONFIGS[invader.type].flying ? [0, 1] : [0];
+      const allowedTiles = TILES_FOR[invaderMoveMode(invader.type)];
       const returnPath = this.pathfinder.findPath(curGrid.x, curGrid.y, exitEdge.x, exitEdge.y, allowedTiles);
 
       invader.currentPath = (returnPath && returnPath.length > 0)

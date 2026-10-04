@@ -95,10 +95,19 @@ Object.assign(worker.container, IsometricHelper.gridToScreen(10, 10));
 const order = ['WOOD', 'QUARRY', 'MINE', 'PORT', 'CAVE', 'KENNEL', 'PERCH', 'TRENCH', 'CRYPT', 'FOUNDRY', 'PAVILION', 'VOIDGATE', 'OSSUARY'];
 const general = (id) => {
   const unit = state().roster.find((u) => u.unitClass === crewGeneralOf(id));
-  const spot = load('src/state/buildingLayout.ts').BUILDING_SITES[id].workSpot;
+  const site = load('src/state/buildingLayout.ts').BUILDING_SITES[id];
+  // Water Generals (Merman, Kraken) build from the water beside their establishment
+  const spot = ['MERMAN', 'KRAKEN'].includes(unit.unitClass) && site.waterSpot ? site.waterSpot : site.workSpot;
   return { id: unit.id, name: unit.name, unitClass: unit.unitClass, container: { ...IsometricHelper.gridToScreen(spot.x, spot.y), setDepth() {} } };
 };
 const savedResources = { ...state().resources };
+// The Crystal Spire's General comes first; the Ent already raised its home
+{
+  const next = nextGeneralToSummon(state());
+  assert.equal(next.buildingId, 'SPIRE', 'the Crystal Spire General is summoned first');
+  assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), true);
+  assert.ok(state().roster.some((u) => u.unitClass === crewGeneralOf('SPIRE')), 'Spire General summoned');
+}
 for (const [i, id] of order.entries()) {
   const next = nextGeneralToSummon(state());
   assert.equal(next.buildingId, id, 'Generals are summoned in construction order');
@@ -130,7 +139,7 @@ assert.equal(state().resources.coins, beforePurchase.coins - 45);
 assert.equal(state().buyResource('wood', Math.floor(state().resources.coins / 15) + 1), false);
 console.log('Custom purchase quantity checks passed.');
 
-const preferences = new Set(['language', 'isAudioMuted', 'isGoreEnabled', 'targetFps', 'showFpsDebug', 'showTileCoordinates', 'measuredFps']);
+const preferences = new Set(['language', 'isAudioMuted', 'isGoreEnabled', 'targetFps', 'showFpsDebug', 'showTileCoordinates', 'measuredFps', 'musicLibrary', 'musicIndex', 'musicAutoPlay', 'musicLoop']);
 const initial = store.getInitialState();
 // Every reset rolls a fresh random layout, so its seed (and the node spots it moves) differ by design
 const rerolled = new Set(['lastSavedTimestamp', 'layoutSeed', 'dynamicResourceNodes']);
@@ -385,12 +394,12 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.ok(defense.portalMaxHp(20) > defense.portalMaxHp(1));
   assert.ok(defense.portalBounty(10).coins > defense.portalBounty(1).coins);
 
-  // Layout: 20×20 platform, citadel at the centre, establishments placed randomly per seed.
+  // Layout: 30×30 platform, citadel at the centre, establishments placed randomly per seed.
   // For many seeds: every footprint is on land, none overlap, work spots are free and reachable.
   const N = layout.GRID_SIZE;
-  assert.equal(N, 20, 'the platform is 20×20');
+  assert.equal(N, 30, 'the platform is 30×30');
   const castleCenter = layout.rectCenter(layout.CASTLE_FOOTPRINT);
-  assert.equal(JSON.stringify(castleCenter), JSON.stringify({ x: 10, y: 10 }), 'the citadel stands at the centre');
+  assert.equal(JSON.stringify(castleCenter), JSON.stringify({ x: N / 2, y: N / 2 }), 'the citadel stands at the centre');
   const { PathfindingService: PF } = { PathfindingService };
   const checkLayout = (seed) => {
     layout.applyLayoutSeed(seed);
@@ -403,9 +412,9 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     }
     for (const id of layout.BUILDING_IDS) assert.equal(layout.BUILDING_SITES[id].footprint.w * layout.BUILDING_SITES[id].footprint.h, 4);
     const spots = [layout.CASTLE_GATE, layout.SPIRE_WORK_SPOT, ...layout.BUILDING_IDS.map((id) => layout.BUILDING_SITES[id].workSpot), ...layout.PORTAL_SITES.map((p) => p.exit)];
-    for (const s of spots) assert.ok(!taken.has(`${s.x},${s.y}`) && layout.isLandTile(s.x, s.y), `seed ${seed}: work spot ${s.x},${s.y} is walkable land`);
+    for (const s of spots) assert.ok(!taken.has(`${s.x},${s.y}`) && (layout.isLandTile(s.x, s.y) || layout.isBridgeTile(s.x, s.y)), `seed ${seed}: work spot ${s.x},${s.y} is walkable land`);
     const pf = new PF();
-    const base = Array.from({ length: N }, (_, y) => Array.from({ length: N }, (_, x) => (layout.isLandTile(x, y) ? 0 : 1)));
+    const base = Array.from({ length: N }, (_, y) => Array.from({ length: N }, (_, x) => (layout.isBridgeTile(x, y) ? 3 : layout.isLandTile(x, y) ? 0 : 1)));
     for (const p of layout.PORTAL_SITES) base[p.tile.y][p.tile.x] = 0;
     const nav = new Navigation(pf, base);
     nav.setSolids([
@@ -415,15 +424,26 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     ]);
     const gate = layout.CASTLE_GATE;
     for (const s of spots) {
-      const route = pf.findPath(gate.x, gate.y, s.x, s.y, [0]);
+      // Land units cross the canals only on bridges
+      const route = pf.findPath(gate.x, gate.y, s.x, s.y, [0, 3]);
       assert.ok(route, `seed ${seed}: ${s.x},${s.y} is reachable from the gate`);
       assert.ok(route.every((t) => !taken.has(`${t.x},${t.y}`)), 'paths never cross a footprint');
     }
     for (const p of layout.PORTAL_SITES) {
-      const route = nav.pathToRect(p.exit, layout.CASTLE_FOOTPRINT, [0]);
+      const route = nav.pathToRect(p.exit, layout.CASTLE_FOOTPRINT, [0, 3]);
       assert.ok(route && route.length > 1, `seed ${seed}: invaders from ${p.id} can reach the citadel walls`);
     }
     for (const r of layout.ROAD_TILES) assert.ok(!taken.has(`${r.x},${r.y}`), 'roads never pave a footprint');
+    // Canals: four, each from the ocean to a dock against the citadel wall; water crews' homes touch water
+    assert.equal(layout.CANALS.length, 4, 'four canals');
+    for (const c of layout.CANALS) {
+      assert.ok(c.tiles.every((t) => layout.isCanalTile(t.x, t.y) && !layout.isLandTile(t.x, t.y)), 'canal tiles are water');
+      const d = c.dock;
+      const f = layout.CASTLE_FOOTPRINT;
+      assert.ok((d.x >= f.x - 1 && d.x <= f.x + f.w) && (d.y >= f.y - 1 && d.y <= f.y + f.h), `${c.dir} canal ends at the citadel wall`);
+      assert.ok(layout.isBridgeTile(d.x, d.y), `${c.dir} dock carries the ring road as a bridge`);
+    }
+    for (const id of layout.WATER_ESTABLISHMENTS) assert.ok(layout.BUILDING_SITES[id].waterSpot, `seed ${seed}: ${id} sits against water`);
     return nav;
   };
   const layoutsSeen = new Set();
@@ -477,7 +497,7 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   const { generalOf } = load('src/state/store/rosterSlice.ts');
   const resourceKeys = new Set(Object.keys(state().resources));
   const generals = new Set();
-  for (const id of BUILDING_IDS) {
+  for (const id of ['SPIRE', ...BUILDING_IDS]) {
     const crew = crews.ESTABLISHMENT_CREWS[id];
     assert.ok(crew, `${id} has a crew`);
     assert.equal(UNIT_CLASSES[crew.general]?.requiredBuilding, id, `${crew.general} is the General of ${id}`);
@@ -490,7 +510,7 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     }
   }
   const fighters = Object.keys(UNIT_CLASSES).filter((c) => UNIT_CLASSES[c].role === 'FIGHTER');
-  assert.equal(fighters.length, BUILDING_IDS.length, 'one fighter General per establishment');
+  assert.equal(fighters.length, BUILDING_IDS.length + 1, 'one fighter General per establishment and the spire');
   assert.ok(Object.values(crews.ESTABLISHMENT_CREWS).some((c) => c.gather.some((g) => g.source === 'OCEAN')), 'someone fishes the ocean');
   assert.ok(Object.values(crews.ESTABLISHMENT_CREWS).some((c) => c.expedition), 'someone raids the human realm');
 

@@ -3,6 +3,8 @@ import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
 import { logFloatingText, logMessage } from '../state/activityLog';
 import { IsometricHelper } from './IsometricHelper';
+import { Navigation } from './Navigation';
+import type { GridPoint } from '../types/game';
 import { GRID_SIZE, isLandTile } from '../state/buildingLayout';
 import type { Resources } from '../types/state';
 
@@ -53,10 +55,34 @@ export class GroundLootManager {
   private parentContainer: Phaser.GameObjects.Container;
   private lootItems: Map<string, GroundLootItem> = new Map();
   private nextId: number = 1;
+  /** Tiles a land walker can stand on (set by the scene from the nav grid). */
+  private reachable?: (x: number, y: number) => boolean;
+  private nearestReachable?: (x: number, y: number) => GridPoint | null;
 
   constructor(scene: Phaser.Scene, parentContainer: Phaser.GameObjects.Container) {
     this.scene = scene;
     this.parentContainer = parentContainer;
+  }
+
+  /** Hooks the nav grid in so drops never land where a General can't walk (water, buildings, rift pads). */
+  public setTerrain(reachable: (x: number, y: number) => boolean, nearest: (x: number, y: number) => GridPoint | null): void {
+    this.reachable = reachable;
+    this.nearestReachable = nearest;
+  }
+
+  /** Whether a world point lies on a tile a land walker can reach. */
+  private isOpen(x: number, y: number): boolean {
+    const t = Navigation.tileOf(x, y);
+    return this.reachable ? this.reachable(t.x, t.y) : isLandTile(t.x, t.y);
+  }
+
+  /** A reachable spot at or near a world point (tile centre ± a little scatter). */
+  private openSpotNear(x: number, y: number): { x: number; y: number } {
+    if (this.isOpen(x, y)) return { x, y };
+    const t = Navigation.tileOf(x, y);
+    const tile = this.nearestReachable?.(t.x, t.y)
+      ?? { x: Phaser.Math.Clamp(t.x, 1, GRID_SIZE - 2), y: Phaser.Math.Clamp(t.y, 1, GRID_SIZE - 2) };
+    return Navigation.toWorld(tile.x + Phaser.Math.FloatBetween(-0.25, 0.25), tile.y + Phaser.Math.FloatBetween(-0.25, 0.25));
   }
 
   /**
@@ -75,8 +101,9 @@ export class GroundLootManager {
     const id = `loot_${this.nextId++}_${Date.now()}`;
     const icon = customIcon || this.getDefaultIcon(resourceKey);
 
-    // Random scattering landing spot within 25-70px, always on the platform's land
-    // (Generals can't reach drops in the ocean ring or off the edge).
+    // Random scattering landing spot within 25-70px, always on open, walkable land:
+    // never in the water, on a building, the citadel, a rift pad or a sentinel plinth
+    // (a General would walk at it forever and leave the rest of the loot behind).
     let targetX = x;
     let targetY = y;
     let landed = false;
@@ -85,21 +112,11 @@ export class GroundLootManager {
       const distance = (25 + Math.random() * 45) * (1 - attempt / 10);
       targetX = x + Math.cos(angle) * distance;
       targetY = y + Math.sin(angle) * distance;
-      const g = IsometricHelper.screenToGrid(targetX, targetY);
-      landed = isLandTile(g.x, g.y);
+      landed = this.isOpen(targetX, targetY);
     }
-    if (!landed) {
-      // Snap to the nearest land tile
-      const g = IsometricHelper.screenToGrid(x, y);
-      const snapped = IsometricHelper.gridToScreen(
-        Phaser.Math.Clamp(g.x, 1, GRID_SIZE - 2) + 0.5 + Phaser.Math.FloatBetween(-0.2, 0.2),
-        Phaser.Math.Clamp(g.y, 1, GRID_SIZE - 2) + 0.5 + Phaser.Math.FloatBetween(-0.2, 0.2)
-      );
-      targetX = snapped.x;
-      targetY = snapped.y;
-    }
+    if (!landed) ({ x: targetX, y: targetY } = this.openSpotNear(x, y));
 
-    const grid = IsometricHelper.screenToGrid(targetX, targetY);
+    const grid = Navigation.tileOf(targetX, targetY);
     const gridX = Phaser.Math.Clamp(grid.x, 1, GRID_SIZE - 2);
     const gridY = Phaser.Math.Clamp(grid.y, 1, GRID_SIZE - 2);
 
@@ -291,15 +308,26 @@ export class GroundLootManager {
     loot.carryIdle = 0;
     if (loot.isCarried) {
       loot.isCarried = false;
-      const g = IsometricHelper.screenToGrid(loot.container.x, loot.container.y + 26);
-      const pos = IsometricHelper.gridToScreen(
-        Phaser.Math.Clamp(g.x, 1, GRID_SIZE - 2) + 0.5,
-        Phaser.Math.Clamp(g.y, 1, GRID_SIZE - 2) + 0.5
-      );
+      const pos = this.openSpotNear(loot.container.x, loot.container.y + 26);
       loot.container.setPosition(pos.x, pos.y);
       loot.shadow.setVisible(true);
       loot.glow.setVisible(true);
     }
+  }
+
+  /**
+   * A General gave up on a drop it could not reach: free it for anyone and,
+   * if it sits somewhere unreachable (a building went up on it), hop it to
+   * the nearest open tile.
+   */
+  public abandon(loot: GroundLootItem): void {
+    this.release(loot);
+    if (this.isOpen(loot.container.x, loot.container.y)) return;
+    const pos = this.openSpotNear(loot.container.x, loot.container.y);
+    const t = Navigation.tileOf(pos.x, pos.y);
+    loot.gridX = t.x;
+    loot.gridY = t.y;
+    this.scene.tweens.add({ targets: loot.container, x: pos.x, y: pos.y, duration: 300, ease: 'Quad.easeOut' });
   }
 
   /**

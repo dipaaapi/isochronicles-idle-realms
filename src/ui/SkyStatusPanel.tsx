@@ -149,10 +149,11 @@ export const SkyStatusPanel: React.FC<SkyStatusPanelProps> = ({ timeOfDayConfig,
           <button
             type="button"
             onClick={onSkipDay}
-            title={tr('skyNewDay').replace('{n}', String(daysSurvived + 2))}
-            className="p-1 rounded-lg bg-black/40 hover:bg-black/60 text-slate-200 hover:text-white border border-white/15 transition cursor-pointer"
+            title={`${tr('skyNewDay').replace('{n}', String(daysSurvived + 2))} [O]`}
+            className="relative p-1 rounded-lg bg-black/40 hover:bg-black/60 text-slate-200 hover:text-white border border-white/15 transition cursor-pointer"
           >
             <FastForward className="w-3.5 h-3.5" />
+            <span className="pointer-events-none absolute -top-1.5 -right-1.5 rounded border border-slate-700 bg-slate-950 px-0.5 text-[8px] font-mono font-black leading-none text-amber-300">O</span>
           </button>
         </div>
 
@@ -177,9 +178,10 @@ export const SkyStatusPanel: React.FC<SkyStatusPanelProps> = ({ timeOfDayConfig,
       <button
         type="button"
         onClick={onOpenWeather}
-        title={weatherConfig.label}
+        title={`${weatherConfig.label} [P]`}
         className={`relative rounded-2xl border ${weatherConfig.border} ${weatherConfig.bg} hover:border-sky-400/60 hover:shadow-lg hover:shadow-sky-500/20 active:scale-[0.98] transition overflow-hidden shadow-inner text-left cursor-pointer group flex flex-col justify-between min-h-[104px]`}
       >
+        <span className="pointer-events-none absolute top-1 right-1.5 z-20 rounded border border-slate-700 bg-slate-950/80 px-1 text-[8px] font-mono font-black leading-tight text-amber-300">P</span>
         <div className="absolute inset-0 pointer-events-none">
           {wx === 'RAIN' && (
             <>

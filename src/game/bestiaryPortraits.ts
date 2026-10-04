@@ -20,6 +20,7 @@ export const BEAST_PORTRAITS: Record<string, string> = {
   EMBER_IMP: portrait('ember-imp'),
   VOID_WRAITH: portrait('void-wraith'),
   BONE_KNIGHT: portrait('bone-knight'),
+  PRISM_WARDEN: portrait('prism-warden'),
 };
 
 export const INVADER_PORTRAITS: Record<string, string> = {
@@ -33,4 +34,6 @@ export const INVADER_PORTRAITS: Record<string, string> = {
   MECHA_DRONE: portrait('mecha-drone'),
   MECHA_SIEGE_TANK: portrait('mecha-siege-tank'),
   CHRONO: portrait('chrono-time-mage'),
+  // Rendered from the voxel model (front idle frame)
+  TECHNICIAN: portrait('technician'),
 };

@@ -13,7 +13,7 @@ Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 1. **Day 1:** you start with ruins, no castle and one Support Slime.
 2. The Slime summons the **Ancient Ent** for free.
 3. The Ent builds the **Citadel Castle**, then the **Crystal Spire**. It waits whenever supplies run short and auto-buys any shortfall with coins.
-4. Next, the Ent summons the **thirteen Generals** one by one, in construction order, until every one of them stands.
+4. Next, the Ent summons the **fourteen Generals** one by one (the Crystal Spire's **Prism Warden** first), in construction order, until every one of them stands.
 5. **Each General builds its own establishment.** Once it stands, five **tenants** of the same kind move in and start working.
 6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Ent repairs, enriches the soil and forges gear.
 7. Defend against human and mecha invasions. Every **5 waves** cleared earns skill points for the Skill Tree.
@@ -50,7 +50,7 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 
 ## Features
 
-- A 20×20 procedural floating island, painted tile by tile as 2.5D pixel art (raised land, sunken water, rocky underside) and rendered at the display's native pixel density.
+- A 30×30 procedural floating island, painted tile by tile as 2.5D pixel art (raised land, sunken water, rocky underside) and rendered at the display's native pixel density.
 - Minions, Generals and invaders drawn as 8-direction animated pixel-art sprites, ray-cast from jointed voxel models in background Web Workers.
 - Structures rendered from voxel models that follow the Codex art, with construction, idle, firing, hit and destroyed states.
 - Autonomous units with movement, gathering, combat, healing, construction and expedition states, plus EasyStar.js pathfinding.
@@ -245,7 +245,7 @@ src/
 │   ├── useGameStore.ts    Persistent Zustand store composed from store/ slices
 │   ├── store/             world, economy, roster, buildings, defense, progression, persistence
 │   ├── constructionProgress.ts  Build order (Ent: castle → spire → summon Generals)
-│   ├── buildingLayout.ts  20×20 grid and seeded random establishment layout
+│   ├── buildingLayout.ts  30×30 grid and seeded random establishment layout
 │   ├── establishmentCrews.ts, economy.ts, resources.ts, difficulty.ts, skillTree.ts
 │   ├── activityLog.ts, activityWatcher.ts  Activity log store and narration
 │   └── offlineProgression.ts, storageAdapter.ts

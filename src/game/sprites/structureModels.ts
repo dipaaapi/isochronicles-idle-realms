@@ -1604,16 +1604,109 @@ const ossuary = (): StructureModel => {
   );
 };
 
+// ── Rift Sentinel — human crusade pylon guarding a rift (Technicians raise it) ─
+// Marble plinth, steel column banded in gold with glowing arc conduits, and a
+// gyro ring spinning round a floating arc crystal that fires the bolts.
+
+const sentinel = (): StructureModel => {
+  const M = { marble: 0, marbleDark: 1, steel: 2, steelDark: 3, gold: 4, arc: 5, arcCore: 6, crystal: 7, rubble: 8 };
+  const C = 13;
+  const parts: Part[] = [
+    {
+      name: 'base', pivot: [C, C, 0], shapes: [
+        cyl(C, C, 0, 11.5, 2, M.marbleDark),                                   // octagonal footing
+        cyl(C, C, 2, 10, 2.5, M.marble),
+        cyl(C, C, 4.5, 8.4, 1, M.gold),                                        // gold trim
+        cyl(C, C, 5.5, 7.4, 3, M.marble),
+        ...around(4, 8.8, Math.PI / 4).map(({ c, s }) => box(C + c - 1.4, C + s - 1.4, 2, C + c + 1.4, C + s + 1.4, 9, M.marbleDark)),
+        ...around(4, 8.8, Math.PI / 4).map(({ c, s }) => box(C + c - 1, C + s - 1, 9, C + c + 1, C + s + 1, 10, M.gold)),
+      ],
+    },
+    {
+      name: 'column', parent: 'base', pivot: [C, C, 8], shapes: [
+        cyl(C, C, 8.5, 5, 8, M.steel),
+        cyl(C, C, 16.5, 4.2, 8, M.steelDark),
+        cyl(C, C, 24.5, 3.6, 6, M.steel),
+        cyl(C, C, 15.8, 5.4, 1.2, M.gold), cyl(C, C, 23.8, 4.7, 1.2, M.gold), cyl(C, C, 30.2, 4.4, 1.2, M.gold),
+        // Arc conduits on the faces the camera sees
+        box(C + 4.6, C - 0.6, 9.5, C + 5.3, C + 0.6, 30, M.arc),
+        box(C - 0.6, C + 4.6, 9.5, C + 0.6, C + 5.3, 30, M.arc),
+        // Buttress fins
+        ...[[1, 0], [0, 1], [-1, 0], [0, -1]].map(([dx, dy]) =>
+          box(C + dx * 5 - (dy ? 0.6 : 0) - (dx < 0 ? 2.2 : 0), C + dy * 5 - (dx ? 0.6 : 0) - (dy < 0 ? 2.2 : 0), 8.5,
+              C + dx * 5 + (dy ? 0.6 : 0) + (dx > 0 ? 2.2 : 0), C + dy * 5 + (dx ? 0.6 : 0) + (dy > 0 ? 2.2 : 0), 16, M.steelDark)),
+      ],
+    },
+    {
+      name: 'crown', parent: 'column', pivot: [C, C, 31], shapes: [
+        cyl(C, C, 31, 5, 1.5, M.gold),
+        ...around(4, 4.4, 0).map(({ c, s }) => box(C + c - 0.7, C + s - 0.7, 32.5, C + c + 0.7, C + s + 0.7, 38, M.gold)),
+      ],
+    },
+    {
+      name: 'ring', parent: 'column', pivot: [C, C, 38], shapes:
+        around(14, 6.2, 0).map(({ c, s }, i) => box(C + c - 0.8, C + s - 0.8, 37.4, C + c + 0.8, C + s + 0.8, 38.6, i % 2 ? M.steel : M.gold)),
+    },
+    {
+      name: 'crystal', parent: 'column', pivot: [C, C, 39], shapes: [
+        ...pyramid(C, C, 39, 2.6, 6, M.crystal, 5),
+        ...pyramid(C, C, 39, 2.6, -5, M.crystal, 5).map((sh) => sh),
+        ball(C, C, 39, 1.6, M.arcCore),
+      ],
+    },
+    {
+      name: 'flare', parent: 'column', pivot: [C, C, 39], shapes: [
+        ell(C, C, 39, 5.5, 5.5, 5.5, M.arc),
+        ball(C, C, 39, 3, M.arcCore),
+      ],
+    },
+    {
+      name: 'rubble', pivot: [C, C, 0], shapes: [
+        box(4, 6, 0, 11, 10, 3, M.marbleDark), box(14, 15, 0, 19, 21, 2.5, M.steelDark),
+        box(9, 16, 0, 13, 19, 2, M.marble), ball(18, 8, 1.5, 1.6, M.crystal),
+      ],
+    },
+  ];
+  const base: Pose = { flare: { hidden: true }, rubble: { hidden: true } };
+  const idle = withBase(base, Array.from({ length: 8 }, (_, i) => ({
+    ring: { yaw: (i / 8) * (Math.PI / 2) },
+    crystal: { offset: [0, 0, Math.sin((i / 8) * Math.PI * 2) * 0.8], yaw: (i / 8) * (Math.PI / 2) },
+  })));
+  const attack = withBase(base, [
+    { ring: { yaw: 0.3 }, crystal: { scale: [1.15, 1.15, 1.15] }, flare: { hidden: false, scale: [0.6, 0.6, 0.6] } },
+    { ring: { yaw: 0.9 }, crystal: { scale: [1.25, 1.25, 1.25] }, flare: { hidden: false } },
+    { ring: { yaw: 1.4 }, crystal: { scale: [1.1, 1.1, 1.1] }, flare: { hidden: false, scale: [0.75, 0.75, 0.75] } },
+    { ring: { yaw: 1.7 } },
+  ]);
+  const destroyed: Pose[] = [{
+    ...hide('crown', 'ring', 'crystal', 'flare'),
+    column: { pitch: 0.55, offset: [0, 0, -9] },
+    rubble: { hidden: false },
+  }];
+  return {
+    size: [26, 26, 48], foot: [C, C, 0],
+    materials: [
+      { color: 0xe7e5e4 }, { color: 0xa8a29e }, { color: 0x94a3b8 }, { color: 0x475569 }, { color: 0xeab308 },
+      { color: 0x38bdf8, emissive: true }, { color: 0xffffff, emissive: true }, { color: 0x7dd3fc, emissive: true },
+      { color: 0x57534e },
+    ],
+    parts,
+    animations: { idle, attack, destroyed },
+    rates: { idle: 8, attack: 12, destroyed: 1 },
+    loops: ['idle'],
+  };
+};
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type StructureKey =
   | 'castle' | 'quarry' | 'mine' | 'grove' | 'port' | 'cave' | 'spire' | 'portal'
   | 'trench' | 'crypt' | 'perch' | 'kennel'
-  | 'foundry' | 'pavilion' | 'voidgate' | 'ossuary';
+  | 'foundry' | 'pavilion' | 'voidgate' | 'ossuary' | 'sentinel';
 
 // Order = bake order: the always-visible citadel, portals and spire first
 export const STRUCTURE_MODELS: Record<StructureKey, () => StructureModel> = {
-  castle, portal, spire, quarry, mine, grove, port, cave,
+  castle, portal, sentinel, spire, quarry, mine, grove, port, cave,
   trench, crypt, perch, kennel,
   foundry, pavilion, voidgate: voidGate, ossuary,
 };
@@ -1624,6 +1717,8 @@ export const STRUCTURE_ART: Record<StructureKey, string> = {
   grove: 'tree-of-life', port: 'wellspring', cave: 'magma-cavern', trench: 'deepwater-basin', crypt: 'bone-mausoleum',
   perch: 'obsidian-spire', kennel: 'infernal-kennel', foundry: 'golem-foundry', pavilion: 'shadow-pavilion',
   voidgate: 'void-gate', ossuary: 'bone-crypt',
+  // No Codex art of its own yet: shown beside the rift it guards
+  sentinel: 'portal',
 };
 
 export const BUILDING_SPRITE: Record<ResourceBuildingId, StructureKey> = {

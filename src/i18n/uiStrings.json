@@ -620,16 +620,16 @@
     "tl": "Iyong Musika"
   },
   "musicPlayerDesc": {
-    "en": "Play your own YouTube or Spotify music while you play. Paste a link to a playlist, album, track or video.",
-    "tl": "Patugtugin ang sarili mong musika mula sa YouTube o Spotify habang naglalaro. I-paste ang link ng playlist, album, kanta o video."
+    "en": "Play your own YouTube or Spotify music while you play. Save as many playlists, albums, tracks or videos as you like and switch between them in the player. Your list is saved on this device on its own, apart from your realm progress: saving, exporting, importing or resetting the game never changes it (use the playlist export to move it).",
+    "tl": "Patugtugin ang sarili mong musika mula sa YouTube o Spotify habang naglalaro. Mag-save ng kahit ilang playlist, album, kanta o video at magpalipat-lipat sa player. Hiwalay na naka-save ang listahan sa device na ito, hindi kasama ng progress ng realm: hindi ito nagbabago kapag nag-save, nag-export, nag-import o nag-reset ng laro (gamitin ang export ng playlist para ilipat ito)."
   },
   "musicPlayerPlaceholder": {
     "en": "Paste a YouTube or Spotify link…",
     "tl": "I-paste ang link ng YouTube o Spotify…"
   },
   "musicPlayerSave": {
-    "en": "Save",
-    "tl": "I-save"
+    "en": "Add",
+    "tl": "Idagdag"
   },
   "musicPlayerRemove": {
     "en": "Remove",
@@ -694,5 +694,177 @@
   "musicKind_episode": {
     "en": "Episode",
     "tl": "Episode"
+  },
+  "musicPlayerMinimize": {
+    "en": "Minimize (keeps playing)",
+    "tl": "I-minimize (tuloy ang tugtog)"
+  },
+  "musicPlayerExpand": {
+    "en": "Show player",
+    "tl": "Ipakita ang player"
+  },
+  "musicPlayerDockSidebar": {
+    "en": "Dock in side menu",
+    "tl": "Ilagay sa side menu"
+  },
+  "musicPlayerDetach": {
+    "en": "Detach over the map",
+    "tl": "Ihiwalay sa ibabaw ng mapa"
+  },
+  "musicPlayerNamePlaceholder": {
+    "en": "Name (optional)",
+    "tl": "Pangalan (opsyonal)"
+  },
+  "musicPlayerLibrary": {
+    "en": "Saved music",
+    "tl": "Naka-save na musika"
+  },
+  "musicPlayerPlay": {
+    "en": "Play",
+    "tl": "Patugtugin"
+  },
+  "musicPlayerNowPlaying": {
+    "en": "Now playing",
+    "tl": "Tumutugtog"
+  },
+  "musicPlayerPrev": {
+    "en": "Previous",
+    "tl": "Nakaraan"
+  },
+  "musicPlayerNext": {
+    "en": "Next",
+    "tl": "Susunod"
+  },
+  "musicPlayerShowList": {
+    "en": "Playlists",
+    "tl": "Mga playlist"
+  },
+  "musicPlayerFull": {
+    "en": "The list is full. Remove one first.",
+    "tl": "Puno na ang listahan. Magtanggal muna ng isa."
+  },
+  "musicManagerTitle": {
+    "en": "Music Library",
+    "tl": "Music Library"
+  },
+  "musicPlayerPause": {
+    "en": "Pause",
+    "tl": "I-pause"
+  },
+  "musicPlayerAutoPlay": {
+    "en": "Auto-play: starts on its own and moves to the next saved link",
+    "tl": "Auto-play: kusang tumutugtog at lumilipat sa susunod na naka-save na link"
+  },
+  "musicPlayerLoop": {
+    "en": "Auto-loop: repeats the list (or this link when auto-play is off)",
+    "tl": "Auto-loop: inuulit ang listahan (o ang link na ito kapag naka-off ang auto-play)"
+  },
+  "musicPlayerFileTitle": {
+    "en": "Playlist file",
+    "tl": "File ng playlist"
+  },
+  "musicPlayerFileDesc": {
+    "en": "Download your list to edit it in Excel / Sheets (.csv) or a docs app (.txt), then upload it back. Any line with a YouTube or Spotify link is added; the rest of the line becomes its name.",
+    "tl": "I-download ang listahan para i-edit sa Excel / Sheets (.csv) o sa docs app (.txt), tapos i-upload ulit. Idinadagdag ang bawat linya na may link ng YouTube o Spotify; ang natitirang text sa linya ang magiging pangalan."
+  },
+  "musicPlayerUpload": {
+    "en": "Upload list",
+    "tl": "I-upload ang listahan"
+  },
+  "musicPlayerImported": {
+    "en": "Added {n} link(s) to your list.",
+    "tl": "Nadagdag ang {n} link sa listahan."
+  },
+  "musicPlayerImportNone": {
+    "en": "No new YouTube or Spotify links found in that file.",
+    "tl": "Walang bagong link ng YouTube o Spotify sa file na iyon."
+  },
+  "titleAllRights": {
+    "en": "All rights reserved",
+    "tl": "Nakalaan ang lahat ng karapatan"
+  },
+  "titleCreatedBy": {
+    "en": "Created by",
+    "tl": "Ginawa ni"
+  },
+  "loadingTitle": {
+    "en": "Awakening the Realm",
+    "tl": "Ginigising ang Kaharian"
+  },
+  "loadingStepWorld": {
+    "en": "Raising the island…",
+    "tl": "Itinataas ang isla…"
+  },
+  "loadingStepStructures": {
+    "en": "Forging the establishments…",
+    "tl": "Hinuhubog ang mga pasilidad…"
+  },
+  "loadingStepCharacters": {
+    "en": "Summoning minions and invaders…",
+    "tl": "Tinatawag ang mga alagad at manlulupig…"
+  },
+  "loadingStepReady": {
+    "en": "Ready",
+    "tl": "Handa na"
+  },
+  "loadingTip1": {
+    "en": "Every establishment, the Crystal Spire included, has a General and five tenants.",
+    "tl": "Bawat pasilidad, kasama ang Crystal Spire, ay may isang General at limang umuupa."
+  },
+  "loadingTip2": {
+    "en": "Expeditions through the rifts stir human vengeance: the next wave grows.",
+    "tl": "Ang mga ekspedisyon sa lagusan ay nagpapagalit sa mga tao: lumalaki ang susunod na alon."
+  },
+  "loadingTip3": {
+    "en": "The Ent repairs what the invaders break once every General answers its call.",
+    "tl": "Inaayos ng Ent ang sinira ng mga manlulupig kapag sumagot na ang bawat General."
+  },
+  "loadingTip4": {
+    "en": "Move an establishment between waves to reshape your defences.",
+    "tl": "Ilipat ang pasilidad sa pagitan ng mga alon para baguhin ang depensa."
+  },
+  "quickDay": {
+    "en": "Next day",
+    "tl": "Susunod na araw"
+  },
+  "quickWeather": {
+    "en": "Next weather",
+    "tl": "Susunod na panahon"
+  },
+  "quickMusic": {
+    "en": "Music on/off",
+    "tl": "Musika on/off"
+  },
+  "quickSfx": {
+    "en": "Sound effects on/off",
+    "tl": "Sound effects on/off"
+  },
+  "quickWave": {
+    "en": "Launch wave",
+    "tl": "Ilunsad ang wave"
+  },
+  "quickPause": {
+    "en": "Play / pause",
+    "tl": "I-play / i-pause"
+  },
+  "quickSpeed2": {
+    "en": "2× speed",
+    "tl": "2× bilis"
+  },
+  "quickSpeed3": {
+    "en": "3× speed",
+    "tl": "3× bilis"
+  },
+  "quickFullscreen": {
+    "en": "Fullscreen",
+    "tl": "Fullscreen"
+  },
+  "quickSettings": {
+    "en": "Settings",
+    "tl": "Mga Setting"
+  },
+  "quickSidebar": {
+    "en": "Expand / collapse side menu",
+    "tl": "Palakihin / paliitin ang side menu"
   }
 }

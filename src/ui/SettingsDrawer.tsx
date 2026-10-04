@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
-import { MusicLinkSettings } from './MusicPlayer';
 import { gameAlert, gameConfirm } from './GameDialog';
 import { t as translate } from '../i18n/translations';
 import type { TranslationKey } from '../i18n/translations';
@@ -25,7 +24,6 @@ import {
   Save,
   Code2,
   User,
-  ListMusic,
 } from 'lucide-react';
 
 interface SettingsDrawerProps {
@@ -382,16 +380,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 </div>
               </section>
 
-              {/* Music Player (YouTube / Spotify) */}
-              <section>
-                <div className="mb-2 flex items-center gap-2 px-1">
-                  <ListMusic className="h-3.5 w-3.5 text-indigo-400" />
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    {tr('musicPlayerSection')}
-                  </h3>
-                </div>
-                <MusicLinkSettings />
-              </section>
 
               {/* Performance */}
               <section>

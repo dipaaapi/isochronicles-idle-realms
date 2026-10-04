@@ -487,6 +487,25 @@ export class SkillSystem {
         }
         return;
       }
+      case 'PRISM_WARDEN': {
+        const pool = near(5);
+        if (trySkill2 && near(3).length > 0 && this.ready(key2, 16)) {
+          for (const a of workers) if (tilesBetween(a.container, w.container) <= 4) a.hp = Math.min(a.maxHp, a.hp + 80);
+          for (const i of near(3)) this.invasion.applySlow(i, 0.4, 3);
+          this.ring(w.container, 3, 0x22d3ee);
+          this.shout(w, 'Crystal Ward');
+          return;
+        }
+        if (pool.length > 0 && this.ready(key1, 12)) {
+          for (const t of pool.slice(0, 3)) {
+            this.invasion.damageInvader(t, atk * 2, 'ARCANE');
+            this.beam(w.container, t.container, 0x67e8f9);
+          }
+          this.shout(w, 'Prism Lance');
+          return;
+        }
+        return;
+      }
       case 'BONE_KNIGHT': {
         const targets = near(4).slice(0, 4);
         if (trySkill2 && near(2).length > 0 && this.ready(key2, 16)) {

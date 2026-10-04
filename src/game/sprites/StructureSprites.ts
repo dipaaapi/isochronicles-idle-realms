@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { STRUCTURE_MODELS, StructureKey } from './structureModels';
+import { useLoadProgress } from '../loadProgress';
 import type { BakedStrip } from './structureBake.worker';
 
 /**
@@ -45,6 +46,9 @@ function install(scene: Phaser.Scene, strip: BakedStrip): void {
 /** Installs cached strips and starts the background bake (once per page). */
 export function prepareStructureSprites(scene: Phaser.Scene, onReady?: (key: StructureKey) => void): void {
   for (const strip of baked.values()) install(scene, strip);
+  const progress = useLoadProgress.getState();
+  progress.setTotal('structures', Object.keys(STRUCTURE_MODELS).length);
+  progress.setDone('structures', baked.size);
 
   const onStrip = (strip: BakedStrip) => {
     if (!(scene.sys.isActive() || scene.sys.isSleeping())) return;
@@ -70,6 +74,7 @@ function startStructureBake(): void {
       const worker = new Worker(new URL('./structureBake.worker.ts', import.meta.url), { type: 'module' });
       worker.onmessage = (event: MessageEvent<BakedStrip>) => {
         baked.set(event.data.key, event.data);
+        useLoadProgress.getState().setDone('structures', baked.size);
         listeners.forEach((listener) => listener(event.data));
       };
       worker.postMessage(batch);

@@ -808,11 +808,103 @@ const chronoMage = (): VoxelModel => {
   };
 };
 
+// ── 11. Field Technician — hard hat, hi-vis vest, wrench, hacking tablet, antenna pack ──
+
+const technician = (): VoxelModel => {
+  const M = { suit: 0, suitDark: 1, vest: 2, stripe: 3, hat: 4, skin: 5, boot: 6, belt: 7, steel: 8, screen: 9, pack: 10, led: 11 };
+  const cx = 15;
+  const leftLeg: Shape[] = [box(11.5, 13, 3, 14.2, 16.5, 11, M.suit), box(11, 12.5, 0, 14.5, 17.5, 3, M.boot)];
+  const leftArm: Shape[] = [box(7.8, 13.5, 14, 10.2, 16.2, 21, M.suit), box(7.6, 13.3, 12.5, 10.4, 16.4, 14.5, M.skin)];
+
+  const parts: Part[] = [
+    { name: 'leftLeg', pivot: [12.8, 15, 11], shapes: leftLeg },
+    { name: 'rightLeg', pivot: mirrorPivot([12.8, 15, 11], cx), shapes: mirrorX(leftLeg, cx) },
+    {
+      name: 'torso', pivot: [15, 15, 11], shapes: [
+        box(10.8, 12.8, 9, 19.2, 17.2, 13, M.suitDark),
+        // Tool belt with pouches and a hammer loop
+        box(10.5, 12.5, 11, 19.5, 17.5, 12.5, M.belt),
+        box(11, 17.4, 9.5, 13, 18.4, 12.5, M.belt),
+        box(17, 17.4, 9.5, 19, 18.4, 12.5, M.belt),
+        box(14.4, 17.5, 11.2, 15.6, 18, 12.3, M.steel),
+        // Coveralls + orange hi-vis vest with reflective stripes
+        box(10.5, 12.5, 12.5, 19.5, 17.5, 22, M.suit),
+        box(10.8, 12.3, 13, 19.2, 17.7, 21.5, M.vest),
+        box(10.6, 12.2, 15, 19.4, 17.8, 16, M.stripe),
+        box(10.6, 12.2, 18.5, 19.4, 17.8, 19.5, M.stripe),
+        box(14.3, 17.6, 13, 15.7, 17.9, 21.5, M.suit),
+        // Backpack hacking rig with an antenna and status lights
+        box(11.5, 9.5, 13.5, 18.5, 12.5, 21.5, M.pack),
+        box(12.5, 9.2, 18, 14, 9.6, 19.2, M.led),
+        box(15, 9.2, 18, 16.5, 9.6, 19.2, M.screen),
+        box(17, 10.3, 21.5, 17.6, 10.9, 31, M.steel),
+        ball(17.3, 10.6, 31.5, 0.9, M.led),
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 22], shapes: [
+        box(12.5, 12.5, 22, 17.5, 17.5, 27.5, M.skin),
+        box(13.3, 17.4, 24.5, 14.3, 17.8, 25.5, M.suitDark),
+        box(15.7, 17.4, 24.5, 16.7, 17.8, 25.5, M.suitDark),
+        // Yellow hard hat with a brim and headlamp
+        ell(15, 15, 27.5, 3.6, 3.6, 2.6, M.hat),
+        box(11, 11, 27, 19, 19.5, 27.8, M.hat),
+        box(14.3, 18.6, 28, 15.7, 19.4, 29.2, M.led),
+      ],
+    },
+    { name: 'leftArm', parent: 'torso', pivot: [9, 15, 21], shapes: leftArm },
+    {
+      // Glowing hacking tablet
+      name: 'tablet', parent: 'leftArm', pivot: [9, 15, 13], shapes: [
+        box(6.5, 15.5, 11, 9.5, 20.5, 15.5, M.suitDark),
+        box(6.3, 16, 11.5, 6.6, 20, 15, M.screen),
+      ],
+    },
+    { name: 'rightArm', parent: 'torso', pivot: mirrorPivot([9, 15, 21], cx), shapes: mirrorX(leftArm, cx) },
+    {
+      name: 'wrench', parent: 'rightArm', pivot: [21, 15, 13], shapes: [
+        box(20.5, 14.5, 12.5, 21.5, 16, 14, M.suitDark),
+        box(20.5, 16, 12.8, 21.5, 25, 13.8, M.steel),
+        box(19.5, 24.5, 12, 22.5, 26, 14.6, M.steel),
+        box(20.6, 25.2, 12.6, 21.4, 26.2, 14, M.suitDark),
+      ],
+    },
+  ];
+
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.5 * s },
+    rightLeg: { pitch: -0.5 * s },
+    leftArm: { pitch: 0.4 },
+    rightArm: { pitch: 0.3 * s + 0.1 },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  // Wrench swing (also reads as hammering at a scaffold)
+  const attack: Pose[] = [
+    { rightArm: { pitch: 2.3 }, torso: { yaw: 0.2 }, leftArm: { pitch: 0.5 } },
+    { rightArm: { pitch: 1.2 }, torso: { offset: [0, 1, 0] }, leftArm: { pitch: 0.5 } },
+    { rightArm: { pitch: 0.3 }, torso: { pitch: 0.15, offset: [0, 1.5, -0.5] }, leftArm: { pitch: 0.4 } },
+  ];
+  // Idle: hunched over the tablet, hacking
+  const idle = breathe('torso', { leftArm: { pitch: 0.9 }, head: { pitch: 0.2 }, rightArm: { pitch: 0.2 } });
+
+  return {
+    size: [30, 32, 36],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0x2563eb }, { color: 0x1e293b }, { color: 0xf97316 }, { color: 0xf1f5f9 },
+      { color: 0xfacc15 }, { color: 0xf2c9a0 }, { color: 0x3f2a1d }, { color: 0x78350f },
+      { color: 0x9ca3af }, { color: 0x4ade80, emissive: true }, { color: 0x475569 }, { color: 0xef4444, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type EnemySpriteKey =
   | 'knight' | 'archer' | 'mechaScout' | 'mechaTitan'
-  | 'highPriest' | 'valkyrie' | 'assassin' | 'drone' | 'siegeTank' | 'chronoMage';
+  | 'highPriest' | 'valkyrie' | 'assassin' | 'drone' | 'siegeTank' | 'chronoMage' | 'technician';
 
 export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   knight,
@@ -825,6 +917,7 @@ export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   drone,
   siegeTank,
   chronoMage,
+  technician,
 };
 
 /** Which sprite each invader type uses. */
@@ -839,4 +932,5 @@ export const INVADER_SPRITE: Record<InvaderType, EnemySpriteKey> = {
   MECHA_DRONE: 'drone',
   MECHA_SIEGE_TANK: 'siegeTank',
   CHRONO: 'chronoMage',
+  TECHNICIAN: 'technician',
 };

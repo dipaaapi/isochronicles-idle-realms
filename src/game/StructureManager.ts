@@ -31,6 +31,10 @@ import type { ConstructionStatus } from '../state/constructionProgress';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
 import { BUILDING_SPRITE, StructureKey } from './sprites/structureModels';
+import { isHacked } from './hackState';
+
+/** Tint of an establishment a Technician has turned. */
+const HACK_TINT = 0xf0abfc;
 import { createStructureSprite, playStructureAnim, structureHeadroom } from './sprites/StructureSprites';
 
 export type StructureId = 'CASTLE' | TowerId;
@@ -74,11 +78,13 @@ interface StructureView {
   state?: ViewState;
   attacking: boolean;
   smokeTimer: number;
+  /** Whether the hacked tint is currently applied. */
+  hackTinted?: boolean;
   lastHpKey: string;
 }
 
 export const FALLBACK_COLORS: Record<StructureKey, number> = {
-  castle: 0x45414f, quarry: 0x5b6470, mine: 0x6b6560, grove: 0x22a34a, port: 0xd6d3d1, cave: 0x2f2a28, spire: 0x22d3ee, portal: 0x6b6475,
+  castle: 0x45414f, quarry: 0x5b6470, mine: 0x6b6560, grove: 0x22a34a, port: 0xd6d3d1, cave: 0x2f2a28, spire: 0x22d3ee, portal: 0x6b6475, sentinel: 0x94a3b8,
   trench: 0x334155, crypt: 0x52605a, perch: 0x231d2e, kennel: 0x3a2a26,
   foundry: 0x4b5563, pavilion: 0x6d28d9, voidgate: 0x2a2438, ossuary: 0x3f4d4a,
 };
@@ -91,6 +97,8 @@ export const FALLBACK_COLORS: Record<StructureKey, number> = {
  */
 export class StructureManager {
   private views = new Map<StructureId, StructureView>();
+  /** Glitchy magenta aura over establishments a Technician has hacked. */
+  private hackGfx?: Phaser.GameObjects.Graphics;
   private zoneGfx: Phaser.GameObjects.Graphics;
   private invaderProvider: () => Provokable[] = () => [];
   private constructionProvider: () => ConstructionStatus[] = () => [];
@@ -178,6 +186,20 @@ export class StructureManager {
         if (view.state === 'idle') playStructureAnim(sprite, 'idle');
       }
     });
+  }
+
+  /** Moves every view to its (possibly relocated) footprint and refreshes the solid tiles. */
+  relayout(): void {
+    for (const view of this.views.values()) {
+      const rect = view.id === 'CASTLE' ? CASTLE_FOOTPRINT : view.id === 'SPIRE' ? SPIRE_FOOTPRINT : BUILDING_SITES[view.id as keyof typeof BUILDING_SITES].footprint;
+      view.rect = rect;
+      const c = rectCenter(rect);
+      const pos = IsometricHelper.gridToScreen(c.x, c.y);
+      view.x = pos.x;
+      view.y = pos.y;
+      view.container.setPosition(pos.x, pos.y);
+    }
+    this.syncSolids();
   }
 
   /** Called when a structure strip finishes baking. */
@@ -323,11 +345,43 @@ export class StructureManager {
     return true;
   }
 
+  /** Hacked establishments: magenta tint plus flickering glitch bars and a warning ring. */
+  private drawHacks(): void {
+    if (!this.hackGfx) {
+      this.hackGfx = this.scene.add.graphics();
+      this.hackGfx.setDepth(9980);
+      this.layer.add(this.hackGfx);
+    }
+    const g = this.hackGfx;
+    g.clear();
+    for (const view of this.views.values()) {
+      const hacked = isHacked(view.id);
+      if (view.sprite && view.hackTinted !== hacked) {
+        view.hackTinted = hacked;
+        if (hacked) view.sprite.setTint(HACK_TINT);
+        else view.sprite.clearTint();
+      }
+      if (!hacked) continue;
+      const pulse = (Math.sin(this.elapsed * 6) + 1) / 2;
+      g.lineStyle(2, 0xe879f9, 0.45 + pulse * 0.45);
+      g.strokeEllipse(view.x, view.y, view.rect.w * 70, view.rect.h * 35);
+      for (let i = 0; i < 4; i++) {
+        if (Math.random() < 0.5) continue;
+        g.fillStyle(i % 2 ? 0xf0abfc : 0x22d3ee, 0.7);
+        g.fillRect(view.x - 28 + Math.random() * 40, view.y - 20 - Math.random() * 50, 6 + Math.random() * 14, 2);
+      }
+    }
+  }
+
   private flash(view: StructureView): void {
     const sprite = view.sprite;
     if (!sprite) return;
     sprite.setTint(0xff9a9a);
-    this.scene.time.delayedCall(90, () => sprite.active && sprite.clearTint());
+    this.scene.time.delayedCall(90, () => {
+      if (!sprite.active) return;
+      if (isHacked(view.id)) sprite.setTint(HACK_TINT);
+      else sprite.clearTint();
+    });
   }
 
   private debris(view: StructureView, count: number): void {
@@ -373,6 +427,7 @@ export class StructureManager {
     const store = useGameStore.getState();
     const construction = this.constructionProvider();
 
+    this.drawHacks();
     for (const view of this.views.values()) {
       // If not currently shaking via tween, ensure container is precisely at its home position
       if (!this.scene.tweens.isTweening(view.container)) {
@@ -686,7 +741,11 @@ export class StructureManager {
   private syncSolids(): void {
     const store = useGameStore.getState();
     const solids: SolidArea[] = [{ id: 'SPIRE', rect: SPIRE_FOOTPRINT }];
-    for (const portal of PORTAL_SITES) solids.push({ id: `PORTAL_${portal.id}`, rect: { ...portal.tile, w: 1, h: 1 } });
+    for (const portal of PORTAL_SITES) {
+      solids.push({ id: `PORTAL_${portal.id}`, rect: { ...portal.footprint } });
+      // Rift Sentinel tower tiles are solid too (minions strike them from the side)
+      portal.towers.forEach((t, i) => solids.push({ id: `PORTAL_${portal.id}_TOWER_${i}`, rect: { ...t, w: 1, h: 1 } }));
+    }
     if (store.castleBuilt) {
       solids.push({ id: 'CASTLE', rect: CASTLE_FOOTPRINT });
       for (const id of BUILDING_IDS) {

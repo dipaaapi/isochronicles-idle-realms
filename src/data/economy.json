@@ -573,6 +573,18 @@
           "stone": 25,
           "soulFragments": 2
         }
+      },
+      "PRISM_WARDEN": {
+        "base": {
+          "aetherShards": 60,
+          "arcaneEssence": 10,
+          "stone": 30
+        },
+        "perUnit": {
+          "aetherShards": 30,
+          "arcaneEssence": 6,
+          "stone": 20
+        }
       }
     }
   },

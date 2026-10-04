@@ -127,6 +127,10 @@
     "ossuary": {
       "en": "Bone Crypt — skull-lined niche walls, two sarcophagi and a fallen skeleton. Landmark: yields stone and soul fragments; splinters bones at invaders.",
       "tl": "Bone Crypt (Kripta ng mga Buto) — mga pader na puno ng bungo, dalawang kabaong at nakahandusay na kalansay. Landmark: nagbibigay ng bato at soul fragment; naghahagis ng piraso ng buto."
+    },
+    "sentinel": {
+      "en": "Rift Sentinel — a human-built marble and steel pylon banded in gold, arc conduits glowing up its column and a gyro ring spinning round a floating arc crystal. Two guard each open rift; Technicians raise and mend them.",
+      "tl": "Rift Sentinel (Bantay ng Lagusan) — pilar na marmol at bakal na gawa ng mga tao, may gintong bigkis, kumikinang na arc conduit at umiikot na singsing sa paligid ng lumulutang na kristal. Dalawa ang bantay sa bawat bukas na lagusan; ang mga Technician ang nagtatayo at nag-aayos sa kanila."
     }
   },
   "portalStates": {
@@ -180,5 +184,9 @@
   "inGame": {
     "en": "In game",
     "tl": "Sa laro"
+  },
+  "sentinelName": {
+    "en": "Rift Sentinel",
+    "tl": "Bantay ng Lagusan"
   }
 }

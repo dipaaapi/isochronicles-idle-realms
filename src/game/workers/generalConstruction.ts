@@ -6,6 +6,8 @@ import { CONSTRUCTION_SECONDS, nextChampionConstruction } from '../../state/cons
 import { IsometricHelper } from '../IsometricHelper';
 import { soundFx } from '../audio/soundFx';
 import type { WorkerContext, WorkerInstance } from './types';
+import { BUILDING_SITES } from '../../state/buildingLayout';
+import { minionMoveMode } from '../terrain';
 
 /** The establishment a General still has to raise, if any (its home, while unbuilt). */
 export const generalHomeSite = (worker: WorkerInstance, store: GameStoreState) => {
@@ -29,7 +31,8 @@ export function updateGeneralConstruction(
   const site = generalHomeSite(worker, store);
   if (!site) return false;
 
-  const target = IsometricHelper.gridToScreen(site.x, site.y);
+  const waterSpot = minionMoveMode(worker.unitClass) === 'water' ? BUILDING_SITES[site.id]?.waterSpot : undefined;
+  const target = IsometricHelper.gridToScreen(waterSpot?.x ?? site.x, waterSpot?.y ?? site.y);
   const distance = Math.hypot(target.x - worker.container.x, target.y - worker.container.y);
   worker.overrideEmote = '🔨';
   worker.overrideEmoteTimer = 400;

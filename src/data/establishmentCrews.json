@@ -20,6 +20,13 @@
     "HUMAN_REALM": { "icon": "🏰", "en": "Human realm (through a rift)", "tl": "Kaharian ng tao (sa lagusan)" }
   },
   "crews": {
+    "SPIRE": {
+      "general": "PRISM_WARDEN",
+      "gather": [
+        { "source": "ESTABLISHMENT", "icon": "💎", "yield": { "aetherShards": 2 } },
+        { "source": "PORTAL", "icon": "🔮", "yield": { "arcaneEssence": 1, "aetherShards": 1 } }
+      ]
+    },
     "WOOD": {
       "general": "DRYAD",
       "gather": [

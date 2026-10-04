@@ -4,6 +4,7 @@ import { beaconLevelOf } from '../defenseStats';
 import { normalizeSkillProgress } from '../skillTree';
 import { RESOURCE_KEYS } from '../resources';
 import { localForageStorage } from '../storageAdapter';
+import { clampMusicIndex, hasStoredMusicPrefs, normalizeMusicLibrary } from '../externalMusic';
 import { getPhaseFromWave } from './defenseSlice';
 import { normalizeResourceBuildings, normalizeSpireTower } from './buildingsSlice';
 import {
@@ -244,13 +245,24 @@ const partialize = (state: GameStoreState) => ({
 /** Upgrades older saves to the current shape when they are rehydrated. */
 const merge = (persistedState: unknown, currentState: GameStoreState): GameStoreState => {
   // Saves from before the single-Ent redesign may still carry caretaker links
-  const { entAssignments: _legacyCaretakers, ...persisted } =
-    (persistedState ?? {}) as Partial<GameStoreState> & { entAssignments?: unknown };
+  // Music now saves apart from the game (externalMusic.ts); an old save's library is adopted once
+  const {
+    entAssignments: _legacyCaretakers,
+    musicLibrary: legacyLibrary, musicIndex: legacyIndex, musicAutoPlay: legacyAutoPlay, musicLoop: legacyLoop,
+    ...persisted
+  } = (persistedState ?? {}) as Partial<GameStoreState> & { entAssignments?: unknown };
   const roster = withPermanentSlime(persisted.roster ?? currentState.roster);
+
+  const adoptMusic = !hasStoredMusicPrefs() && Array.isArray(legacyLibrary);
+  const musicLibrary = adoptMusic ? normalizeMusicLibrary(legacyLibrary) : currentState.musicLibrary;
 
   return {
     ...currentState,
     ...persisted,
+    musicLibrary,
+    musicIndex: adoptMusic ? clampMusicIndex(legacyIndex, musicLibrary) : currentState.musicIndex,
+    musicAutoPlay: adoptMusic && typeof legacyAutoPlay === 'boolean' ? legacyAutoPlay : currentState.musicAutoPlay,
+    musicLoop: adoptMusic && typeof legacyLoop === 'boolean' ? legacyLoop : currentState.musicLoop,
     ...normalizeSkillProgress(persisted),
     difficulty: normalizeDifficulty(persisted.difficulty),
     roster,

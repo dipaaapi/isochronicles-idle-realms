@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { IsometricHelper } from '../IsometricHelper';
-import { Navigation } from '../Navigation';
+import { Navigation, TILES_FOR } from '../Navigation';
+import { invaderMoveMode } from '../terrain';
 import { INVADER_CONFIGS } from '../../types/game';
 import type { StructureTarget } from '../StructureManager';
 import type { InvaderContext } from './context';
@@ -19,7 +20,7 @@ export const stepToward = (ctx: InvaderContext, invader: ActiveInvader, tx: numb
   const move = Math.min(step, dist);
   let nx = c.x + (dx / dist) * move;
   let ny = c.y + (dy / dist) * move;
-  if (ctx.nav) ({ x: nx, y: ny } = ctx.nav.pushOut(nx, ny));
+  if (ctx.nav) ({ x: nx, y: ny } = ctx.nav.pushOut(nx, ny, undefined, invaderMoveMode(invader.type)));
   ctx.faceInvader(invader, nx - c.x, ny - c.y, true);
   c.x = nx;
   c.y = ny;
@@ -31,7 +32,7 @@ export const stepToward = (ctx: InvaderContext, invader: ActiveInvader, tx: numb
 
 /** Chases a moving world point, detouring around buildings when the line is blocked. */
 export const chase = (ctx: InvaderContext, invader: ActiveInvader, tx: number, ty: number, step: number, deltaSec: number): void => {
-  const next = ctx.nav ? ctx.nav.steer(invader, invader.container.x, invader.container.y, tx, ty, deltaSec) : { x: tx, y: ty };
+  const next = ctx.nav ? ctx.nav.steer(invader, invader.container.x, invader.container.y, tx, ty, deltaSec, invaderMoveMode(invader.type)) : { x: tx, y: ty };
   stepToward(ctx, invader, next.x, next.y, step);
 };
 
@@ -63,7 +64,7 @@ export const approachStructure = (
   step: number,
   deltaSec: number
 ): void => {
-  const allowed = INVADER_CONFIGS[invader.type].flying ? [0, 1] : [0];
+  const allowed = TILES_FOR[invaderMoveMode(invader.type)];
   invader.structTimer = (invader.structTimer ?? 0) - deltaSec;
   const here = Navigation.tileOf(invader.container.x, invader.container.y);
   if (!invader.structPath || invader.structGoal !== structure.id || invader.structTimer <= 0) {

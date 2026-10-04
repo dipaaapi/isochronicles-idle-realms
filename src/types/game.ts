@@ -103,7 +103,7 @@ export type HarvestTask = 'AETHER' | 'WOOD' | 'STONE' | 'METAL' | 'ESSENCE' | 'F
 export type UnitClass =
   | 'TREANT' | 'AQUA_SLIME'
   | 'GOLEM' | 'MERMAN' | 'NECROMANCER' | 'KRAKEN' | 'DEMON_HOUND' | 'SUCCUBUS' | 'LAVA_GARGOYLE' | 'HARPY'
-  | 'DRYAD' | 'MINOTAUR' | 'EMBER_IMP' | 'VOID_WRAITH' | 'BONE_KNIGHT';
+  | 'DRYAD' | 'MINOTAUR' | 'EMBER_IMP' | 'VOID_WRAITH' | 'BONE_KNIGHT' | 'PRISM_WARDEN';
 
 /** Each team has 2 rulers and one fighter General per establishment. */
 export type UnitRole = 'RULER' | 'FIGHTER';
@@ -231,7 +231,7 @@ export interface WorkerData {
 export type InvaderType =
   | 'HIGH_PRIEST' | 'MECHA_VALKYRIE'
   | 'HUMAN_KNIGHT' | 'HUMAN_ARCHER' | 'MECHA_SCOUT' | 'MECHA_TITAN'
-  | 'ASSASSIN' | 'MECHA_DRONE' | 'MECHA_SIEGE_TANK' | 'CHRONO';
+  | 'ASSASSIN' | 'MECHA_DRONE' | 'MECHA_SIEGE_TANK' | 'CHRONO' | 'TECHNICIAN';
 
 export interface InvaderConfig {
   type: InvaderType;

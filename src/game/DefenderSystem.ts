@@ -2,10 +2,12 @@ import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
 import { IsometricHelper } from './IsometricHelper';
 import { Navigation, NavAgent } from './Navigation';
+import { minionMoveMode } from './terrain';
 import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionManager';
 import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
-import { CASTLE_GATE, GRID_SIZE, PORTAL_SITES, ROAD_TILES, TileRect, expandRect, isLandTile, rectCenter, type PortalSite } from '../state/buildingLayout';
+import { BUILDING_SITES, CANALS, CASTLE_GATE, GRID_SIZE, PORTAL_SITES, ROAD_TILES, TileRect, expandRect, isLandTile, isWaterTile, rectCenter, waterRegionOf, type PortalSite } from '../state/buildingLayout';
+import type { ResourceBuildingId as BuildingId } from '../types/state';
 import type { ResourceBuildingId, TowerId, Resources } from '../types/state';
 import { UNIT_CLASSES, type UnitClass, type HarvestTask } from '../types/game';
 import { createMinionSprite, faceCharacterSprite, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
@@ -13,6 +15,7 @@ import { soundFx } from './audio/soundFx';
 import { useTenantCounts, type TenantCount } from '../state/tenantCounts';
 import { logFloatingText, logMessage, resourceName } from '../state/activityLog';
 import { CREW_CONFIG, ESTABLISHMENT_CREWS, vengeanceExtraInvaders, type GatherJob, type GatherSource } from '../state/establishmentCrews';
+import { applyLocomotion, locomotionOf } from './locomotion';
 
 export type DefenderState =
   | 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT'
@@ -33,6 +36,9 @@ export interface Defender extends InvaderBlocker, NavAgent {
   life?: number;
   damage: number;
   container: Phaser.GameObjects.Container;
+  shadow: Phaser.GameObjects.Ellipse;
+  /** Random offset so hovering / swimming units don't bob in unison. */
+  phase: number;
   sprite?: Phaser.GameObjects.Sprite;
   hpBar: Phaser.GameObjects.Graphics;
   garrisonBadge?: Phaser.GameObjects.Graphics;
@@ -414,11 +420,13 @@ export class DefenderSystem {
             }
           }
         } else if (d.state === 'HAULING_TO_CASTLE') {
-          // Walk to Castle Gate
-          const distToGate = Math.hypot(castleGatePos.x - d.container.x, castleGatePos.y - d.container.y);
+          // Walk to Castle Gate (water crews swim up their canal to its dock at the citadel wall)
+          const dock = this.dockFor(d);
+          const drop = dock ?? castleGatePos;
+          const distToGate = Math.hypot(drop.x - d.container.x, drop.y - d.container.y);
 
-          if (distToGate > 28) {
-            this.step(d, castleGatePos.x, castleGatePos.y, dt, DEFENDER_SPEED * 0.9);
+          if (distToGate > (dock ? 16 : 28)) {
+            this.step(d, drop.x, drop.y, dt, DEFENDER_SPEED * 0.9);
           } else {
             // Deposit cargo into player's stockpile, narrated per resource in the activity log
             if (Object.keys(d.cargo).length > 0) {
@@ -454,6 +462,10 @@ export class DefenderSystem {
       }
       d.lastX = d.container.x;
       d.lastY = d.container.y;
+      if (d.sprite) {
+        const loco = locomotionOf(d.unitClass);
+        if (loco !== 'walk') d.sprite.setY(applyLocomotion(d.sprite, d.shadow, loco, this.scene.time.now, d.phase, d.container.x, d.container.y));
+      }
     }
   }
 
@@ -505,12 +517,13 @@ export class DefenderSystem {
   }
 
   private step(d: Defender, tx: number, ty: number, dt: number, speed: number = DEFENDER_SPEED): void {
-    const next = this.nav.steer(d, d.container.x, d.container.y, tx, ty, dt);
+    const mode = minionMoveMode(d.unitClass);
+    const next = this.nav.steer(d, d.container.x, d.container.y, tx, ty, dt, mode);
     const dx = next.x - d.container.x;
     const dy = next.y - d.container.y;
     const len = Math.hypot(dx, dy) || 1;
     const stepLen = Math.min(len, speed * dt);
-    const moved = this.nav.pushOut(d.container.x + (dx / len) * stepLen, d.container.y + (dy / len) * stepLen, 0.18);
+    const moved = this.nav.pushOut(d.container.x + (dx / len) * stepLen, d.container.y + (dy / len) * stepLen, 0.18, mode);
     d.container.setPosition(moved.x, moved.y);
   }
 
@@ -527,9 +540,25 @@ export class DefenderSystem {
     return ring;
   }
 
+  /** World position of the canal dock in a water crew's own body of water (null for land crews). */
+  private dockFor(d: Defender): { x: number; y: number } | null {
+    if (minionMoveMode(d.unitClass) !== 'water') return null;
+    const here = Navigation.tileOf(d.container.x, d.container.y);
+    const region = waterRegionOf(here.x, here.y) ?? this.homeRegion(d.home);
+    const canal = CANALS.find((c) => c.dir === region);
+    return canal ? IsometricHelper.gridToScreen(canal.dock.x, canal.dock.y) : null;
+  }
+
+  /** The body of water beside an establishment (where its water crew lives). */
+  private homeRegion(home: TowerId | 'SUMMON') {
+    const spot = home === 'SUMMON' || home === 'SPIRE' ? undefined : BUILDING_SITES[home as BuildingId]?.waterSpot;
+    return spot ? waterRegionOf(spot.x, spot.y) : null;
+  }
+
   private spawn(home: TowerId, rect: TileRect, unitClass: UnitClass, hp: number = DEFENDER_HP, damage: number = DEFENDER_DAMAGE): void {
     const ring = this.ringAround(rect);
-    const spot = ring[Math.floor(Math.random() * ring.length)] ?? { x: rect.x - 1, y: rect.y };
+    const waterSpot = minionMoveMode(unitClass) === 'water' && home !== 'SPIRE' ? BUILDING_SITES[home as BuildingId]?.waterSpot : undefined;
+    const spot = waterSpot ?? ring[Math.floor(Math.random() * ring.length)] ?? { x: rect.x - 1, y: rect.y };
     const pos = IsometricHelper.gridToScreen(spot.x + (Math.random() - 0.5) * 0.4, spot.y + (Math.random() - 0.5) * 0.4);
     this.createUnit(home, unitClass, pos, hp, damage, UNIT_CLASSES[unitClass]?.preferredTask ?? 'WOOD');
   }
@@ -555,7 +584,7 @@ export class DefenderSystem {
     }
 
     const job = crew.gather[Math.floor(Math.random() * crew.gather.length)];
-    const tile = this.pickGatherTile(job.source, homeTower.rect);
+    const tile = this.pickGatherTile(job.source, homeTower.rect, d);
     d.job = job;
     d.harvestTask = SOURCE_TASK[job.source];
     d.workTimer = 0;
@@ -568,7 +597,7 @@ export class DefenderSystem {
   }
 
   /** A tile of the job's terrain near the establishment (falls back to its own doorstep). */
-  private pickGatherTile(source: GatherSource, rect: TileRect): GridPoint {
+  private pickGatherTile(source: GatherSource, rect: TileRect, d?: Defender): GridPoint {
     const c = rectCenter(rect);
     const dist = (p: GridPoint) => Math.hypot(p.x - c.x, p.y - c.y);
     const pickNear = (tiles: GridPoint[], take: number): GridPoint | undefined => {
@@ -582,9 +611,20 @@ export class DefenderSystem {
 
     switch (source) {
       case 'OCEAN': {
-        // Wade out into the ocean ring (never onto the corner rifts); the ±0.25 trip jitter stays in the water tile
+        // Fish the ocean ring or the canals (never the corner rifts). Water crews stay in
+        // their own body of water; the ±0.25 trip jitter stays in the water tile.
+        const here = d ? Navigation.tileOf(d.container.x, d.container.y) : undefined;
+        const region = d && minionMoveMode(d.unitClass) === 'water'
+          ? (here && waterRegionOf(here.x, here.y)) ?? this.homeRegion(d.home)
+          : null;
         const ocean: GridPoint[] = [];
-        for (let i = 1; i < last; i++) ocean.push({ x: i, y: 0.05 }, { x: i, y: last - 0.05 }, { x: 0.05, y: i }, { x: last - 0.05, y: i });
+        for (let y = 0; y <= last; y++) {
+          for (let x = 0; x <= last; x++) {
+            if (!isWaterTile(x, y) || (region && waterRegionOf(x, y) !== region)) continue;
+            const edge = (v: number) => (v === 0 ? 0.05 : v === last ? last - 0.05 : v);
+            ocean.push({ x: edge(x), y: edge(y) });
+          }
+        }
         tile = pickNear(ocean, 6);
         break;
       }
@@ -702,6 +742,8 @@ export class DefenderSystem {
       state: 'HARVESTING',
       container,
       sprite,
+      shadow,
+      phase: Math.random() * 100,
       hpBar,
       garrisonBadge,
       damage,

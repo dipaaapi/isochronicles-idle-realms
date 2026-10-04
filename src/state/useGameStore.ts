@@ -1,3 +1,4 @@
+import { loadMusicPrefs, saveMusicPrefs } from './externalMusic';
 import { recommendedFps } from './deviceProfile';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -30,6 +31,8 @@ const createPreferences = () => ({
   language: 'EN' as const,
   isAudioMuted: soundFx.getIsMuted(),
   isGoreEnabled: false,
+  // Saved on its own, apart from the realm progress (see externalMusic.ts)
+  ...loadMusicPrefs(),
   targetFps: (Number(localStorage.getItem(TARGET_FPS_STORAGE_KEY)) || recommendedFps()) as 30 | 60 | 90,
   showFpsDebug: false,
   showTileCoordinates: true,
@@ -50,3 +53,10 @@ const createGameStore = (set: StoreSet, get: StoreGet): GameStoreState => ({
 });
 
 export const useGameStore = create<GameStoreState>()(persist(createGameStore, persistOptions));
+
+// The music library saves itself whenever it changes, independently of the game save
+useGameStore.subscribe((s, prev) => {
+  if (s.musicLibrary === prev.musicLibrary && s.musicIndex === prev.musicIndex &&
+      s.musicAutoPlay === prev.musicAutoPlay && s.musicLoop === prev.musicLoop) return;
+  saveMusicPrefs({ musicLibrary: s.musicLibrary, musicIndex: s.musicIndex, musicAutoPlay: s.musicAutoPlay, musicLoop: s.musicLoop });
+});

@@ -3,7 +3,8 @@ import { useGameStore } from '../state/useGameStore';
 import { hasSavedRealm } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
 import { gameAlert } from './GameDialog';
-import { Play, RotateCcw, Sliders, Shield, Compass, BookOpen } from 'lucide-react';
+import { Play, RotateCcw, Sliders, BookOpen } from 'lucide-react';
+import { useTranslation } from '../i18n/translations';
 
 interface TitleScreenProps {
   onStartNewRealm: () => void;
@@ -16,6 +17,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   onContinueRealm,
   onOpenSettings,
 }) => {
+  const { t } = useTranslation();
   const [canContinue, setCanContinue] = useState(false);
   const [checkingSave, setCheckingSave] = useState(true);
   const [clickedBtn, setClickedBtn] = useState<'NEW' | 'CONTINUE' | 'SETTINGS' | null>(null);
@@ -218,16 +220,11 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         />
       </div>
 
-      {/* --- FOOTER STATUS BADGES --- */}
-      <div className="relative z-20 pb-5 flex items-center gap-6 text-[11px] text-slate-400 font-mono tracking-widest">
-        <div className="flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-full border border-slate-800 backdrop-blur-sm">
-          <Shield className="w-3 h-3 text-emerald-400" />
-          <span>100% Offline IndexedDB</span>
-        </div>
-        <div className="flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-full border border-slate-800 backdrop-blur-sm">
-          <Compass className="w-3 h-3 text-sky-400" />
-          <span>Phaser 3 &bull; EasyStar.js</span>
-        </div>
+      {/* --- FOOTER: COPYRIGHT --- */}
+      <div className="relative z-20 pb-5 text-center text-[11px] text-slate-400 font-mono tracking-widest">
+        <span className="bg-black/60 px-3 py-1 rounded-full border border-slate-800 backdrop-blur-sm">
+          &copy; 2026 IsoChronicle: Idle Realms &bull; {t('titleAllRights')} &bull; {t('titleCreatedBy')} EdMaster28
+        </span>
       </div>
     </div>
   );

@@ -26,9 +26,16 @@ export class IsometricHelper {
     return { x: gridX, y: gridY };
   }
 
-  /** Chess-style column letter for a grid X (0 → "A", 19 → "T"). */
+  /** Spreadsheet-style column letters for a grid X (0 → "A", 25 → "Z", 26 → "AA", 29 → "AD"). */
   static fileLetter(gridX: number): string {
-    return String.fromCharCode(65 + gridX);
+    let n = gridX + 1;
+    let out = '';
+    while (n > 0) {
+      const r = (n - 1) % 26;
+      out = String.fromCharCode(65 + r) + out;
+      n = Math.floor((n - 1) / 26);
+    }
+    return out;
   }
 
   /** Chess-style tile name: column letter from X, 1-based row number from Y (e.g. (4,5) → "E6"). */

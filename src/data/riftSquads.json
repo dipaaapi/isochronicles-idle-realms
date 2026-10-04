@@ -1,0 +1,158 @@
+{
+  "_doc": "Each open rift rolls its own squad when a wave opens. share: relative part of the wave that comes through that rift. bias: multiplies wavePool weights (on top of the tactic's bias). mods: stat tilt for its invaders. commander: an elite General that leads the squad, from commanderFromWave on (replaces one of its spawns). fromWave: first wave the squad can appear.",
+  "commanderFromWave": 5,
+  "squads": {
+    "VANGUARD": {
+      "icon": "🛡️",
+      "fromWave": 1,
+      "weight": 3,
+      "share": 1.0,
+      "bias": {
+        "HUMAN_KNIGHT": 4,
+        "MECHA_TITAN": 3,
+        "MECHA_SIEGE_TANK": 2.5
+      },
+      "mods": {
+        "hp": 1.3,
+        "speed": 0.85,
+        "damage": 1
+      },
+      "name": {
+        "en": "Vanguard",
+        "tl": "Bantay-Unahan"
+      },
+      "desc": {
+        "en": "heavy armour, slow and tough",
+        "tl": "makapal na baluti, mabagal pero matibay"
+      }
+    },
+    "RAIDERS": {
+      "icon": "💨",
+      "fromWave": 1,
+      "weight": 3,
+      "share": 1.3,
+      "bias": {
+        "ASSASSIN": 4,
+        "MECHA_DRONE": 3,
+        "MECHA_SCOUT": 2.5
+      },
+      "mods": {
+        "hp": 0.85,
+        "speed": 1.3,
+        "damage": 1
+      },
+      "name": {
+        "en": "Raiders",
+        "tl": "Mga Mandarambong"
+      },
+      "desc": {
+        "en": "fast movers, many of them",
+        "tl": "mabibilis at marami"
+      }
+    },
+    "ARTILLERY": {
+      "icon": "🏹",
+      "fromWave": 1,
+      "weight": 3,
+      "share": 1.0,
+      "bias": {
+        "HUMAN_ARCHER": 4,
+        "CHRONO": 3,
+        "MECHA_SIEGE_TANK": 2
+      },
+      "mods": {
+        "hp": 1,
+        "speed": 0.95,
+        "damage": 1.15
+      },
+      "name": {
+        "en": "Artillery",
+        "tl": "Artilerya"
+      },
+      "desc": {
+        "en": "long-range damage",
+        "tl": "malayuang pinsala"
+      }
+    },
+    "HUMAN_COMMAND": {
+      "icon": "👑",
+      "fromWave": 5,
+      "weight": 2,
+      "share": 1.1,
+      "commander": "HIGH_PRIEST",
+      "bias": {
+        "HUMAN_KNIGHT": 2,
+        "HUMAN_ARCHER": 2,
+        "ASSASSIN": 2,
+        "CHRONO": 2,
+        "MECHA_DRONE": 0.3,
+        "MECHA_SCOUT": 0.3,
+        "MECHA_TITAN": 0.3,
+        "MECHA_SIEGE_TANK": 0.3
+      },
+      "mods": {
+        "hp": 1.05,
+        "speed": 1,
+        "damage": 1.05
+      },
+      "name": {
+        "en": "Human Command",
+        "tl": "Utos ng mga Tao"
+      },
+      "desc": {
+        "en": "humans led by a High Priest General",
+        "tl": "mga tao na pinamumunuan ng Heneral na High Priest"
+      }
+    },
+    "MECHA_COMMAND": {
+      "icon": "🤖",
+      "fromWave": 5,
+      "weight": 2,
+      "share": 1.1,
+      "commander": "MECHA_VALKYRIE",
+      "bias": {
+        "MECHA_DRONE": 2,
+        "MECHA_SCOUT": 2,
+        "MECHA_TITAN": 2,
+        "MECHA_SIEGE_TANK": 2,
+        "HUMAN_KNIGHT": 0.3,
+        "HUMAN_ARCHER": 0.3,
+        "ASSASSIN": 0.3,
+        "CHRONO": 0.3
+      },
+      "mods": {
+        "hp": 1.05,
+        "speed": 1,
+        "damage": 1.05
+      },
+      "name": {
+        "en": "Mecha Command",
+        "tl": "Utos ng mga Mecha"
+      },
+      "desc": {
+        "en": "mecha led by a Mecha Valkyrie General",
+        "tl": "mga mecha na pinamumunuan ng Heneral na Mecha Valkyrie"
+      }
+    },
+    "PROBE": {
+      "icon": "🔍",
+      "fromWave": 1,
+      "weight": 2,
+      "share": 0.35,
+      "bias": {},
+      "mods": {
+        "hp": 1,
+        "speed": 1.05,
+        "damage": 1
+      },
+      "name": {
+        "en": "Probe",
+        "tl": "Pagsisiyasat"
+      },
+      "desc": {
+        "en": "only a few",
+        "tl": "kakaunti lang"
+      }
+    }
+  }
+}

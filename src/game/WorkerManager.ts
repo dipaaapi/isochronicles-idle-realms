@@ -11,9 +11,11 @@ import { soundFx } from './audio/soundFx';
 import { logFloatingText, nearestName } from '../state/activityLog';
 import type { InvasionManager } from './InvasionManager';
 import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
-import { Navigation } from './Navigation';
+import { Navigation, TILES_FOR } from './Navigation';
+import { minionMoveMode } from './terrain';
 import type { PortalManager } from './PortalManager';
 import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, GRID_CENTER, GRID_SIZE, PORTAL_SITES, SPIRE_WORK_SPOT } from '../state/buildingLayout';
+import { applyLocomotion, locomotionOf } from './locomotion';
 import type { GroundLootItem, GroundLootManager, LootSeeker } from './GroundLootManager';
 import { isEnrichableTask, type WorkerContext, type WorkerFrame, type WorkerInstance } from './workers/types';
 import { renderCargoGraphics, renderWorkerGraphics } from './workers/legacyWorkerArt';
@@ -103,14 +105,15 @@ export class WorkerManager implements WorkerContext {
     const c = worker.container;
     const dist = Math.hypot(tx - c.x, ty - c.y);
     if (dist < 0.001) return 0;
-    const next = this.nav ? this.nav.steer(worker, c.x, c.y, tx, ty, deltaSec) : { x: tx, y: ty };
+    const mode = minionMoveMode(worker.unitClass);
+    const next = this.nav ? this.nav.steer(worker, c.x, c.y, tx, ty, deltaSec, mode) : { x: tx, y: ty };
     const dx = next.x - c.x;
     const dy = next.y - c.y;
     const d = Math.hypot(dx, dy) || 1;
     const move = Math.min(step, d);
     let nx = c.x + (dx / d) * move;
     let ny = c.y + (dy / d) * move;
-    if (this.nav) ({ x: nx, y: ny } = this.nav.pushOut(nx, ny));
+    if (this.nav) ({ x: nx, y: ny } = this.nav.pushOut(nx, ny, undefined, mode));
     c.x = nx;
     c.y = ny;
     const grid = Navigation.tileOf(c.x, c.y);
@@ -192,6 +195,13 @@ export class WorkerManager implements WorkerContext {
     if (isTenant && parentBuildingId && BUILDING_SITES[parentBuildingId]) {
       startX = BUILDING_SITES[parentBuildingId].workSpot.x;
       startY = BUILDING_SITES[parentBuildingId].workSpot.y;
+    } else if (isGeneral && minionMoveMode(item.unitClass) === 'water') {
+      const home = config.requiredBuilding as ResourceBuildingId | undefined;
+      const spot = home && home !== ('SPIRE' as string) ? BUILDING_SITES[home]?.waterSpot : undefined;
+      if (spot) {
+        startX = spot.x;
+        startY = spot.y;
+      }
     } else if (isGeneral) {
       const ent = this.workers.find((w) => w.unitClass === 'TREANT');
       if (ent) {
@@ -479,10 +489,10 @@ export class WorkerManager implements WorkerContext {
         sprite.setPosition(worker.body.x, worker.body.y);
         sprite.setScale(baseScale * (1 + breathe), baseScale * (1 - breathe));
       }
-    } else if (worker.unitClass === 'LAVA_GARGOYLE' || worker.unitClass === 'SUCCUBUS' || worker.unitClass === 'HARPY' || worker.unitClass === 'VOID_WRAITH') {
-      // Floating aerial elevation hover
-      const hover = Math.sin(time / 220 + offset) * 3.5;
-      sprite.setPosition(worker.body.x, worker.body.y - hover);
+    } else if (locomotionOf(worker.unitClass) !== 'walk') {
+      // Winged units fly above their shadow; water units swim waist-deep in the ocean and canals
+      const dy = applyLocomotion(sprite, worker.shadow, locomotionOf(worker.unitClass), time, offset, worker.container.x, worker.container.y);
+      sprite.setPosition(worker.body.x, worker.body.y + dy);
       const sway = Math.sin(time / 300 + offset) * 0.02;
       sprite.setScale(baseScale * (1 + sway), baseScale * (1 - sway));
     } else if (worker.unitClass === 'TREANT' || worker.unitClass === 'GOLEM' || worker.unitClass === 'MINOTAUR') {
@@ -621,6 +631,10 @@ export class WorkerManager implements WorkerContext {
           // Each General raises its own establishment first, then guards and scouts
           this.updateGeneralScouting(worker, frame);
         }
+        continue;
+      }
+      // Healer Generals (Necromancer) still raise their own establishment before healing
+      if (!isTenant && worker.status !== 'COMBAT' && updateGeneralConstruction(this, worker, store, frame.deltaSec, frame.effectiveSpeed)) {
         continue;
       }
 
@@ -833,7 +847,7 @@ export class WorkerManager implements WorkerContext {
   }
 
   private getAllowedTiles(unitClass: UnitClass): number[] {
-    return unitClass === 'AQUA_SLIME' ? [0, 1] : [0];
+    return TILES_FOR[minionMoveMode(unitClass)];
   }
 
   public dispatchToTaskNode(worker: WorkerInstance): void {

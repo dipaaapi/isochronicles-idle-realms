@@ -5,6 +5,7 @@ import { IsometricHelper, TILE_WIDTH, TILE_HEIGHT } from './IsometricHelper';
 import { ART_PIXEL, WATER_DROP_WORLD } from './PixelTileArt';
 import { soundFx } from './audio/soundFx';
 import { logMessage } from '../state/activityLog';
+import { isBridgeTile } from '../state/buildingLayout';
 
 /**
  * Living-world effects on, above and behind the island:
@@ -320,12 +321,18 @@ export class WorldEffects {
 
       const tile = this.tileAt(container.x, container.y);
       if (!tile) continue;
+      const gx = Math.round((container.x / HALF_W + container.y / HALF_H) / 2);
+      const gy = Math.round((container.y / HALF_H - container.x / HALF_W) / 2);
       const dirX = dx / moved;
       const dirY = dy / moved;
 
       if (GRASS_TYPES.has(tile.type)) {
         this.rustleGrass(container.x, container.y, dirX, dirY);
         track.cooldown = 320;
+      } else if (tile.type === 'OCEAN_BLOCK' && isBridgeTile(gx, gy)) {
+        // Walking a bridge deck: footfall dust on the planks, never a wake
+        this.kickDust(container.x, container.y, dirX, dirY);
+        track.cooldown = 420;
       } else if (tile.type === 'OCEAN_BLOCK') {
         this.waterWake(container.x, container.y + WATER_DROP_WORLD, dirX, dirY);
         track.cooldown = 260;
@@ -375,41 +382,32 @@ export class WorldEffects {
     }
   }
 
-  /** A bow wave that travels forward with the swimmer, plus a V-shaped wake trailing behind. */
+  /** Soft rings spreading from the swimmer and a few foam flecks behind it (no hard V lines). */
   private waterWake(x: number, y: number, dirX: number, dirY: number): void {
-    const bow = this.scene.add.graphics();
-    bow.lineStyle(P, 0xe0f2fe, 0.85);
-    bow.strokeEllipse(0, 0, 14, 7);
-    bow.setPosition(x + dirX * 6, y + dirY * 3);
-    this.groundLayer.add(bow);
+    const ring = this.scene.add.graphics();
+    ring.lineStyle(1, 0xe0f2fe, 0.55);
+    ring.strokeEllipse(0, 0, 12, 6);
+    ring.lineStyle(1, 0xbae6fd, 0.3);
+    ring.strokeEllipse(0, 0, 20, 10);
+    ring.setPosition(x - dirX * 3, y - dirY * 1.5);
+    this.groundLayer.add(ring);
     this.scene.tweens.add({
-      targets: bow,
-      x: bow.x + dirX * 18,
-      y: bow.y + dirY * 9,
-      scaleX: 2.2,
-      scaleY: 2.2,
+      targets: ring,
+      scaleX: 1.9,
+      scaleY: 1.9,
       alpha: 0,
-      duration: 720,
+      duration: 900,
       ease: 'Sine.easeOut',
-      onComplete: () => bow.destroy(),
+      onComplete: () => ring.destroy(),
     });
 
-    const perpX = -dirY;
-    const perpY = dirX;
-    for (const side of [-1, 1]) {
-      const arm = this.scene.add.graphics();
-      arm.fillStyle(0xbae6fd, 0.9);
-      for (let k = 0; k < 3; k++) this.pixelRect(arm, -dirX * k * 4 + perpX * side * k * 3, -dirY * k * 2 + perpY * side * k * 1.5, 2, 1);
-      arm.setPosition(x - dirX * 6, y - dirY * 3);
-      this.groundLayer.add(arm);
-      this.scene.tweens.add({
-        targets: arm,
-        x: arm.x + perpX * side * 8,
-        y: arm.y + perpY * side * 4,
-        alpha: 0,
-        duration: 650,
-        onComplete: () => arm.destroy(),
-      });
+    for (let i = 0; i < 3; i++) {
+      const fleck = this.scene.add.graphics();
+      fleck.fillStyle(0xf0f9ff, 0.8);
+      this.pixelRect(fleck, 0, 0, 1, 1);
+      fleck.setPosition(x - dirX * (6 + i * 3) + Phaser.Math.Between(-4, 4), y - dirY * (3 + i * 1.5) + Phaser.Math.Between(-2, 2));
+      this.groundLayer.add(fleck);
+      this.scene.tweens.add({ targets: fleck, alpha: 0, duration: Phaser.Math.Between(400, 700), onComplete: () => fleck.destroy() });
     }
   }
 

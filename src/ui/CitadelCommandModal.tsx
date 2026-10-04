@@ -448,7 +448,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                    {BUILDING_IDS.map((estabId) => ({ estabId, cls: ESTABLISHMENT_CREWS[estabId].general, icon: RESOURCE_BUILDING_CONFIG[estabId].icon })).map(({ estabId, cls, icon }) => {
+                    {(['SPIRE', ...BUILDING_IDS] as const).map((estabId) => ({ estabId, cls: ESTABLISHMENT_CREWS[estabId].general, icon: (RESOURCE_BUILDING_CONFIG as Record<string, { icon: string } | undefined>)[estabId]?.icon ?? '💎' })).map(({ estabId, cls, icon }) => {
                       const cfg = UNIT_CLASSES[cls];
                       const estab = (RESOURCE_BUILDING_CONFIG as Record<string, { label: string; labelEn: string } | undefined>)[estabId];
                       const estabLabel = estab ? (isTL ? estab.label : estab.labelEn) : estabId;

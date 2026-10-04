@@ -1,0 +1,10 @@
+{
+  "_comment": "How a unit looks while it moves. 'fly' units (wings, rotors, floating shades) hover above their shadow; 'swim' units sink waist-deep whenever they stand on ocean or canal tiles. Everyone else walks.",
+  "fly": ["HARPY", "LAVA_GARGOYLE", "SUCCUBUS", "VOID_WRAITH", "MECHA_VALKYRIE", "MECHA_DRONE"],
+  "swim": ["MERMAN", "KRAKEN"],
+  "flyHeight": 14,
+  "flyHover": 3.5,
+  "flyShadowScale": 0.65,
+  "swimDepth": 0.42,
+  "swimBob": 1.5
+}

@@ -1107,12 +1107,83 @@ const boneKnight = (): VoxelModel => {
   };
 };
 
+// ── Prism Warden (PRISM_WARDEN) — crystal-armoured spire guard, prism halberd ─
+
+const prismWarden = (): VoxelModel => {
+  const M = { stone: 0, stoneDark: 1, crystal: 2, crystalDark: 3, glow: 4, cloth: 5, haft: 6 };
+  const cx = 15;
+  const parts: Part[] = [
+    ...pair('Leg', [13, 15, 10], [
+      box(12, 14, 2, 14, 16, 10, M.stoneDark),
+      box(11.6, 13.6, 5.5, 14.4, 16.6, 8, M.crystal),             // crystal knee
+      box(11.5, 13, 0, 14.5, 17, 2, M.stone),                     // stone boots
+    ], cx),
+    {
+      name: 'torso', pivot: [15, 15, 10], shapes: [
+        box(12, 13, 9, 18, 17, 12, M.stoneDark),                  // belt
+        box(12.5, 16.6, 5, 17.5, 17.2, 11, M.cloth),              // tabard
+        box(11.5, 12.5, 12, 18.5, 17.5, 22.5, M.stone),           // stone chest
+        box(13.2, 17.3, 14, 16.8, 18.2, 20.5, M.crystal),         // crystal core
+        box(14.2, 18, 15.5, 15.8, 18.6, 19, M.glow),
+        box(9.5, 12.5, 20.5, 12.5, 17.5, 23.5, M.crystalDark),    // crystal pauldrons
+        box(17.5, 12.5, 20.5, 20.5, 17.5, 23.5, M.crystalDark),
+        box(10, 14, 23.5, 11.5, 15.5, 27, M.crystal),             // shoulder shards
+        box(18.5, 14, 23.5, 20, 15.5, 27, M.crystal),
+      ],
+    },
+    {
+      name: 'head', parent: 'torso', pivot: [15, 15, 23], shapes: [
+        box(12.3, 12.8, 22.5, 17.7, 18, 28.5, M.stone),           // helm
+        box(12.8, 17.8, 24.6, 17.2, 18.5, 25.8, M.glow),          // visor slit
+        box(14.3, 14, 28.5, 15.7, 16, 33.5, M.crystal),           // crystal crest
+        box(12.6, 14.5, 28.5, 13.6, 15.5, 31, M.crystalDark),
+        box(16.4, 14.5, 28.5, 17.4, 15.5, 31, M.crystalDark),
+      ],
+    },
+    ...pair('Arm', [10.5, 15, 22], [
+      box(9.6, 14, 14, 11.4, 16, 22, M.stoneDark),
+      box(9.2, 13.6, 13, 11.8, 16.4, 15.5, M.crystalDark),        // crystal gauntlet
+    ], cx, 'torso'),
+    {
+      name: 'halberd', parent: 'rightArm', pivot: [20.5, 15, 13], shapes: [
+        box(20, 14.5, 3, 21, 15.5, 30, M.haft),                   // haft
+        box(19.2, 14.2, 30, 21.8, 15.8, 31, M.stoneDark),         // collar
+        box(19.6, 14.4, 31, 21.4, 15.6, 37, M.crystal),           // prism spearhead
+        box(20.1, 14.3, 33, 20.9, 15.7, 36, M.glow),
+        box(21.4, 14.6, 29, 24, 15.4, 32.5, M.crystalDark),       // axe blade
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    leftLeg: { pitch: 0.4 * s },
+    rightLeg: { pitch: -0.4 * s },
+    leftArm: { pitch: -0.35 * s },
+    rightArm: { pitch: 0.2 * s },
+    torso: { offset: [0, 0, s === 0 ? 1 : 0] },
+  }));
+  const attack: Pose[] = [
+    { rightArm: { pitch: 2.2 }, halberd: { pitch: 0.2 }, leftArm: { pitch: 0.5 }, torso: { yaw: 0.2 } },
+    { rightArm: { pitch: 1.3 }, halberd: { pitch: 0.6 }, leftArm: { pitch: 0.6 } },
+    { rightArm: { pitch: 0.5 }, halberd: { pitch: 1.0 }, leftArm: { pitch: 0.4 }, torso: { pitch: 0.18, yaw: -0.2, offset: [0, 1, 0] } },
+  ];
+  return {
+    size: [30, 30, 40],
+    foot: [15, 15, 0],
+    materials: [
+      { color: 0x64748b }, { color: 0x334155 }, { color: 0x67e8f9 }, { color: 0x0891b2 },
+      { color: 0xa5f3fc, emissive: true }, { color: 0x6d28d9 }, { color: 0x1e293b },
+    ],
+    parts,
+    animations: { walk, attack, idle: breathe('torso') },
+  };
+};
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type MinionSpriteKey =
   | 'golem' | 'slime' | 'treant' | 'merman' | 'necromancer' | 'sapling'
   | 'lavaGargoyle' | 'succubus' | 'demonHound' | 'harpy' | 'kraken'
-  | 'dryad' | 'minotaur' | 'emberImp' | 'voidWraith' | 'boneKnight';
+  | 'dryad' | 'minotaur' | 'emberImp' | 'voidWraith' | 'boneKnight' | 'prismWarden';
 
 export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   golem,
@@ -1131,6 +1202,7 @@ export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
   emberImp,
   voidWraith,
   boneKnight,
+  prismWarden,
 };
 
 export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
@@ -1149,4 +1221,5 @@ export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {
   EMBER_IMP: 'emberImp',
   VOID_WRAITH: 'voidWraith',
   BONE_KNIGHT: 'boneKnight',
+  PRISM_WARDEN: 'prismWarden',
 };

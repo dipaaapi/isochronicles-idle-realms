@@ -14,6 +14,9 @@ import { ECONOMY_CONFIG } from '../state/economy';
 import { isModActive } from './skills/combatMods';
 import { INVADER_CONFIGS } from '../types/game';
 import { createSaplingSprite, faceCharacterSprite, playCharacterAttack } from './sprites/CharacterSprites';
+import { isHacked } from './hackState';
+import technicians from '../data/technicians.json';
+import type { WorkerInstance } from './workers/types';
 
 type Tower = ReturnType<StructureManager['getTowers']>[number];
 
@@ -76,6 +79,37 @@ export class TowerSystem {
     this.defenderSystem = defenders;
   }
 
+  private workerProvider: () => WorkerInstance[] = () => [];
+  /** Minions a hacked establishment can turn its weapon on. */
+  setWorkerProvider(provider: () => WorkerInstance[]): void {
+    this.workerProvider = provider;
+  }
+
+  /**
+   * A hacked establishment fires on the Demon Lord's own units in its zone
+   * (minions and tenants) with part of its usual punch.
+   */
+  private fireHostile(tower: Tower, stats: TowerStats): boolean {
+    const inZone_ = (x: number, y: number) => inZone(tower.zone, x, y);
+    const damage = Math.max(1, Math.round(stats.damage * technicians.hostileTower.damageShare));
+    const worker = this.workerProvider().find((w) => w.hp > 0 && w.container?.active && w.container.visible && inZone_(w.container.x, w.container.y));
+    const tenant = worker ? undefined : this.defenderSystem?.getDefenders().find((d) => !d.dead && d.container.visible && inZone_(d.container.x, d.container.y));
+    const target = worker?.container ?? tenant?.container;
+    if (!target) return false;
+    if (worker) this.invasion.hurtWorkerFromRift(worker, damage);
+    else tenant!.takeHit(damage);
+    const bolt = this.scene.add.graphics();
+    bolt.setDepth(9990);
+    this.layer.add(bolt);
+    bolt.lineStyle(2, 0xe879f9, 0.95);
+    bolt.lineBetween(tower.muzzleX, tower.muzzleY, target.x, target.y - 14);
+    bolt.fillStyle(0xf0abfc, 1);
+    bolt.fillCircle(target.x, target.y - 14, 4);
+    this.scene.tweens.add({ targets: bolt, alpha: 0, duration: 200, onComplete: () => bolt.destroy() });
+    soundFx.playLaser();
+    return true;
+  }
+
   /** Saplings block and absorb invader attacks. */
   getBlockers(): InvaderBlocker[] {
     return this.saplings;
@@ -118,6 +152,11 @@ export class TowerSystem {
       const cd = (this.cooldowns.get(tower.id) ?? 0.8) - dt * (aegis ? 2 : 1) * (boosted ? 2 : 1);
       this.cooldowns.set(tower.id, cd);
       if (cd > 0) continue;
+      // Hacked by a Technician: it turns on your own units until the wave ends
+      if (isHacked(tower.id)) {
+        this.cooldowns.set(tower.id, this.fireHostile(tower, stats) ? technicians.hostileTower.cooldown : 0.3);
+        continue;
+      }
       const inRange = invaders.filter((i) => inZone(tower.zone, i.container.x, i.container.y));
       if (inRange.length === 0) continue;
       const fired = this.fire(tower, stats, inRange);

@@ -1,3 +1,4 @@
+import { clampMusicIndex, MAX_MUSIC_ENTRIES, MAX_MUSIC_NAME, musicLink, normalizeMusicLibrary, parseMusicLink } from '../externalMusic';
 import { soundFx } from '../../game/audio/soundFx';
 import { canAfford, subtractCost } from '../resources';
 import { teamBonuses } from '../skillTree';
@@ -46,6 +47,45 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
 
   setLanguage: (lang: Language) => {
     set({ language: lang, lastSavedTimestamp: Date.now() });
+  },
+
+  addMusicLink: (raw: string, name = '') => {
+    const src = parseMusicLink(raw);
+    if (!src) return false;
+    const link = musicLink(src);
+    const library = get().musicLibrary;
+    const existing = library.findIndex((e) => e.link === link);
+    if (existing >= 0) return true;
+    if (library.length >= MAX_MUSIC_ENTRIES) return false;
+    // Appended without switching entries: whatever is playing keeps playing
+    const next = [...library, { link, name: name.trim().slice(0, MAX_MUSIC_NAME) }];
+    set({ musicLibrary: next });
+    return true;
+  },
+
+  importMusicLibrary: (entries: readonly { link: string; name: string }[]) => {
+    const { musicLibrary, musicIndex } = get();
+    const merged = normalizeMusicLibrary([...musicLibrary, ...entries]);
+    const added = merged.length - musicLibrary.length;
+    if (added > 0) set({ musicLibrary: merged, musicIndex: clampMusicIndex(musicIndex, merged) });
+    return added;
+  },
+
+  setMusicAutoPlay: (on: boolean) => set({ musicAutoPlay: on }),
+  setMusicLoop: (on: boolean) => set({ musicLoop: on }),
+
+  removeMusicLink: (index: number) => {
+    const { musicLibrary, musicIndex } = get();
+    if (index < 0 || index >= musicLibrary.length) return;
+    const next = musicLibrary.filter((_, i) => i !== index);
+    const current = index < musicIndex ? musicIndex - 1 : musicIndex;
+    set({ musicLibrary: next, musicIndex: clampMusicIndex(current, next) });
+  },
+
+  selectMusic: (index: number) => {
+    const count = get().musicLibrary.length;
+    if (!count) return;
+    set({ musicIndex: ((index % count) + count) % count });
   },
 
   completeIntro: () => {

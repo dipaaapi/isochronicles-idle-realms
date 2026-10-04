@@ -57,6 +57,22 @@ export const faqTranslations: Record<Language, FAQContent> = {
         answer: 'From the four rifts at the island\'s corners. Minions can smash an open rift: it stops spawning for the rest of the wave and pays a bounty. Seal all four and no more invaders arrive that wave. Some invaders are rushers that ignore everything and charge the citadel — the activity log warns you when one appears.',
       },
       {
+        question: '🗼 Do the rifts fight back?',
+        answer: 'Yes. An open rift fires void bolts at nearby demons and beasts, casts Rift Lash (a bolt that jumps between up to 3 of them) and Warp Ward (heals itself and its sentinels and halves the damage they take for 5 seconds), and once per wave, below 40% HP, unleashes its ultimate Worldbreaker Surge: a blast that hurts, flings back and slows everything around it. Each corner is a 4×4 invasion zone: the 2×2 rift and two Rift Sentinel towers that shoot too; your minions must topple them (each pays a small bounty) before they can strike the rift. Between waves the zone is hidden in mist (hover it to peek; it also parts when a wave starts or a scout comes through), and human Technicians work inside it unseen, rebuilding sentinels and mending a smashed rift. Rifts grow with the wave, the realm phase, the days your realm has lasted and the difficulty. They hit harder at night, Rift Lash jumps further in rain, snow slows their fire and a heatwave burns hotter.',
+      },
+      {
+        question: '🌊 What are the canals for?',
+        answer: 'Four canals run from the ocean straight to the citadel walls (north, west, east and south), and wooden bridges carry the roads across them. Water-type units, the Merman and the Kraken with their tenants, stay in the water: they fish the ocean and canals and deliver their catch at the canal dock against the citadel wall. Land units and human or Mecha invaders cannot wade in; only flyers and the Slime Lord cross water freely.',
+      },
+      {
+        question: '🌀 Why does each rift send different invaders?',
+        answer: 'Every wave each open rift rolls its own squad, named in the activity log: Vanguard (heavy armour, slow and tough), Raiders (fast, and many of them), Artillery (long-range damage), Human Command (humans led by a High Priest General), Mecha Command (mecha led by a Mecha Valkyrie General, from wave 5) or Probe (only a few). Read the log when the rifts open and send your strongest minions where the heavy squads come from.',
+      },
+      {
+        question: '🔧 What is a Technician?',
+        answer: 'Every wave a human Technician slips out of a rift part-way through, guarded by knights, archers or Mecha that stay at its side and fight any minion that comes close. It walks to an establishment and hacks it (a progress bar shows over the building). If the hack finishes, the establishment glows magenta and turns on your units until the wave ends, and invaders leave it alone. Kill the Technician first to stop it.',
+      },
+      {
         question: '💥 What happens if the castle falls?',
         answer: 'The invaders steal half of everything in your stores and escape through the rifts. The castle is restored right away and the game continues, so keep the walls and shield upgraded.',
       },
@@ -82,7 +98,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '⌨️ Are there keyboard shortcuts?',
-        answer: 'Yes: ` (backtick) plays or pauses, 1 switches to 2× speed and 2 to 3× speed — press the same key again to return to 1×. Q, W, E, R and T cast the battle relics. In quick trade, drag or scroll the knob (hold Shift for ×10) or use the arrow keys to pick an amount; the total always uses the real market price.',
+        answer: 'Yes: ` (backtick) plays or pauses, 1 switches to 2× speed and 2 to 3× speed — press the same key again to return to 1×. Q, W, E, R and T cast the battle relics. O skips to the next day and L launches the wave right away (no confirmation), P opens the Weather window. A opens the Atlas, S the Skills, and Z / X / C switch to the Command / Status / Resources tabs. M turns the music on/off and N the sound effects, K toggles fullscreen, J opens Settings and I expands or collapses the side menu. Every key is shown on its button: the sky panel, the tabs, Skills / Atlas, or the key list under the castle bars. In quick trade, drag or scroll the knob (hold Shift for ×10) or use the arrow keys to pick an amount; the total always uses the real market price.',
       },
       {
         question: '🌍 Why does the scenery change?',
@@ -135,6 +151,22 @@ export const faqTranslations: Record<Language, FAQContent> = {
         answer: 'Sa apat na lagusan sa mga sulok ng isla. Kayang wasakin ng mga alagad ang bukas na lagusan: titigil ito sa paglalabas ng kalaban sa natitirang bahagi ng alon at magbibigay ng gantimpala. Isara ang apat at wala nang darating sa alon na iyon. May mga rusher na hindi pumapansin sa iba at diretsong sumusugod sa kuta — babalaan ka ng activity log kapag may lumitaw.',
       },
       {
+        question: '🗼 Lumalaban ba ang mga lagusan?',
+        answer: 'Oo. Bumabaril ang bukas na lagusan ng void bolt sa kalapit na demonyo at halimaw, gumagamit ng Latigo ng Lagusan (tumatalon sa hanggang 3 sa kanila) at Kalasag ng Warp (inaayos ang sarili at ang mga bantay nito at hinahati ang pinsala sa loob ng 5 segundo), at minsan bawat alon, kapag bumaba sa 40% ang HP, pinakakawalan ang ultimate nitong Daluyong ng Pagkawasak: pagsabog na sumasakit, nagtutulak at nagpapabagal sa lahat sa paligid. Dalawang Bantay ng Lagusan ang lumilitaw sa harap ng bawat bukas na lagusan at bumabaril din; kailangan silang pabagsakin ng mga alagad (may maliit na gantimpala bawat isa) bago matamaan ang lagusan. Ang bawat sulok ay 4×4 na sona ng pagsalakay: ang 2×2 na lagusan at ang dalawang toreng bantay. Sa pagitan ng mga alon, nakatago ang sona sa ulap (i-hover para masilip; nawawala rin ito kapag nagsimula ang alon o may dumaang scout), at doon lihim na nagtatrabaho ang mga Teknisyan ng tao: itinatayo muli ang mga bantay at inaayos ang nawasak na lagusan. Lumalakas ang mga lagusan ayon sa alon, yugto ng kaharian, tagal ng araw ng kaharian at hirap ng laro. Mas malakas sila sa gabi, mas malayo ang talon ng Latigo sa ulan, bumabagal ang atake sa niyebe at mas mainit ang tama sa matinding init.',
+      },
+      {
+        question: '🌊 Para saan ang mga kanal?',
+        answer: 'Apat na kanal ang tumatakbo mula sa karagatan diretso sa pader ng kuta (hilaga, kanluran, silangan at timog), at may mga kahoy na tulay kung saan tumatawid ang daan. Ang mga water-type, ang Merman at ang Kraken kasama ang kanilang mga tenant, ay nasa tubig lang: nangingisda sila sa karagatan at sa mga kanal at inihahatid ang huli sa daungan ng kanal sa tabi ng pader ng kuta. Hindi makalusong ang mga land unit at ang mga tao o Mecha; ang mga lumilipad at ang Slime Lord lang ang malayang tumatawid sa tubig.',
+      },
+      {
+        question: '🌀 Bakit iba-iba ang kalaban sa bawat lagusan?',
+        answer: 'Bawat alon, may sariling pangkat ang bawat bukas na lagusan, nakasulat sa activity log: Bantay-Unahan (makapal na baluti, mabagal pero matibay), Mga Mandarambong (mabibilis at marami), Artilerya (malayuang pinsala), Utos ng mga Tao (mga tao na pinamumunuan ng Heneral na High Priest), Utos ng mga Mecha (mga mecha na pinamumunuan ng Heneral na Mecha Valkyrie, mula alon 5) o Pagsisiyasat (kakaunti lang). Basahin ang log pagbukas ng mga lagusan at ipadala ang pinakamalalakas mong alagad kung saan nanggagaling ang mabibigat na pangkat.',
+      },
+      {
+        question: '🔧 Ano ang Teknisyan?',
+        answer: 'Bawat alon, may Teknisyan ng tao na lumalabas sa isang lagusan sa kalagitnaan ng alon, binabantayan ng mga kawal, mamamana o Mecha na nananatili sa tabi niya at lumalaban sa sinumang alagad na lumapit. Pupunta siya sa isang gusali at iha-hack ito (may progress bar sa ibabaw). Kapag natapos, magiging magenta ang gusali at aatakihin ang iyong mga alagad hanggang matapos ang alon, at hindi na ito gagalawin ng mga kalaban. Patayin muna ang Teknisyan para mapigilan siya.',
+      },
+      {
         question: '💥 Ano ang mangyayari kapag bumagsak ang kastilyo?',
         answer: 'Nanakawin ng mga kalaban ang kalahati ng lahat ng nasa imbak mo at tatakas sa mga lagusan. Agad na naibabalik ang kastilyo at tuloy ang laro, kaya panatilihing naka-upgrade ang pader at kalasag.',
       },
@@ -160,7 +192,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '⌨️ May keyboard shortcuts ba?',
-        answer: 'Oo: ` (backtick) para i-play o i-pause, 1 para sa 2× bilis at 2 para sa 3× bilis — pindutin ulit ang parehong key para bumalik sa 1×. Ang Q, W, E, R at T ay para sa mga relikya ng labanan. Sa mabilisang palitan, i-drag o i-scroll ang knob (hawakan ang Shift para ×10) o gamitin ang arrow keys para pumili ng dami; laging tunay na presyo ng pamilihan ang gamit sa kabuuan.',
+        answer: 'Oo: ` (backtick) para i-play o i-pause, 1 para sa 2× bilis at 2 para sa 3× bilis — pindutin ulit ang parehong key para bumalik sa 1×. Ang Q, W, E, R at T ay para sa mga relikya ng labanan. Ang O ay lumalaktaw sa susunod na araw at ang L ay naglulunsad agad ng wave (walang kumpirmasyon), ang P ay nagbubukas ng Weather. Ang A ay nagbubukas ng Atlas, ang S ng Skills, at ang Z / X / C ay lumilipat sa Command / Status / Resources na tab. Ang M ay pampatay/pambukas ng musika at ang N ay ng sound effects, ang K ay para sa fullscreen, ang J ay nagbubukas ng Settings at ang I ay nagpapalaki o nagpapaliit ng side menu. Nakasulat ang bawat key sa button nito: sa sky panel, sa mga tab, sa Skills / Atlas, o sa listahan sa ilalim ng mga bar ng kastilyo. Sa mabilisang palitan, i-drag o i-scroll ang knob (hawakan ang Shift para ×10) o gamitin ang arrow keys para pumili ng dami; laging tunay na presyo ng pamilihan ang gamit sa kabuuan.',
       },
       {
         question: '🌍 Bakit nagbabago ang paligid?',

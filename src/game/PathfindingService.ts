@@ -27,7 +27,7 @@ export class PathfindingService {
 
   /**
    * Synchronous A* pathfind. Returns the path array or null if unreachable.
-   * On the 20×20 platform this runs well under a millisecond.
+   * On the 30×30 platform this runs in about a millisecond.
    */
   public findPath(
     startX: number,

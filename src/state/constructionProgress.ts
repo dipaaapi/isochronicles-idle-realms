@@ -1,5 +1,5 @@
 import type { UnitClass } from '../types/game';
-import { ResourceBuildingId, ResourceBuildingsState, UnitRosterItem } from '../types/state';
+import { ResourceBuildingId, ResourceBuildingsState, TowerId, UnitRosterItem } from '../types/state';
 import { BUILDING_IDS, BUILDING_SITES, CASTLE_GATE, SPIRE_WORK_SPOT } from './buildingLayout';
 import { crewGeneralOf } from './establishmentCrews';
 
@@ -57,8 +57,9 @@ const isGeneralUnit = (u: UnitRosterItem) => !u.parentBuildingId && !u.id.starts
 
 /**
  * The next General the Ent must summon, in construction order: once castle and
- * spire stand, the Ent's first duty is to call every establishment's General
- * (who then builds that establishment), until all thirteen are present.
+ * spire stand, the Ent's first duty is to call every establishment's General (the
+ * spire's first)
+ * (who then builds that establishment), until all fourteen are present.
  * The Ent waits while a summoned General's establishment is still unbuilt: the
  * newest General must finish its home before the next one is called.
  */
@@ -67,15 +68,17 @@ export const nextGeneralToSummon = (state: {
   spireBuilt?: boolean;
   roster: UnitRosterItem[];
   resourceBuildings?: ResourceBuildingsState;
-}): { buildingId: ResourceBuildingId; unitClass: UnitClass } | undefined => {
+}): { buildingId: TowerId; unitClass: UnitClass } | undefined => {
   if (nextEntConstruction(state)) return undefined;
-  for (const buildingId of BUILDING_IDS) {
+  // The Crystal Spire is an establishment like the rest: its General comes first (the Ent already raised it)
+  for (const buildingId of ['SPIRE', ...BUILDING_IDS] as TowerId[]) {
     const unitClass = crewGeneralOf(buildingId);
     if (!unitClass) continue;
     if (!state.roster.some((u) => u.unitClass === unitClass && isGeneralUnit(u))) {
       return { buildingId, unitClass };
     }
     // Summoned but its establishment is not up yet: hold the next summon.
+    if (buildingId === 'SPIRE') continue;
     if (state.resourceBuildings && (state.resourceBuildings[buildingId]?.level ?? 0) < 1) return undefined;
   }
   return undefined;

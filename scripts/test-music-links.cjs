@@ -20,7 +20,7 @@ const { parseMusicLink: parse, musicEmbedUrl: embed, musicLink: link } = mod;
 
 const accepted = {
   'https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI': ['YOUTUBE', 'playlist', 'PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI'],
-  'https://youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ': ['YOUTUBE', 'playlist', 'RDdQw4w9WgXcQ'],
+  'https://youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ': ['YOUTUBE', 'video', 'dQw4w9WgXcQ'],
   'youtu.be/dQw4w9WgXcQ': ['YOUTUBE', 'video', 'dQw4w9WgXcQ'],
   'https://m.youtube.com/watch?v=dQw4w9WgXcQ': ['YOUTUBE', 'video', 'dQw4w9WgXcQ'],
   'https://www.youtube.com/shorts/dQw4w9WgXcQ': ['YOUTUBE', 'video', 'dQw4w9WgXcQ'],
@@ -54,3 +54,17 @@ const rejected = [
 for (const input of rejected) assert.equal(parse(input), null, `should reject ${input.slice(0, 80)}`);
 
 console.log(`music links: ${Object.keys(accepted).length} accepted, ${rejected.length} rejected — ok`);
+
+// Playlist files: CSV from Excel round-trips, docs-style text lines are read, junk is dropped
+const { musicLibraryToCsv: toCsv, musicLibraryToText: toText, parseMusicLibraryFile: readFile } = mod;
+const library = [
+  { link: 'https://www.youtube.com/playlist?list=PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI', name: 'Battle, "loud" mix' },
+  { link: 'https://open.spotify.com/album/4aawyAB9vmqN3uQ7FjRGTy', name: '' },
+];
+assert.equal(JSON.stringify(readFile(toCsv(library))), JSON.stringify(library), 'CSV export must import back unchanged');
+assert.equal(readFile(toText(library)).length, 2, 'text export must import back');
+assert.equal(readFile(toText([{ ...library[1], name: 'Lo-fi - night' }]))[0].name, 'Lo-fi night', 'text names keep their words');
+const docs = readFile('My music\n1. Chill - https://youtu.be/dQw4w9WgXcQ\n• https://evil.com/x\nnotes only\nhttps://youtu.be/dQw4w9WgXcQ');
+assert.equal(docs.length, 1, 'docs lines: one valid link, duplicates and other sites dropped');
+assert.equal(docs[0].link, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+console.log('music playlist files — ok');

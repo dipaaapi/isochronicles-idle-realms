@@ -51,7 +51,9 @@ vm.runInNewContext(source, {
       get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),
     });
     if (name.includes('useGameStore')) return { useGameStore: { getState: () => state } };
-    if (name.includes('Navigation')) return { Navigation: { tileOf: (x, y) => ({ x: Math.round(x / 32), y: Math.round(y / 16) }) } };
+    if (name.includes('Navigation')) return { Navigation: { tileOf: (x, y) => ({ x: Math.round(x / 32), y: Math.round(y / 16) }) }, TILES_FOR: { land: [0, 3], water: [1, 3], any: [0, 1, 3] } };
+    if (name.endsWith('hackState')) return { isHacked: () => false, setHacked() {}, hackedIds: () => [], clearHacks: () => [] };
+    if (name.endsWith('/terrain')) return { invaderMoveMode: () => 'land', minionMoveMode: () => 'land' };
     if (name.includes('buildingLayout')) return {
       CASTLE_FOOTPRINT: { x: 3, y: 3, w: 3, h: 3 },
       PORTAL_SITES: [{ exit: { x: 1, y: 1 } }, { exit: { x: 8, y: 1 } }, { exit: { x: 1, y: 8 } }, { exit: { x: 8, y: 8 } }],
@@ -130,3 +132,29 @@ manager.tapInvader(waveScout);
 assert.equal(waveScout.hp, 65, 'scouts present during waves also use normal damage');
 assert.equal(normalHits, 2);
 console.log('Scout instant-kill and wave tap checks passed.');
+
+// Rift squads: each open rift rolls its own squad (riftSquads.json)
+{
+  const squadExports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/game/invaders/riftSquads.ts', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, {
+    exports: squadExports,
+    require: (name) => {
+      const json = JSON.parse(fs.readFileSync(`src/${name.replace(/^(\.\.\/)+/, '')}`, 'utf8'));
+      return Object.assign(json, { default: json });
+    },
+  });
+  const { rollSquads, pickByShare, squadBias, SQUADS } = squadExports;
+  for (let i = 0; i < 200; i++) {
+    const four = rollSquads(4, 30);
+    assert.equal(new Set(four).size, 4, 'four open rifts get four different squads');
+    for (const id of rollSquads(4, 1)) assert.ok(SQUADS[id].fromWave <= 1, 'wave 1 only rolls squads unlocked at wave 1');
+  }
+  const counts = [0, 0];
+  for (let i = 0; i < 4000; i++) counts[pickByShare(['PROBE', 'RAIDERS'])]++;
+  assert.ok(counts[0] < counts[1] * 0.4, 'a Probe rift sends far fewer invaders than a Raider rift');
+  assert.equal(squadBias({ HUMAN_KNIGHT: 2 }, 'VANGUARD').HUMAN_KNIGHT, 8, "squad bias multiplies the tactic's");
+  for (const id of ['HUMAN_COMMAND', 'MECHA_COMMAND']) assert.ok(SQUADS[id].commander, `${id} has a General`);
+  console.log('Rift squad checks passed.');
+}

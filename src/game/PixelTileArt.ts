@@ -48,6 +48,8 @@ export interface TileArtSpec {
   platformPhase: 1 | 2 | 3 | 4;
   /** Difficulty theme (platformThemes.json): Easy blooms, Hard cracks and darkens. Defaults to NORMAL. */
   difficulty?: Difficulty;
+  /** Water only: which grid neighbours are land (+x, -x, +y, -y), for shallows and shore foam. */
+  shore?: { px: boolean; nx: boolean; py: boolean; ny: boolean };
 }
 
 type Phase = 1 | 2 | 3 | 4;
@@ -114,6 +116,68 @@ const TOP_BOTTOM_ROW: number[] = Array.from({ length: TILE_ART_W }, (_, px) => {
   for (let py = 0; py < TOP_H; py++) if (inTop(px, py)) last = py;
   return last;
 });
+
+// ── Water ────────────────────────────────────────────────────────────────────
+
+const SHALLOW = 0x2dd4bf;
+const DEEP = 0x0b2a5b;
+const FOAM = 0xf0fdff;
+
+/**
+ * One ocean pixel. Works in island coordinates so the pattern runs on across
+ * tiles: deep blue offshore turning turquoise in the shallows, rolling curved
+ * crests (light ridge, dark trough) and a ragged foam line along every shore,
+ * so the coast bulges and bites instead of running straight like a canal.
+ */
+function paintWater(
+  base: number,
+  colors: TilePalette,
+  gx: number,
+  gy: number,
+  px: number,
+  py: number,
+  shore: TileArtSpec['shore']
+): number {
+  // Position inside the tile along the grid axes (0..1)
+  const sx = (px + 0.5 - HALF_W) / HALF_W;
+  const sy = (py + 0.5) / HALF_H;
+  const lx = Math.min(1, Math.max(0, (sx + sy) / 2));
+  const ly = Math.min(1, Math.max(0, (sy - sx) / 2));
+  const wx = gx + lx;
+  const wy = gy + ly;
+
+  // Distance to the nearest land edge (grid units); far offshore when there is none
+  let shoreDist = 3;
+  if (shore?.px) shoreDist = Math.min(shoreDist, 1 - lx);
+  if (shore?.nx) shoreDist = Math.min(shoreDist, lx);
+  if (shore?.py) shoreDist = Math.min(shoreDist, 1 - ly);
+  if (shore?.ny) shoreDist = Math.min(shoreDist, ly);
+
+  // Ragged coast: smooth lumps along the shore, a pixel-scale jitter on top
+  const lump = Math.sin(wx * 2.3 + wy * 1.7) * 0.5 + Math.sin(wx * 5.1 - wy * 3.7 + 1.3) * 0.3;
+  const jitter = hash(Math.floor(wx * 9), Math.floor(wy * 9), 71) * 0.06;
+  const coast = shoreDist - (0.14 + lump * 0.11 + jitter);
+
+  // Depth tint
+  const depth = Math.min(1, Math.max(0, coast / 0.7));
+  let c = mix(mix(base, SHALLOW, 0.5), mix(base, DEEP, 0.6), depth);
+
+  // Rolling crests: a sine band bent by a slower sine, so each crest curves
+  const swell = Math.sin(wx * 1.9 + wy * 1.1 + Math.sin(wy * 1.3 - wx * 0.7) * 1.8);
+  if (swell > 0.93) c = mix(c, 0xf0f9ff, 0.55 + (swell - 0.93) * 4);
+  else if (swell > 0.8) c = mix(c, colors.strokeColor, 0.3);
+  else if (swell > 0.62) c = shade(c, 0.88);                     // trough shadow in front of the crest
+  else if (swell < -0.7) c = mix(c, DEEP, 0.18);
+
+  // Sun glints
+  if (hash(gx, gy, px, py + 900) > 0.992) c = mix(c, 0xffffff, 0.6);
+
+  // Shore foam: a solid lip, then broken bubbles
+  if (coast < 0) c = mix(FOAM, SHALLOW, 0.12);
+  else if (coast < 0.08 && hash(gx, gy, px, py + 950) > 0.4) c = mix(c, FOAM, 0.75);
+  else if (coast < 0.16 && hash(gx, gy, px, py + 970) > 0.82) c = mix(c, FOAM, 0.5);
+  return c;
+}
 
 // ── Painter ──────────────────────────────────────────────────────────────────
 
@@ -217,9 +281,7 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
           break;
         }
         case 'OCEAN_BLOCK': {
-          const ripple = (py * 7 + Math.floor((px + gx * 5 + gy * 3) / 5)) % 11;
-          if (ripple === 0) c = mix(c, colors.strokeColor, 0.55);
-          else if (ripple === 1) c = mix(c, 0xffffff, 0.12);
+          c = paintWater(c, colors, gx, gy, px, py, spec.shore);
           break;
         }
         case 'NEXUS_BASE': {
@@ -229,9 +291,10 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
           break;
         }
         case 'SPAWN_BLOCK': {
-          if (d < 0.42) c = mix(0x05030f, colors.strokeColor, n * 0.25);
-          else if (d < 0.54) c = colors.strokeColor;
-          else if (d < 0.6) c = shade(colors.strokeColor, 0.55);
+          // Cracked basalt dais under the 2×2 rift, veined with its glow
+          c = mix(0x15111f, colors.strokeColor, n * 0.18);
+          if (hash(gx, gy, px, py + 300) > 0.94) c = mix(colors.strokeColor, 0xffffff, 0.2);
+          else if ((px + py * 2 + gx * 3) % 9 === 0) c = shade(c, 0.75);
           break;
         }
         default: {
@@ -259,7 +322,11 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
         }
       }
 
-      // Bevel: lit upper edges, shaded lower edges
+      // Bevel: lit upper edges, shaded lower edges (water stays one seamless surface)
+      if (isWater) {
+        put(px, py + yOff, c);
+        continue;
+      }
       const upperEdge = !inTop(px, py - 1) || (!inTop(px - 1, py) && py < HALF_H) || (!inTop(px + 1, py) && py < HALF_H);
       const lowerEdge = !inTop(px, py + 1) || (!inTop(px - 1, py) && py >= HALF_H) || (!inTop(px + 1, py) && py >= HALF_H);
       if (upperEdge) c = px < HALF_W ? shade(c, 1.22) : shade(c, 1.1);

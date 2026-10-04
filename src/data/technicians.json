@@ -1,0 +1,12 @@
+{
+  "_doc": "Human Technicians: each wave a raid of hackers comes out of an open rift part-way through the wave, escorted by fighters that stay close and only engage minions near their ward. A hacker channels on an establishment; when the hack completes the establishment turns hostile until the wave ends (its tower shoots your units, invaders leave it alone). Kill the hacker first.",
+  "fromWave": 1,
+  "spawnAtFraction": 0.3,
+  "hackers": { "base": 1, "perWaves": 25 },
+  "escorts": { "EASY": 1, "NORMAL": 2, "HARD": 3, "perWaves": 30, "types": ["HUMAN_KNIGHT", "HUMAN_ARCHER", "MECHA_SCOUT"] },
+  "hackSeconds": { "EASY": 22, "NORMAL": 17, "HARD": 13 },
+  "hackReachTiles": 1.1,
+  "guardRadius": 150,
+  "leash": 55,
+  "hostileTower": { "damageShare": 0.6, "cooldown": 1.5 }
+}

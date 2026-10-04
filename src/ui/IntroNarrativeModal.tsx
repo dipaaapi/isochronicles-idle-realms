@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DifficultyFrame } from './DifficultyFrame';
 import { soundFx } from '../game/audio/soundFx';
 import { ArrowRight, ChevronRight, FastForward, Maximize, Minimize } from 'lucide-react';
 import { useGameStore } from '../state/useGameStore';
@@ -135,6 +136,8 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
   const visible = skipped ? LINES : LINES.slice(0, lineIndex + 1);
 
   return (
+    <>
+      <DifficultyFrame difficulty={difficulty} />
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 select-none animate-fade-in">
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-50 blur-[2px]"
@@ -311,5 +314,6 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
         </div>
       </div>
     </div>
+    </>
   );
 };

@@ -1,0 +1,6 @@
+{
+  "_comment": "Screen-edge frame that tells the player which difficulty the realm runs on (title, story/difficulty pick, and in game).",
+  "EASY":   { "main": "#22c55e", "light": "#bbf7d0", "dark": "#14532d" },
+  "NORMAL": { "main": "#eab308", "light": "#fef08a", "dark": "#713f12" },
+  "HARD":   { "main": "#ef4444", "light": "#fecaca", "dark": "#7f1d1d" }
+}

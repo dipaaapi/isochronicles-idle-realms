@@ -82,6 +82,13 @@ export interface ActiveInvader extends NavAgent {
   /** Armored defensively */
   armorBuffTimer?: number;
   tauntBy?: WorkerInstance;
+  /** Human Technician on a hacking raid. */
+  isHacker?: boolean;
+  /** Establishment being hacked and seconds of hacking done on it. */
+  hackTargetId?: string;
+  hackProgress?: number;
+  /** Fighter guarding a Technician: stays close and only fights minions near it. */
+  escortOf?: ActiveInvader;
   target?: InvaderTarget;
   retargetTimer?: number;
   structPath?: GridPoint[];

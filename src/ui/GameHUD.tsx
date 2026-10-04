@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import type { WeatherType } from '../types/state';
 import { isConstructionReady } from '../state/constructionProgress';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
@@ -49,6 +50,7 @@ import type { BattleItemId } from '../types/state';
 import { HoverTooltip } from './HoverTooltip';
 import { useTranslation } from '../i18n/translations';
 import { useExternalMusic } from '../state/externalMusic';
+import { MusicPlayer } from './MusicPlayer';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
@@ -154,6 +156,37 @@ const BATTLE_ITEMS: ItemMeta[] = [
   },
 ];
 
+
+type QuickActionId = 'PAUSE' | 'SPEED2' | 'SPEED3' | 'WAVE' | 'DAY' | 'WEATHER' | 'MUSIC' | 'SFX' | 'FULLSCREEN' | 'SETTINGS' | 'SIDEBAR'
+  | 'ATLAS' | 'SKILLS' | 'TAB_COMMAND' | 'TAB_STATUS' | 'TAB_RESOURCES';
+/**
+ * Keyboard quick actions. Most are listed as buttons under the castle bars after the Q–T battle
+ * items; `inline` ones already have a button elsewhere (sky panel, tabs, Skills / Atlas) that shows the key.
+ */
+const QUICK_KEYS: Array<{ id: QuickActionId; codes: string[]; key: string; icon: string; label: string; inline?: true }> = [
+  { id: 'PAUSE', codes: ['Backquote'], key: '`', icon: '⏯️', label: 'quickPause' },
+  { id: 'SPEED2', codes: ['Digit1', 'Numpad1'], key: '1', icon: '2×', label: 'quickSpeed2' },
+  { id: 'SPEED3', codes: ['Digit2', 'Numpad2'], key: '2', icon: '3×', label: 'quickSpeed3' },
+  { id: 'WAVE', codes: ['KeyL'], key: 'L', icon: '⚔️', label: 'quickWave' },
+  { id: 'DAY', codes: ['KeyO'], key: 'O', icon: '📅', label: 'quickDay', inline: true },
+  { id: 'WEATHER', codes: ['KeyP'], key: 'P', icon: '🌦️', label: 'quickWeather', inline: true },
+  { id: 'MUSIC', codes: ['KeyM'], key: 'M', icon: '🎵', label: 'quickMusic' },
+  { id: 'SFX', codes: ['KeyN'], key: 'N', icon: '🔊', label: 'quickSfx' },
+  { id: 'FULLSCREEN', codes: ['KeyK'], key: 'K', icon: '⛶', label: 'quickFullscreen' },
+  { id: 'SETTINGS', codes: ['KeyJ'], key: 'J', icon: '⚙️', label: 'quickSettings' },
+  { id: 'SIDEBAR', codes: ['KeyI'], key: 'I', icon: '📑', label: 'quickSidebar' },
+  { id: 'ATLAS', codes: ['KeyA'], key: 'A', icon: '🧭', label: 'hudAtlas', inline: true },
+  { id: 'SKILLS', codes: ['KeyS'], key: 'S', icon: '✨', label: 'hudSkills', inline: true },
+  { id: 'TAB_COMMAND', codes: ['KeyZ'], key: 'Z', icon: '🏰', label: 'hudTabCommand', inline: true },
+  { id: 'TAB_STATUS', codes: ['KeyX'], key: 'X', icon: '🛡️', label: 'hudTabStatus', inline: true },
+  { id: 'TAB_RESOURCES', codes: ['KeyC'], key: 'C', icon: '💎', label: 'hudTabResources', inline: true },
+];
+
+/** Small key hint in the corner of a button that has a keyboard shortcut. */
+const KeyBadge: React.FC<{ k: string; className?: string }> = ({ k, className = 'top-0.5 right-1' }) => (
+  <span className={`pointer-events-none absolute ${className} text-[8px] font-mono font-black uppercase leading-none text-amber-300`}>{k}</span>
+);
+
 export const GameHUD: React.FC<GameHUDProps> = ({
   onOpenCitadel,
   onOpenAtlas,
@@ -188,9 +221,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   const isTL = language === 'TL';
   const { t: tr } = useTranslation();
-  const externalMusic = useExternalMusic((s) => s.source);
+  const externalMusic = useGameStore((s) => s.musicLibrary.length > 0);
   const isMusicPlayerOpen = useExternalMusic((s) => s.isPlayerOpen);
   const setMusicPlayerOpen = useExternalMusic((s) => s.setPlayerOpen);
+  const setMusicManagerOpen = useExternalMusic((s) => s.setManagerOpen);
   const constructionReady = isConstructionReady({ castleBuilt, resourceBuildings });
 
   const [isFullscreen, setIsFullscreen] = useState(
@@ -206,26 +240,84 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const [isBgmOff, setIsBgmOff] = useState(() => soundFx.getIsBgmDisabled());
   const [isSfxOff, setIsSfxOff] = useState(() => soundFx.getIsSfxDisabled());
 
-  // Keyboard shortcuts: ` play/pause, 1 = 2x, 2 = 3x, Q/W/E/R/T battle items
+  // The docked music player lines up with the cards above, which stop short of the scrollbar
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollGutter, setScrollGutter] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setScrollGutter(el.offsetWidth - el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, [isSidebarOpen]);
+
+  // Quick actions shared by the O/P/M/N/L keys and the buttons under the castle bars
+  const runQuickAction = (id: QuickActionId) => {
+    const s = useGameStore.getState();
+    if (id === 'PAUSE') {
+      soundFx.playClick();
+      togglePause();
+    } else if (id === 'SPEED2' || id === 'SPEED3') {
+      soundFx.playClick();
+      toggleFastSpeed(id === 'SPEED2' ? 2 : 3);
+    } else if (id === 'FULLSCREEN') {
+      toggleFullscreen();
+    } else if (id === 'SETTINGS') {
+      soundFx.playClick();
+      onOpenSettings();
+    } else if (id === 'SIDEBAR') {
+      soundFx.playClick();
+      setIsSidebarOpen((open) => !open);
+    } else if (id === 'DAY') {
+      soundFx.playClick();
+      setConfirmAction(null);
+      s.incrementDay();
+    } else if (id === 'WEATHER') {
+      // The Weather window: pick a weather or switch random weather on / off
+      soundFx.playClick();
+      setIsWeatherModalOpen((open) => !open);
+    } else if (id === 'ATLAS') {
+      soundFx.playClick();
+      onOpenAtlas('GUIDE');
+    } else if (id === 'SKILLS') {
+      soundFx.playClick();
+      onOpenSkillTree();
+    } else if (id === 'TAB_COMMAND' || id === 'TAB_STATUS' || id === 'TAB_RESOURCES') {
+      soundFx.playClick();
+      setIsSidebarOpen(true);
+      setActiveTab(id === 'TAB_COMMAND' ? 'command' : id === 'TAB_STATUS' ? 'status' : 'resources');
+    } else if (id === 'MUSIC') {
+      handleToggleBgm();
+    } else if (id === 'SFX') {
+      handleToggleSfx();
+    } else if (id === 'WAVE') {
+      if (s.invasion.isActive || !isConstructionReady({ castleBuilt: s.castleBuilt, resourceBuildings: s.resourceBuildings })) return;
+      soundFx.playClick();
+      setConfirmAction(null);
+      s.startInvasion();
+    }
+  };
+  const quickActionRef = useRef(runQuickAction);
+  quickActionRef.current = runQuickAction;
+
+  // Keyboard shortcuts: ` play/pause, 1 = 2x, 2 = 3x, Q/W/E/R/T battle items,
+  // O = next day, P = next weather, L = launch the wave (instant, no confirm), M = music on/off, N = sound effects on/off
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const el = event.target as HTMLElement | null;
       if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
 
-      if (event.code === 'Backquote') {
-        event.preventDefault();
-        togglePause();
-        soundFx.playClick();
-      } else if (event.code === 'Digit1' || event.code === 'Numpad1') {
-        event.preventDefault();
-        toggleFastSpeed(2);
-        soundFx.playClick();
-      } else if (event.code === 'Digit2' || event.code === 'Numpad2') {
-        event.preventDefault();
-        toggleFastSpeed(3);
-        soundFx.playClick();
-      } else {
+      {
+        const quick = QUICK_KEYS.find((q) => q.codes.includes(event.code));
+        if (quick) {
+          event.preventDefault();
+          quickActionRef.current(quick.id);
+          return;
+        }
         const key = event.key.toLowerCase();
         const matchedItem = BATTLE_ITEMS.find((item) => item.keyBinding === key);
         if (matchedItem) {
@@ -418,7 +510,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* 3. EXPANDED SIDEBAR CONTENT */}
       {isSidebarOpen && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+        <div ref={scrollRef} className="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
           
           {/* SECTION A: ANIMATED TIME OF DAY & WEATHER */}
           <SkyStatusPanel
@@ -428,9 +520,103 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             onOpenWeather={() => { soundFx.playClick(); setIsWeatherModalOpen(true); }}
           />
 
-          {/* SECTION B: QWERT BATTLE SKILLS TOOLBAR (INTEGRATED IN SIDE MENU) */}
-          <div className="p-2 rounded-2xl bg-slate-900/60 border border-purple-500/30">
-            <div className="grid grid-cols-5 gap-1.5">
+
+          {/* SECTION C: NAVIGATION TABS */}
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900 p-1 border border-slate-800">
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('command'); }}
+              className={`relative py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                activeTab === 'command' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tr('hudTabCommand')}
+              <KeyBadge k="Z" />
+            </button>
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
+              className={`relative py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                activeTab === 'status' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tr('hudTabStatus')}
+              <KeyBadge k="X" />
+            </button>
+            <button
+              onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
+              className={`relative py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
+                activeTab === 'resources' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tr('hudTabResources')}
+              <KeyBadge k="C" />
+            </button>
+          </div>
+
+          {/* SECTION D: TAB CONTENT */}
+          
+          {/* TAB 1: COMMAND */}
+          {activeTab === 'command' && (
+            <div className="space-y-2">
+              {/* Main Citadel Command Opener */}
+              <button
+                onClick={() => { soundFx.playClick(); onOpenCitadel('OVERVIEW'); }}
+                className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 border border-purple-500/40 hover:border-purple-400 flex items-center justify-between transition cursor-pointer shadow-md"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">🏰</span>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white">{isTL ? 'Sentro ng Kuta' : 'Citadel Command'}</div>
+                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Lahat ng upgrade: Skill, Agham, Tanggulan, Pandayan' : 'Every upgrade: Skills, Research, Defenses, Armory'}</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-purple-400" />
+              </button>
+
+              {/* 2 Quick Hub Buttons (Skills & Atlas) */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
+                  className="relative p-2.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-900/40 transition"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <span>{tr('hudSkills')} {skillPoints > 0 && `(${skillPoints})`}</span>
+                  <KeyBadge k="S" className="top-1 right-2" />
+                </button>
+
+                <button
+                  onClick={() => { soundFx.playClick(); onOpenAtlas('GUIDE'); }}
+                  className="relative p-2.5 rounded-2xl bg-sky-950/50 border border-sky-500/40 text-sky-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-sky-900/50 transition shadow-sm"
+                >
+                  <Compass className="w-4 h-4 text-sky-400" />
+                  <span>{tr('hudAtlas')}</span>
+                  <KeyBadge k="A" className="top-1 right-2" />
+                </button>
+              </div>
+
+              {/* Quick Castle Status Summary */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2">
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-slate-400">{isTL ? 'Kastilyo' : 'Castle'}</span>
+                    <span className="text-emerald-300 font-mono font-bold">{castleHpPct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-emerald-400" style={{ width: `${castleHpPct}%` }} />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2">
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-slate-400 flex items-center gap-1"><Shield className="w-2.5 h-2.5 text-sky-400" /> {isTL ? 'Kalasag' : 'Shield'}</span>
+                    <span className="text-sky-300 font-mono font-bold">{shieldHpPct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-sky-400" style={{ width: `${shieldHpPct}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Every keyboard shortcut as a button: Q–T battle items, then time, wave, audio and window keys */}
+              <div className="grid grid-cols-7 gap-1 rounded-xl border border-purple-500/30 bg-slate-900/60 p-1.5">
               {BATTLE_ITEMS.map((item) => {
                 const cost = (ECONOMY_CONFIG.battleItems[item.id]?.cost ?? {}) as Partial<Record<string, number>>;
                 const canAfford = Object.entries(cost).every(
@@ -512,96 +698,35 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* SECTION C: NAVIGATION TABS */}
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900 p-1 border border-slate-800">
-            <button
-              onClick={() => { soundFx.playClick(); setActiveTab('command'); }}
-              className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
-                activeTab === 'command' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tr('hudTabCommand')}
-            </button>
-            <button
-              onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
-              className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
-                activeTab === 'status' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tr('hudTabStatus')}
-            </button>
-            <button
-              onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
-              className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
-                activeTab === 'resources' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tr('hudTabResources')}
-            </button>
-          </div>
-
-          {/* SECTION D: TAB CONTENT */}
-          
-          {/* TAB 1: COMMAND */}
-          {activeTab === 'command' && (
-            <div className="space-y-2">
-              {/* Main Citadel Command Opener */}
-              <button
-                onClick={() => { soundFx.playClick(); onOpenCitadel('OVERVIEW'); }}
-                className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 border border-purple-500/40 hover:border-purple-400 flex items-center justify-between transition cursor-pointer shadow-md"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">🏰</span>
-                  <div className="text-left">
-                    <div className="text-xs font-bold text-white">{isTL ? 'Sentro ng Kuta' : 'Citadel Command'}</div>
-                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Lahat ng upgrade: Skill, Agham, Tanggulan, Pandayan' : 'Every upgrade: Skills, Research, Defenses, Armory'}</div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-purple-400" />
-              </button>
-
-              {/* 2 Quick Hub Buttons (Skills & Atlas) */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
-                  className="p-2.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-900/40 transition"
-                >
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>{tr('hudSkills')} {skillPoints > 0 && `(${skillPoints})`}</span>
-                </button>
-
-                <button
-                  onClick={() => { soundFx.playClick(); onOpenAtlas('GUIDE'); }}
-                  className="p-2.5 rounded-2xl bg-sky-950/50 border border-sky-500/40 text-sky-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-sky-900/50 transition shadow-sm"
-                >
-                  <Compass className="w-4 h-4 text-sky-400" />
-                  <span>{tr('hudAtlas')}</span>
-                </button>
-              </div>
-
-              {/* Quick Castle Status Summary */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2">
-                  <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-slate-400">{isTL ? 'Kastilyo' : 'Castle'}</span>
-                    <span className="text-emerald-300 font-mono font-bold">{castleHpPct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-emerald-400" style={{ width: `${castleHpPct}%` }} />
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-2">
-                  <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-slate-400 flex items-center gap-1"><Shield className="w-2.5 h-2.5 text-sky-400" /> {isTL ? 'Kalasag' : 'Shield'}</span>
-                    <span className="text-sky-300 font-mono font-bold">{shieldHpPct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-sky-400" style={{ width: `${shieldHpPct}%` }} />
-                  </div>
-                </div>
+                {QUICK_KEYS.filter((q) => !q.inline).map((q) => {
+                  const off = (q.id === 'MUSIC' && isBgmOff) || (q.id === 'SFX' && isSfxOff);
+                  const on = (q.id === 'PAUSE' && gameSpeed === 0) || (q.id === 'SPEED2' && gameSpeed === 2) ||
+                    (q.id === 'SPEED3' && gameSpeed === 3) || (q.id === 'FULLSCREEN' && isFullscreen);
+                  const disabled = q.id === 'WAVE' && (invasion.isActive || !constructionReady);
+                  const icon = q.id === 'PAUSE' ? (gameSpeed === 0 ? '▶️' : '⏸️') : q.icon;
+                  return (
+                    <button
+                      key={q.id}
+                      type="button"
+                      title={`${tr(q.label as Parameters<typeof tr>[0])} [${q.key}]`}
+                      disabled={disabled}
+                      onClick={() => runQuickAction(q.id)}
+                      aria-label={`${tr(q.label as Parameters<typeof tr>[0])} (${q.key})`}
+                      aria-pressed={on}
+                      className={`relative w-full h-11 flex items-center justify-center rounded-xl border transition ${
+                        disabled
+                          ? 'border-slate-800/80 bg-slate-950/60 opacity-40 cursor-not-allowed'
+                          : on
+                          ? 'border-amber-400/70 bg-amber-500/15 cursor-pointer'
+                          : 'border-slate-700 bg-slate-900/80 hover:border-purple-400 hover:bg-slate-800 cursor-pointer'
+                      }`}
+                    >
+                      <span className={`relative z-10 leading-none select-none ${q.icon.endsWith('×') ? 'text-[11px] font-black font-mono text-amber-200' : 'text-base'} ${off ? 'grayscale opacity-50' : ''}`}>{icon}</span>
+                      {off && <span className="absolute inset-x-2 top-1/2 h-0.5 -rotate-45 bg-rose-400/90" />}
+                      <span className="absolute top-0.5 right-1 text-[8px] font-mono font-black text-amber-300 uppercase">{q.key}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -698,66 +823,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </div>
       )}
 
+      {/* Docked music player: stays mounted (hidden) while the side menu is collapsed so it keeps playing */}
+      <div className={isSidebarOpen ? 'pl-3 pb-2' : ''} style={isSidebarOpen ? { paddingRight: 12 + scrollGutter } : undefined}>
+        <MusicPlayer placement="SIDEBAR" hidden={!isSidebarOpen} />
+      </div>
+
       {/* 4. FOOTER CONTROLS TOOLBAR */}
       {isSidebarOpen ? (
         <div className="p-2.5 border-t border-slate-800/80 bg-slate-900 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-1.5">
-            {/* Play / Pause & Speed */}
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={() => { soundFx.playClick(); togglePause(); }}
-                title={gameSpeed === 0 ? tr('hudPlay') : tr('hudPause')}
-                aria-label={gameSpeed === 0 ? tr('hudPlay') : tr('hudPause')}
-                className={`p-1.5 rounded-lg flex items-center justify-center transition cursor-pointer ${
-                  gameSpeed === 0 ? 'bg-rose-500/30 text-rose-300' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-                }`}
-              >
-                {gameSpeed === 0 ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
-              </button>
-
-              {([2, 3] as const).map((speed, index) => (
-                <button
-                  key={speed}
-                  onClick={() => { soundFx.playClick(); toggleFastSpeed(speed); }}
-                  title={tr('hudSpeed').replace('{speed}', String(speed)).replace('{key}', String(index + 1))}
-                  aria-pressed={gameSpeed === speed}
-                  className={`px-1.5 py-1 rounded-lg flex items-center gap-0.5 text-[10px] font-black font-mono transition cursor-pointer ${
-                    gameSpeed === speed ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:bg-slate-800'
-                  }`}
-                >
-                  <FastForward className="w-3 h-3 fill-current" />{speed}×
-                </button>
-              ))}
-            </div>
-
-            {/* Utility Buttons: Min/Max Side Menu, Music, SFX, Fullscreen, Settings */}
-            <div className="flex items-center gap-1">
-              {/* Min/Max Side Menu Toggle */}
-              <button
-                onClick={() => { soundFx.playClick(); setIsSidebarOpen(false); }}
-                title={isTL ? 'I-collapse ang Menu' : 'Minimize Menu'}
-                className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
-              >
-                <PanelRightClose className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Music ON/OFF */}
-              <button
-                onClick={handleToggleBgm}
-                title={isBgmOff ? tr('hudMusicOff') : tr('hudMusicOn')}
-                className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                  isBgmOff ? 'border-rose-900/60 bg-rose-950/40 text-rose-400' : 'border-slate-800 bg-slate-950 text-indigo-300 hover:bg-slate-800'
-                }`}
-              >
-                <Music className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Your music: YouTube / Spotify player (opens Settings when no link is set) */}
+          {/* Pause, speed, audio, fullscreen, settings and the menu toggle live in the key list above (` 1 2 M N K J I) */}
+          <div className="flex items-center justify-end gap-1">
+              {/* Your music: YouTube / Spotify player (opens the music manager when no link is saved) */}
               <button
                 onClick={() => {
                   soundFx.playClick();
                   if (externalMusic) setMusicPlayerOpen(!isMusicPlayerOpen);
-                  else onOpenSettings();
+                  else setMusicManagerOpen(true);
                 }}
                 title={tr('hudMusicPlayer')}
                 className={`p-1.5 rounded-lg border transition cursor-pointer ${
@@ -767,35 +848,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <ListMusic className="w-3.5 h-3.5" />
               </button>
 
-              {/* SFX ON/OFF */}
-              <button
-                onClick={handleToggleSfx}
-                title={isSfxOff ? tr('hudSfxOff') : tr('hudSfxOn')}
-                className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                  isSfxOff ? 'border-rose-900/60 bg-rose-950/40 text-rose-400' : 'border-slate-800 bg-slate-950 text-sky-300 hover:bg-slate-800'
-                }`}
-              >
-                {isSfxOff ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-              </button>
-
-              {/* Fullscreen */}
-              <button
-                onClick={toggleFullscreen}
-                title={isFullscreen ? tr('hudExitFullscreen') : tr('hudFullscreen')}
-                className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
-              >
-                {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
-              </button>
-
-              {/* Settings */}
-              <button
-                onClick={() => { soundFx.playClick(); onOpenSettings(); }}
-                title={isTL ? 'Mga Setting' : 'Settings'}
-                className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-              </button>
-            </div>
           </div>
         </div>
       ) : (

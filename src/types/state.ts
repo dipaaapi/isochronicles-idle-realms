@@ -247,6 +247,14 @@ export interface GameStoreState {
   ambientDarkness: number; // 0.0 (high noon) to 1.0 (midnight)
   isAudioMuted: boolean;
   isGoreEnabled: boolean;
+  /** Saved YouTube / Spotify links for the in-game music player (kept across regression, saved with the realm). */
+  musicLibrary: import('../state/externalMusic').MusicEntry[];
+  /** Which library entry the player is on. */
+  musicIndex: number;
+  /** Start playing when an entry loads, and move on to the next saved entry when one ends. */
+  musicAutoPlay: boolean;
+  /** Repeat: the list wraps around (auto-play on) or the current entry replays (auto-play off). */
+  musicLoop: boolean;
 
   // Platform & Regression Progression
   /** Seed for this realm's random establishment placement (src/state/buildingLayout.ts). */
@@ -310,6 +318,15 @@ export interface GameStoreState {
   // Actions
   setScreen: (screen: ScreenState) => void;
   setLanguage: (lang: Language) => void;
+  /** Parses and appends a link without switching what plays (already saved counts as success); false when the link is not a valid YouTube / Spotify link. */
+  addMusicLink: (link: string, name?: string) => boolean;
+  removeMusicLink: (index: number) => void;
+  /** Appends entries read from a playlist file (deduped, capped); returns how many were new. */
+  importMusicLibrary: (entries: readonly { link: string; name: string }[]) => number;
+  setMusicAutoPlay: (on: boolean) => void;
+  setMusicLoop: (on: boolean) => void;
+  /** Switches the player to a library entry (wraps around, so ±1 works as next / previous). */
+  selectMusic: (index: number) => void;
   completeIntro: () => void;
   discoverEntry: (category: 'beast' | 'invader', id: string) => void;
   addResources: (delta: Partial<Resources>) => void;

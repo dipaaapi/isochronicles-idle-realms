@@ -24,13 +24,16 @@ import { soundFx } from './audio/soundFx';
 import { pickPavementFxStyle, spawnPavementBurst, spawnPavementTileFx } from './scene/pavementFx';
 import { prepareCharacterSprites } from './sprites/CharacterSprites';
 import { prepareStructureSprites } from './sprites/StructureSprites';
+import { useLoadProgress } from './loadProgress';
 import { WorldEffects } from './WorldEffects';
 import { DefenderSystem } from './DefenderSystem';
 import { SkillSystem } from './skills/SkillSystem';
-import { Navigation } from './Navigation';
+import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_WATER } from './Navigation';
 import { StructureManager } from './StructureManager';
 import { PortalManager } from './PortalManager';
 import { TowerSystem } from './TowerSystem';
+import { PortalDefenseSystem } from './PortalDefenseSystem';
+import { WaterFx } from './scene/waterFx';
 import {
   BUILDING_IDS,
   BUILDING_SITES,
@@ -39,6 +42,10 @@ import {
   CASTLE_FOOTPRINT,
   CASTLE_GATE,
   ROAD_TILES,
+  isBridgeTile,
+  isPortalTile,
+  isRiftTowerTile,
+  isCanalTile,
   ROADS_BY_BUILDING,
   SPIRE_FOOTPRINT,
   TileRect,
@@ -101,6 +108,8 @@ export class MainScene extends Phaser.Scene {
   private structures!: StructureManager;
   private portals!: PortalManager;
   private towers!: TowerSystem;
+  private portalDefense!: PortalDefenseSystem;
+  private waterFx?: WaterFx;
   private defenders!: DefenderSystem;
   private skills!: SkillSystem;
   private bloomGfx?: Phaser.GameObjects.Graphics;
@@ -236,6 +245,11 @@ export class MainScene extends Phaser.Scene {
     );
     this.groundLoot = new GroundLootManager(this, this.islandContainer);
     this.workerManager.setGroundLoot(this.groundLoot);
+    // Drops land only where a land walker can stand (nav grid, live as buildings go up)
+    this.groundLoot.setTerrain(
+      (x, y) => this.nav.allows(x, y, 'land'),
+      (x, y) => this.nav.nearestAllowedTile({ x, y }, 'land')
+    );
     this.workerManager.setWorld({ nav: this.nav, portals: this.portals });
 
     // Sync workers with the Zustand roster (initial, forced)
@@ -255,17 +269,28 @@ export class MainScene extends Phaser.Scene {
     this.workerManager.setDefenderSystem(this.defenders);
     this.structures.setDefenderSystem(this.defenders);
     this.towers.setDefenderSystem(this.defenders);
+    this.towers.setWorkerProvider(() => this.workerManager.getWorkers());
     this.invasionManager.setWorld({
       nav: this.nav,
       structures: this.structures,
       portals: this.portals,
       blockers: () => [...this.towers.getBlockers(), ...this.defenders.getBlockers()],
     });
+    this.portalDefense = new PortalDefenseSystem(
+      this, this.entityLayer, this.portals, this.invasionManager, this.defenders, () => this.workerManager.getWorkers(), this.nav
+    );
     this.structures.setInvaderProvider(() => this.invasionManager.getInvaders());
     this.structures.setConstructionProvider(() => this.workerManager.getConstructionStatus());
 
     this.airFxLayer = this.add.container(0, 0);
     this.islandContainer.add(this.airFxLayer);
+    // Rift mist sits above units; it parts under the mouse (island space)
+    this.portalDefense.attachMist(this.airFxLayer, () => {
+      const p = this.input.activePointer;
+      if (!p || !p.active) return null;
+      const w = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+      return { x: w.x - this.islandContainer.x, y: w.y - this.islandContainer.y };
+    });
     this.worldEffects = new WorldEffects(
       this,
       this.skyFxLayer,
@@ -306,6 +331,10 @@ export class MainScene extends Phaser.Scene {
     this._fpsDebugText.setDepth(99999);
     this._fpsDebugText.setScrollFactor(0);
     this._fpsDebugText.setVisible(initialState.showFpsDebug ?? false);
+
+    // The loading screen lifts once the world is up and the bakes have landed
+    useLoadProgress.getState().setSceneReady(true);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => useLoadProgress.getState().setSceneReady(false));
   }
 
   private createAtmosphere(): void {
@@ -341,7 +370,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Chess-style tile names: letters A–T run along X, numbers 1–20 along Y.
+   * Chess-style tile names: letters (A…Z, AA…) run along X, numbers from 1 along Y.
    * Each tile shows its name at the centre of its top face, and the island's
    * front edges carry large rank/file markers like a chessboard border.
    */
@@ -432,9 +461,11 @@ export class MainScene extends Phaser.Scene {
         let type: TileType = 'AETHER_GRASS';
         let walkable = true;
 
-        if (PORTAL_SITES.some((p) => p.tile.x === x && p.tile.y === y)) {
-          type = 'SPAWN_BLOCK'; // invader portals stand here
-        } else if (x === 0 || y === 0 || x === this.mapWidth - 1 || y === this.mapHeight - 1) {
+        if (isPortalTile(x, y)) {
+          type = 'SPAWN_BLOCK'; // the 2×2 rift dais
+        } else if (isRiftTowerTile(x, y)) {
+          type = 'ANCIENT_STONE'; // Rift Sentinel plinths
+        } else if (x === 0 || y === 0 || x === this.mapWidth - 1 || y === this.mapHeight - 1 || isCanalTile(x, y)) {
           type = 'OCEAN_BLOCK';
           walkable = false;
         } else if (rectContainsTile(CASTLE_FOOTPRINT, x, y)) {
@@ -469,27 +500,10 @@ export class MainScene extends Phaser.Scene {
     this.createTileSprites();
     this.groundFxLayer = this.add.container(0, 0);
     this.islandContainer.add(this.groundFxLayer);
+    // Waterfalls off the front rims + bridges over the canals
+    this.waterFx = new WaterFx(this, this.groundFxLayer);
 
-    for (let y = 0; y < this.mapHeight; y++) {
-      for (let x = 0; x < this.mapWidth; x++) {
-        const tile = this.tiles[y][x];
-        if (tile.type !== 'OCEAN_BLOCK' || Math.random() >= 0.35) continue;
-        const screenPos = IsometricHelper.gridToScreen(x, y);
-        const waveGfx = this.add.graphics();
-        ProceduralRenderer.drawOceanWaves(waveGfx, screenPos.x, screenPos.y - 4 + WATER_DROP_WORLD);
-        this.islandContainer.add(waveGfx);
-
-        this.tweens.add({
-          targets: waveGfx,
-          y: waveGfx.y - 3,
-          alpha: 0.5,
-          duration: 2000 + Math.random() * 1000,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      }
-    }
+    // Ocean swell, foam and crests are painted into the tiles (PixelTileArt paintWater)
 
     // Enriched-node blooms lie on the ground; tile names above them
     this.bloomGfx = this.add.graphics();
@@ -572,6 +586,15 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  /** Which neighbours of a water tile are land (off the map counts as open sea). */
+  private shoreOf(x: number, y: number) {
+    const land = (nx: number, ny: number) => {
+      const t = this.tiles[ny]?.[nx];
+      return !!t && t.type !== 'OCEAN_BLOCK';
+    };
+    return { px: land(x + 1, y), nx: land(x - 1, y), py: land(x, y + 1), ny: land(x, y - 1) };
+  }
+
   /** Repaints every tile into the atlas (on creation and whenever the realm phase changes). */
   private renderPlatformTiles(): void {
     const atlas = this.tileAtlas;
@@ -593,6 +616,7 @@ export class MainScene extends Phaser.Scene {
           cliffRight: x === this.mapWidth - 1,
           platformPhase: this.currentPlatformPhase,
           difficulty: this.currentDifficulty,
+          shore: this.shoreOf(x, y),
         });
       }
     }
@@ -620,6 +644,7 @@ export class MainScene extends Phaser.Scene {
       cliffRight: x === this.mapWidth - 1,
       platformPhase: this.currentPlatformPhase,
       difficulty: this.currentDifficulty,
+      shore: this.shoreOf(x, y),
     });
     atlas.context.putImageData(imgData, x * TILE_ART_W, y * TILE_ART_H);
     atlas.refresh();
@@ -638,7 +663,8 @@ export class MainScene extends Phaser.Scene {
 
     // 1. Road tiles: paved in sequence from castle gate towards establishment workSpot
     for (const r of roads) {
-      if (this.tiles[r.y]?.[r.x] && this.tiles[r.y][r.x].type !== 'ANCIENT_STONE' && this.tiles[r.y][r.x].type !== 'NEXUS_BASE') {
+      const t = this.tiles[r.y]?.[r.x];
+      if (t && t.type !== 'ANCIENT_STONE' && t.type !== 'NEXUS_BASE' && t.type !== 'OCEAN_BLOCK') {
         tilesToPave.push({ x: r.x, y: r.y });
       }
     }
@@ -776,6 +802,33 @@ export class MainScene extends Phaser.Scene {
     return ambientDarkness;
   }
 
+  /** Terrain costs: land, bridges over canals, open water. */
+  private buildWalkGrid(): number[][] {
+    const walkableGrid: number[][] = [];
+    for (let y = 0; y < this.mapHeight; y++) {
+      const row: number[] = [];
+      for (let x = 0; x < this.mapWidth; x++) {
+        row.push(this.tiles[y][x].type !== 'OCEAN_BLOCK' ? WALK_LAND : isBridgeTile(x, y) ? WALK_BRIDGE : WALK_WATER);
+      }
+      walkableGrid.push(row);
+    }
+    return walkableGrid;
+  }
+
+  /**
+   * An establishment was moved: re-lay tiles, roads, bridges, navigation and
+   * the building views in place, so the realm keeps running (tenants, Generals,
+   * timers) instead of the whole scene restarting.
+   */
+  private applyRelayout(): void {
+    this.generateIslandData();
+    this.renderPlatformTiles();
+    this.nav.setBaseGrid(this.buildWalkGrid());
+    this.structures.relayout();
+    this.waterFx?.drawBridges();
+    this.lastBloomKey = '';
+  }
+
   private initPathfinding(): void {
     this.pathfinder = new PathfindingService();
     const walkableGrid: number[][] = [];
@@ -783,7 +836,7 @@ export class MainScene extends Phaser.Scene {
     for (let y = 0; y < this.mapHeight; y++) {
       const row: number[] = [];
       for (let x = 0; x < this.mapWidth; x++) {
-        row.push(this.tiles[y][x].type === 'OCEAN_BLOCK' ? 1 : 0);
+        row.push(this.tiles[y][x].type !== 'OCEAN_BLOCK' ? WALK_LAND : isBridgeTile(x, y) ? WALK_BRIDGE : WALK_WATER);
       }
       walkableGrid.push(row);
     }
@@ -1026,8 +1079,10 @@ export class MainScene extends Phaser.Scene {
     }
     const { id, tile } = move;
     this.cancelMove();
-    // Success remounts the scene with the new layout: fresh pavement and navigation
-    if (!useGameStore.getState().relocateEstablishment(id, tile.x, tile.y)) {
+    // Success re-lays the island in place: the realm keeps running, nobody respawns
+    if (useGameStore.getState().relocateEstablishment(id, tile.x, tile.y)) {
+      this.applyRelayout();
+    } else {
       const pos = IsometricHelper.gridToScreen(tile.x, tile.y);
       this.workerManager.spawnFloatingPopup(pos.x, pos.y - 60, 'Cannot move during an invasion', '#f87171');
     }
@@ -1066,6 +1121,7 @@ export class MainScene extends Phaser.Scene {
 
     this.structures.update(effectiveDelta);
     this.portals.update(effectiveDelta);
+    this.waterFx?.update(time);
 
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
@@ -1120,6 +1176,7 @@ export class MainScene extends Phaser.Scene {
 
     this.invasionManager?.update(effectiveDelta);
     this.towers.update(effectiveDelta);
+    this.portalDefense.update(effectiveDelta);
     this.defenders.update(effectiveDelta);
     this.skills.update(effectiveDelta);
     this.groundLoot?.update(effectiveDelta / 1000);
@@ -1200,6 +1257,8 @@ export class MainScene extends Phaser.Scene {
     this.workerManager?.destroy();
     this.invasionManager?.destroy();
     this.towers?.destroy();
+    this.portalDefense?.destroy();
+    this.waterFx?.destroy();
     this.defenders?.destroy();
     this.skills?.destroy();
     this.portals?.destroy();

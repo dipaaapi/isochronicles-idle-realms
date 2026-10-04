@@ -41,6 +41,7 @@ const ENTRIES: Entry[] = [
   { key: 'castle', name: { en: 'Citadel', tl: 'Kuta' }, icon: '🏰', tiles: CASTLE_FOOTPRINT.w },
   { key: 'spire', name: DEFENSE_TEXT.spireName, icon: '💎', tiles: SPIRE_FOOTPRINT.w },
   { key: 'portal', name: TEXT.portalName, icon: '🌀', tiles: 1 },
+  { key: 'sentinel', name: TEXT.sentinelName, icon: '🗼', tiles: 1 },
   building('quarry', 'QUARRY'),
   building('mine', 'MINE'),
   building('grove', 'WOOD'),
@@ -61,6 +62,7 @@ const artUrl = (key: StructureKey) => `${import.meta.env.BASE_URL}structures/${S
 /** Which strip animation each preview state plays. */
 const animFor = (key: StructureKey, state: PreviewState): string => {
   if (key === 'portal') return { build: 'dormant', idle: 'idle', attack: 'spawn', hit: 'idle', destroyed: 'destroyed' }[state];
+  if (key === 'sentinel') return { build: 'idle', idle: 'idle', attack: 'attack', hit: 'idle', destroyed: 'destroyed' }[state];
   return { build: 'site', idle: 'idle', attack: key === 'castle' ? 'pulse' : 'attack', hit: 'idle', destroyed: 'ruined' }[state];
 };
 

@@ -1,0 +1,145 @@
+{
+  "_doc": "Rifts fight back. Damage = base × waveBalance damageMultiplier (wave 1-100, day 1-365, difficulty) × phase × time of day × weather. Rift HP = defenseConfig portal HP × portalHpMultiplier × phase × days lasted; each Rift Sentinel has towers.hpShare of its rift's HP. Bases are tuned near a wave-1 Human Archer (20 dmg) so the rifts scale on the same curve as the invaders they guard.",
+  "scaling": {
+    "phase": [
+      1,
+      1.06,
+      1.12,
+      1.18
+    ],
+    "hpAtMaxDay": 0.2,
+    "riftHp": 2.5,
+    "_doc": "riftHp multiplies defenseConfig's portal HP (a rift with sentinels must hold ~10-20 s against a wave-1 General at ~50 DPS); phase / hpAtMaxDay add realm-phase and days-lasted toughness."
+  },
+  "retaliation": {
+    "range": 170,
+    "damage": 14,
+    "cooldown": 1.6
+  },
+  "skills": {
+    "riftLash": {
+      "kind": "chain",
+      "cooldown": 9,
+      "range": 210,
+      "damage": 20,
+      "chains": 3,
+      "name": {
+        "en": "Rift Lash",
+        "tl": "Latigo ng Lagusan"
+      },
+      "desc": {
+        "en": "A void whip that jumps between up to 3 nearby demons and beasts.",
+        "tl": "Latigong kawalan na tumatalon sa hanggang 3 kalapit na demonyo at halimaw."
+      }
+    },
+    "warpWard": {
+      "kind": "ward",
+      "cooldown": 16,
+      "heal": 0.12,
+      "wardSeconds": 5,
+      "damageTaken": 0.5,
+      "name": {
+        "en": "Warp Ward",
+        "tl": "Kalasag ng Warp"
+      },
+      "desc": {
+        "en": "Mends the rift and its sentinels by 12% HP and halves the damage they take for 5 seconds.",
+        "tl": "Inaayos ang lagusan at mga bantay nito ng 12% HP at hinahati ang pinsalang natatamo sa loob ng 5 segundo."
+      }
+    }
+  },
+  "ultimate": {
+    "id": "worldbreakerSurge",
+    "trigger": 0.4,
+    "radius": 190,
+    "damage": 60,
+    "slow": 0.5,
+    "slowSeconds": 4,
+    "knockback": 50,
+    "name": {
+      "en": "Worldbreaker Surge",
+      "tl": "Daluyong ng Pagkawasak"
+    },
+    "desc": {
+      "en": "Once per wave, when the rift drops below 40% HP, it erupts: heavy damage to every demon and beast around it, flinging them back and slowing them for 4 seconds.",
+      "tl": "Minsan bawat alon, kapag bumaba sa 40% ang HP ng lagusan, sumasabog ito: malakas na pinsala sa lahat ng demonyo at halimaw sa paligid, itinutulak sila at pinababagal ng 4 na segundo."
+    }
+  },
+  "towers": {
+    "perPortal": 2,
+    "hpShare": 0.8,
+    "range": 160,
+    "damage": 10,
+    "cooldown": 1.3,
+    "coins": 10,
+    "coinsPerWave": 2,
+    "name": {
+      "en": "Rift Sentinel",
+      "tl": "Bantay ng Lagusan"
+    },
+    "desc": {
+      "en": "Two sentinel towers stand in every rift's 4×4 invasion zone and shoot at demons and beasts. Minions must topple them before they can strike the rift.",
+      "tl": "Dalawang toreng bantay ang nakatayo sa 4×4 na sona ng bawat lagusan at binabaril ang mga demonyo at halimaw. Kailangang pabagsakin muna sila bago matamaan ang lagusan."
+    }
+  },
+  "environment": {
+    "_doc": "Multipliers on top of the wave scaling. damage: all rift/sentinel hits; rate: attack speed (higher = faster); range: bolt/lash/sentinel reach; lashChains: extra Rift Lash jumps; wardHeal / wardSeconds: Warp Ward strength.",
+    "timeOfDay": {
+      "DAWN": {
+        "damage": 1,
+        "rate": 1,
+        "range": 1
+      },
+      "DAY": {
+        "damage": 0.95,
+        "rate": 1,
+        "range": 1
+      },
+      "DUSK": {
+        "damage": 1.1,
+        "rate": 1.05,
+        "range": 1
+      },
+      "NIGHT": {
+        "damage": 1.2,
+        "rate": 1.15,
+        "range": 1.1
+      }
+    },
+    "weather": {
+      "CLEAR": {},
+      "RAIN": {
+        "range": 0.9,
+        "lashChains": 1,
+        "lashDamage": 1.25
+      },
+      "SNOW": {
+        "rate": 0.85,
+        "wardHeal": 1.5
+      },
+      "HEATWAVE": {
+        "damage": 1.15,
+        "wardSeconds": 0.7
+      }
+    },
+    "text": {
+      "en": "Rifts hit harder and faster at night (+20% damage, +15% attack speed, +10% reach) and a little softer by day. Rain lets Rift Lash jump to one more target for +25% damage but shortens their reach; snow slows their fire but strengthens Warp Ward; a heatwave adds 15% damage but the ward fades sooner.",
+      "tl": "Mas malakas at mas mabilis ang mga lagusan sa gabi (+20% pinsala, +15% bilis ng atake, +10% abot) at medyo mahina sa araw. Sa ulan, tumatalon ang Latigo ng Lagusan sa isa pang kalaban na may +25% pinsala pero umiikli ang abot; sa niyebe, bumabagal ang atake pero lumalakas ang Kalasag ng Warp; sa matinding init, +15% pinsala pero mas maikli ang kalasag."
+    }
+  },
+  "builders": {
+    "_doc": "Between waves, human Technicians walk out of each dormant rift, hidden in its mist, to build missing Rift Sentinels, mend damaged ones and repair a smashed rift. Demons never target them. Sentinels persist between waves and are re-armed to full when the rift opens.",
+    "perPortal": 2,
+    "buildSeconds": 22,
+    "repairPortalSeconds": 16,
+    "repairTowerSeconds": 10,
+    "speed": 34
+  },
+  "mist": {
+    "_doc": "Fog over each 4x4 rift zone. Lifts while a wave is on, for revealSeconds when a scout comes through, and thins to peekDensity under the mouse. Returns when the reason ends.",
+    "revealSeconds": 6,
+    "peekDensity": 0.25,
+    "fadePerSecond": 1.4,
+    "puffs": 18
+  }
+}

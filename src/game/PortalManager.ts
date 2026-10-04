@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { IsometricHelper } from './IsometricHelper';
-import { PORTAL_SITES, PortalSite } from '../state/buildingLayout';
+import { PORTAL_SCALE, PORTAL_SITES, PortalSite, rectCenter } from '../state/buildingLayout';
+import { riftHpScale } from '../state/portalDefense';
+import { normalizeDifficulty } from '../state/difficulty';
 import { portalBounty, portalMaxHp } from '../state/defenseStats';
 import type { PortalPattern } from '../state/waveTactics';
 import { useGameStore } from '../state/useGameStore';
@@ -28,6 +30,19 @@ export interface PortalState {
   /** Seconds left on a one-shot spawn/absorb animation. */
   busy: number;
   lastHpKey: string;
+  /** Bumped every time the rift is torn open for a wave (Rift Sentinels re-form on change). */
+  openSerial: number;
+  /** HP multiplier of the current wave (sentinels scale with it). */
+  hpMultiplier: number;
+  /** Seconds left on Warp Ward (damage taken is reduced). */
+  wardTimer: number;
+}
+
+/** Something standing guard in front of a rift that minions must break first. */
+export interface PortalGuard {
+  x: number;
+  y: number;
+  hit: (damage: number) => void;
 }
 
 /**
@@ -41,19 +56,25 @@ export class PortalManager {
   /** ROTATE pattern: spawns per rift before moving on, and the running count. */
   private rotateEvery = 0;
   private rotateCount = 0;
+  private guardProvider?: (p: PortalState) => PortalGuard | null;
+  /** Fraction of damage a warded rift still takes. */
+  private wardDamageTaken = 1;
 
   constructor(private scene: Phaser.Scene, private layer: Phaser.GameObjects.Container) {
     for (const site of PORTAL_SITES) {
-      const pos = IsometricHelper.gridToScreen(site.tile.x, site.tile.y);
+      // The rift fills its 2×2 corner footprint
+      const centre = rectCenter(site.footprint);
+      const pos = IsometricHelper.gridToScreen(centre.x, centre.y);
       const exit = IsometricHelper.gridToScreen(site.exit.x, site.exit.y);
       const container = scene.add.container(pos.x, pos.y);
       const fallback = scene.add.graphics();
       const hpBar = scene.add.graphics();
       container.add([fallback, hpBar]);
       layer.add(container);
+      container.setScale(PORTAL_SCALE);
       const portal: PortalState = {
         site, x: pos.x, y: pos.y, exitX: exit.x, exitY: exit.y, container, fallback, hpBar,
-        hp: 0, maxHp: 1, mode: 'dormant', busy: 0, lastHpKey: '',
+        hp: 0, maxHp: 1, mode: 'dormant', busy: 0, lastHpKey: '', openSerial: 0, hpMultiplier: 1, wardTimer: 0,
       };
       this.drawFallback(portal);
       this.portals.push(portal);
@@ -107,6 +128,31 @@ export class PortalManager {
     p.lastHpKey = '';
   }
 
+  /** Rift Sentinels register here so minions target them before the rift itself. */
+  setGuardProvider(provider: (p: PortalState) => PortalGuard | null, wardDamageTaken: number): void {
+    this.guardProvider = provider;
+    this.wardDamageTaken = wardDamageTaken;
+  }
+
+  /** Nearest standing sentinel of a rift, or null when it is unguarded. */
+  guardOf(p: PortalState): PortalGuard | null {
+    return this.guardProvider?.(p) ?? null;
+  }
+
+  /** Technicians finished mending a smashed rift: it glows dormant again. */
+  repair(p: PortalState): void {
+    if (p.mode !== 'destroyed') return;
+    p.mode = 'dormant';
+    this.applyMode(p);
+    p.container.setScale(PORTAL_SCALE);
+  }
+
+  /** Warp Ward: restores HP to an open rift. */
+  heal(p: PortalState, amount: number): void {
+    if (p.mode !== 'open' || !(amount > 0)) return;
+    p.hp = Math.min(p.maxHp, p.hp + amount);
+  }
+
   getAll(): readonly PortalState[] {
     return this.portals;
   }
@@ -126,7 +172,11 @@ export class PortalManager {
    * corners, SINGLE just one (the others stay dormant).
    */
   open(wave: number, hpMultiplier: number, pattern: PortalPattern = 'ALL', rotateEvery = 0): void {
-    const maxHp = portalMaxHp(wave, hpMultiplier);
+    // Realm phase and the days the realm has lasted toughen the rifts too
+    const store = useGameStore.getState();
+    const maxHp = Math.round(portalMaxHp(wave, hpMultiplier) * riftHpScale({
+      wave, difficulty: normalizeDifficulty(store.difficulty), day: store.day, year: store.year, phase: store.platformPhase || 1,
+    }));
     soundFx.playPortalOpen();
     for (const p of this.portals) {
       p.mode = 'dormant';
@@ -140,10 +190,13 @@ export class PortalManager {
       p.mode = 'open';
       p.maxHp = maxHp;
       p.hp = maxHp;
+      p.hpMultiplier = hpMultiplier;
+      p.wardTimer = 0;
+      p.openSerial++;
       this.applyMode(p);
       if (p.sprite) playStructureAnim(p.sprite, 'spawn', true);
-      p.container.setScale(0.2);
-      this.scene.tweens.add({ targets: p.container, scale: 1, duration: 650, ease: 'Back.easeOut' });
+      p.container.setScale(0.2 * PORTAL_SCALE);
+      this.scene.tweens.add({ targets: p.container, scale: PORTAL_SCALE, duration: 650, ease: 'Back.easeOut' });
     }
     logMessage('portalsOpen', { count: chosen.length });
   }
@@ -158,13 +211,13 @@ export class PortalManager {
     return [first, opposite];
   }
 
-  /** Wave over: rifts shrink back to dormant embers. */
+  /** Wave over: open rifts shrink back to dormant embers; smashed ones stay broken until Technicians repair them. */
   close(): void {
     for (const p of this.portals) {
-      if (p.mode === 'dormant') continue;
+      if (p.mode !== 'open') continue;
       p.mode = 'dormant';
       this.applyMode(p);
-      p.container.setScale(1);
+      p.container.setScale(PORTAL_SCALE);
     }
   }
 
@@ -245,6 +298,7 @@ export class PortalManager {
   /** Minion damage to an open portal; returns true when this hit destroyed it. */
   damage(p: PortalState, amount: number): boolean {
     if (p.mode !== 'open' || !(amount > 0)) return false;
+    if (p.wardTimer > 0) amount *= this.wardDamageTaken;
     p.hp = Math.max(0, p.hp - amount);
     if (p.sprite) {
       const sprite = p.sprite;
@@ -297,6 +351,7 @@ export class PortalManager {
     const dt = deltaMs / 1000;
     for (const p of this.portals) {
       if (p.busy > 0) p.busy -= dt;
+      if (p.wardTimer > 0) p.wardTimer -= dt;
       const show = p.mode === 'open' && p.hp < p.maxHp;
       const key = show ? `${Math.round((p.hp / p.maxHp) * 40)}` : 'off';
       if (key === p.lastHpKey) continue;

@@ -252,9 +252,11 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
     return;
   }
 
-  const targetX = targetPortal ? targetPortal.x : targetInvader!.container.x;
-  const targetY = targetPortal ? targetPortal.y - 20 : targetInvader!.container.y;
-  const reach = targetPortal ? config.attackRange + 24 : config.attackRange;
+  // Rift Sentinels stand guard: topple them before the rift itself can be struck
+  const guard = targetPortal ? ctx.portals?.guardOf(targetPortal) ?? null : null;
+  const targetX = guard ? guard.x : targetPortal ? targetPortal.x : targetInvader!.container.x;
+  const targetY = guard ? guard.y - 14 : targetPortal ? targetPortal.y - 20 : targetInvader!.container.y;
+  const reach = guard ? config.attackRange + 30 : targetPortal ? config.attackRange + 50 : config.attackRange;
   if (Math.hypot(targetX - workerX, targetY - workerY) > reach) {
     // Charge forward into combat, around any buildings in the way
     ctx.moveToward(worker, targetX, targetY, effectiveSpeed * 1.35 * deltaSec, deltaSec);
@@ -269,7 +271,9 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   worker.overrideEmote = '⚔️';
   worker.overrideEmoteTimer = 900;
 
-  if (targetPortal) {
+  if (guard) {
+    guard.hit(effectiveAttack);
+  } else if (targetPortal) {
     ctx.portals?.damage(targetPortal, effectiveAttack);
   } else {
     // Shield Wall: knights block 60% of ranged blows

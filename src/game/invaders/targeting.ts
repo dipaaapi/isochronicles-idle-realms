@@ -4,6 +4,7 @@ import type { StructureTarget } from '../StructureManager';
 import type { WorkerInstance } from '../WorkerManager';
 import type { InvaderContext } from './context';
 import type { ActiveInvader, InvaderBlocker, InvaderTarget } from './types';
+import { isHacked } from '../hackState';
 
 /** Invaders only break off toward a defender or sapling this close (world px). */
 const AGGRO_RADIUS = 110;
@@ -17,7 +18,8 @@ const fallbackCastle = (ctx: InvaderContext): StructureTarget | undefined => {
 };
 
 const standingStructures = (ctx: InvaderContext): StructureTarget[] =>
-  ctx.structures ? ctx.structures.getTargets() : [fallbackCastle(ctx)].filter(Boolean) as StructureTarget[];
+  (ctx.structures ? ctx.structures.getTargets() : [fallbackCastle(ctx)].filter(Boolean) as StructureTarget[])
+    .filter((s) => !isHacked(s.id));
 
 export const isTargetValid = (ctx: InvaderContext, target: InvaderTarget | undefined): boolean => {
   if (!target) return false;
