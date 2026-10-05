@@ -501,7 +501,7 @@ export class MainScene extends Phaser.Scene {
     this.islandContainer.add(this.entityLayer);
   }
 
-  /** Label visibility + green blooms under nodes the Ent has enriched. */
+  /** Label visibility + green blooms under nodes the Treant has enriched. */
   private updateDynamicLandmarks(): void {
     const store = useGameStore.getState();
     for (const label of this.tileCoordinateLabels) {

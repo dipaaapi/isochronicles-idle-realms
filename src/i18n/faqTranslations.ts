@@ -30,11 +30,11 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Who builds the castle and buildings?',
-        answer: 'Your starting Slime summons the Ent for free. The Ent raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General builds its own establishment, and the Ent calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders walk to their site and build once you have the supplies. There is no build button — it\'s all on autopilot.',
+        answer: 'Your starting Slime summons the Treant for free. The Treant raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General builds its own establishment, and the Treant calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders walk to their site and build once you have the supplies. There is no build button — it\'s all on autopilot.',
       },
       {
         question: '🎁 How do I get supplies early on?',
-        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground as gold-glowing spoils that only your Generals can collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal), and now and then a piece of equipment that joins your Armory inventory when a General picks it up. Spoils fade after two minutes. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Ent simply waits while supplies are short.',
+        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground as gold-glowing spoils that only your Generals can collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal), and now and then a piece of equipment that joins your Armory inventory when a General picks it up. Spoils fade after two minutes. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Treant simply waits while supplies are short.',
       },
       {
         question: '⚔️ When do minions and waves unlock?',
@@ -45,8 +45,8 @@ export const faqTranslations: Record<Language, FAQContent> = {
         answer: 'Every establishment raises 5 tenants of its General\'s kind on its own. In peace they gather on their own ground: fishers wade into the ocean, others work the grass, the roads, their building or the air around the rifts, and some slip through a rift to raid the human realm for metal, souls and coin. Those raids anger the humans: every few of them add an avenging invader to the next wave. In battle tenants garrison the building, each holding part of its defence, and break out to counter-attack when it is battered.',
       },
       {
-        question: '🛠️ What does the Ent do after construction?',
-        answer: 'It never really rests: it repairs wrecked or damaged buildings, tends the castle walls, enriches the soil so harvests grow richer, and forges or buys gear for itself. A wrecked establishment stops producing and fighting until the Ent repairs it.',
+        question: '🛠️ What does the Treant do after construction?',
+        answer: 'It never really rests: it repairs wrecked or damaged buildings, tends the castle walls, enriches the soil so harvests grow richer, and forges or buys gear for itself. A wrecked establishment stops producing and fighting until the Treant repairs it.',
       },
       {
         question: '🏰 Why doesn\'t my castle shoot?',
@@ -74,7 +74,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🔁 What do I gain from regression?',
-        answer: 'Days and waves restart at 1 and the Ent rebuilds your realm from scratch. In return, every regression tier permanently strengthens YOUR team — never the enemy: +5% minion attack, +3% minion speed, 3% less damage to minions, +5% tower damage, +5% harvest, and +100 Castle HP, plus bonus starting coins and shards. Your skill ranks are refunded and you earn the points again by clearing waves.',
+        answer: 'Days and waves restart at 1 and the Treant rebuilds your realm from scratch. In return, every regression tier permanently strengthens YOUR team — never the enemy: +5% minion attack, +3% minion speed, 3% less damage to minions, +5% tower damage, +5% harvest, and +100 Castle HP, plus bonus starting coins and shards. Your skill ranks are refunded and you earn the points again by clearing waves.',
       },
       {
         question: '🚚 Can I move an establishment?',
@@ -108,11 +108,11 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
-        answer: 'Libreng tatawagin ng panimulang Slime mo ang Ent. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ang magtatayo ng sariling pasilidad, at tatawagin lang ng Ent ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ang bawat nagtatayo sa puwesto nito at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
+        answer: 'Libreng tatawagin ng panimulang Slime mo ang Treant. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ang magtatayo ng sariling pasilidad, at tatawagin lang ng Treant ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ang bawat nagtatayo sa puwesto nito at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',
-        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa bilang kumikinang-gintong samsam na ang mga Heneral mo lang ang makakapulot (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha), at paminsan-minsan ay isang kagamitan na mapupunta sa imbentaryo ng Armory kapag pinulot ng Heneral. Naglalaho ang samsam pagkalipas ng dalawang minuto. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Ent habang kulang ang supply.',
+        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa bilang kumikinang-gintong samsam na ang mga Heneral mo lang ang makakapulot (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha), at paminsan-minsan ay isang kagamitan na mapupunta sa imbentaryo ng Armory kapag pinulot ng Heneral. Naglalaho ang samsam pagkalipas ng dalawang minuto. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Treant habang kulang ang supply.',
       },
       {
         question: '⚔️ Kailan magbubukas ang mga alagad at alon?',
@@ -123,8 +123,8 @@ export const faqTranslations: Record<Language, FAQContent> = {
         answer: 'Kusang nagpapalabas ang bawat pasilidad ng 5 umuupa na kauri ng Heneral nito. Sa kapayapaan, nangangalap sila sa sarili nilang lupa: lumulusong sa dagat ang mga mangingisda, ang iba ay sa damuhan, lansangan, sa kanilang gusali o sa paligid ng mga lagusan, at may ilang pumapasok sa lagusan para nakawan ang kaharian ng tao ng bakal, kaluluwa at barya. Ikinagagalit ito ng mga tao: bawat ilang pagnanakaw ay nagdadagdag ng isang naghihiganting kalaban sa susunod na alon. Sa labanan, nagbabantay ang mga umuupa sa gusali, may hawak ang bawat isa na bahagi ng depensa nito, at kumakawala para gumanti kapag nabugbog ito.',
       },
       {
-        question: '🛠️ Ano ang ginagawa ng Ent pagkatapos magtayo?',
-        answer: 'Hindi ito nagpapahinga: inaayos nito ang mga nasira o nawasak na gusali, binabantayan ang pader ng kastilyo, pinatataba ang lupa para lumaki ang ani, at nagpapanday o bumibili ng sariling gamit. Humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang ayusin ito ng Ent.',
+        question: '🛠️ Ano ang ginagawa ng Treant pagkatapos magtayo?',
+        answer: 'Hindi ito nagpapahinga: inaayos nito ang mga nasira o nawasak na gusali, binabantayan ang pader ng kastilyo, pinatataba ang lupa para lumaki ang ani, at nagpapanday o bumibili ng sariling gamit. Humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang ayusin ito ng Treant.',
       },
       {
         question: '🏰 Bakit hindi bumabaril ang kastilyo ko?',
@@ -152,7 +152,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🔁 Ano ang makukuha ko sa regression?',
-        answer: 'Babalik sa 1 ang araw at alon at muling itatayo ng Ent ang kaharian mo mula sa simula. Kapalit nito, bawat antas ng regression ay permanenteng nagpapalakas sa KOPONAN mo — hindi sa kalaban: +5% atake ng alagad, +3% bilis ng alagad, 3% bawas pinsala sa alagad, +5% pinsala ng tore, +5% ani, at +100 HP ng Kastilyo, dagdag pa ang panimulang barya at kristal. Ibabalik ang mga antas ng kasanayan mo at kikitain muli ang puntos sa pagtapos ng mga alon.',
+        answer: 'Babalik sa 1 ang araw at alon at muling itatayo ng Treant ang kaharian mo mula sa simula. Kapalit nito, bawat antas ng regression ay permanenteng nagpapalakas sa KOPONAN mo — hindi sa kalaban: +5% atake ng alagad, +3% bilis ng alagad, 3% bawas pinsala sa alagad, +5% pinsala ng tore, +5% ani, at +100 HP ng Kastilyo, dagdag pa ang panimulang barya at kristal. Ibabalik ang mga antas ng kasanayan mo at kikitain muli ang puntos sa pagtapos ng mga alon.',
       },
       {
         question: '🚚 Puwede bang ilipat ang isang pasilidad?',

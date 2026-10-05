@@ -108,8 +108,8 @@
     "tl": "Kulang ang Materyales"
   },
   "requiresEnt": {
-    "en": "Requires the Ent",
-    "tl": "Kailangan ng Ent"
+    "en": "Requires the Treant",
+    "tl": "Kailangan ng Treant"
   },
   "autoBuyMaterialsNote": {
     "en": "Auto-Buy is always active: missing upgrade materials are automatically purchased when supplies are sufficient.",
@@ -476,8 +476,8 @@
     "tl": "Mga Alagad"
   },
   "hubGuideMinionsBody": {
-    "en": "Evolve the Slime and Ent, summon Generals, and assign work.",
-    "tl": "I-evolve ang Slime at Ent, ipatawag ang mga Heneral, at magtalaga ng trabaho."
+    "en": "Evolve the Slime and Treant, summon Generals, and assign work.",
+    "tl": "I-evolve ang Slime at Treant, ipatawag ang mga Heneral, at magtalaga ng trabaho."
   },
   "hubGuideSkillsTitle": {
     "en": "Skill Tree",
@@ -492,8 +492,8 @@
     "tl": "Pagsasaliksik"
   },
   "hubGuideResearchBody": {
-    "en": "Long-term upgrades for the Slime, Ent, citadel, establishments and tenants.",
-    "tl": "Pangmatagalang upgrade para sa Slime, Ent, kuta, pasilidad at umuupa."
+    "en": "Long-term upgrades for the Slime, Treant, citadel, establishments and tenants.",
+    "tl": "Pangmatagalang upgrade para sa Slime, Treant, kuta, pasilidad at umuupa."
   },
   "hubGuideCastleTitle": {
     "en": "Fortifications",

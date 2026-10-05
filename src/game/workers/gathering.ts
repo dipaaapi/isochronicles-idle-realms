@@ -134,7 +134,7 @@ function recoverAtNexus(ctx: WorkerContext, worker: WorkerInstance): void {
 }
 
 function updateIdle(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
-  // If the Castle is ruined, workers pause production until the Ent repairs it
+  // If the Castle is ruined, workers pause production until the Treant repairs it
   if (frame.store.defense.castleHp <= 0) {
     pauseForRuinedCastle(worker);
     worker.stateTimer = 1000;

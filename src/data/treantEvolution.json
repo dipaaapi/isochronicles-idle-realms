@@ -1,8 +1,8 @@
 {
   "1": {
     "level": 1,
-    "label": "Sinaunang Binhi (Sprout Ent)",
-    "labelEn": "Sprout Ent",
+    "label": "Sinaunang Binhi (Sprout Treant)",
+    "labelEn": "Sprout Treant",
     "repairAmount": 25,
     "replenishCooldownSeconds": 28,
     "castleRepairCooldownSeconds": 2.5,

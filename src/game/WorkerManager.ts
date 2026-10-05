@@ -32,7 +32,7 @@ export type { WorkerInstance } from './workers/types';
 /**
  * Owns the minions on the map: spawning / syncing them with the roster,
  * their visuals (sprite, gauges, lantern, emotes) and movement helpers. The
- * per-role behaviour lives in ./workers/ (Support Slime, Ancient Ent,
+ * per-role behaviour lives in ./workers/ (Support Slime, Ancient Treant,
  * combat & healing, the gathering loop) and calls back through the
  * WorkerContext this class implements.
  */
@@ -151,7 +151,7 @@ export class WorkerManager implements WorkerContext {
         if ((item.treantEvolutionLevel ?? 1) !== (existing.treantEvolutionLevel ?? 1)) {
           const previousLevel = existing.treantEvolutionLevel ?? 1;
           existing.treantEvolutionLevel = item.treantEvolutionLevel ?? 1;
-          this.playEvolutionEffect(existing, 'Ancient Ent', previousLevel, existing.treantEvolutionLevel, 0x22c55e, '🌲');
+          this.playEvolutionEffect(existing, 'Ancient Treant', previousLevel, existing.treantEvolutionLevel, 0x22c55e, '🌲');
         }
 
         if (item.parentBuildingId !== undefined) {
@@ -322,13 +322,13 @@ export class WorkerManager implements WorkerContext {
         this.spawnHarvestBurst(startIso.x, startIso.y, 0x22c55e, 10);
         this.spawnFloatingPopup(startIso.x, startIso.y - 45, '✨ Heavenly Descent! ✨', '#38bdf8');
 
-        // If no Treant / Ent exists on the platform, Support Slime performs Genesis Summon for Sprout Ent at no cost!
+        // If no Treant / Treant exists on the platform, Support Slime performs Genesis Summon for Sprout Treant at no cost!
         const store = useGameStore.getState();
         const hasTreant = store.roster.some((u) => u.unitClass === 'TREANT');
         if (!hasTreant) {
           this.scene.time.delayedCall(600, () => {
             this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22d3ee, 20);
-            this.spawnFloatingPopup(startIso.x, startIso.y - 55, '🌟 Slime Summoned: Sprout Ent! (Free) 🌟', '#22c55e');
+            this.spawnFloatingPopup(startIso.x, startIso.y - 55, '🌟 Slime Summoned: Sprout Treant! (Free) 🌟', '#22c55e');
             soundFx.playGolemCheer();
             store.summonUnit('TREANT', 'BUILD', true);
           });
@@ -346,7 +346,7 @@ export class WorkerManager implements WorkerContext {
       playSummonRitual(this.scene, this.parentContainer, container, startIso, spawnDepth, SUMMON_RITUALS.GENERAL, () => {
         this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0x22c55e, 18);
         this.spawnHarvestBurst(startIso.x, startIso.y - 12, 0xfbbf24, 14);
-        this.spawnFloatingPopup(startIso.x, startIso.y - 48, `🌳 Mother Ent summoned ${config.name}! 🌟`, '#86efac');
+        this.spawnFloatingPopup(startIso.x, startIso.y - 48, `🌳 Mother Treant summoned ${config.name}! 🌟`, '#86efac');
         soundFx.playGolemCheer();
         soundFx.playFanfare();
       });
@@ -606,7 +606,7 @@ export class WorkerManager implements WorkerContext {
       }
       if (isTreant) {
         updateTreant(this, worker, frame);
-        continue; // The Ent builds, repairs and enriches instead of gathering
+        continue; // The Treant builds, repairs and enriches instead of gathering
       }
       const isTenant = !!worker.parentBuildingId || worker.id.startsWith('tenant_');
       const isGeneral = !isTenant && !isSupportSlime && !isTreant && !isHealer;
@@ -945,7 +945,7 @@ export class WorkerManager implements WorkerContext {
     worker.pathIndex = 0;
   }
 
-  /** Active construction jobs: the Ent's castle/spire site and every General building its home. */
+  /** Active construction jobs: the Treant's castle/spire site and every General building its home. */
   public getConstructionStatus(): ConstructionStatus[] {
     const store = useGameStore.getState();
     const jobs: ConstructionStatus[] = [];
@@ -1008,7 +1008,7 @@ export class WorkerManager implements WorkerContext {
     }
   }
 
-  /** The Ent's construction routine (workers/treant.ts); true while there is still building to do. */
+  /** The Treant's construction routine (workers/treant.ts); true while there is still building to do. */
   updateConstruction(worker: WorkerInstance, storeState: ReturnType<typeof useGameStore.getState>, deltaSec: number, effectiveSpeed: number): boolean {
     return updateConstruction(this, worker, storeState, deltaSec, effectiveSpeed);
   }

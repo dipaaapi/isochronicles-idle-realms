@@ -43,8 +43,8 @@
   },
   "stateNotes": {
     "build": {
-      "en": "Scaffold pose; sways with dust while the Ent works, progress bar above.",
-      "tl": "Scaffold; umuuga at may alikabok habang ginagawa ng Ent, may progress bar sa itaas."
+      "en": "Scaffold pose; sways with dust while the Treant works, progress bar above.",
+      "tl": "Scaffold; umuuga at may alikabok habang ginagawa ng Treant, may progress bar sa itaas."
     },
     "idle": {
       "en": "Looping idle animation.",

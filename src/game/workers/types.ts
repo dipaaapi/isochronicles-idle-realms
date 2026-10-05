@@ -87,7 +87,7 @@ export interface WorkerInstance extends NavAgent {
   constructionTimer?: number;
   treantMode?: 'REPAIR' | 'REPLENISH';
   treantTargetTile?: GridPoint;
-  /** Establishment the Ent is currently patching up (undefined = castle / none). */
+  /** Establishment the Treant is currently patching up (undefined = castle / none). */
   treantRepairId?: TowerId;
   entGearTimer?: number;
   autoSummonTimer?: number;
@@ -125,7 +125,7 @@ export const TASK_BUILDING: Partial<Record<HarvestTask, ResourceBuildingId>> = {
   WATER: 'PORT',
 };
 
-/** Resource nodes the Ent can enrich (and whose position lives in the store). */
+/** Resource nodes the Treant can enrich (and whose position lives in the store). */
 export type EnrichableNode = 'AETHER' | 'STONE' | 'WOOD' | 'ESSENCE';
 export const isEnrichableTask = (task: HarvestTask): task is EnrichableNode =>
   task === 'AETHER' || task === 'STONE' || task === 'WOOD' || task === 'ESSENCE';

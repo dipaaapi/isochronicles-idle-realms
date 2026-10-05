@@ -19,11 +19,11 @@ const SITE_LABELS: Record<ResourceBuildingId, string> = {
   OSSUARY: 'Bone Crypt',
 };
 
-/** Seconds of Ent work at a site before the structure is finished. */
+/** Seconds of Treant work at a site before the structure is finished. */
 export const CONSTRUCTION_SECONDS = 4;
 
 /**
- * What the Ent is doing at the current construction site, for the site's
+ * What the Treant is doing at the current construction site, for the site's
  * pre-construction animation: walking there, building (with progress 0–1),
  * or waiting for supplies.
  */
@@ -37,7 +37,7 @@ export interface ConstructionStatus {
 export const CORE_BUILDINGS: ResourceBuildingId[] = ['WOOD', 'QUARRY', 'MINE', 'PORT'];
 
 /**
- * The Ancient Ent builds only the Citadel Castle and the Crystal Spire; each
+ * The Ancient Treant builds only the Citadel Castle and the Crystal Spire; each
  * establishment is raised by its own General (see nextChampionConstruction).
  */
 export const nextEntConstruction = (state: {
@@ -56,10 +56,10 @@ export const nextEntConstruction = (state: {
 const isGeneralUnit = (u: UnitRosterItem) => !u.parentBuildingId && !u.id.startsWith('tenant_');
 
 /**
- * The next General the Ent must summon, in construction order: once castle and
- * spire stand, the Ent's first duty is to call every establishment's General
+ * The next General the Treant must summon, in construction order: once castle and
+ * spire stand, the Treant's first duty is to call every establishment's General
  * (who then builds that establishment), until all thirteen are present.
- * The Ent waits while a summoned General's establishment is still unbuilt: the
+ * The Treant waits while a summoned General's establishment is still unbuilt: the
  * newest General must finish its home before the next one is called.
  */
 export const nextGeneralToSummon = (state: {

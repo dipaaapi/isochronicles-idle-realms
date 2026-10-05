@@ -196,7 +196,7 @@ function handleSlimeAutoUpgrade(ctx: WorkerContext, slime: WorkerInstance): void
 }
 
 /** Every few seconds: auto-evolve, auto-buy/sell, auto-upgrade, and summon missing minions. */
-/** Every few seconds: auto-evolve, auto-buy/sell, auto-upgrade, and genesis summon Sprout Ent if missing. */
+/** Every few seconds: auto-evolve, auto-buy/sell, auto-upgrade, and genesis summon Sprout Treant if missing. */
 export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: number): void {
   slime.autoSummonTimer = (slime.autoSummonTimer ?? 3.0) - deltaSec;
   if (slime.autoSummonTimer > 0) return;
@@ -210,14 +210,14 @@ export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: 
   // Slime Research Automation (Auto-Upgrade)
   handleSlimeAutoUpgrade(ctx, slime);
 
-  // Evolutions wait until the Ent has finished building: spending the starting
+  // Evolutions wait until the Treant has finished building: spending the starting
   // supplies on them would leave the castle unaffordable and soft-lock a new realm.
   if (store.autoSettings?.autoEvolve && !nextConstruction(store)) {
     store.upgradeSupportSlime();
     store.upgradeTreant();
   }
 
-  // Support Slime Genesis Summon: if Sprout Ent is absent, summon Ent for free!
+  // Support Slime Genesis Summon: if Sprout Treant is absent, summon Treant for free!
   const hasTreant = store.roster.some((u) => u.unitClass === 'TREANT');
   if (!hasTreant) {
     if (useGameStore.getState().summonUnit('TREANT', 'BUILD', true)) {
@@ -225,7 +225,7 @@ export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: 
       ctx.spawnFloatingPopup(
         slime.container.x,
         slime.container.y - 45,
-        '🌱 Slime Summoned: Sprout Ent! (Free) 🌱',
+        '🌱 Slime Summoned: Sprout Treant! (Free) 🌱',
         '#22c55e'
       );
       soundFx.playGolemCheer();
@@ -235,7 +235,7 @@ export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: 
 
 /**
  * Slime Random Morale Boost Behavior:
- * Periodically chooses an ally (General/Champion, Ancient Ent, or Establishment Tenant)
+ * Periodically chooses an ally (General/Champion, Ancient Treant, or Establishment Tenant)
  * that does NOT currently have an active Morale Buff (strict max 1 buff per unit).
  * Bestows 1 of 10 unique, powerful buffs!
  */
@@ -246,7 +246,7 @@ export function pulseMoraleBoost(ctx: WorkerContext, slime: WorkerInstance, delt
 
   const isTl = useGameStore.getState().language === 'TL';
 
-  // 1. Gather all potential recipients: Generals/Fighters, Ancient Ent, and Establishment Tenants
+  // 1. Gather all potential recipients: Generals/Fighters, Ancient Treant, and Establishment Tenants
   const workers = ctx.getWorkers().filter((w) => w.id !== slime.id && w.hp > 0);
   const defenders = ctx.getDefenders ? ctx.getDefenders().filter((d) => !d.dead && d.container?.active) : [];
 

@@ -201,7 +201,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
   const defPct = isCastle ? defense.shieldHp / Math.max(1, defense.shieldMaxHp) : tLevel / 5;
   const defColor = '#38bdf8';
 
-  // Ancient Ent requirement check
+  // Ancient Treant requirement check
   const hasEnt = roster.some((u) => u.unitClass === 'TREANT');
 
   // Skills
@@ -468,7 +468,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     <span>{isTL ? 'Mga Upgrade & Kumpuni ng Pasilidad' : 'Establishment Upgrades & Repairs'}</span>
                   </h3>
                   <span className="text-[10px] text-indigo-400 font-mono">
-                    {hasEnt ? '🌲 Ent Builder Ready' : '⚠️ Ent Required'}
+                    {hasEnt ? '🌲 Treant Builder Ready' : '⚠️ Treant Required'}
                   </span>
                 </div>
 
@@ -477,7 +477,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     <div>
                       <div className="font-bold text-white mb-1">🏰 {isTL ? 'Kumpuni ng Kastilyo' : 'Citadel Castle Repairs'}</div>
                       <div className="text-slate-400 text-[11px]">
-                        {isTL ? 'Kusang kinukumpuni ng Ancient Ent ang Kastilyo kapag may sapat na kahoy at bato.' : 'The Ancient Ent automatically repairs and fortifies Citadel Castle HP.'}
+                        {isTL ? 'Kusang kinukumpuni ng Ancient Treant ang Kastilyo kapag may sapat na kahoy at bato.' : 'The Ancient Treant automatically repairs and fortifies Citadel Castle HP.'}
                       </div>
                     </div>
                   </div>
@@ -519,7 +519,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                           }`}
                         >
                           {!hasEnt
-                            ? `🌲 ${isTL ? 'Kailangan ng Ent' : 'Requires Ent'}`
+                            ? `🌲 ${isTL ? 'Kailangan ng Treant' : 'Requires Treant'}`
                             : canAffordUpgrade
                               ? `⬆️ ${isTL ? 'I-Upgrade' : 'Upgrade'}`
                               : isTL ? 'Kulang ang Gamit' : 'Insufficient Resources'}

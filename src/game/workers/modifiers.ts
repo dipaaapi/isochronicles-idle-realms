@@ -31,7 +31,7 @@ const equipStat = (worker: WorkerInstance, stat: 'bonusSpeed' | 'bonusCargo' | '
 /**
  * Applies this frame's timed buffs (motivation, Slime Morale Buffs, Titan shield) and cargo capacity
  * to `worker`, and returns its effective speed / attack / stamina modifiers.
- * `treantLevel` is the Ent's evolution level (Citadel Majesty speed bonus).
+ * `treantLevel` is the Treant's evolution level (Citadel Majesty speed bonus).
  */
 export function computeWorkerFrame(
   worker: WorkerInstance,

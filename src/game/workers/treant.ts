@@ -31,7 +31,7 @@ const isDamaged = (store: GameStoreState, id: TowerId): boolean => {
   return !!b && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b));
 };
 
-/** Everything the Ent repairs besides the citadel. */
+/** Everything the Treant repairs besides the citadel. */
 const REPAIRABLE: TowerId[] = ['SPIRE', ...BUILDING_IDS];
 
 const repairSpot = (id: TowerId) => (id === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[id].workSpot);
@@ -43,7 +43,7 @@ const towerLabel = (id: TowerId, tl: boolean): { name: string; icon: string } =>
 };
 
 /**
- * Walks the Ent to the castle or spire site and builds it once supplies allow.
+ * Walks the Treant to the castle or spire site and builds it once supplies allow.
  * Returns true while there is still construction to do (other duties wait).
  */
 export function updateConstruction(
@@ -83,13 +83,13 @@ export function updateConstruction(
       const built = store.buildCastle();
       if (built) {
         ctx.spawnHarvestBurst(target.x, target.y - 15, 0x22c55e, 14);
-        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent built Citadel Castle! 🏰`, '#86efac');
+        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Treant built Citadel Castle! 🏰`, '#86efac');
       }
     } else {
       const built = store.buildSpire();
       if (built) {
         ctx.spawnHarvestBurst(target.x, target.y - 15, 0x38bdf8, 16);
-        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Ent raised Crystal Spire! 💎`, '#38bdf8');
+        ctx.spawnFloatingPopup(target.x, target.y - 45, `Ancient Treant raised Crystal Spire! 💎`, '#38bdf8');
         soundFx.playFanfare();
       }
     }
@@ -97,7 +97,7 @@ export function updateConstruction(
   return true;
 }
 
-/** Sends the Ent to repair the castle (hull, then shield). */
+/** Sends the Treant to repair the castle (hull, then shield). */
 const targetCastle = (ctx: WorkerContext, worker: WorkerInstance, actionTimer: number) => {
   worker.treantMode = 'REPAIR';
   worker.treantRepairId = undefined;
@@ -168,7 +168,7 @@ function chooseTreantJob(
   ctx.spawnFloatingPopup(iso.x, iso.y - 25, `🌱 Lv.${profile.level} Enriched ${targetType} (${profile.enrichmentMultiplier}x)!`, '#10b981');
 }
 
-/** The Ent's work pulse at its destination: repair a building, the castle, its shield, or bless the soil. */
+/** The Treant's work pulse at its destination: repair a building, the castle, its shield, or bless the soil. */
 function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: GameStoreState, profile: TreantProfile): void {
   const { x, y } = worker.container;
   const repairId = worker.treantRepairId;
@@ -222,7 +222,7 @@ function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: 
     const upgraded = store.upgradeDefense('wallLevel') || store.upgradeDefense('shieldLevel') || store.upgradeDefense('beaconLevel');
     if (upgraded) {
       ctx.spawnHarvestBurst(x, y - 15, 0xa855f7, 10);
-      ctx.spawnFloatingPopup(x, y - 45, `🏰 Ent Upgraded Castle Defense!`, '#c084fc');
+      ctx.spawnFloatingPopup(x, y - 45, `🏰 Treant Upgraded Castle Defense!`, '#c084fc');
       return;
     }
   }
@@ -235,9 +235,9 @@ function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: 
 }
 
 /**
- * Ancient Ent Auto-Forge & Armory:
- * The Ancient Ent inspects fighting minions in the realm. When a minion lacks
- * gear or a stronger piece is craftable/purchasable, the Ancient Ent automatically
+ * Ancient Treant Auto-Forge & Armory:
+ * The Ancient Treant inspects fighting minions in the realm. When a minion lacks
+ * gear or a stronger piece is craftable/purchasable, the Ancient Treant automatically
  * crafts from materials or purchases with coins and equips it to the minion.
  */
 function autoForgeAndEquipByAncientEnt(
@@ -265,7 +265,7 @@ function autoForgeAndEquipByAncientEnt(
         ctx.spawnFloatingPopup(
           worker.container.x,
           worker.container.y - 45,
-          `⚒️ Ent equipped ${inInventory.name}!`,
+          `⚒️ Treant equipped ${inInventory.name}!`,
           '#c084fc'
         );
         return;
@@ -285,7 +285,7 @@ function autoForgeAndEquipByAncientEnt(
             ctx.spawnFloatingPopup(
               worker.container.x,
               worker.container.y - 45,
-              `⚒️ Ent forged ${item.name}!`,
+              `⚒️ Treant forged ${item.name}!`,
               '#c084fc'
             );
             return;
@@ -298,7 +298,7 @@ function autoForgeAndEquipByAncientEnt(
             ctx.spawnFloatingPopup(
               worker.container.x,
               worker.container.y - 45,
-              `🪙 Ent bought ${item.name}!`,
+              `🪙 Treant bought ${item.name}!`,
               '#fbbf24'
             );
             return;
@@ -310,10 +310,10 @@ function autoForgeAndEquipByAncientEnt(
 }
 
 /**
- * Mother Ancient Ent: Life Giver & General Summoner.
- * After the castle and spire, the Ent's first duty is to call forth every
+ * Mother Ancient Treant: Life Giver & General Summoner.
+ * After the castle and spire, the Treant's first duty is to call forth every
  * establishment's General, one at a time, in construction order. The founding
- * summon is free (the Ent gives life; it does not buy it), and the General then
+ * summon is free (the Treant gives life; it does not buy it), and the General then
  * builds its own establishment. Returns true while Generals are still missing.
  */
 export function updateGeneralSummoning(
@@ -342,7 +342,7 @@ export function updateGeneralSummoning(
   if (worker.autoSummonTimer > 0) return true;
   worker.autoSummonTimer = 2.5;
 
-  // Mother Ent channels life-giving nature magic to birth the General!
+  // Mother Treant channels life-giving nature magic to birth the General!
   worker.overrideEmoteTimer = 2200;
   ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0x22c55e, 24);
   ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 18, 0xfbbf24, 16);
@@ -350,7 +350,7 @@ export function updateGeneralSummoning(
   return true;
 }
 
-/** Ancient Ent AI: invulnerable builder that constructs, repairs, fortifies, crafts gear, enriches and mothers/summons generals. */
+/** Ancient Treant AI: invulnerable builder that constructs, repairs, fortifies, crafts gear, enriches and mothers/summons generals. */
 export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
   const { store, deltaSec, effectiveSpeed } = frame;
   worker.hp = worker.maxHp; // Builder cannot take damage or be killed
@@ -359,7 +359,7 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
 
   const profile = TREANT_EVOLUTION[clampLevel(worker.treantEvolutionLevel)];
 
-  // ── Ancient Ent Auto-Forge & Armory Check ──
+  // ── Ancient Treant Auto-Forge & Armory Check ──
   worker.entGearTimer = (worker.entGearTimer ?? 3.0) - deltaSec;
   if (worker.entGearTimer <= 0) {
     worker.entGearTimer = 4.0;
@@ -381,7 +381,7 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
   const castleNeedsWork = castleHp < castleMaxHp || shieldHp < shieldMaxHp;
 
   if (store.invasion.isActive && castleNeedsWork) {
-    // During an invasion, the Ent's primary job is to keep the castle standing:
+    // During an invasion, the Treant's primary job is to keep the castle standing:
     // repair the hull first, then restore its protective shield.
     targetCastle(ctx, worker, Math.min(worker.treantActionTimer, 0.25));
     worker.supportCooldown = Math.min(worker.supportCooldown, 0.25);

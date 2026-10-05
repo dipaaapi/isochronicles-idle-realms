@@ -345,7 +345,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             {/* ================= TAB 1: MINIONS ================= */}
             {activeTab === 'MINIONS' && (
               <div className="space-y-4">
-                {/* Ent & Slime Support Row */}
+                {/* Treant & Slime Support Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Slime Card */}
                   {(() => {
@@ -385,7 +385,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     );
                   })()}
 
-                  {/* Ent Card */}
+                  {/* Treant Card */}
                   {(() => {
                     const treant = roster.find((u) => u.unitClass === 'TREANT');
                     const lvl = (treant?.treantEvolutionLevel ?? 1) as 1 | 2 | 3 | 4 | 5;
