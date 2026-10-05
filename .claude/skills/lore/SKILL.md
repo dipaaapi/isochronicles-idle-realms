@@ -32,7 +32,7 @@ node $L check                    # EN/TL gaps; LORE.md vs LORE.tl.md section/par
 
 **The Demon Lord's side**
 - **Slime → Slime Lord** (Support Slime): the only servant at his waking, and the heart of the horde. It heals, restores stamina, resurrects and boosts morale. It cannot gather, is immune and cannot die, and has 5 evolution forms. It is unique (1 unit).
-- **Ancient Ent** (starts as Sprout Ent; only one, summoned free by the Slime): builds the **Citadel**, then the **Crystal Spire**. It is "mother of the realm": it summons the 13 Generals one at a time. It does not build establishments. Afterwards it repairs, enriches the soil, gears itself and tends the walls. It has 5 forms.
+- **Ancient Treant** (starts as Sprout Treant; only one, summoned free by the Slime): builds the **Citadel**, then the **Crystal Spire**. It is "mother of the realm": it summons the 13 Generals one at a time. It does not build establishments. Afterwards it repairs, enriches the soil, gears itself and tends the walls. It has 5 forms.
 - **13 establishments**, each with 1 **General** + 5 **tenants** of the same kind, its own tower and 3 skills (2 techniques + 1 ultimate). They are placed randomly per realm and can be moved, but not during an invasion. Each General builds its own home, then scouts, guards and leads. Tenants gather, garrison and counter-attack.
 
 | Establishment | General / tenants | Codex art |
@@ -101,7 +101,9 @@ Rules from CLAUDE.md:
 - Events are narrated in the activity log (`logMessage(key, vars)` + `activityMessages.json`), never as floating text on the map.
 - Keep the existing Filipino/Taglish comments as they are.
 
-TL style: natural Filipino, with English kept for game terms players know (Demon Lord, Slime, Ent, Mecha, Regression, AOE, HP). Match the register of the existing TL lines; check one with `section` or `entity` if unsure.
+Originality (legal safety): every name must be original. Use broad genre tropes, never a name, creature, place, item or plot another game, anime, manga or book coined. Myth and public-domain names (Titan, Valkyrie, Behemoth) and generic fantasy words (slime, golem, treant) are fine. Retired: Ent (Tolkien) → Treant.
+
+TL style: natural Filipino, with English kept for game terms players know (Demon Lord, Slime, Treant, Mecha, Regression, AOE, HP). Match the register of the existing TL lines; check one with `section` or `entity` if unsure.
 
 ## Workflow
 

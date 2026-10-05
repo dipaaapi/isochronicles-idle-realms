@@ -79,7 +79,7 @@ export function buildUpgradeSuggestions(state: GameState, includeDismissed = fal
     });
   });
 
-  // Slime & Ent evolution
+  // Slime & Treant evolution
   const slime = state.roster.find((u) => u.unitClass === 'AQUA_SLIME');
   if (slime) {
     const lvl = slime.slimeEvolutionLevel ?? 1;
@@ -97,7 +97,7 @@ export function buildUpgradeSuggestions(state: GameState, includeDismissed = fal
     if (lvl < 5) {
       push({
         key: 'evo_ent', level: lvl + 1, category: 'evolution', icon: '🌳',
-        title: `${isTL ? 'Ebolusyon ng Ent' : 'Ent Evolution'} Lv.${lvl + 1}`,
+        title: `${isTL ? 'Ebolusyon ng Treant' : 'Treant Evolution'} Lv.${lvl + 1}`,
         cost: TREANT_EVOLUTION[lvl].upgradeCost, tab: 'MINIONS', apply: state.upgradeTreant,
       });
     }

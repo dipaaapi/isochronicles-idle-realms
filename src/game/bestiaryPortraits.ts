@@ -4,7 +4,7 @@
 const portrait = (name: string) => `/portraits/${name}.png`;
 
 export const BEAST_PORTRAITS: Record<string, string> = {
-  TREANT: portrait('ancient-ent'),
+  TREANT: portrait('ancient-treant'),
   AQUA_SLIME: portrait('slime'),
   GOLEM: portrait('golem'),
   MERMAN: portrait('merman'),

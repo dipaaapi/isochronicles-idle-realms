@@ -472,7 +472,7 @@ const slime = (): VoxelModel => {
   };
 };
 
-// ── Ancient Ent (TREANT) — a living tree with a bark face and green canopy ───
+// ── Ancient Treant (TREANT) — a living tree with a bark face and green canopy ───
 
 const treant = (): VoxelModel => {
   const M = { bark: 0, barkDark: 1, leaf: 2, leafLight: 3, eye: 4, moss: 5, vine: 6 };

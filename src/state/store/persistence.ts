@@ -56,7 +56,7 @@ const withPermanentSlime = (rawRoster: UnitRosterItem[]): UnitRosterItem[] => {
 /**
  * Switches to a saved realm's layout. Saves from before random layouts have no
  * seed and keep the one already rolled. Node positions follow the layout;
- * Ent enrichment levels are kept.
+ * Treant enrichment levels are kept.
  */
 const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNodes'], positions?: unknown) => {
   if (typeof seed !== 'number' || !Number.isFinite(seed) || seed <= 0) return {};
@@ -243,7 +243,7 @@ const partialize = (state: GameStoreState) => ({
 
 /** Upgrades older saves to the current shape when they are rehydrated. */
 const merge = (persistedState: unknown, currentState: GameStoreState): GameStoreState => {
-  // Saves from before the single-Ent redesign may still carry caretaker links
+  // Saves from before the single-Treant redesign may still carry caretaker links
   const { entAssignments: _legacyCaretakers, ...persisted } =
     (persistedState ?? {}) as Partial<GameStoreState> & { entAssignments?: unknown };
   const roster = withPermanentSlime(persisted.roster ?? currentState.roster);

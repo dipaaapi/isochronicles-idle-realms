@@ -4,18 +4,18 @@
 
 IsoChronicle: Idle Realms is an offline-first isometric idle strategy game about castle reconstruction, monster summoning, resource automation and wave-based defense. It runs entirely in the browser, with no backend, and can be installed as a PWA. It is fully playable in **English** and **Tagalog**.
 
-You play as a weakened Demon Lord who wakes in the ruins of a former citadel. Your only ally is a Support Slime. The Slime calls forth an Ancient Ent, the Ent rebuilds the castle and summons the realm's Generals, and the Generals raise the establishments and their tenants. Together they have to survive 100 invasion waves across four realms.
+You play as a weakened Demon Lord who wakes in the ruins of a former citadel. Your only ally is a Support Slime. The Slime calls forth an Ancient Treant, the Treant rebuilds the castle and summons the realm's Generals, and the Generals raise the establishments and their tenants. Together they have to survive 100 invasion waves across four realms.
 
 Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 
 ## Game Loop
 
 1. **Day 1:** you start with ruins, no castle and one Support Slime.
-2. The Slime summons the **Ancient Ent** for free.
-3. The Ent builds the **Citadel Castle**, then the **Crystal Spire**. It waits whenever supplies run short and auto-buys any shortfall with coins.
-4. Next, the Ent summons the **thirteen Generals** one by one, in construction order, until every one of them stands.
+2. The Slime summons the **Ancient Treant** for free.
+3. The Treant builds the **Citadel Castle**, then the **Crystal Spire**. It waits whenever supplies run short and auto-buys any shortfall with coins.
+4. Next, the Treant summons the **thirteen Generals** one by one, in construction order, until every one of them stands.
 5. **Each General builds its own establishment.** Once it stands, five **tenants** of the same kind move in and start working.
-6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Ent repairs, enriches the soil and forges gear.
+6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Treant repairs, enriches the soil and forges gear.
 7. Defend against human and mecha invasions. Every **5 waves** cleared earns skill points for the Skill Tree.
 8. Reach Wave 100 (or regress at any time) to restart with permanent team boosts.
 
@@ -56,7 +56,7 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - Autonomous units with movement, gathering, combat, healing, construction and expedition states, plus EasyStar.js pathfinding.
 - 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel.
 - Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's lightning strike.
-- Support Slime and Ancient Ent evolution (five forms each), God Blessings, research upgrades and equipment crafting/buying.
+- Support Slime and Ancient Treant evolution (five forms each), God Blessings, research upgrades and equipment crafting/buying.
 - Skill Tree with ranked skills earned by clearing waves, plus a free respec.
 - Regression prestige with permanent team-only boosts.
 - Easy / Normal / Hard difficulty.
@@ -93,7 +93,7 @@ Skill points come from clearing waves; you don't need to regress to earn them.
 Regression resets the active realm and keeps your long-term progression.
 
 - The realm returns to ruins with a new random establishment layout. Only the Support Slime remains.
-- The Slime summons the Ent again. The Ent rebuilds the castle and spire and summons the Generals, and each General rebuilds its establishment.
+- The Slime summons the Treant again. The Treant rebuilds the castle and spire and summons the Generals, and each General rebuilds its establishment.
 - Regression bonuses, Support Slime evolution and regression history are kept. Skill ranks are refunded.
 - Each Regression tier permanently boosts **your team only**; enemies never get stronger from it:
   - +5% minion attack
@@ -174,7 +174,7 @@ npm test
 
 `npm test` runs `scripts/test-construction.cjs` and `scripts/test-invasions.cjs`. The scripts transpile the TypeScript sources inside a Node VM, with Phaser, audio and storage stubbed. They cover:
 
-- construction order: Ent → castle/spire → Generals → establishments
+- construction order: Treant → castle/spire → Generals → establishments
 - the economy, purchases and realm reset
 - difficulty, regression and the skill tree
 - saves and migrations
@@ -229,7 +229,7 @@ src/
 │   ├── PhaserGame.tsx     React ↔ Phaser wrapper (remounts on regression / new layout)
 │   ├── PixelTileArt.ts    Pixel-art tile atlas painter
 │   ├── WorkerManager.ts   Minion lifecycle, movement, visuals
-│   ├── workers/           Per-role behaviour: supportSlime, treant (Ent), generalConstruction,
+│   ├── workers/           Per-role behaviour: supportSlime, treant, generalConstruction,
 │   │                      combat, gathering, modifiers, summonRitual
 │   ├── DefenderSystem.ts  Establishment tenants: gathering, expeditions, garrisons
 │   ├── InvasionManager.ts Waves and enemies (invaders/: movement, targeting, wave pool)
@@ -244,7 +244,7 @@ src/
 ├── state/
 │   ├── useGameStore.ts    Persistent Zustand store composed from store/ slices
 │   ├── store/             world, economy, roster, buildings, defense, progression, persistence
-│   ├── constructionProgress.ts  Build order (Ent: castle → spire → summon Generals)
+│   ├── constructionProgress.ts  Build order (Treant: castle → spire → summon Generals)
 │   ├── buildingLayout.ts  20×20 grid and seeded random establishment layout
 │   ├── establishmentCrews.ts, economy.ts, resources.ts, difficulty.ts, skillTree.ts
 │   ├── activityLog.ts, activityWatcher.ts  Activity log store and narration

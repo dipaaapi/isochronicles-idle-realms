@@ -7,7 +7,7 @@ then `outline <file>` and read only the line range you need.
 ## scripts/
 
 - `balance-sim.cjs` (16 KB, 285) — Balance model: measured tenant income, waves 1-100 load per difficulty on day 1 and 365 incl. tactics and skills
-- `test-construction.cjs` (40 KB, 635) — Logic test: runs the Ent construction / General summoning routine in a Node VM (Phaser, audio, storage stubbed); asserts General ↔ establishment pairing
+- `test-construction.cjs` (40 KB, 635) — Logic test: runs the Treant construction / General summoning routine in a Node VM (Phaser, audio, storage stubbed); asserts General ↔ establishment pairing
 - `test-invasions.cjs` (6.4 KB, 133) — Logic test: invasion waves, targeting and breach handling in a Node VM with stubs
 
 ## src/
@@ -36,7 +36,7 @@ then `outline <file>` and read only the line range you need.
 - `slimeBuffs.ts` (2.1 KB, 107) — Support Slime morale buffs · SLIME_MORALE_BUFFS
 - `slimeEvolution.json` (1.9 KB, 88) — Support Slime's 5 evolution levels: heal, fatigue restore, armour, resurrection cost
 - `tasks.ts` (4.1 KB, 143) — Gathering/support tasks: node locations and how each is shown · TASK_NODE_LOCATIONS, TASK_CONFIG
-- `treantEvolution.json` (2.0 KB, 83) — Ancient Ent's 5 evolution levels: repair, replenish, labels
+- `treantEvolution.json` (2.0 KB, 83) — Ancient Treant's 5 evolution levels: repair, replenish, labels
 - `units.ts` (27 KB, 758) — Minion/General classes: stats, required establishment, preferred task, palette, skills, EN/TL text · UNIT_CLASSES
 - `waveBalance.json` (1.6 KB, 30) — Invader stat curves: wave 1-100, day 1-365, difficulty, boss/elite ranks, spawn pacing, skill power
 - `wavePool.json` (0.5 KB, 11) — Which fighters join waves, from which wave, with what weight
@@ -109,7 +109,7 @@ then `outline <file>` and read only the line range you need.
 - `modifiers.ts` (6.6 KB, 147) — Per-frame speed/attack/stamina modifiers (weather, buffs, Kennel howl) · clampLevel, computeWorkerFrame
 - `summonRitual.ts` (2.7 KB, 87) — Summon entrance rituals (glowing rings) per class · SUMMON_RITUALS, playSummonRitual
 - `supportSlime.ts` (14 KB, 372) — Support Slime: healing, resurrection, auto-summon, morale pulses · tryResurrect, autoSummon, pulseMoraleBoost, updateSupportSlime
-- `treant.ts` (17 KB, 417) — Ancient Ent: builds castle/spire, summons Generals in order, repairs, enriches soil · updateConstruction, updateGeneralSummoning, updateTreant
+- `treant.ts` (17 KB, 417) — Ancient Treant: builds castle/spire, summons Generals in order, repairs, enriches soil · updateConstruction, updateGeneralSummoning, updateTreant
 - `types.ts` (6.3 KB, 175) — WorkerInstance and worker-related types/constants · SlimeMoraleBuffDef, WorkerInstance, TASK_BUILDING, EnrichableNode, isEnrichableTask, CRITICAL_HP, WorkerFrame, WorkerContext
 
 ## src/i18n/
@@ -128,7 +128,7 @@ then `outline <file>` and read only the line range you need.
 - `activityLog.ts` (9.9 KB, 271) — Session activity log store: logMessage, merging repeated events ×N, floating-text classifier · ActivityCategory, ActivityTone, Localized, MessageKey, ActivityEntry, ActivityInput, localize, useActivityLog +7
 - `activityWatcher.ts` (5.3 KB, 111) — Narrates store diffs (day, weather, waves, construction, roster, achievements…) into the activity log · startActivityWatcher
 - `buildingLayout.ts` (16 KB, 384) — Typed 20×20 layout: GRID_SIZE, BUILDING_SITES, ROAD_TILES, generateLayout(seed), applyLayoutSeed · TileRect, BuildingSite, PortalSite, GRID_SIZE, GRID_CENTER, CASTLE_FOOTPRINT, CASTLE_GATE, SPIRE_FOOTPRINT +22
-- `constructionProgress.ts` (4.1 KB, 110) — Construction seconds, Ent build order, nextGeneralToSummon · CONSTRUCTION_SECONDS, ConstructionStatus, CORE_BUILDINGS, nextEntConstruction, nextGeneralToSummon, nextConstruction, nextMinionSpireConstruction, nextChampionConstruction +1
+- `constructionProgress.ts` (4.1 KB, 110) — Construction seconds, Treant build order, nextGeneralToSummon · CONSTRUCTION_SECONDS, ConstructionStatus, CORE_BUILDINGS, nextEntConstruction, nextGeneralToSummon, nextConstruction, nextMinionSpireConstruction, nextChampionConstruction +1
 - `defenseStats.ts` (7.2 KB, 176) — Typed access to defenseConfig.json: tower attacks, castle upgrades, beacon, portal stats · TowerAttack, CastleUpgradeKey, Localized, DEFENSE_CONFIG, DEFENSE_TEXT, TOWER_MAX_LEVEL, ZONE_MARGIN, TOWERS +18
 - `deviceProfile.ts` (0.7 KB, 17) — (no purpose yet) · FpsPreset, recommendedFps
 - `difficulty.ts` (1.6 KB, 52) — Difficulty levels and fighter-defeat handling · Difficulty, DifficultyConfig, DIFFICULTIES, normalizeDifficulty

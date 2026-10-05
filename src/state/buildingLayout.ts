@@ -21,7 +21,7 @@ export interface TileRect {
 export interface BuildingSite {
   id: ResourceBuildingId;
   footprint: TileRect;
-  /** Walkable tile beside the footprint where minions work and the Ent builds. */
+  /** Walkable tile beside the footprint where minions work and the Treant builds. */
   workSpot: GridPoint;
 }
 

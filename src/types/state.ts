@@ -217,7 +217,7 @@ export interface GameStoreState {
   roster: UnitRosterItem[];
   upgrades: UpgradesState;
   castleBuilt: boolean;
-  /** The Crystal Spire is raised by the Ent right after the citadel. */
+  /** The Crystal Spire is raised by the Treant right after the citadel. */
   spireBuilt: boolean;
   spireTower: SpireTowerState;
   resourceBuildings: ResourceBuildingsState;
@@ -349,7 +349,7 @@ export interface GameStoreState {
   repairBuilding: (buildingId: TowerId) => boolean;
   /** Invader damage to an establishment or the spire; returns true when this hit wrecked it. */
   damageBuilding: (buildingId: TowerId, amount: number) => boolean;
-  /** Free HP restore (Ent repairs); returns the HP actually restored. */
+  /** Free HP restore (Treant repairs); returns the HP actually restored. */
   restoreBuildingHp: (buildingId: TowerId, amount: number) => number;
 
   // Invasion Actions

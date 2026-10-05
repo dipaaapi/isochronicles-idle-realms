@@ -11,17 +11,17 @@
       "color": "sky",
       "title": { "en": "Ruins & the Slime Lord", "tl": "Ang Guho at ang Slime Lord" },
       "body": {
-        "en": "You start in the ruins with only the **Slime Lord**. It summons the **Sprout Ent** for free, then heals, restores stamina, revives fallen minions and gives morale boosts. Evolve it (up to Lv.5) in **Citadel Command → Minions**.",
-        "tl": "Magsisimula ka sa guho kasama lang ang **Slime Lord**. Libre nitong tatawagin ang **Sprout Ent**, at saka ito manggagamot, magbabalik ng lakas, bubuhay sa mga nasawi at magpapasigla. I-evolve ito (hanggang Lv.5) sa **Sentro ng Kuta → Mga Alagad**."
+        "en": "You start in the ruins with only the **Slime Lord**. It summons the **Sprout Treant** for free, then heals, restores stamina, revives fallen minions and gives morale boosts. Evolve it (up to Lv.5) in **Citadel Command → Minions**.",
+        "tl": "Magsisimula ka sa guho kasama lang ang **Slime Lord**. Libre nitong tatawagin ang **Sprout Treant**, at saka ito manggagamot, magbabalik ng lakas, bubuhay sa mga nasawi at magpapasigla. I-evolve ito (hanggang Lv.5) sa **Sentro ng Kuta → Mga Alagad**."
       }
     },
     {
       "icon": "🌳",
       "color": "emerald",
-      "title": { "en": "The Ent and the Generals Build", "tl": "Ang Ent at ang mga Heneral ang Nagtatayo" },
+      "title": { "en": "The Treant and the Generals Build", "tl": "Ang Treant at ang mga Heneral ang Nagtatayo" },
       "body": {
-        "en": "There is no build button. The Ent raises the **Citadel** and the **Crystal Spire**, then summons every establishment's **General** in order — the next one only after the last General has finished its home: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders wait when supplies are short. Once all Generals stand, the Ent repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
-        "tl": "Walang build button. Itatayo ng Ent ang **Kuta** at ang **Tore ng Kristal**, saka isa-isang tatawagin ang **Heneral** ng bawat pasilidad — ang susunod ay tatawagin lang kapag tapos na ng huling Heneral ang sariling tahanan: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Buto. Naghihintay ang nagtatayo kapag kulang ang supply. Kapag kumpleto na ang mga Heneral, ang Ent ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
+        "en": "There is no build button. The Treant raises the **Citadel** and the **Crystal Spire**, then summons every establishment's **General** in order — the next one only after the last General has finished its home: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders wait when supplies are short. Once all Generals stand, the Treant repairs, enriches the soil and forges gear. **Hold** an establishment to move it (not during a wave).",
+        "tl": "Walang build button. Itatayo ng Treant ang **Kuta** at ang **Tore ng Kristal**, saka isa-isang tatawagin ang **Heneral** ng bawat pasilidad — ang susunod ay tatawagin lang kapag tapos na ng huling Heneral ang sariling tahanan: Kagubatan, Kwartel, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Buto. Naghihintay ang nagtatayo kapag kulang ang supply. Kapag kumpleto na ang mga Heneral, ang Treant ay nag-aayos, nagpapataba ng lupa at nagpapanday. **Pindutin nang matagal** ang pasilidad para ilipat ito (hindi habang may alon)."
       }
     },
     {
@@ -65,8 +65,8 @@
       "color": "indigo",
       "title": { "en": "Defending the Island", "tl": "Pagtatanggol sa Isla" },
       "body": {
-        "en": "The citadel doesn't attack — each establishment and the Crystal Spire guards a **4×4 zone** with its own tower and **3 skills**. The citadel's **Provoke Beacon** pulls invaders onto its walls instead. Upgrade walls, shield, beacon, towers and munitions in **Citadel Command → Fortifications**. A wrecked building stops working until the Ent repairs it.",
-        "tl": "Hindi umaatake ang kuta — bawat pasilidad at ang Tore ng Kristal ang nagbabantay sa **4×4 na sona** gamit ang sariling tore at **3 kakayahan**. Hinihila naman ng **Liwanag ng Panunukso** ng kuta ang mga kalaban papunta sa pader nito. I-upgrade ang pader, kalasag, liwanag, tore at bala sa **Sentro ng Kuta → Tanggulan**. Humihinto ang nawasak na gusali hanggang ayusin ito ng Ent."
+        "en": "The citadel doesn't attack — each establishment and the Crystal Spire guards a **4×4 zone** with its own tower and **3 skills**. The citadel's **Provoke Beacon** pulls invaders onto its walls instead. Upgrade walls, shield, beacon, towers and munitions in **Citadel Command → Fortifications**. A wrecked building stops working until the Treant repairs it.",
+        "tl": "Hindi umaatake ang kuta — bawat pasilidad at ang Tore ng Kristal ang nagbabantay sa **4×4 na sona** gamit ang sariling tore at **3 kakayahan**. Hinihila naman ng **Liwanag ng Panunukso** ng kuta ang mga kalaban papunta sa pader nito. I-upgrade ang pader, kalasag, liwanag, tore at bala sa **Sentro ng Kuta → Tanggulan**. Humihinto ang nawasak na gusali hanggang ayusin ito ng Treant."
       }
     },
     {
@@ -101,8 +101,8 @@
       "color": "fuchsia",
       "title": { "en": "Skills, Research & Gear", "tl": "Kasanayan, Pagsasaliksik at Gamit" },
       "body": {
-        "en": "Every **5 waves** cleared gives **2 skill points** — spend them in **Skills** (resetting is free). Upgrade the Slime, Ent, citadel, establishments and tenants in **Research**, and craft weapons, armour and relics in the **Armory**. All of these live in **Citadel Command**: its **Overview** tab lists everything you can afford right now with one-click upgrades.",
-        "tl": "Bawat **5 alon** na natapos ay may **2 puntos ng kasanayan** — gamitin ito sa **Kasanayan** (libre ang pag-reset). I-upgrade ang Slime, Ent, kuta, pasilidad at umuupa sa **Pagsasaliksik**, at magpanday ng sandata, baluti at agimat sa **Pandayan**. Lahat ng ito ay nasa **Citadel Command**: ipinapakita ng tab na **Buod** ang lahat ng kaya mong bilhin ngayon, na may isang-click na upgrade."
+        "en": "Every **5 waves** cleared gives **2 skill points** — spend them in **Skills** (resetting is free). Upgrade the Slime, Treant, citadel, establishments and tenants in **Research**, and craft weapons, armour and relics in the **Armory**. All of these live in **Citadel Command**: its **Overview** tab lists everything you can afford right now with one-click upgrades.",
+        "tl": "Bawat **5 alon** na natapos ay may **2 puntos ng kasanayan** — gamitin ito sa **Kasanayan** (libre ang pag-reset). I-upgrade ang Slime, Treant, kuta, pasilidad at umuupa sa **Pagsasaliksik**, at magpanday ng sandata, baluti at agimat sa **Pandayan**. Lahat ng ito ay nasa **Citadel Command**: ipinapakita ng tab na **Buod** ang lahat ng kaya mong bilhin ngayon, na may isang-click na upgrade."
       }
     },
     {
