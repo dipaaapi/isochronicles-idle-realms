@@ -735,6 +735,10 @@
     "en": "Next",
     "tl": "Susunod"
   },
+  "musicPlayerShuffle": {
+    "en": "Shuffle saved links",
+    "tl": "I-shuffle ang mga naka-save na link"
+  },
   "musicPlayerShowList": {
     "en": "Playlists",
     "tl": "Mga playlist"

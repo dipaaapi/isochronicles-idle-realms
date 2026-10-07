@@ -28,6 +28,8 @@ export const PhaserGame: React.FC = () => {
     const cssHeight = () => Math.max(1, Math.round(container.clientHeight));
 
     const config: Phaser.Types.Core.GameConfig = {
+      // AUTO selects WebGL (and lets the browser choose the available adapter,
+      // including discrete NVIDIA/AMD GPUs) with Canvas as a compatibility fallback.
       type: Phaser.AUTO,
       parent: container,
       width: cssWidth() * dpr,
@@ -50,6 +52,11 @@ export const PhaserGame: React.FC = () => {
       scene: [MainScene],
       render: {
         antialias: true,
+        // Keep WebGL available even when the browser flags an adapter as slow;
+        // its own context selection can still use an integrated or software adapter.
+        failIfMajorPerformanceCaveat: false,
+        // Pixel art is nearest-neighbor, so multisample edges add cost without helping.
+        antialiasGL: false,
         pixelArt: true,
         roundPixels: true,
         powerPreference: 'high-performance',

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download, ExternalLink, FileSpreadsheet, FileText, ListEnd, ListMusic, ListPlus, Minus, Music2, PanelRight, Pause, Play, Repeat, SkipBack, SkipForward, Trash2, Upload, WifiOff, X } from 'lucide-react';
+import { ChevronDown, Download, ExternalLink, FileSpreadsheet, FileText, ListEnd, ListMusic, ListPlus, Minus, Move, Music2, PanelRight, Pause, Play, Repeat, SkipBack, SkipForward, Shuffle, Trash2, Upload, WifiOff, X } from 'lucide-react';
 import { soundFx } from '../game/audio/soundFx';
 import { useTranslation } from '../i18n/translations';
 import type { TranslationKey } from '../i18n/translations';
@@ -132,6 +132,9 @@ export const MusicPlayerHost: React.FC = () => {
   const active = true;
   const panelRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const [floatPosition, setFloatPosition] = useState<{ left: number; top: number } | null>(null);
+  const [shuffle, setShuffle] = useState(false);
 
   // Follow the slot (it moves with layout, scrolling and resizes) and report the panel's height back to it
   useEffect(() => {
@@ -152,8 +155,11 @@ export const MusicPlayerHost: React.FC = () => {
   // Auto-play moves on to the next saved entry (wrapping when looping); without it, loop replays this one
   const handleEnded = () => {
     const count = items.length;
-    if (autoPlay && count > 1 && (index < count - 1 || loop)) {
-      selectMusic(index + 1);
+    if (autoPlay && count > 1 && (shuffle || index < count - 1 || loop)) {
+      if (shuffle) {
+        const choices = items.map((_, i) => i).filter((i) => i !== index);
+        selectMusic(choices[Math.floor(Math.random() * choices.length)]);
+      } else selectMusic(index + 1);
       requestPlay();
     } else if (loop) {
       control.restart();
@@ -195,12 +201,19 @@ export const MusicPlayerHost: React.FC = () => {
   const frame = hidden || !rect
     ? 'pointer-events-none fixed -left-[10000px] top-0 w-[320px]'
     : `pointer-events-auto fixed z-30 ${isFloat ? 'shadow-2xl' : ''}`;
-  const frameStyle = hidden || !rect ? undefined : { left: rect.left, top: rect.top, width: rect.width };
+  const frameStyle = hidden || !rect ? undefined : { left: floatPosition?.left ?? rect.left, top: floatPosition?.top ?? rect.top, width: size?.width ?? rect.width, ...(size ? { height: size.height } : {}) };
 
   const pick = (i: number) => {
     soundFx.playClick();
     selectMusic(i);
     requestPlay();
+  };
+
+  const pickNext = () => {
+    if (shuffle && items.length > 1) {
+      const choices = items.map((_, i) => i).filter((i) => i !== index);
+      pick(choices[Math.floor(Math.random() * choices.length)]);
+    } else pick(index + 1);
   };
 
   const toggleButton = (on: boolean) =>
@@ -226,6 +239,35 @@ export const MusicPlayerHost: React.FC = () => {
             </span>
           </span>
         </button>
+        {isFloat && !isMinimized && (
+          <div
+            role="button"
+            aria-label="Move music player"
+            title="Drag to move player"
+            className="shrink-0 cursor-move touch-none rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              const left = floatPosition?.left ?? rect?.left ?? 12;
+              const top = floatPosition?.top ?? rect?.top ?? 12;
+              event.currentTarget.dataset.dragOrigin = `${event.clientX},${event.clientY},${left},${top}`;
+            }}
+            onPointerMove={(event) => {
+              if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+              const origin = event.currentTarget.dataset.dragOrigin?.split(',').map(Number);
+              if (!origin) return;
+              const [x, y, left, top] = origin;
+              const width = panelRef.current?.offsetWidth ?? 320;
+              const height = panelRef.current?.offsetHeight ?? 240;
+              setFloatPosition({
+                left: Math.max(0, Math.min(window.innerWidth - width, left + event.clientX - x)),
+                top: Math.max(0, Math.min(window.innerHeight - height, top + event.clientY - y)),
+              });
+            }}
+          >
+            <Move className="h-3.5 w-3.5" />
+          </div>
+        )}
         <div className="flex shrink-0 items-center gap-0.5">
           {online && (
             <button
@@ -242,7 +284,7 @@ export const MusicPlayerHost: React.FC = () => {
             </button>
           )}
           {isMinimized && hasMany && (
-            <button type="button" onClick={() => pick(index + 1)} className={iconButton} title={t('musicPlayerNext')} aria-label={t('musicPlayerNext')}>
+            <button type="button" onClick={pickNext} className={iconButton} title={t('musicPlayerNext')} aria-label={t('musicPlayerNext')}>
               <SkipForward className="h-3.5 w-3.5" />
             </button>
           )}
@@ -292,6 +334,7 @@ export const MusicPlayerHost: React.FC = () => {
           key={sourceKey}
           src={musicEmbedUrl(source)}
           title={`${providerName(source)} ${kindLabel}`}
+          style={size ? { height: Math.max(isYouTube ? 200 : 152, size.height - (showList ? 120 : 82)) } : undefined}
           // YouTube needs at least a 200×200 visible player; Spotify's compact embed is 152px tall
           className={`block border-0 ${isYouTube ? 'h-[200px]' : 'h-[152px]'} ${
             embedOffscreen ? 'pointer-events-none fixed -left-[10000px] top-0 w-[320px]' : 'w-full'
@@ -369,8 +412,11 @@ export const MusicPlayerHost: React.FC = () => {
             >
               <Repeat className="h-3.5 w-3.5" />
             </button>
-            <button type="button" disabled={!hasMany} onClick={() => pick(index + 1)} className={iconButton} title={t('musicPlayerNext')} aria-label={t('musicPlayerNext')}>
+            <button type="button" disabled={!hasMany} onClick={pickNext} className={iconButton} title={t('musicPlayerNext')} aria-label={t('musicPlayerNext')}>
               <SkipForward className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" disabled={!hasMany} onClick={() => setShuffle((value) => !value)} className={toggleButton(shuffle)} title={t('musicPlayerShuffle')} aria-label={t('musicPlayerShuffle')} aria-pressed={shuffle}>
+              <Shuffle className="h-3.5 w-3.5" />
             </button>
           </div>
           {showList && (
@@ -394,6 +440,29 @@ export const MusicPlayerHost: React.FC = () => {
             </ul>
           )}
         </>
+      )}
+      {!isMinimized && !hidden && (
+        <div
+          role="separator"
+          aria-label="Resize music player"
+          className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none bg-gradient-to-tl from-indigo-400/70 to-transparent"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const bounds = panelRef.current?.getBoundingClientRect();
+            if (bounds) (event.currentTarget as HTMLElement).dataset.resizeOrigin = `${event.clientX},${event.clientY},${bounds.width},${bounds.height}`;
+          }}
+          onPointerMove={(event) => {
+            if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+            const origin = event.currentTarget.dataset.resizeOrigin?.split(',').map(Number);
+            if (!origin) return;
+            const [x, y, width, height] = origin;
+            setSize({
+              width: Math.max(240, Math.min(window.innerWidth - (rect?.left ?? 0), width + event.clientX - x)),
+              height: Math.max(120, Math.min(window.innerHeight - (rect?.top ?? 0), height + event.clientY - y)),
+            });
+          }}
+        />
       )}
     </div>
   );
