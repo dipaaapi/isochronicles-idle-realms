@@ -54,7 +54,7 @@ assert.equal(state().invasion.countdown, countdown - 1);
 state().startInvasion();
 assert.equal(state().invasion.isActive, true);
 
-// Run the actual Ent construction routine, without a renderer.
+// Run the actual Treant construction routine, without a renderer.
 state().resetRealm();
 state().summonUnit('TREANT', 'BUILD', true);
 const manager = Object.create(WorkerManager.prototype);
@@ -67,25 +67,25 @@ const worker = { container: { ...IsometricHelper.gridToScreen(castleSite.x, cast
 manager.updateConstruction(worker, state(), 3, 65);
 assert.equal(state().castleBuilt, false, 'construction takes time');
 manager.updateConstruction(worker, state(), 1, 65);
-assert.equal(state().castleBuilt, true, 'Ent automatically completes the castle');
+assert.equal(state().castleBuilt, true, 'Treant automatically completes the castle');
 {
   const { INITIAL_RESOURCES } = load('src/state/store/initialState.ts');
   const { CASTLE_CONSTRUCTION_COST } = load('src/state/economy.ts');
   assert.equal(state().resources.wood, INITIAL_RESOURCES.wood - CASTLE_CONSTRUCTION_COST.wood, 'castle supplies are deducted once');
 }
 const spireSite = nextConstruction(state());
-assert.equal(spireSite.id, 'SPIRE', 'the Ent raises the Crystal Spire right after the castle');
+assert.equal(spireSite.id, 'SPIRE', 'the Treant raises the Crystal Spire right after the castle');
 Object.assign(worker.container, IsometricHelper.gridToScreen(spireSite.x, spireSite.y));
 manager.updateConstruction(worker, state(), 4, 65);
-assert.equal(state().spireBuilt, true, 'Ent completes the Crystal Spire');
+assert.equal(state().spireBuilt, true, 'Treant completes the Crystal Spire');
 {
   const { INITIAL_RESOURCES } = load('src/state/store/initialState.ts');
   const { CASTLE_CONSTRUCTION_COST, SPIRE_CONSTRUCTION_COST } = load('src/state/economy.ts');
   assert.equal(state().resources.wood, INITIAL_RESOURCES.wood - CASTLE_CONSTRUCTION_COST.wood - SPIRE_CONSTRUCTION_COST.wood, 'spire supplies are deducted once');
 }
-assert.equal(manager.updateConstruction(worker, state(), 4, 65), false, 'the Ent builds only the castle and spire');
+assert.equal(manager.updateConstruction(worker, state(), 4, 65), false, 'the Treant builds only the castle and spire');
 
-// Next the Ent summons every General (free founding summon); each General builds its own establishment.
+// Next the Treant summons every General (free founding summon); each General builds its own establishment.
 const { updateGeneralSummoning } = load('src/game/workers/treant.ts');
 const { updateGeneralConstruction } = load('src/game/workers/generalConstruction.ts');
 const { nextGeneralToSummon } = load('src/state/constructionProgress.ts');
@@ -113,8 +113,8 @@ for (const [i, id] of order.entries()) {
   assert.equal(next.buildingId, id, 'Generals are summoned in construction order');
   assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), true);
   assert.ok(state().roster.some((u) => u.unitClass === crewGeneralOf(id)), `${id} General summoned before its home stands`);
-  assert.equal(state().resourceBuildings[id].level, 0, 'the Ent does not build establishments');
-  assert.equal(nextGeneralToSummon(state()), undefined, 'Ent waits until the newest General builds its home');
+  assert.equal(state().resourceBuildings[id].level, 0, 'the Treant does not build establishments');
+  assert.equal(nextGeneralToSummon(state()), undefined, 'Treant waits until the newest General builds its home');
   const g = general(id);
   if (i === 0) {
     store.setState({ resources: { ...state().resources, wood: 0, coins: 0 } });
@@ -126,7 +126,7 @@ for (const [i, id] of order.entries()) {
   assert.equal(state().resourceBuildings[id].level, 1, `${id} built by its General`);
   assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), false, 'General resumes duties once home stands');
 }
-assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), false, 'Ent moves on once all Generals stand');
+assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), false, 'Treant moves on once all Generals stand');
 console.log('Construction progression checks passed.');
 const beforePurchase = { ...state().resources };
 for (const amount of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {
@@ -161,7 +161,7 @@ assert.ok(state().lastSavedTimestamp > 0, 'reset must not award old offline prog
 assert.ok(state().layoutSeed > 0 && state().layoutSeed !== 99, 'reset rolls a new establishment layout');
 console.log('Full realm reset checks passed.');
 
-// Store refactor regressions: late-game resources, Ent links, breach roster, skill trigger.
+// Store refactor regressions: late-game resources, Treant links, breach roster, skill trigger.
 state().resetRealm();
 store.setState({ resources: { ...state().resources, metal: 5 } });
 assert.equal(state().spendResources({ metal: 6 }), false, 'metal cannot go negative');
@@ -171,9 +171,9 @@ store.setState({ resources: Object.fromEntries(Object.keys(state().resources).ma
 state().summonUnit('TREANT', 'BUILD', true);
 state().buildCastle();
 state().upgradeResourceBuilding('WOOD');
-assert.equal(state().summonUnit('TREANT', 'BUILD', true), false, 'the realm has a single Ent');
+assert.equal(state().summonUnit('TREANT', 'BUILD', true), false, 'the realm has a single Treant');
 assert.equal(state().roster.filter(u => u.unitClass === 'TREANT').length, 1);
-assert.equal('entAssignments' in state(), false, 'Ent caretaker links are gone');
+assert.equal('entAssignments' in state(), false, 'Treant caretaker links are gone');
 const saved = state().exportSave();
 assert.equal('entAssignments' in JSON.parse(saved), false);
 assert.equal(state().importSave(saved), true);
@@ -242,7 +242,7 @@ assert.equal(state().regressionHistory[0].dayReached, 87);
 state().summonUnit('TREANT', 'BUILD', true);
 Object.assign(worker.container, IsometricHelper.gridToScreen(nextConstruction(state()).x, nextConstruction(state()).y));
 manager.updateConstruction(worker, state(), 4, 65);
-assert.equal(state().defense.castleHp, 600, 'Ent rebuild applies permanent regression HP');
+assert.equal(state().defense.castleHp, 600, 'Treant rebuild applies permanent regression HP');
 near(teamBonuses(state()).attack, 1.05, 'regression tier boosts minion attack');
 near(teamBonuses({ regressionCount: 0 }).attack, 1);
 

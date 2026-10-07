@@ -66,7 +66,7 @@ function diff(state: GameStoreState, prev: GameStoreState): void {
     }
   }
 
-  // Minions joining the roster (summons, purchases, free Ent)
+  // Minions joining the roster (summons, purchases, free Treant)
   if (state.roster.length > prev.roster.length) {
     const known = new Set(prev.roster.map((u) => u.id));
     for (const unit of state.roster) {

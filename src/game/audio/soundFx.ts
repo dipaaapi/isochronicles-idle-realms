@@ -810,7 +810,7 @@ class SoundFxManager {
     this.playNoise(0.6, 900, 0.05, 0.3);
   }
 
-  /** Shimmering cascade for Slime / Ent evolution. */
+  /** Shimmering cascade for Slime / Treant evolution. */
   public playEvolve(): void {
     this.arp('evolve', 300, [392, 523.25, 659.25, 783.99, 1046.5, 1318.5], 0.07, 'sine', 0.11, 0.7);
   }

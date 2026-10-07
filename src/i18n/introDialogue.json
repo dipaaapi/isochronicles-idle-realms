@@ -2,7 +2,7 @@
   "speakers": {
     "NARRATOR": { "en": "The Chronicle", "tl": "Ang Salaysay", "portrait": null, "color": "#fca5a5" },
     "SLIME": { "en": "Support Slime", "tl": "Support Slime", "portrait": "/portraits/slime.png", "color": "#7dd3fc" },
-    "ENT": { "en": "Ancient Ent", "tl": "Sinaunang Ent", "portrait": "/portraits/ancient-ent.png", "color": "#86efac" }
+    "ENT": { "en": "Ancient Treant", "tl": "Sinaunang Treant", "portrait": "/portraits/ancient-treant.png", "color": "#86efac" }
   },
   "lines": [
     {

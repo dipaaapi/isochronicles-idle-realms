@@ -47,7 +47,7 @@ interface Zone {
   gfx: Phaser.GameObjects.Graphics;
 }
 
-/** The Slime and the Ent cannot be hurt by invaders. */
+/** The Slime and the Treant cannot be hurt by invaders. */
 const isImmune = (w: WorkerInstance) => w.unitClass === 'AQUA_SLIME' || w.unitClass === 'TREANT';
 
 /**
@@ -122,7 +122,7 @@ export class SkillSystem {
 
   private rulerPassives(dt: number, workers: WorkerInstance[]): void {
     const store = useGameStore.getState();
-    // World Tree Roots: the Ent mends the citadel walls (+25 HP/s)
+    // World Tree Roots: the Treant mends the citadel walls (+25 HP/s)
     const { castleHp, castleMaxHp } = store.defense;
     if (store.castleBuilt && castleHp > 0 && castleHp < castleMaxHp && workers.some((w) => w.unitClass === 'TREANT')) {
       this.repairCarry += 25 * dt;

@@ -86,7 +86,7 @@ export function renderWorkerGraphics(
     graphics.fillCircle(-6, -7, 2);
     graphics.fillCircle(6, -7, 2);
   } else if (unitClass === 'TREANT') {
-    // TREANT: Ancient Walking Bark Ent with green leafy crown and glowing emerald nature eyes
+    // TREANT: Ancient Walking Bark Treant with green leafy crown and glowing emerald nature eyes
     graphics.fillStyle(0x451a03, 1); // Dark rich bark body
     graphics.fillRect(-8, -20, 16, 18);
     graphics.fillCircle(0, -20, 9);

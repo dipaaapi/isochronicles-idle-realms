@@ -29,7 +29,7 @@ export const SUMMON_RITUALS = {
     ringOffsetY: 8, ringStartScale: 0.25, ringAlpha: 0.95, ringDuration: 900,
     dropY: -360, startAlpha: 0, startScale: 0.35, duration: 1600, ease: 'Cubic.easeOut',
   },
-  // Mother Ancient Ent General Summoning Emergence
+  // Mother Ancient Treant General Summoning Emergence
   GENERAL: {
     rings: [[72, 26, 3, 0x22c55e, 0.95], [108, 38, 2, 0x86efac, 0.7], [140, 48, 1, 0xfbbf24, 0.6]],
     ringOffsetY: 6, ringStartScale: 0.25, ringAlpha: 0.95, ringDuration: 850,

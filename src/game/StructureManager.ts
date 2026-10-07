@@ -132,7 +132,7 @@ export class StructureManager {
     this.invaderProvider = provider;
   }
 
-  /** Where the Ent is building, so only that site shows its construction animation. */
+  /** Where the Treant is building, so only that site shows its construction animation. */
   setConstructionProvider(provider: () => ConstructionStatus[]): void {
     this.constructionProvider = provider;
   }
@@ -461,7 +461,7 @@ export class StructureManager {
         if (finished) this.playBuiltFlourish(view);
       }
 
-      // Pre-construction: only sites being built (by the Ent or a General) show a scaffold;
+      // Pre-construction: only sites being built (by the Treant or a General) show a scaffold;
       // other plots stay bare paved foundations until their General arrives.
       if (state === 'site') {
         const active = construction.find((c) => c.siteId === view.id) ?? null;
@@ -640,7 +640,7 @@ export class StructureManager {
   }
 
   /**
-   * The Ent's active job: scaffold fades in as it arrives, sways and kicks up
+   * The Treant's active job: scaffold fades in as it arrives, sways and kicks up
    * dust while being built, and waits dimmed when supplies are short. A
    * progress bar above the site shows how far the build has come.
    */
@@ -673,7 +673,7 @@ export class StructureManager {
     g.fillStyle(0x000000, 0.7);
     g.fillRect(x - 1, top - 1, width + 2, 6);
     if (status.phase === 'waiting') {
-      // Hazard stripes: the Ent is waiting for supplies
+      // Hazard stripes: the Treant is waiting for supplies
       for (let i = 0; i < width; i += 6) {
         g.fillStyle(i % 12 === 0 ? 0xf59e0b : 0x3f3f46, 1);
         g.fillRect(x + i, top, Math.min(4, width - i), 4);

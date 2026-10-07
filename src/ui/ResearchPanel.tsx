@@ -55,8 +55,8 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
             </h2>
             <p className="text-xs text-slate-400">
               {isTagalog
-                ? '5 Kategorya ng Kaalaman: Slime, Ent, Muog, Gusali, at Umuupa'
-                : '5 Core Domains: Slime, Ent, Citadel, Establishments, & Tenants'}
+                ? '5 Kategorya ng Kaalaman: Slime, Treant, Muog, Gusali, at Umuupa'
+                : '5 Core Domains: Slime, Treant, Citadel, Establishments, & Tenants'}
             </p>
           </div>
         </div>
@@ -157,7 +157,7 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
             </>
           )}
 
-          {/* Ent Category Automations (QWERT Survival Skills) */}
+          {/* Treant Category Automations (QWERT Survival Skills) */}
           {activeTab === 'ENT' && (
             <button
               onClick={() => toggleAutoSetting('autoSurvivalSkills')}

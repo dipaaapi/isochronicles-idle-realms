@@ -549,7 +549,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                         <div className="text-xs font-medium text-slate-200">
                           {isTL
                             ? 'Auto Evolve'
-                            : 'Auto Evolve (Slime & Ent)'}
+                            : 'Auto Evolve (Slime & Treant)'}
                         </div>
                         <div className="mt-0.5 text-[10px] text-slate-500">
                           {isTL

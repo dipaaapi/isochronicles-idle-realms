@@ -6,7 +6,7 @@
 //   node scripts/balance-sim.cjs HARD       (one difficulty)
 //
 // It is a model, not a replay: combat is reduced to "wave HP vs tower + tenant + skill DPS", the
-// Slime/Ent support is left out, and the player is assumed to keep towers levelled on a schedule.
+// Slime/Treant support is left out, and the player is assumed to keep towers levelled on a schedule.
 // Invader stats come from src/state/waveBalance.ts (the game's own curves) and the expected wave
 // tactic mix from src/state/waveTactics.ts; each wave is shown on day 1 and day 365 of the realm.
 const fs = require('node:fs');

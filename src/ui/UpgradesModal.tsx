@@ -497,7 +497,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ isOpen, onClose })
                 </div>
               )}
 
-              {/* Ancient Ent Treant Evolution */}
+              {/* Ancient Treant Evolution */}
               {treant && (
                 <div className="p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                   <div className="flex items-start gap-3.5">
@@ -507,7 +507,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ isOpen, onClose })
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-bold text-sm text-slate-100">
-                          {tl ? 'Ancient Ent Forest Warden Evolution' : 'Ancient Ent Forest Warden Evolution'}
+                          {tl ? 'Ancient Treant Forest Warden Evolution' : 'Ancient Treant Forest Warden Evolution'}
                         </h4>
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30">
                           Level {treantLevel}/5
@@ -533,7 +533,7 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ isOpen, onClose })
                         : 'bg-slate-800/40 text-slate-500 border border-slate-700/30 cursor-not-allowed'
                     }`}
                   >
-                    <span>{treantLevel >= 5 ? 'MAX LEVEL' : (tl ? 'Evolve Ent (+1)' : 'Evolve Ent (+1)')}</span>
+                    <span>{treantLevel >= 5 ? 'MAX LEVEL' : (tl ? 'Evolve Treant (+1)' : 'Evolve Treant (+1)')}</span>
                     {treantLevel < 5 && (
                       <span className="text-[10px] opacity-90 mt-0.5 font-mono">
                         {treantCostWood}🌲 {treantCostStone}🪨 {treantCostCoins}🪙

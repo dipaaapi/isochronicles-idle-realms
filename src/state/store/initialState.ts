@@ -175,7 +175,7 @@ export const createInitialWorldClock = () => ({
 /** Rolls and applies a fresh random establishment layout; returns its seed. */
 /**
  * Applies a layout (seed + relocated establishments) and moves the resource
- * nodes to the new work spots, keeping each node's Ent enrichment level.
+ * nodes to the new work spots, keeping each node's Treant enrichment level.
  */
 export const applyRealmLayout = (
   seed: number,

@@ -2,7 +2,7 @@ import type { UnitClass, UnitClassConfig } from '../types/game';
 
 /**
  * Team Beasts: stats, requirements, preferred task and palette.
- * Rulers: the Ancient Ent (builder) and the Slime (healer). Fighters: one General per establishment (thirteen).
+ * Rulers: the Ancient Treant (builder) and the Slime (healer). Fighters: one General per establishment (thirteen).
  */
 
 export const UNIT_CLASSES: Record<UnitClass, UnitClassConfig> = {
@@ -303,7 +303,7 @@ export const UNIT_CLASSES: Record<UnitClass, UnitClassConfig> = {
     classType: 'TREANT',
     role: 'RULER',
     name: 'Sinaunang Treant',
-    nameEn: 'Ancient Treant (Ent)',
+    nameEn: 'Ancient Treant',
     subtitle: 'Tagapagtayo ng Kastilyo at Tagapagpalaganap ng Kalikasan 🌲🔨',
     subtitleEn: 'Ancient Forest Warden & Castle Builder 🌲🔨',
     description: 'Nag-iisang tagapagtayo (1 unit lamang bawat platform). Tulad ng Slime, hindi ito nangangalap ng yaman, hindi nakikipaglaban, at immune sa anumang pinsala. Nagkukumpuni ng kastilyo, nagpapanday ng sandata para sa mga kampeon, at nagpapatubo muli ng mga bagong yaman.',
