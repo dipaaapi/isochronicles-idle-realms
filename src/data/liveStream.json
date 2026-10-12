@@ -1,0 +1,23 @@
+{
+  "_comment": "Live-stream focus: a picture-in-picture camera that pops out over intense fights during a wave, with viewer reactions rising up the right side.",
+  "detect": {
+    "checkSeconds": 0.5,
+    "radius": 130,
+    "minInvaders": 3,
+    "minAllies": 2,
+    "popChance": 0.35
+  },
+  "liveSeconds": [8, 14],
+  "calmEndSeconds": 3,
+  "cooldownSeconds": [10, 25],
+  "frame": { "width": 320, "height": 180, "margin": 12, "zoom": 1.8 },
+  "reactionsPerSecond": [4, 14],
+  "reactions": [
+    { "key": "like", "emoji": "👍", "en": "Like", "tl": "Gusto" },
+    { "key": "heart", "emoji": "❤️", "en": "Heart", "tl": "Puso" },
+    { "key": "laugh", "emoji": "😂", "en": "Haha", "tl": "Haha" },
+    { "key": "angry", "emoji": "😡", "en": "Angry", "tl": "Galit" },
+    { "key": "wow", "emoji": "😮", "en": "Wow", "tl": "Wow" },
+    { "key": "sad", "emoji": "😢", "en": "Sad", "tl": "Malungkot" }
+  ]
+}

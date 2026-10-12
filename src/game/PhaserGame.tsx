@@ -9,6 +9,7 @@ export const PhaserGame: React.FC = () => {
   const gameRef = useRef<Phaser.Game | null>(null);
   const targetFps = useGameStore((state) => state.targetFps);
   const platformPhase = useGameStore((state) => state.platformPhase);
+  const showWallpaper = useGameStore((state) => state.showWallpaper);
   const timeOfDay = useGameStore((state) => state.timeOfDay);
   const weather = useGameStore((state) => state.weather);
 
@@ -130,14 +131,14 @@ export const PhaserGame: React.FC = () => {
       className="relative w-full h-full overflow-hidden bg-slate-950"
       style={brightness !== 1 ? { filter: `brightness(${brightness})` } : undefined}
     >
-      {/* 1. Base Pixel Art Wallpaper */}
-      <div
+      {/* 1. Base Pixel Art Wallpaper (can be switched off in Settings) */}
+      {showWallpaper && <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none bg-cover bg-center transition-all duration-700"
         style={{
           backgroundImage: `url('${import.meta.env.BASE_URL}backgrounds/phase${platformPhase || 1}.jpg')`,
         }}
-      />
+      />}
 
       {/* 2. Fullscreen Ambient Day/Night & Weather Tint (Walang kanto, sasakop sa buong viewport) */}
       <div

@@ -31,9 +31,15 @@ import { SkillSystem } from './skills/SkillSystem';
 import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_WATER } from './Navigation';
 import { StructureManager } from './StructureManager';
 import { PortalManager } from './PortalManager';
+import { ForceFieldSystem } from './ForceFieldSystem';
+import { LiveFocusCamera } from './scene/liveFocusCamera';
+import { CastleAlarm } from './scene/castleAlarm';
+import { FireSystem } from './FireSystem';
+import { logMessage } from '../state/activityLog';
 import { TowerSystem } from './TowerSystem';
 import { PortalDefenseSystem } from './PortalDefenseSystem';
 import { WaterFx } from './scene/waterFx';
+import { WaterLife } from './scene/waterLife';
 import {
   BUILDING_IDS,
   BUILDING_SITES,
@@ -101,6 +107,10 @@ export class MainScene extends Phaser.Scene {
   private skyFxLayer!: Phaser.GameObjects.Container;
   private groundFxLayer!: Phaser.GameObjects.Container;
   private airFxLayer!: Phaser.GameObjects.Container;
+  private forceFields?: ForceFieldSystem;
+  private liveFocus?: LiveFocusCamera;
+  private castleAlarm?: CastleAlarm;
+  private fires?: FireSystem;
   private worldEffects?: WorldEffects;
   /** Buildings, portals, units and combat effects — depth-sorted by feet position every frame. */
   private entityLayer!: Phaser.GameObjects.Container;
@@ -110,6 +120,7 @@ export class MainScene extends Phaser.Scene {
   private towers!: TowerSystem;
   private portalDefense!: PortalDefenseSystem;
   private waterFx?: WaterFx;
+  private waterLife?: WaterLife;
   private defenders!: DefenderSystem;
   private skills!: SkillSystem;
   private bloomGfx?: Phaser.GameObjects.Graphics;
@@ -267,6 +278,7 @@ export class MainScene extends Phaser.Scene {
     this.towers = new TowerSystem(this, this.entityLayer, this.groundFxLayer, this.structures, this.invasionManager, this.nav);
     this.defenders = new DefenderSystem(this, this.entityLayer, this.structures, this.invasionManager, this.nav);
     this.workerManager.setDefenderSystem(this.defenders);
+    this.defenders.setWorkerProvider(() => this.workerManager.getWorkers());
     this.structures.setDefenderSystem(this.defenders);
     this.towers.setDefenderSystem(this.defenders);
     this.towers.setWorkerProvider(() => this.workerManager.getWorkers());
@@ -284,6 +296,25 @@ export class MainScene extends Phaser.Scene {
 
     this.airFxLayer = this.add.container(0, 0);
     this.islandContainer.add(this.airFxLayer);
+    const raiders = () => this.invasionManager.getInvaders().some((i) => i.isScout && !i.isDead && !i.isRetreating);
+    this.forceFields = new ForceFieldSystem(this, this.airFxLayer, this.structures, this.portals, raiders);
+    this.castleAlarm = new CastleAlarm(this, this.airFxLayer, this.structures, raiders);
+    this.fires = new FireSystem(this, this.airFxLayer, this.structures, this.invasionManager, (x, y) => this.nav.allows(x, y, 'land'));
+    this.defenders.setFireSystem(this.fires);
+    this.workerManager.setFireSystem(this.fires);
+    this.structures.setForceFields(this.forceFields);
+    this.portals.setForceFields(this.forceFields);
+    this.liveFocus = new LiveFocusCamera(
+      this,
+      this.islandContainer,
+      () => this.invasionManager.getInvaders().filter((i) => !i.isDead && !i.isRetreating && i.container.active).map((i) => i.container),
+      () => [
+        ...this.workerManager.getWorkers().filter((w) => w.container.active).map((w) => w.container),
+        ...this.defenders.getDefenders().filter((d) => !d.dead && d.container.active).map((d) => d.container),
+      ],
+      () => this.dpr,
+      (x, y) => this.focusOn(x, y)
+    );
     // Rift mist sits above units; it parts under the mouse (island space)
     this.portalDefense.attachMist(this.airFxLayer, () => {
       const p = this.input.activePointer;
@@ -502,6 +533,7 @@ export class MainScene extends Phaser.Scene {
     this.islandContainer.add(this.groundFxLayer);
     // Waterfalls off the front rims + bridges over the canals
     this.waterFx = new WaterFx(this, this.groundFxLayer);
+    this.waterLife = new WaterLife(this, this.groundFxLayer, useGameStore.getState().platformPhase || 1);
 
     // Ocean swell, foam and crests are painted into the tiles (PixelTileArt paintWater)
 
@@ -826,6 +858,7 @@ export class MainScene extends Phaser.Scene {
     this.nav.setBaseGrid(this.buildWalkGrid());
     this.structures.relayout();
     this.waterFx?.drawBridges();
+    this.waterLife?.rebuild();
     this.lastBloomKey = '';
   }
 
@@ -921,6 +954,27 @@ export class MainScene extends Phaser.Scene {
     );
   }
 
+  /** Zooms in a little and glides the main camera onto a world point (clamped to the island). */
+  private focusOn(x: number, y: number): void {
+    const cam = this.cameras.main;
+    this.userZoom = Math.max(this.userZoom, 1.4);
+    this.applyZoom();
+    const fromX = cam.scrollX + cam.width / 2;
+    const fromY = cam.scrollY + cam.height / 2;
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 650,
+      ease: 'Sine.easeInOut',
+      onUpdate: (tween) => {
+        const t = tween.getValue() ?? 1;
+        cam.centerOn(fromX + (x - fromX) * t, fromY + (y - fromY) * t);
+        this.clampCamera();
+      },
+    });
+    soundFx.playClick();
+  }
+
   private setupCamera(): void {
     const bounds = this.getIslandBounds();
     this.cameras.main.centerOn(bounds.centerX, bounds.centerY);
@@ -953,6 +1007,16 @@ export class MainScene extends Phaser.Scene {
           this.holdTimer = this.time.delayedCall(450, () => {
             const p = this.input.activePointer;
             if (p.isDown && Math.hypot(p.x - this.dragStartX, p.y - this.dragStartY) < 10) this.startMove(id, p);
+          });
+        }
+      }
+
+      if (pointer.leftButtonDown() && useGameStore.getState().invasion.isActive && this.structures) {
+        const id = this.structures.getMovableAt(pointer.worldX - this.islandContainer.x, pointer.worldY - this.islandContainer.y);
+        if (id) {
+          this.holdTimer?.remove();
+          this.holdTimer = this.time.delayedCall(450, () => {
+            if (this.input.activePointer.isDown) logMessage('moveLockedWave');
           });
         }
       }
@@ -1084,7 +1148,8 @@ export class MainScene extends Phaser.Scene {
       this.applyRelayout();
     } else {
       const pos = IsometricHelper.gridToScreen(tile.x, tile.y);
-      this.workerManager.spawnFloatingPopup(pos.x, pos.y - 60, 'Cannot move during an invasion', '#f87171');
+      void pos;
+      logMessage('moveLockedWave');
     }
   }
 
@@ -1121,7 +1186,17 @@ export class MainScene extends Phaser.Scene {
 
     this.structures.update(effectiveDelta);
     this.portals.update(effectiveDelta);
-    this.waterFx?.update(time);
+    this.forceFields?.update(effectiveDelta);
+    this.liveFocus?.update(effectiveDelta);
+    this.castleAlarm?.update(effectiveDelta);
+    this.fires?.update(effectiveDelta);
+    // Establishments are locked in place once a wave starts
+    if (this.moving && store.invasion.isActive) {
+      this.cancelMove();
+      logMessage('moveLockedWave');
+    }
+    this.waterFx?.update(time, store.platformPhase || 1);
+    this.waterLife?.update(effectiveDelta, store.platformPhase || 1, this.waterFx?.surfaceState(store.platformPhase || 1));
 
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
@@ -1259,8 +1334,13 @@ export class MainScene extends Phaser.Scene {
     this.towers?.destroy();
     this.portalDefense?.destroy();
     this.waterFx?.destroy();
+    this.waterLife?.destroy();
     this.defenders?.destroy();
     this.skills?.destroy();
+    this.forceFields?.destroy();
+    this.liveFocus?.destroy();
+    this.castleAlarm?.destroy();
+    this.fires?.destroy();
     this.portals?.destroy();
     this.structures?.destroy();
     this.worldEffects?.destroy();

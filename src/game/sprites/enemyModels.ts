@@ -49,6 +49,28 @@ export const breathe = (part: string, base: Pose = {}): Pose[] => [
   { ...base, [part]: { ...(base[part] ?? {}), offset: [0, 0, -1] } },
 ];
 
+/** Wingbeat phases for flight: wings up, gliding, wings down, gliding. */
+const FLAP = [1, 0.3, -1, 0.3];
+
+/**
+ * Movement cycle for winged fliers: airborne by `lift` voxels (the shadow
+ * stays on the ground), leaning into the flight with legs tucked back and the
+ * wings beating in full strokes; the body rises on each downstroke.
+ * `extra` adds per-model limbs (arms, weapons) for a wing phase.
+ */
+export const flightCycle = (lift: number, extra: (flap: number) => Pose = () => ({})): Pose[] =>
+  FLAP.map((f) => {
+    const z = lift + (f < 0 ? 1.5 : f > 0 ? -0.5 : 0.5);
+    return {
+      torso: { pitch: 0.32, offset: [0, 0, z] },
+      leftLeg: { pitch: -0.85, offset: [0, -1, z] },
+      rightLeg: { pitch: -0.7, offset: [0, -1, z] },
+      leftWing: { roll: 0.75 * f, yaw: 0.15 * f },
+      rightWing: { roll: -0.75 * f, yaw: -0.15 * f },
+      ...extra(f),
+    };
+  });
+
 // ── 1. Crusader Knight — full silver plate, red plume, sword and kite shield ────
 
 const knight = (): VoxelModel => {
@@ -518,13 +540,8 @@ const valkyrie = (): VoxelModel => {
       ],
     },
   ];
-  const walk: Pose[] = STRIDE.map((s) => ({
-    leftLeg: { pitch: 0.5 * s },
-    rightLeg: { pitch: -0.5 * s },
-    leftWing: { roll: 0.25 * s, yaw: 0.15 * s },
-    rightWing: { roll: -0.25 * s, yaw: -0.15 * s },
-    torso: { pitch: 0.1, offset: [0, 0, s === 0 ? 1 : 0] },
-  }));
+  // Flies: lance couched forward while the wings beat
+  const walk: Pose[] = flightCycle(5, () => ({ rightArm: { pitch: 0.5 }, leftArm: { pitch: -0.3 } }));
   const attack: Pose[] = [
     { rightArm: { pitch: 1.4 }, lance: { pitch: -1.4 }, leftWing: { yaw: 0.4 }, rightWing: { yaw: -0.4 } },
     { rightArm: { pitch: 1.9, offset: [0, 3, 0] }, lance: { pitch: -1.9 }, torso: { pitch: 0.2 } },
@@ -532,7 +549,7 @@ const valkyrie = (): VoxelModel => {
   ];
   const idle = breathe('torso', { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } });
   return {
-    size: [34, 32, 42],
+    size: [34, 34, 48],
     foot: [15, 15, 0],
     materials: [
       { color: 0xcbd5e1 }, { color: 0x94a3b8 }, { color: 0x1e293b },

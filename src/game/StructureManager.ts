@@ -25,6 +25,7 @@ import {
   buildingMaxHp,
   towerBuildingOf,
   towerLevelOf,
+  buildingArmor,
 } from '../state/defenseStats';
 import type { TowerId } from '../types/state';
 import type { ConstructionStatus } from '../state/constructionProgress';
@@ -123,6 +124,11 @@ export class StructureManager {
   }
 
   private defenderSystem?: import('./DefenderSystem').DefenderSystem;
+  private forceFields?: import('./ForceFieldSystem').ForceFieldSystem;
+
+  setForceFields(fields: import('./ForceFieldSystem').ForceFieldSystem): void {
+    this.forceFields = fields;
+  }
 
   setDefenderSystem(defenders: import('./DefenderSystem').DefenderSystem): void {
     this.defenderSystem = defenders;
@@ -223,6 +229,45 @@ export class StructureManager {
     return out;
   }
 
+  /** Island-space centre of the castle siren lamp (the beacon dome in its baked sprite), cached per sprite. */
+  private roofCache?: { sprite: Phaser.GameObjects.Sprite; dx: number; dy: number };
+
+  getCastleRoof(): { x: number; y: number } | undefined {
+    const view = this.views.get('CASTLE');
+    if (!view) return undefined;
+    const sprite = view.sprite;
+    if (!sprite) return { x: view.x, y: view.y - (structureHeadroom('castle') ?? 120) * 0.8 };
+    if (this.roofCache?.sprite !== sprite) {
+      const frame = sprite.frame;
+      const key = sprite.texture.key;
+      // The siren is the model's beacon dome (emissive 0xef4444, unlit so its colour is exact):
+      // average its pixels in the centre column band. Back towers rise higher on screen, so the
+      // topmost pixel is not the beacon.
+      const cx = Math.round(frame.width * sprite.originX);
+      let sumX = 0;
+      let sumY = 0;
+      let n = 0;
+      for (let row = 0; row < frame.height * 0.6; row++) {
+        for (let dx = -10; dx <= 10; dx++) {
+          const c = this.scene.textures.getPixel(cx + dx, row, key, frame.name);
+          if (c && c.alpha > 0 && c.red === 0xef && c.green === 0x44 && c.blue === 0x44) {
+            sumX += cx + dx;
+            sumY += row;
+            n++;
+          }
+        }
+      }
+      const px = n ? sumX / n : cx;
+      const py = n ? sumY / n : frame.height * 0.2;
+      this.roofCache = {
+        sprite,
+        dx: sprite.x + (px - frame.width * sprite.originX) * sprite.scaleX,
+        dy: sprite.y + (py - frame.height * sprite.originY) * sprite.scaleY,
+      };
+    }
+    return { x: view.x + this.roofCache.dx, y: view.y + this.roofCache.dy };
+  }
+
   getCastleTarget(): StructureTarget | undefined {
     return this.getTargets().find((t) => t.id === 'CASTLE');
   }
@@ -311,6 +356,15 @@ export class StructureManager {
       return true;
     }
 
+    // The wave-time force field takes the hit first
+    if (this.forceFields) {
+      amount = this.forceFields.absorbStructureHit(target.id, amount);
+      if (amount <= 0) {
+        if (view) this.flash(view);
+        return true;
+      }
+    }
+
     // Sacrificial defense layer: Garrisoned establishment minions absorb hits first!
     const absorbed = this.defenderSystem?.absorbBuildingHit(target.id as TowerId, amount);
     if (absorbed) {
@@ -323,6 +377,8 @@ export class StructureManager {
       return true;
     }
 
+    // Walls soak part of every hit (establishmentDefense.json)
+    amount = Math.max(1, Math.round(amount * (1 - buildingArmor(target.id, towerLevelOf(towerBuildingOf(store, target.id))))));
     const wrecked = store.damageBuilding(target.id, amount);
     const name = this.displayName(target.id);
     logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount, icon: this.iconOf(target.id) });

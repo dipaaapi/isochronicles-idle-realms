@@ -43,6 +43,12 @@ export interface ActiveInvader extends NavAgent {
   isScout?: boolean;
   /** Peacetime scout's side: decides its drops (scoutLoot.json). */
   scoutKind?: 'HUMAN' | 'MECHA';
+  /** Random-fight scout's job: RUNNER rushes, LOOTER steals and flees, RAIDER hits the weakest establishment. */
+  scoutRole?: import('../../state/scoutRaid').ScoutRole;
+  /** Fraction of each hit shrugged off (scouts scale it with the wave). */
+  defence?: number;
+  /** What a looter has grabbed from the citadel (returned if it is slain). */
+  stolen?: Partial<import('../../types/state').Resources>;
   isRetreating?: boolean;
   spawnGrid: GridPoint;
   /** Full-size scale (bosses are bigger). */

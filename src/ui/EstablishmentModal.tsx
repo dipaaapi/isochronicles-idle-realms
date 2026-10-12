@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES } from '../state/useGameStore';
 import { BUILDING_IDS } from '../state/buildingLayout';
-import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { DEFENSE_TEXT, buildingArmor, buildingHpOf, buildingMaxHp, towerAccuracy, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../data/establishmentSkills';
 import { useTranslation, unitName } from '../i18n/translations';
 import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
@@ -11,7 +11,7 @@ import { UNIT_CLASSES } from '../data/units';
 import { techUpgradeCost, getUnitSummonCost } from '../state/economy';
 import { canAfford } from '../state/resources';
 import { soundFx } from '../game/audio/soundFx';
-import type { ResourceBuildingId, Resources } from '../types/state';
+import type { ResourceBuildingId, Resources, TowerId } from '../types/state';
 import type { StructureId } from '../game/StructureManager';
 import type { UnitClass, HarvestTask } from '../types/game';
 import { TASK_CONFIG } from '../data/tasks';
@@ -309,6 +309,14 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
             {!isCastle && (buildingState?.level ?? 0) >= 1 && (
               <span className="text-[10px] font-bold text-amber-400 ml-1 shrink-0 px-2 py-0.5 rounded-lg bg-amber-950/60 border border-amber-500/40">
                 Tower Lv.{tLevel}
+              </span>
+            )}
+            {!isCastle && (buildingState?.level ?? 0) >= 1 && (
+              <span
+                className="text-[10px] font-bold text-sky-300 shrink-0 px-2 py-0.5 rounded-lg bg-sky-950/60 border border-sky-500/40"
+                title={tr('estabCombatHint')}
+              >
+                🎯 {Math.round(towerAccuracy(activeEstab as TowerId, tLevel) * 100)}% · 🛡 {Math.round(buildingArmor(activeEstab as TowerId, tLevel) * 100)}%
               </span>
             )}
             <div className="flex gap-1.5 ml-2 shrink-0">

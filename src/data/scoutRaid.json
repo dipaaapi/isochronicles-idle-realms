@@ -1,0 +1,12 @@
+{
+  "_comment": "Random-fight scouts (between waves) scale with the last wave reached. hp/damage multiply by (1 + perWave × (wave − 1)); defence is the fraction of each hit it shrugs off (capped). Count = random base + one extra per everyWaves, capped. Roles: RUNNER (fast, frail, rushes the citadel), LOOTER (half-hidden, sneaks to the citadel, steals resources and flees to a rift; killing it returns the loot), RAIDER (sizes up every establishment and attacks the weakest defence; human raiders throw torches).",
+  "scaling": { "hpPerWave": 0.07, "damagePerWave": 0.04, "defenceBase": 0.02, "defencePerWave": 0.006, "defenceCap": 0.6 },
+  "count": { "base": [1, 3], "everyWaves": 8, "max": 14 },
+  "roles": {
+    "RUNNER": { "weight": 3, "speed": 1.8, "hp": 0.7, "icon": "💨" },
+    "LOOTER": { "weight": 2, "speed": 1.15, "hp": 0.9, "alpha": 0.55, "icon": "🥷" },
+    "RAIDER": { "weight": 4, "speed": 1.0, "hp": 1.2, "icon": "🎯" }
+  },
+  "steal": { "coins": [10, 25], "resource": [3, 8], "perWave": 0.05, "resources": ["wood", "stone", "fish", "metal", "aetherShards"] },
+  "weakness": { "hp": 1, "dps": 12, "garrison": 35, "radius": 25 }
+}

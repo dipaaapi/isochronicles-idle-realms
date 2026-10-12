@@ -1,6 +1,6 @@
 import type { UnitClass } from '../../types/game';
 import type { Part, Pose, Shape, Vec3, VoxelModel } from './VoxelSprite';
-import { breathe } from './enemyModels';
+import { breathe, flightCycle } from './enemyModels';
 import { recolorModel } from './VoxelSprite';
 
 /**
@@ -144,15 +144,8 @@ const lavaGargoyle = (): VoxelModel => {
       box(2.5, 11.6, 16, 9, 12.1, 23, M.flame),
     ], cx, 'torso'),
   ];
-  const walk: Pose[] = STRIDE.map((s) => ({
-    leftLeg: { pitch: 0.5 * s },
-    rightLeg: { pitch: -0.5 * s },
-    leftArm: { pitch: -0.4 * s },
-    rightArm: { pitch: 0.4 * s },
-    leftWing: { yaw: 0.3 * s, roll: 0.1 * s },
-    rightWing: { yaw: -0.3 * s, roll: -0.1 * s },
-    torso: { pitch: 0.1, offset: [0, 0, s === 0 ? 1 : 0] },
-  }));
+  // Heavy stone flier: claws trail back under the wingbeat
+  const walk: Pose[] = flightCycle(4, (f) => ({ leftArm: { pitch: -0.5 - 0.1 * f }, rightArm: { pitch: -0.5 - 0.1 * f } }));
   const attack: Pose[] = [
     { leftWing: { yaw: 0.6 }, rightWing: { yaw: -0.6 }, rightArm: { pitch: 1.8 }, torso: { pitch: -0.1 } },
     { leftWing: { yaw: -0.4 }, rightWing: { yaw: 0.4 }, rightArm: { pitch: 0.5, offset: [0, 2, 0] }, torso: { pitch: 0.25 } },
@@ -160,7 +153,7 @@ const lavaGargoyle = (): VoxelModel => {
   ];
   const idle = breathe('torso', { leftWing: { roll: 0.15 }, rightWing: { roll: -0.15 } });
   return {
-    size: [36, 32, 36],
+    size: [36, 34, 42],
     foot: [16, 16, 0],
     materials: [
       { color: 0x27272a }, { color: 0xea580c, emissive: true }, { color: 0xfbbf24, emissive: true },
@@ -214,15 +207,8 @@ const succubus = (): VoxelModel => {
       ],
     },
   ];
-  const walk: Pose[] = STRIDE.map((s) => ({
-    leftLeg: { pitch: 0.45 * s },
-    rightLeg: { pitch: -0.45 * s },
-    leftArm: { pitch: -0.3 * s },
-    rightArm: { pitch: 0.3 * s },
-    leftWing: { yaw: 0.25 * s, roll: 0.1 * s },
-    rightWing: { yaw: -0.25 * s, roll: -0.1 * s },
-    torso: { roll: 0.04 * s },
-  }));
+  // Glides with the orb held forward
+  const walk: Pose[] = flightCycle(5, (f) => ({ leftArm: { pitch: -0.3 }, rightArm: { pitch: 0.4 + 0.05 * f } }));
   const attack: Pose[] = [
     { rightArm: { pitch: 1.4 }, orb: { scale: [1.4, 1.4, 1.4] }, leftWing: { yaw: 0.4 }, rightWing: { yaw: -0.4 } },
     { rightArm: { pitch: 1.8 }, orb: { scale: [2.0, 2.0, 2.0], offset: [0, 2, 0] }, torso: { pitch: 0.15 } },
@@ -230,7 +216,7 @@ const succubus = (): VoxelModel => {
   ];
   const idle = breathe('torso', { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } });
   return {
-    size: [32, 30, 36],
+    size: [32, 32, 42],
     foot: [15, 15, 0],
     materials: [
       { color: 0xf5d0c5 }, { color: 0x3b0764 }, { color: 0x581c87 }, { color: 0x18181b },
@@ -339,13 +325,7 @@ const harpy = (): VoxelModel => {
       box(1, 14.2, 14, 8, 15.8, 22, M.featherLight),
     ], cx, 'torso'),
   ];
-  const walk: Pose[] = STRIDE.map((s) => ({
-    leftLeg: { pitch: 0.6 * s },
-    rightLeg: { pitch: -0.6 * s },
-    leftWing: { roll: 0.3 * s, yaw: 0.2 * s },
-    rightWing: { roll: -0.3 * s, yaw: -0.2 * s },
-    torso: { pitch: 0.12, offset: [0, 0, s === 0 ? 1 : 0] },
-  }));
+  const walk: Pose[] = flightCycle(5);
   const attack: Pose[] = [
     { leftWing: { roll: 0.7 }, rightWing: { roll: -0.7 }, leftLeg: { pitch: -0.5 }, rightLeg: { pitch: -0.5 } },
     { leftWing: { roll: -0.4 }, rightWing: { roll: 0.4 }, leftLeg: { pitch: 0.8, offset: [0, 2, 0] }, rightLeg: { pitch: 0.8, offset: [0, 2, 0] } },
@@ -353,7 +333,7 @@ const harpy = (): VoxelModel => {
   ];
   const idle = breathe('torso', { leftWing: { roll: 0.1 }, rightWing: { roll: -0.1 } });
   return {
-    size: [34, 30, 32],
+    size: [34, 32, 38],
     foot: [15, 15, 0],
     materials: [
       { color: 0xd97706 }, { color: 0xfde68a }, { color: 0xfbbf24 }, { color: 0x78350f },

@@ -1,4 +1,28 @@
 {
+  "estabCombatHint": {
+    "en": "Accuracy: chance each tower shot hits · Armor: share of every invader hit the walls ignore. Both rise with tower level.",
+    "tl": "Katumpakan: tsansang tumama ang bawat tira ng tore · Baluti: bahagi ng bawat tama ng kalaban na hindi tumatagos sa pader. Parehong tumataas sa antas ng tore."
+  },
+  "wallpaperTitle": {
+    "en": "Background Wallpaper",
+    "tl": "Larawan sa Likuran"
+  },
+  "wallpaperDesc": {
+    "en": "Show the realm artwork behind the island. Turn off for a plain dark backdrop (lighter on slow devices).",
+    "tl": "Ipakita ang larawan ng kaharian sa likod ng isla. Patayin para sa simpleng madilim na likuran (mas magaan sa mabagal na device)."
+  },
+  "liveFocusHint": {
+    "en": "Click to jump to this battle",
+    "tl": "I-click para puntahan ang labanang ito"
+  },
+  "liveBadge": {
+    "en": "LIVE",
+    "tl": "LIVE"
+  },
+  "liveTitle": {
+    "en": "⚔️ Intense battle at {spot}",
+    "tl": "⚔️ Matinding labanan sa {spot}"
+  },
   "close": {
     "en": "Close",
     "tl": "Isara"
@@ -630,6 +654,30 @@
   "musicPlayerSave": {
     "en": "Add",
     "tl": "Idagdag"
+  },
+  "musicSelectAll": {
+    "en": "Select all",
+    "tl": "Piliin lahat"
+  },
+  "musicSelectedCount": {
+    "en": "{count} selected",
+    "tl": "{count} ang napili"
+  },
+  "musicDeleteSelected": {
+    "en": "Delete {count}",
+    "tl": "Burahin ang {count}"
+  },
+  "musicDeleteConfirm": {
+    "en": "Click again to delete {count}",
+    "tl": "I-click ulit para burahin ang {count}"
+  },
+  "musicClearSelection": {
+    "en": "Clear",
+    "tl": "Alisin ang pili"
+  },
+  "musicDragHint": {
+    "en": "Drag ⋮⋮ to reorder",
+    "tl": "I-drag ang ⋮⋮ para ilipat"
   },
   "musicPlayerRemove": {
     "en": "Remove",

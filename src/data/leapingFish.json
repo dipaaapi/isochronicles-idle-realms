@@ -1,0 +1,148 @@
+{
+  "_comment": "Fish leaping out of the water (WorldEffects.leapFish), one set per realm (platformPhase 1-4). species: body/fin colours and weight; rare = logged catch. jump: height and duration ranges, hops = skips across the surface, school = chance of a group of 3. splash/drops colour the splash; trail = ember | snow | sparkle | none.",
+  "biomes": {
+    "1": {
+      "species": [
+        {
+          "body": "0xfb923c",
+          "fin": "0xc2410c",
+          "weight": 3
+        },
+        {
+          "body": "0x94a3b8",
+          "fin": "0x64748b",
+          "weight": 2
+        }
+      ],
+      "rare": {
+        "body": "0xfbbf24",
+        "fin": "0xd97706",
+        "chance": 0.15,
+        "logKey": "goldenFish"
+      },
+      "jump": {
+        "height": [
+          18,
+          30
+        ],
+        "ms": 760,
+        "hops": 1,
+        "school": 0.15
+      },
+      "splash": "0xe0f7ff",
+      "drops": "0x38bdf8",
+      "trail": "none"
+    },
+    "2": {
+      "species": [
+        {
+          "body": "0xdc2626",
+          "fin": "0xfde047",
+          "weight": 3,
+          "long": true
+        },
+        {
+          "body": "0xea580c",
+          "fin": "0x7f1d1d",
+          "weight": 2,
+          "long": true
+        }
+      ],
+      "rare": {
+        "body": "0xfef08a",
+        "fin": "0xf97316",
+        "chance": 0.08,
+        "logKey": "rareFish",
+        "name": {
+          "en": "Phoenix Salamander",
+          "tl": "Salamandrang Phoenix"
+        }
+      },
+      "jump": {
+        "height": [
+          30,
+          44
+        ],
+        "ms": 1100,
+        "hops": 1,
+        "school": 0
+      },
+      "splash": "0xfef08a",
+      "drops": "0xf59e0b",
+      "trail": "ember"
+    },
+    "3": {
+      "species": [
+        {
+          "body": "0xbae6fd",
+          "fin": "0x0e7490",
+          "weight": 3
+        },
+        {
+          "body": "0xe2e8f0",
+          "fin": "0x64748b",
+          "weight": 2
+        }
+      ],
+      "rare": {
+        "body": "0xf0f9ff",
+        "fin": "0x67e8f9",
+        "chance": 0.08,
+        "logKey": "rareFish",
+        "name": {
+          "en": "Crystal Pike",
+          "tl": "Kristal na Pike"
+        }
+      },
+      "jump": {
+        "height": [
+          8,
+          14
+        ],
+        "ms": 420,
+        "hops": 3,
+        "school": 0.1
+      },
+      "splash": "0xf0f9ff",
+      "drops": "0xbae6fd",
+      "trail": "snow"
+    },
+    "4": {
+      "species": [
+        {
+          "body": "0xe879f9",
+          "fin": "0x67e8f9",
+          "weight": 3
+        },
+        {
+          "body": "0xa78bfa",
+          "fin": "0xfef9c3",
+          "weight": 2
+        }
+      ],
+      "rare": {
+        "body": "0xfef9c3",
+        "fin": "0xf0abfc",
+        "chance": 0.08,
+        "logKey": "rareFish",
+        "name": {
+          "en": "Starfin Koi",
+          "tl": "Koi na Bituin-Palikpik"
+        }
+      },
+      "jump": {
+        "height": [
+          34,
+          50
+        ],
+        "ms": 1400,
+        "hops": 1,
+        "school": 0.2
+      },
+      "splash": "0xe9d5ff",
+      "drops": "0xc084fc",
+      "trail": "sparkle"
+    }
+  },
+  "_palette": "The first species of each realm is the Aseprite swimming fish (art/water/fish.lua) in the same colours."
+}

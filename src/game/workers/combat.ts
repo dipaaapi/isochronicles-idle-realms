@@ -6,6 +6,18 @@ import type { ActiveInvader } from '../InvasionManager';
 import type { PortalState } from '../PortalManager';
 import { CRITICAL_HP, type WorkerContext, type WorkerFrame, type WorkerInstance } from './types';
 import { useGameStore } from '../../state/useGameStore';
+import { BUILDING_SITES, rectCenter } from '../../state/buildingLayout';
+import { UNIT_CLASSES } from '../../types/game';
+import type { ResourceBuildingId } from '../../types/state';
+
+/** World centre of a General's own establishment, if it has one. */
+function homeOf(worker: WorkerInstance): { x: number; y: number } | null {
+  const id = UNIT_CLASSES[worker.unitClass]?.requiredBuilding as ResourceBuildingId | undefined;
+  const site = id ? BUILDING_SITES[id] : undefined;
+  if (!site) return null;
+  const c = rectCenter(site.footprint);
+  return IsometricHelper.gridToScreen(c.x, c.y);
+}
 
 /** A fighter skill's name in the player's language. */
 const skillName = (skill: { name: string; nameTl?: string }): string =>
@@ -126,13 +138,16 @@ function nearestInvader(worker: WorkerInstance, invaders: ActiveInvader[]) {
   let target: ActiveInvader | null = null;
   let distance = Infinity;
   const gateIso = IsometricHelper.gridToScreen(CASTLE_GATE.x, CASTLE_GATE.y);
+  const home = homeOf(worker);
 
   for (const inv of invaders) {
     if ((inv.emerge ?? 0) > 0 || !inv.container?.active || inv.isDead || inv.isRetreating) continue;
     const dWorker = Math.hypot(inv.container.x - worker.container.x, inv.container.y - worker.container.y);
     const dCastle = Math.hypot(inv.container.x - gateIso.x, inv.container.y - gateIso.y);
     // Highest priority to invaders threatening the Castle
-    const priorityScore = dWorker + (dCastle < 140 ? -60 : 0);
+    // …then invaders at the General's own establishment and invaders beating on any ally
+    const dHome = home ? Math.hypot(inv.container.x - home.x, inv.container.y - home.y) : Infinity;
+    const priorityScore = dWorker + (dCastle < 140 ? -60 : 0) + (dHome < 130 ? -50 : 0) + (inv.target && inv.target.kind !== 'structure' ? -40 : 0);
     if (priorityScore < distance) {
       distance = priorityScore;
       target = inv;
@@ -241,7 +256,23 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   const workerY = worker.container.y;
 
   if (!targetPortal && !targetInvader) {
-    // No target invader in range: Move to defensive guard position around the Castle!
+    // No foe in sight: back up the nearest tenants still fighting, else guard the castle
+    const engaged = ctx.defenders?.getDefenders().filter((d) => !d.dead && d.target && !d.target.isDead) ?? [];
+    let ally: { x: number; y: number } | null = null;
+    let allyDist = Infinity;
+    for (const d of engaged) {
+      const dist = Math.hypot(d.container.x - workerX, d.container.y - workerY);
+      if (dist < allyDist) {
+        allyDist = dist;
+        ally = d.container;
+      }
+    }
+    if (ally && allyDist > 40) {
+      worker.overrideEmote = '🤝';
+      worker.overrideEmoteTimer = 600;
+      ctx.moveToward(worker, ally.x, ally.y, effectiveSpeed * 1.3 * deltaSec, deltaSec);
+      return;
+    }
     const defPos = getCastleDefensePosition(worker);
     const distToDef = Math.hypot(defPos.x - workerX, defPos.y - workerY);
     worker.overrideEmote = '🛡️';

@@ -24,6 +24,7 @@ import {
   Save,
   Code2,
   User,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface SettingsDrawerProps {
@@ -73,6 +74,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     toggleAudioMute,
     isGoreEnabled,
     toggleGore,
+    showWallpaper,
+    toggleWallpaper,
     autoSettings,
     toggleAutoSetting,
     exportSave,
@@ -352,6 +355,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   </SettingRow>
 
                   <AudioVolumeBlock />
+
+                  <SettingRow
+                    icon={<ImageIcon className="h-4 w-4" />}
+                    title={tr('wallpaperTitle')}
+                    description={tr('wallpaperDesc')}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        toggleWallpaper();
+                      }}
+                      className={`rounded-lg border px-2.5 py-1 text-[10px] font-mono font-bold transition-all ${
+                        showWallpaper
+                          ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                          : 'border-slate-700 bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {showWallpaper ? 'ON' : 'OFF'}
+                    </button>
+                  </SettingRow>
 
                   <SettingRow
                     icon={<Droplet className="h-4 w-4" />}

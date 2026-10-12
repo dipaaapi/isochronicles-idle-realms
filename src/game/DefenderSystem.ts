@@ -70,6 +70,8 @@ const DEFENDER_HP = 80;
 const DEFENDER_DAMAGE = 16;
 const DEFENDER_SPEED = 72;
 const DEFENDER_REACH = 28;
+/** How far (px) from home a garrisoned tenant ranges to back up allies during a battle. */
+const SUPPORT_LEASH = 320;
 const IDLE_REGEN = 4;
 
 /** Harvest task (for the work animation / Slime logic) that best matches a gather source. */
@@ -112,6 +114,48 @@ export class DefenderSystem {
     private invasion: InvasionManager,
     private nav: Navigation
   ) {}
+
+  private fires?: import('./FireSystem').FireSystem;
+
+  setFireSystem(fires: import('./FireSystem').FireSystem): void {
+    this.fires = fires;
+  }
+
+  private workerProvider: () => import('./workers/types').WorkerInstance[] = () => [];
+
+  /** Roster minions (Generals included) so tenants can rally to their General. */
+  setWorkerProvider(provider: () => import('./workers/types').WorkerInstance[]): void {
+    this.workerProvider = provider;
+  }
+
+  /** The establishment's General, if it is alive in the world. */
+  private generalOf(home: TowerId): import('./workers/types').WorkerInstance | undefined {
+    return this.workerProvider().find(
+      (w) => w.container.active && w.hp > 0 && UNIT_CLASSES[w.unitClass]?.requiredBuilding === home
+    );
+  }
+
+  /**
+   * Battle target for a garrisoned tenant, within SUPPORT_LEASH of home:
+   * 1. invaders at its own establishment, 2. invaders hitting any ally or
+   * building (tenants, Generals, the castle), 3. the nearest invader.
+   */
+  private pickSupportTarget(d: Defender, invaders: ActiveInvader[], home: { x: number; y: number }): ActiveInvader | undefined {
+    let best: ActiveInvader | undefined;
+    let bestScore = Infinity;
+    for (const inv of invaders) {
+      const fromHome = Math.hypot(inv.container.x - home.x, inv.container.y - home.y);
+      if (fromHome > SUPPORT_LEASH) continue;
+      let score = this.dist(d, inv.container);
+      if (fromHome <= 130) score -= 400;
+      else if (inv.target) score -= 200;
+      if (score < bestScore) {
+        bestScore = score;
+        best = inv;
+      }
+    }
+    return best;
+  }
 
   /** Raises a temporary ally at a world point (Necromancer skeletons, Raise the Dead). */
   summon(x: number, y: number, opts: SummonOptions): void {
@@ -276,6 +320,12 @@ export class DefenderSystem {
         continue;
       }
 
+      // ── Bucket brigade: put out torched establishments before anything else ──
+      if (this.fires?.driveFirefighter(d, dt, (x, y, speed) => this.step(d, x, y, dt, DEFENDER_SPEED * speed * slimeSpdMult))) {
+        this.updateGarrisonVisuals(d, false, false);
+        continue;
+      }
+
       // ── Establishment Tenant Logic ──
       const homeTower = this.structures.getTowers().find((t) => t.id === d.home);
       const homeCenter = homeTower ? { x: homeTower.x, y: homeTower.y } : { x: d.postX, y: d.postY };
@@ -325,62 +375,46 @@ export class DefenderSystem {
         continue;
       }
 
-      // ── ATTACHED GARRISON (Battle Active) ──
+      // ── ATTACHED GARRISON (Battle Active): nobody idles — defend home, back up allies, follow the General ──
       if (isWaveActive) {
-        const distToHome = Math.hypot(homeCenter.x - d.container.x, homeCenter.y - d.container.y);
+        d.state = 'GARRISONED';
+        this.updateGarrisonVisuals(d, true, false);
 
-        if (distToHome > 45) {
-          d.state = 'RETREAT_TO_GARRISON';
-          this.step(d, homeCenter.x, homeCenter.y, dt, DEFENDER_SPEED * 1.25);
-          this.updateGarrisonVisuals(d, false, false);
-        } else {
-          d.state = 'GARRISONED';
-          this.updateGarrisonVisuals(d, true, false);
+        const fromHome = (x: number, y: number) => Math.hypot(x - homeCenter.x, y - homeCenter.y);
+        if (d.target && (d.target.isDead || d.target.isRetreating || fromHome(d.target.container.x, d.target.container.y) > SUPPORT_LEASH * 1.2)) {
+          d.target = undefined;
+        }
+        if (!d.target) d.target = this.pickSupportTarget(d, invaders, homeCenter);
 
-          // ── Real-time Assistance: If home establishment is clear of local threats, 
-          // assist and fight back against any invaders threatening other establishments or the Citadel ──
-          const localThreat = invaders.find((inv) => Math.hypot(inv.container.x - homeCenter.x, inv.container.y - homeCenter.y) <= 130);
-          
-          if (!d.target || d.target.isDead || d.target.isRetreating) {
-            if (localThreat) {
-              // Priority 1: Defend own establishment if directly threatened
-              d.target = localThreat;
-            } else {
-              // Priority 2: Assist Realm! Target enemies attacking the Castle, nearest establishment, or roaming
-              d.target = invaders
-                .slice()
-                .sort((a, b) => {
-                  const aAttackingCore = a.target?.kind === 'structure';
-                  const bAttackingCore = b.target?.kind === 'structure';
-                  if (aAttackingCore && !bAttackingCore) return -1;
-                  if (!aAttackingCore && bAttackingCore) return 1;
-                  return this.dist(d, a.container) - this.dist(d, b.container);
-                })[0];
-            }
-          }
+        if (d.target) {
+          const tx = d.target.container.x;
+          const ty = d.target.container.y;
+          const dist = Math.hypot(tx - d.container.x, ty - d.container.y);
 
-          if (d.target) {
-            const tx = d.target.container.x;
-            const ty = d.target.container.y;
-            const dist = Math.hypot(tx - d.container.x, ty - d.container.y);
-
-            if (dist <= DEFENDER_REACH) {
-              if (d.sprite) faceCharacterSprite(d.sprite, tx - d.container.x, ty - d.container.y, false);
-              d.cooldown -= dt;
-              if (d.cooldown <= 0) {
-                d.cooldown = 1.0;
-                if (d.sprite) playCharacterAttack(d.sprite);
-                this.invasion.damageInvader(d.target, Math.round(d.damage * researchAtkBonus));
-              }
-            } else {
-              this.step(d, tx, ty, dt, DEFENDER_SPEED);
+          if (dist <= DEFENDER_REACH) {
+            if (d.sprite) faceCharacterSprite(d.sprite, tx - d.container.x, ty - d.container.y, false);
+            d.cooldown -= dt;
+            if (d.cooldown <= 0) {
+              d.cooldown = 1.0;
+              if (d.sprite) playCharacterAttack(d.sprite);
+              this.invasion.damageInvader(d.target, Math.round(d.damage * researchAtkBonus * slimeAtkMult));
             }
           } else {
-            // Idle around the garrison perimeter
-            const distToPost = Math.hypot(d.postX - d.container.x, d.postY - d.container.y);
-            if (distToPost > 8) {
-              this.step(d, d.postX, d.postY, dt, DEFENDER_SPEED * 0.7);
-            }
+            this.step(d, tx, ty, dt, DEFENDER_SPEED * 1.15 * slimeSpdMult);
+          }
+        } else {
+          // No foe in reach yet: stand beside the General if it is out fighting, else walk the home perimeter
+          const general = this.generalOf(d.home as TowerId);
+          if (general && Math.hypot(general.container.x - homeCenter.x, general.container.y - homeCenter.y) <= SUPPORT_LEASH) {
+            const gx = general.container.x - d.container.x;
+            const gy = general.container.y - d.container.y;
+            if (Math.hypot(gx, gy) > 34) this.step(d, general.container.x, general.container.y, dt, DEFENDER_SPEED * slimeSpdMult);
+          } else {
+            const seed = d.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+            const a = this.scene.time.now / 1000 * 0.5 + seed;
+            const px = homeCenter.x + Math.cos(a) * 52;
+            const py = homeCenter.y + Math.sin(a) * 26;
+            this.step(d, px, py, dt, DEFENDER_SPEED * 0.8 * slimeSpdMult);
           }
         }
       } else {

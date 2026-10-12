@@ -139,7 +139,7 @@ assert.equal(state().resources.coins, beforePurchase.coins - 45);
 assert.equal(state().buyResource('wood', Math.floor(state().resources.coins / 15) + 1), false);
 console.log('Custom purchase quantity checks passed.');
 
-const preferences = new Set(['language', 'isAudioMuted', 'isGoreEnabled', 'targetFps', 'showFpsDebug', 'showTileCoordinates', 'measuredFps', 'musicLibrary', 'musicIndex', 'musicAutoPlay', 'musicLoop']);
+const preferences = new Set(['language', 'isAudioMuted', 'isGoreEnabled', 'showWallpaper', 'targetFps', 'showFpsDebug', 'showTileCoordinates', 'measuredFps', 'musicLibrary', 'musicIndex', 'musicAutoPlay', 'musicLoop']);
 const initial = store.getInitialState();
 // Every reset rolls a fresh random layout, so its seed (and the node spots it moves) differ by design
 const rerolled = new Set(['lastSavedTimestamp', 'layoutSeed', 'dynamicResourceNodes']);

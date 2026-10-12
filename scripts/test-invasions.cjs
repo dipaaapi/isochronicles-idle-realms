@@ -33,7 +33,7 @@ vm.runInNewContext(source, {
       return exports;
     }
     // Pure balance tables (src/state) load for real too
-    const pure = name.match(/(waveBalance|waveTactics|difficulty|scoutLoot)$/);
+    const pure = name.match(/(waveBalance|waveTactics|difficulty|scoutLoot|scoutRaid)$/);
     if (pure) {
       const exports = {};
       vm.runInNewContext(ts.transpileModule(fs.readFileSync(`src/state/${pure[1]}.ts`, 'utf8'), {
@@ -69,7 +69,8 @@ vm.runInNewContext(source, {
 const { InvasionManager } = exportsObject;
 function display(x = 0, y = 0) {
   return { x, y, active: true, setSize() {}, setDepth() {}, add() {},
-    setInteractive() {}, on() {}, destroy() { this.active = false; } };
+    setInteractive() {}, on() {}, clear() {}, fillStyle() {}, fillRect() {}, setAlpha() {}, setY() {},
+    destroy() { this.active = false; } };
 }
 const manager = new InvasionManager({ add: {
   graphics: () => display(), container: display, ellipse: () => display(),

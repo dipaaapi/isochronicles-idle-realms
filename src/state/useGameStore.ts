@@ -31,6 +31,7 @@ const createPreferences = () => ({
   language: 'EN' as const,
   isAudioMuted: soundFx.getIsMuted(),
   isGoreEnabled: false,
+  showWallpaper: true,
   // Saved on its own, apart from the realm progress (see externalMusic.ts)
   ...loadMusicPrefs(),
   targetFps: (Number(localStorage.getItem(TARGET_FPS_STORAGE_KEY)) || recommendedFps()) as 30 | 60 | 90,

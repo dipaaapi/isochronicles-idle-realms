@@ -56,6 +56,7 @@ export class PortalManager {
   /** ROTATE pattern: spawns per rift before moving on, and the running count. */
   private rotateEvery = 0;
   private rotateCount = 0;
+  private forceFields?: import('./ForceFieldSystem').ForceFieldSystem;
   private guardProvider?: (p: PortalState) => PortalGuard | null;
   /** Fraction of damage a warded rift still takes. */
   private wardDamageTaken = 1;
@@ -151,6 +152,10 @@ export class PortalManager {
   heal(p: PortalState, amount: number): void {
     if (p.mode !== 'open' || !(amount > 0)) return;
     p.hp = Math.min(p.maxHp, p.hp + amount);
+  }
+
+  setForceFields(fields: import('./ForceFieldSystem').ForceFieldSystem): void {
+    this.forceFields = fields;
   }
 
   getAll(): readonly PortalState[] {
@@ -299,6 +304,8 @@ export class PortalManager {
   damage(p: PortalState, amount: number): boolean {
     if (p.mode !== 'open' || !(amount > 0)) return false;
     if (p.wardTimer > 0) amount *= this.wardDamageTaken;
+    if (this.forceFields) amount = this.forceFields.absorbPortalHit(p, amount);
+    if (amount <= 0) return false;
     p.hp = Math.max(0, p.hp - amount);
     if (p.sprite) {
       const sprite = p.sprite;

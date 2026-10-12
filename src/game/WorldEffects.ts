@@ -6,6 +6,18 @@ import { ART_PIXEL, WATER_DROP_WORLD } from './PixelTileArt';
 import { soundFx } from './audio/soundFx';
 import { logMessage } from '../state/activityLog';
 import { isBridgeTile } from '../state/buildingLayout';
+import FISH from '../data/leapingFish.json';
+import { useGameStore } from '../state/useGameStore';
+
+interface FishSpecies { body: string; fin: string; weight: number; long?: boolean }
+interface FishBiome {
+  species: FishSpecies[];
+  rare: FishSpecies & { chance: number; logKey: string; name?: { en: string; tl: string } };
+  jump: { height: number[]; ms: number; hops: number; school: number };
+  splash: string;
+  drops: string;
+  trail: 'none' | 'ember' | 'snow' | 'sparkle';
+}
 
 /**
  * Living-world effects on, above and behind the island:
@@ -431,9 +443,15 @@ export class WorldEffects {
 
   // ── Fish ───────────────────────────────────────────────────────────────────
 
-  private splash(x: number, y: number): void {
+  /** This realm's leaping-fish set (leapingFish.json). */
+  private fishBiome(): FishBiome {
+    const biomes = FISH.biomes as unknown as Record<string, FishBiome>;
+    return biomes[String(useGameStore.getState().platformPhase || 1)] ?? biomes['1'];
+  }
+
+  private splash(x: number, y: number, ringColor = 0xf0f9ff, dropColor = 0xe0f2fe): void {
     const ring = this.scene.add.graphics();
-    ring.lineStyle(P, 0xf0f9ff, 0.9);
+    ring.lineStyle(P, ringColor, 0.9);
     ring.strokeEllipse(0, 0, 10, 5);
     ring.setPosition(x, y);
     this.groundLayer.add(ring);
@@ -441,7 +459,7 @@ export class WorldEffects {
 
     for (let i = 0; i < 4; i++) {
       const drop = this.scene.add.graphics();
-      drop.fillStyle(0xe0f2fe, 1);
+      drop.fillStyle(dropColor, 1);
       this.pixelRect(drop, 0, 0, 1, 1);
       drop.setPosition(x, y);
       this.airLayer.add(drop);
@@ -461,53 +479,105 @@ export class WorldEffects {
     }
   }
 
+  /** A tiny ember / snowflake / sparkle left behind a leaping fish. */
+  private trailBit(x: number, y: number, kind: FishBiome['trail']): void {
+    if (kind === 'none') return;
+    const bit = this.scene.add.graphics();
+    bit.fillStyle(kind === 'ember' ? 0xfb923c : kind === 'snow' ? 0xf8fafc : 0xfef9c3, 1);
+    this.pixelRect(bit, 0, 0, 1, 1);
+    bit.setPosition(x, y);
+    this.airLayer.add(bit);
+    const drift = kind === 'ember' ? -10 : kind === 'snow' ? 6 : -4;
+    this.scene.tweens.add({ targets: bit, y: y + drift, alpha: 0, duration: kind === 'sparkle' ? 700 : 500, onComplete: () => bit.destroy() });
+  }
+
   private leapFish(): void {
     const tile = Phaser.Utils.Array.GetRandom(this.waterTiles);
     if (!tile) return;
-    const base = IsometricHelper.gridToScreen(tile.x, tile.y);
-    const startX = base.x + Phaser.Math.Between(-10, 10);
-    const startY = base.y + WATER_DROP_WORLD + Phaser.Math.Between(-3, 3);
-    const endX = startX + Phaser.Math.RND.sign() * Phaser.Math.Between(10, 18);
-    const endY = startY + Phaser.Math.Between(-4, 4);
-    const height = Phaser.Math.Between(18, 30);
-
-    const fish = this.scene.add.graphics();
-    const golden = Math.random() < 0.15;
-    if (golden) {
-      logMessage('goldenFish', { tile: IsometricHelper.tileName(tile.x, tile.y) });
+    const biome = this.fishBiome();
+    const rare = Math.random() < biome.rare.chance;
+    if (rare) {
+      const name = biome.rare.name ?? { en: 'Golden Carp', tl: 'Gintong Karpa' };
+      logMessage(biome.rare.logKey as 'goldenFish', { tile: IsometricHelper.tileName(tile.x, tile.y), fish: name });
     }
-    const bodyColor = golden ? 0xfbbf24 : Math.random() < 0.5 ? 0xf97316 : 0x94a3b8;
-    fish.fillStyle(bodyColor, 1);
-    fish.fillRect(-3 * P, -P, 5 * P, 2 * P);
+    const school = !rare && Math.random() < biome.jump.school ? 3 : 1;
+    for (let i = 0; i < school; i++) {
+      this.scene.time.delayedCall(i * 140, () => this.leapOne(tile, biome, rare));
+    }
+  }
+
+  private leapOne(tile: { x: number; y: number }, biome: FishBiome, rare: boolean): void {
+    const species = rare ? biome.rare : this.pickSpecies(biome);
+    const base = IsometricHelper.gridToScreen(tile.x, tile.y);
+    const dir = Phaser.Math.RND.sign();
+    let startX = base.x + Phaser.Math.Between(-10, 10);
+    let startY = base.y + WATER_DROP_WORLD + Phaser.Math.Between(-3, 3);
+
+    const body = parseInt(species.body, 16);
+    const fin = parseInt(species.fin, 16);
+    const len = species.long ? 2 : 0;
+    const fish = this.scene.add.graphics();
+    fish.fillStyle(body, 1);
+    fish.fillRect((-3 - len) * P, -P, (5 + len) * P, 2 * P);
     fish.fillRect(-2 * P, -1.5 * P, 3 * P, 3 * P);
-    fish.fillStyle(Phaser.Display.Color.ValueToColor(bodyColor).darken(25).color, 1);
-    fish.fillRect(-5 * P, -1.5 * P, 2 * P, 3 * P);
+    fish.fillStyle(fin, 1);
+    fish.fillRect((-5 - len) * P, -1.5 * P, 2 * P, 3 * P);
+    fish.fillRect(-1 * P, -2 * P, 2 * P, P / 2);
     fish.fillStyle(0x0f172a, 1);
     fish.fillRect(1 * P, -P, P, P);
-    fish.setPosition(startX, startY);
-    fish.setScale(endX > startX ? 1 : -1, 1);
+    fish.setScale(dir, 1);
+    fish.setVisible(false);
     this.airLayer.add(fish);
 
-    this.splash(startX, startY);
-    const arc = { t: 0 };
-    this.scene.tweens.add({
-      targets: arc,
-      t: 1,
-      duration: 760,
-      ease: 'Linear',
-      onUpdate: () => {
-        const t = arc.t;
-        fish.x = Phaser.Math.Linear(startX, endX, t);
-        fish.y = Phaser.Math.Linear(startY, endY, t) - 4 * height * t * (1 - t);
-        const slope = (endY - startY) - 4 * height * (1 - 2 * t);
-        fish.rotation = Math.atan2(slope, Math.abs(endX - startX)) * (endX > startX ? 1 : -1);
-      },
-      onComplete: () => {
-        fish.destroy();
-        this.splash(endX, endY);
-        soundFx.playSplash();
-      },
-    });
+    // One or more hops (frost fish skip across the surface)
+    const hop = (n: number) => {
+      const endX = startX + dir * Phaser.Math.Between(10, 18);
+      const endY = startY + Phaser.Math.Between(-4, 4);
+      const scale = n === 0 ? 1 : 0.7;
+      const height = Phaser.Math.Between(biome.jump.height[0], biome.jump.height[1]) * scale;
+      const sx = startX;
+      const sy = startY;
+      fish.setPosition(sx, sy).setVisible(true);
+      this.splash(sx, sy, parseInt(biome.splash, 16), parseInt(biome.drops, 16));
+      const arc = { t: 0 };
+      let trailTimer = 0;
+      this.scene.tweens.add({
+        targets: arc,
+        t: 1,
+        duration: biome.jump.ms * scale,
+        ease: 'Linear',
+        onUpdate: (tween) => {
+          const t = arc.t;
+          fish.x = Phaser.Math.Linear(sx, endX, t);
+          fish.y = Phaser.Math.Linear(sy, endY, t) - 4 * height * t * (1 - t);
+          const slope = (endY - sy) - 4 * height * (1 - 2 * t);
+          fish.rotation = Math.atan2(slope, Math.abs(endX - sx)) * dir;
+          trailTimer += tween.elapsed > 0 ? 1 : 0;
+          if (trailTimer % 4 === 0) this.trailBit(fish.x - dir * 4, fish.y, biome.trail);
+        },
+        onComplete: () => {
+          startX = endX;
+          startY = endY;
+          if (n + 1 < biome.jump.hops) {
+            hop(n + 1);
+            return;
+          }
+          fish.destroy();
+          this.splash(endX, endY, parseInt(biome.splash, 16), parseInt(biome.drops, 16));
+          soundFx.playSplash();
+        },
+      });
+    };
+    hop(0);
+  }
+
+  private pickSpecies(biome: FishBiome): FishSpecies {
+    let roll = Math.random() * biome.species.reduce((sum, sp) => sum + sp.weight, 0);
+    for (const sp of biome.species) {
+      roll -= sp.weight;
+      if (roll <= 0) return sp;
+    }
+    return biome.species[0];
   }
 
   // ── Weather particles ──────────────────────────────────────────────────────

@@ -43,6 +43,7 @@ import { pickScout, rollScoutDrops } from '../state/scoutLoot';
 import { buildWavePlan, type PlannedSpawn } from './invaders/wavePlan';
 import { WAVE_BALANCE, invaderStats, portalHpMultiplier, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
 import { TACTIC_EFFECTS, tacticOf, type WaveTactic } from '../state/waveTactics';
+import { SCOUT_DEFENCE_CAP, SCOUT_ROLES, pickScoutRole, rollStolen, scoutCount, scoutScaling, scoutWave } from '../state/scoutRaid';
 
 export type { ActiveInvader, InvaderBlocker } from './invaders/types';
 export class InvasionManager {
@@ -271,8 +272,10 @@ export class InvasionManager {
   }
 
   public spawnLootScouts(): void {
-    // Spawns 1 to 3 non-threatening wandering scouts
-    const numScouts = Math.floor(Math.random() * 3) + 1;
+    // A random fight: more scouts the further the realm has come (scoutRaid.json)
+    const wave = scoutWave();
+    const numScouts = scoutCount(wave);
+    logMessage('scoutRaid', { count: numScouts, wave });
     for (let i = 0; i < numScouts; i++) {
       this.spawnSingleScout();
     }
@@ -291,9 +294,12 @@ export class InvasionManager {
     const scout = pickScout();
     const type: InvaderType = scout.type;
 
-    // Weak raiders: they march on the citadel, but towers and establishments cut them down
-    const finalMaxHp = scout.hp;
-    const finalDamage = scout.damage;
+    // Raiders scale with the last wave reached and take a role: runner, looter or raider
+    const scaling = scoutScaling(scoutWave());
+    const role = pickScoutRole();
+    const roleCfg = SCOUT_ROLES[role];
+    const finalMaxHp = Math.round(scout.hp * scaling.hp * roleCfg.hp);
+    const finalDamage = Math.round(scout.damage * scaling.damage);
     const finalBounty = 0; // custom drop is handled in strike function
     const startIso = IsometricHelper.gridToScreen(spawnGrid.x, spawnGrid.y);
 
@@ -317,6 +323,8 @@ export class InvasionManager {
       name: scout.kind === 'MECHA' ? 'Mecha Scout Drone' : 'Wandering Scout',
       scoutKind: scout.kind,
       isScout: true,
+      scoutRole: role,
+      defence: scaling.defence,
       container,
       shadow,
       bodyGfx,
@@ -328,7 +336,7 @@ export class InvasionManager {
       pathIndex: 0,
       hp: finalMaxHp,
       maxHp: finalMaxHp,
-      speed: scout.speed, // Movement uses pixels per second, like regular invaders.
+      speed: scout.speed * roleCfg.speed, // Movement uses pixels per second, like regular invaders.
       damage: finalDamage,
       bountyCoins: finalBounty,
       attackTimer: 0,
@@ -339,6 +347,10 @@ export class InvasionManager {
       portal: fromPortal,
       retargetTimer: 0,
     };
+
+    // HP + defence gauges show from the start; looters sneak in half-hidden
+    this.renderHpBar(hpBarGfx, finalMaxHp, finalMaxHp, scaling.defence);
+    if (roleCfg.alpha) (sprite ?? bodyGfx).setAlpha(roleCfg.alpha);
 
     // Interactive Clicking: Smite for Loot
     container.setInteractive({ useHandCursor: true });
@@ -650,7 +662,7 @@ export class InvasionManager {
     renderInvaderBody(graphics, type);
   }
 
-  private renderHpBar(graphics: Phaser.GameObjects.Graphics, current: number, max: number): void {
+  private renderHpBar(graphics: Phaser.GameObjects.Graphics, current: number, max: number, defence = 0): void {
     graphics.clear();
     const width = 24;
     const height = 4;
@@ -662,10 +674,18 @@ export class InvasionManager {
     graphics.fillRect(x - 1, y - 1, width + 2, height + 2);
 
     // HP Fill
-    const pct = Phaser.Math.Clamp(current / max, 0, 1);
+    const pct = Math.max(0, Math.min(1, current / max));
     const color = pct > 0.5 ? 0x22c55e : pct > 0.25 ? 0xf59e0b : 0xef4444;
     graphics.fillStyle(color, 1);
     graphics.fillRect(x, y, width * pct, height);
+
+    // Defence gauge (scouts): a thin blue bar under the HP
+    if (defence > 0) {
+      graphics.fillStyle(0x000000, 0.7);
+      graphics.fillRect(x - 1, y + height + 1, width + 2, 4);
+      graphics.fillStyle(0x60a5fa, 1);
+      graphics.fillRect(x, y + height + 2, width * Math.min(1, defence / SCOUT_DEFENCE_CAP), 2);
+    }
   }
 
   public smiteClosestInvader(worldX?: number, worldY?: number, isAutoTap: boolean = false): boolean {
@@ -799,10 +819,11 @@ export class InvasionManager {
       if (popupText) this.spawnFloatingPopup(invader.container.x, invader.container.y - 24, '🛡️ Immune', '#fde68a');
       return;
     }
-    const damage = this.modifiedDamage(invader, rawDamage);
+    let damage = this.modifiedDamage(invader, rawDamage);
+    if (invader.defence) damage = Math.max(1, Math.round(damage * (1 - invader.defence)));
 
     invader.hp -= damage;
-    this.renderHpBar(invader.hpBarGfx, invader.hp, invader.maxHp);
+    this.renderHpBar(invader.hpBarGfx, invader.hp, invader.maxHp, invader.defence);
     if (invader.sprite) {
       const sprite = invader.sprite;
       sprite.setTintFill(0xffffff);
@@ -996,6 +1017,10 @@ export class InvasionManager {
     if (invader.isDead) return;
     if (!invader.isScout) this.onInvaderKilled?.(invader);
     if (invader.isScout) {
+      if (invader.stolen) {
+        useGameStore.getState().addResources(invader.stolen);
+        logMessage('scoutLootRecovered', { coins: invader.stolen.coins ?? 0 });
+      }
       invader.isDead = true;
       invader.hp = 0;
       soundFx.playExplosion();
@@ -1191,6 +1216,12 @@ export class InvasionManager {
       return false;
     }
 
+    // Looters don't fight: they grab what they can from the citadel and run for a rift
+    if (invader.isScout && invader.scoutRole === 'LOOTER' && structure.id === 'CASTLE') {
+      this.lootCitadel(invader);
+      return false;
+    }
+
     this.faceInvader(invader, structure.x - invader.container.x, structure.y - 20 - invader.container.y, false);
     invader.attackTimer -= deltaSec;
     if (invader.attackTimer > 0) return false;
@@ -1320,6 +1351,7 @@ export class InvasionManager {
   }
 
   private despawnEscaped(invader: ActiveInvader): void {
+    if (invader.stolen) logMessage('scoutEscapedLoot', { coins: invader.stolen.coins ?? 0 });
     if (!invader.isScout) {
       this.spawnFloatingPopup(
         invader.container.x,
@@ -1375,27 +1407,43 @@ export class InvasionManager {
     logFloatingText(text, color, nearestName([...workers, ...this.invaders], x, y));
   }
 
+  /** A looter scout reached the citadel: steal and flee. */
+  private lootCitadel(invader: ActiveInvader): void {
+    const store = useGameStore.getState();
+    const stolen = rollStolen(scoutWave(), store.resources);
+    if (Object.keys(stolen).length && store.spendResources(stolen)) {
+      invader.stolen = stolen;
+      logMessage('scoutStole', { name: this.logName(invader), coins: stolen.coins ?? 0 });
+    }
+    this.sendHome(invader);
+  }
+
+  /** Turns one invader around toward a rift (or its spawn edge). */
+  private sendHome(invader: ActiveInvader): void {
+    invader.isRetreating = true;
+    invader.attackTimer = 9999; // Stop attacking
+    invader.emerge = 0;
+
+    const curGrid = Navigation.tileOf(invader.container.x, invader.container.y);
+    const portal = invader.portal && invader.portal.mode !== 'destroyed'
+      ? invader.portal
+      : this.portals?.nearest(invader.container.x, invader.container.y) ?? undefined;
+    invader.exitPortal = portal;
+    const exitEdge: GridPoint = portal ? portal.site.exit : invader.spawnGrid || { x: 1, y: 1 };
+    const allowedTiles = TILES_FOR[invaderMoveMode(invader.type)];
+    const returnPath = this.pathfinder.findPath(curGrid.x, curGrid.y, exitEdge.x, exitEdge.y, allowedTiles);
+
+    invader.currentPath = (returnPath && returnPath.length > 0)
+      ? returnPath
+      : [{ x: curGrid.x, y: curGrid.y }, { x: exitEdge.x, y: exitEdge.y }];
+    invader.pathIndex = 0;
+  }
+
   public triggerEnemiesRetreatWithLoot(): void {
     // Every living invader runs back to a rift with its loot
     for (const invader of this.invaders) {
       if (invader.isDead || invader.isRetreating) continue;
-      invader.isRetreating = true;
-      invader.attackTimer = 9999; // Stop attacking
-      invader.emerge = 0;
-
-      const curGrid = Navigation.tileOf(invader.container.x, invader.container.y);
-      const portal = invader.portal && invader.portal.mode !== 'destroyed'
-        ? invader.portal
-        : this.portals?.nearest(invader.container.x, invader.container.y) ?? undefined;
-      invader.exitPortal = portal;
-      const exitEdge: GridPoint = portal ? portal.site.exit : invader.spawnGrid || { x: 1, y: 1 };
-      const allowedTiles = TILES_FOR[invaderMoveMode(invader.type)];
-      const returnPath = this.pathfinder.findPath(curGrid.x, curGrid.y, exitEdge.x, exitEdge.y, allowedTiles);
-
-      invader.currentPath = (returnPath && returnPath.length > 0)
-        ? returnPath
-        : [{ x: curGrid.x, y: curGrid.y }, { x: exitEdge.x, y: exitEdge.y }];
-      invader.pathIndex = 0;
+      this.sendHome(invader);
 
       this.spawnFloatingPopup(
         invader.container.x,

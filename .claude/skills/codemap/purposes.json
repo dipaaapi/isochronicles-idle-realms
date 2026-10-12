@@ -141,5 +141,20 @@
   "scripts/balance-sim.cjs": "Balance model: measured tenant income, waves 1-100 load per difficulty on day 1 and 365 incl. tactics and skills",
   "src/data/platformThemes.json": "Platform look per difficulty (tint, flowers, glowing cracks, rubble, cliff shade) and per-realm glow/blossom colours",
   "src/data/scoutLoot.json": "Peacetime scouts: random human/mecha types and stats, ground coin/resource drops, equipment drop chance and pools",
-  "src/state/scoutLoot.ts": "Typed scout table: SCOUTS, pickScout, rollScoutDrops (coin piles, supplies, item id)"
+  "src/state/scoutLoot.ts": "Typed scout table: SCOUTS, pickScout, rollScoutDrops (coin piles, supplies, item id)",
+  "src/game/ForceFieldSystem.ts": "Wave-time rotating force-field domes over the castle, establishments and open rifts; per-dome gauge soaks hits (castle dome = shieldHp), breaks and reboots",
+  "src/data/forceFields.json": "Force-field dome tuning: capacity fractions, reboot time/charge, colours, rotation",
+  "src/game/scene/liveFocusCamera.ts": "Live-stream focus: detects the hottest clash in a wave and pops a picture-in-picture camera over it (top-right)",
+  "src/state/liveFocus.ts": "Session-only store bridging the live-focus camera and the React stream overlay (live, intensity, spot)",
+  "src/ui/LiveStreamOverlay.tsx": "LIVE frame, viewer count and rising emoji reactions over the live-focus camera",
+  "src/data/liveStream.json": "Live-stream focus tuning: detection, timings, frame size, reaction list (EN/TL)",
+  "src/game/scene/castleAlarm.ts": "Battle red alert: rotating twin-beam siren light on the castle roof plus the alarm sound while a wave or scout fight is on",
+  "src/game/FireSystem.ts": "Torch raids: human scouts in random fights torch establishments; fire gauge (0 = out, 100 = collapse), tenant bucket brigade from the nearest shore, Treant/General panic",
+  "src/data/fireConfig.json": "Torch raid / fire tuning: torch range, cooldown, chance, fire rise, bucket splash, crew size, panic",
+  "src/state/scoutRaid.ts": "Random-fight scout scaling by wave (HP, damage, defence, count), roles (runner/looter/raider), loot theft and establishment defence score for raider targeting",
+  "src/data/scoutRaid.json": "Scout raid tuning: wave scaling, count, role weights and multipliers, steal amounts, weakness weights",
+  "src/data/establishmentDefense.json": "Per-establishment tower accuracy (hit chance) and wall armor, with per-level growth and caps",
+  "src/game/scene/waterLife.ts": "Live water: animated HD Aseprite surface over every water tile and wandering/diving fish, one biome per realm (ocean, magma, frost, astral)",
+  "src/data/waterfalls.json": "Edge waterfall styles per realm and random moods (calm, torrent, gusty, eruption, freeze, ascent)",
+  "src/data/leapingFish.json": "Leaping fish per realm: species colours, rare catch, jump style (height, hops, school), splash and trail"
 }

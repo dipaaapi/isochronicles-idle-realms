@@ -258,6 +258,8 @@ const castle = (): StructureModel => {
     },
     {
       name: 'beacon', pivot: [38, 38, 72], shapes: [
+        // Siren lamp: iron collar seated on the spire tip, red glass dome (spins its beams in battle)
+        cyl(38, 38, 66, 2.2, 3, M.iron), cyl(38, 38, 68.5, 3.6, 1.2, M.iron),
         ell(38, 38, 72, 3.4, 3.4, 4.2, M.beacon),
         ball(38, 38, 72.4, 1.7, M.beaconCore),
       ],

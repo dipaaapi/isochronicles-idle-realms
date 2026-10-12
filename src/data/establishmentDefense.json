@@ -1,0 +1,21 @@
+{
+  "_comment": "Per-establishment combat profile. accuracy = chance a tower shot hits (catapults lob wide, flames and aether arcs rarely miss); armor = share of each invader hit the building ignores (stone and iron hold, tents and perches don't). Both improve per tower level above 1, up to the caps. Raider scouts weigh both when picking the weakest defence.",
+  "perLevel": { "accuracy": 0.02, "armor": 0.02 },
+  "caps": { "accuracy": 0.98, "armor": 0.45 },
+  "profiles": {
+    "QUARRY":   { "accuracy": 0.72, "armor": 0.25 },
+    "FOUNDRY":  { "accuracy": 0.74, "armor": 0.28 },
+    "PORT":     { "accuracy": 0.85, "armor": 0.10 },
+    "TRENCH":   { "accuracy": 0.84, "armor": 0.16 },
+    "WOOD":     { "accuracy": 0.90, "armor": 0.08 },
+    "MINE":     { "accuracy": 0.80, "armor": 0.18 },
+    "CRYPT":    { "accuracy": 0.82, "armor": 0.15 },
+    "PERCH":    { "accuracy": 0.86, "armor": 0.05 },
+    "PAVILION": { "accuracy": 0.78, "armor": 0.06 },
+    "OSSUARY":  { "accuracy": 0.81, "armor": 0.14 },
+    "CAVE":     { "accuracy": 0.92, "armor": 0.22 },
+    "KENNEL":   { "accuracy": 0.90, "armor": 0.10 },
+    "SPIRE":    { "accuracy": 0.95, "armor": 0.20 },
+    "VOIDGATE": { "accuracy": 0.94, "armor": 0.12 }
+  }
+}

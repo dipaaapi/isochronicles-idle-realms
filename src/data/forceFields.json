@@ -1,0 +1,10 @@
+{
+  "_comment": "Wave-time force-field domes over the castle, establishments and open rifts. The castle dome is the castle's shieldHp (defenseSlice.damageCastle); the rest are session-only and refill at every wave start.",
+  "establishment": { "maxHpFraction": 0.6, "perWave": 0.02, "color": "0x38bdf8" },
+  "portal": { "maxHpFraction": 0.35, "color": "0xc084fc" },
+  "castle": { "color": "0x67e8f9" },
+  "rebootSeconds": 18,
+  "rebootFraction": 0.3,
+  "rotationSpeed": 0.6,
+  "meridians": 6
+}

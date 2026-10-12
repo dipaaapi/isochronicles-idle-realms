@@ -17,6 +17,7 @@ import { LoadingScreen } from './ui/LoadingScreen';
 import { DifficultyFrame } from './ui/DifficultyFrame';
 import { EstablishmentModal } from './ui/EstablishmentModal';
 import { ActivityLogTray } from './ui/ActivityLogTray';
+import { LiveStreamOverlay } from './ui/LiveStreamOverlay';
 import { MusicManagerModal, MusicPlayer, MusicPlayerHost } from './ui/MusicPlayer';
 import { BattleItemsToolbar } from './ui/BattleItemsToolbar';
 import { startActivityWatcher } from './state/activityWatcher';
@@ -107,6 +108,7 @@ export const App: React.FC = () => {
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
             <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
+            <LiveStreamOverlay />
             <ActivityLogTray />
             <MusicPlayer placement="FLOAT" />
             {/* The one real player: laid over the FLOAT or SIDEBAR slot, never remounted when it moves */}

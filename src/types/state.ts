@@ -247,6 +247,8 @@ export interface GameStoreState {
   ambientDarkness: number; // 0.0 (high noon) to 1.0 (midnight)
   isAudioMuted: boolean;
   isGoreEnabled: boolean;
+  /** Phase wallpaper behind the island (off = plain dark backdrop). */
+  showWallpaper: boolean;
   /** Saved YouTube / Spotify links for the in-game music player (kept across regression, saved with the realm). */
   musicLibrary: import('../state/externalMusic').MusicEntry[];
   /** Which library entry the player is on. */
@@ -321,6 +323,10 @@ export interface GameStoreState {
   /** Parses and appends a link without switching what plays (already saved counts as success); false when the link is not a valid YouTube / Spotify link. */
   addMusicLink: (link: string, name?: string) => boolean;
   removeMusicLink: (index: number) => void;
+  /** Removes several saved entries at once (checked in the music library). */
+  removeMusicLinks: (indices: number[]) => void;
+  /** Drag-and-drop reorder; the playing entry stays selected. */
+  moveMusicLink: (from: number, to: number) => void;
   /** Appends entries read from a playlist file (deduped, capped); returns how many were new. */
   importMusicLibrary: (entries: readonly { link: string; name: string }[]) => number;
   setMusicAutoPlay: (on: boolean) => void;
@@ -345,6 +351,7 @@ export interface GameStoreState {
   incrementDay: () => void;
   toggleAudioMute: () => boolean;
   toggleGore: () => boolean;
+  toggleWallpaper: () => boolean;
   closeOfflineModal: () => void;
   setPromptedUpgrade: (key: string, level: number) => void;
   setTargetFps: (fps: 30 | 60 | 90) => void;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download, ExternalLink, FileSpreadsheet, FileText, ListEnd, ListMusic, ListPlus, Minus, Move, Music2, PanelRight, Pause, Play, Repeat, SkipBack, SkipForward, Shuffle, Trash2, Upload, WifiOff, X } from 'lucide-react';
+import { ChevronDown, Download, ExternalLink, FileSpreadsheet, FileText, GripVertical, ListEnd, ListMusic, ListPlus, Minus, Move, Music2, PanelRight, Pause, Play, Repeat, SkipBack, SkipForward, Shuffle, Trash2, Upload, WifiOff, X } from 'lucide-react';
 import { soundFx } from '../game/audio/soundFx';
 import { useTranslation } from '../i18n/translations';
 import type { TranslationKey } from '../i18n/translations';
@@ -201,7 +201,16 @@ export const MusicPlayerHost: React.FC = () => {
   const frame = hidden || !rect
     ? 'pointer-events-none fixed -left-[10000px] top-0 w-[320px]'
     : `pointer-events-auto fixed z-30 ${isFloat ? 'shadow-2xl' : ''}`;
-  const frameStyle = hidden || !rect ? undefined : { left: floatPosition?.left ?? rect.left, top: floatPosition?.top ?? rect.top, width: size?.width ?? rect.width, ...(size ? { height: size.height } : {}) };
+  // Floating: the dragged spot and resized width apply (kept inside the window). Docked: it sits exactly on
+  // the side-menu slot and only keeps a resized height. Minimized it always shrinks to its header.
+  let frameStyle: React.CSSProperties | undefined;
+  if (!hidden && rect) {
+    const width = isFloat ? size?.width ?? rect.width : rect.width;
+    const height = !isMinimized && size ? size.height : undefined;
+    const left = isFloat && floatPosition ? Math.max(0, Math.min(window.innerWidth - width, floatPosition.left)) : rect.left;
+    const top = isFloat && floatPosition ? Math.max(0, Math.min(window.innerHeight - 48, floatPosition.top)) : rect.top;
+    frameStyle = { left, top, width, ...(height ? { height } : {}) };
+  }
 
   const pick = (i: number) => {
     soundFx.playClick();
@@ -341,8 +350,8 @@ export const MusicPlayerHost: React.FC = () => {
           }`}
           aria-hidden={embedOffscreen || undefined}
           tabIndex={embedOffscreen ? -1 : undefined}
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
+          // No fullscreen: it would cover the game (the player is resizable instead)
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
           referrerPolicy="strict-origin-when-cross-origin"
         />
       ) : (
@@ -445,21 +454,22 @@ export const MusicPlayerHost: React.FC = () => {
         <div
           role="separator"
           aria-label="Resize music player"
-          className="absolute bottom-0 right-0 z-10 h-5 w-5 cursor-nwse-resize touch-none bg-gradient-to-tl from-indigo-400/70 to-transparent"
+          className={`absolute bottom-0 right-0 z-10 h-5 w-5 ${isFloat ? 'cursor-nwse-resize' : 'cursor-ns-resize'} touch-none bg-gradient-to-tl from-indigo-400/70 to-transparent`}
           onPointerDown={(event) => {
             event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             const bounds = panelRef.current?.getBoundingClientRect();
-            if (bounds) (event.currentTarget as HTMLElement).dataset.resizeOrigin = `${event.clientX},${event.clientY},${bounds.width},${bounds.height}`;
+            if (bounds) (event.currentTarget as HTMLElement).dataset.resizeOrigin = `${event.clientX},${event.clientY},${bounds.width},${bounds.height},${bounds.left},${bounds.top}`;
           }}
           onPointerMove={(event) => {
             if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
             const origin = event.currentTarget.dataset.resizeOrigin?.split(',').map(Number);
             if (!origin) return;
-            const [x, y, width, height] = origin;
+            const [x, y, width, height, left, top] = origin;
+            // Docked in the side menu the width follows the menu; only the height is resizable there
             setSize({
-              width: Math.max(240, Math.min(window.innerWidth - (rect?.left ?? 0), width + event.clientX - x)),
-              height: Math.max(120, Math.min(window.innerHeight - (rect?.top ?? 0), height + event.clientY - y)),
+              width: isFloat ? Math.max(240, Math.min(window.innerWidth - left, width + event.clientX - x)) : size?.width ?? width,
+              height: Math.max(120, Math.min(window.innerHeight - top, height + event.clientY - y)),
             });
           }}
         />
@@ -474,6 +484,13 @@ export const MusicManagerModal: React.FC = () => {
   const { items, index } = useMusicLibrary();
   const addMusicLink = useGameStore((s) => s.addMusicLink);
   const removeMusicLink = useGameStore((s) => s.removeMusicLink);
+  const removeMusicLinks = useGameStore((s) => s.removeMusicLinks);
+  const moveMusicLink = useGameStore((s) => s.moveMusicLink);
+  // Ticked entries (by link, so they survive reordering) and the drag in progress
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
   const selectMusic = useGameStore((s) => s.selectMusic);
   const isOpen = useExternalMusic((s) => s.isPlayerOpen);
   const setPlayerOpen = useExternalMusic((s) => s.setPlayerOpen);
@@ -680,14 +697,114 @@ export const MusicManagerModal: React.FC = () => {
               {isOpen ? t('musicPlayerClose') : t('musicPlayerOpen')}
             </button>
           </div>
+          {/* Bulk tools: tick entries, then delete them together */}
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/50 px-2.5 py-1.5">
+            <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-slate-300">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-xs checkbox-primary"
+                checked={checked.size > 0 && checked.size === items.length}
+                ref={(el) => {
+                  if (el) el.indeterminate = checked.size > 0 && checked.size < items.length;
+                }}
+                onChange={(e) => setChecked(e.target.checked ? new Set(items.map(({ entry }) => entry.link)) : new Set())}
+              />
+              {t('musicSelectAll')}
+            </label>
+            {checked.size > 0 && (
+              <>
+                <span className="text-[10px] text-slate-500">{t('musicSelectedCount').replace('{count}', String(checked.size))}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundFx.playClick();
+                    if (!confirmDelete) {
+                      setConfirmDelete(true);
+                      return;
+                    }
+                    const indices = items.flatMap(({ entry }, i) => (checked.has(entry.link) ? [i] : []));
+                    const removingAll = indices.length === items.length;
+                    removeMusicLinks(indices);
+                    setChecked(new Set());
+                    setConfirmDelete(false);
+                    if (removingAll) setPlayerOpen(false);
+                  }}
+                  className={`ml-auto flex cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                    confirmDelete ? 'border-rose-400 bg-rose-500/30 text-rose-100' : 'border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+                  }`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  {(confirmDelete ? t('musicDeleteConfirm') : t('musicDeleteSelected')).replace('{count}', String(checked.size))}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChecked(new Set());
+                    setConfirmDelete(false);
+                  }}
+                  className="cursor-pointer rounded-md px-1.5 py-0.5 text-[10px] text-slate-400 hover:bg-slate-800 hover:text-white"
+                >
+                  {t('musicClearSelection')}
+                </button>
+              </>
+            )}
+            {checked.size === 0 && <span className="ml-auto text-[9px] text-slate-500">{t('musicDragHint')}</span>}
+          </div>
           <ul className="custom-scrollbar max-h-48 space-y-1 overflow-y-auto">
             {items.map(({ entry, src }, i) => (
               <li
                 key={entry.link}
-                className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
-                  i === index ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-slate-800 bg-slate-950/70'
+                draggable
+                onDragStart={(e) => {
+                  setDragFrom(i);
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', String(i));
+                }}
+                onDragOver={(e) => {
+                  if (dragFrom === null) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOver !== i) setDragOver(i);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragFrom !== null && dragFrom !== i) {
+                    soundFx.playClick();
+                    moveMusicLink(dragFrom, i);
+                  }
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
+                onDragEnd={() => {
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
+                className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                  dragOver === i && dragFrom !== null && dragFrom !== i
+                    ? dragFrom < i ? 'border-b-2 border-b-indigo-400' : 'border-t-2 border-t-indigo-400'
+                    : ''
+                } ${dragFrom === i ? 'opacity-40' : ''} ${
+                  checked.has(entry.link)
+                    ? 'border-rose-500/40 bg-rose-500/10'
+                    : i === index ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-slate-800 bg-slate-950/70'
                 }`}
               >
+                <span className="cursor-grab text-slate-600 hover:text-slate-300 active:cursor-grabbing" title={t('musicDragHint')} aria-hidden>
+                  <GripVertical className="h-3.5 w-3.5" />
+                </span>
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs checkbox-primary"
+                  checked={checked.has(entry.link)}
+                  aria-label={entryLabel(entry, src, t)}
+                  onChange={(e) => {
+                    const next = new Set(checked);
+                    if (e.target.checked) next.add(entry.link);
+                    else next.delete(entry.link);
+                    setChecked(next);
+                    setConfirmDelete(false);
+                  }}
+                />
                 <ProviderDot src={src} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[10px] font-bold text-slate-200">

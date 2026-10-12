@@ -6,7 +6,7 @@ import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
 import { teamBonuses } from '../state/skillTree';
 import { TileRect, isLandTile } from '../state/buildingLayout';
-import { towerStats, TowerStats } from '../state/defenseStats';
+import { towerAccuracy, towerStats, TowerStats } from '../state/defenseStats';
 import type { TowerId } from '../types/state';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
@@ -159,10 +159,16 @@ export class TowerSystem {
       }
       const inRange = invaders.filter((i) => inZone(tower.zone, i.container.x, i.container.y));
       if (inRange.length === 0) continue;
+      // Each establishment aims differently (establishmentDefense.json); delayed hits keep full accuracy
+      this.shotAccuracy = towerAccuracy(tower.id, tower.towerLevel);
       const fired = this.fire(tower, stats, inRange);
+      this.shotAccuracy = 1;
       this.cooldowns.set(tower.id, fired ? stats.cooldown * team.towerCooldown : 0.3);
     }
   }
+
+  /** Hit chance of the volley being fired right now. */
+  private shotAccuracy = 1;
 
   private fire(tower: Tower, stats: TowerStats, targets: ActiveInvader[]): boolean {
     switch (stats.attack) {
@@ -187,6 +193,7 @@ export class TowerSystem {
   private hit(inv: ActiveInvader, damage: number, quiet = false, flyingMultiplier = 1): number {
     const { munitions } = useGameStore.getState();
     const cfg = INVADER_CONFIGS[inv.type];
+    if (this.shotAccuracy < 1 && Math.random() > this.shotAccuracy) return 0; // Missed
     let dealt = damage;
 
     // 1. Armor-Piercing Munitions

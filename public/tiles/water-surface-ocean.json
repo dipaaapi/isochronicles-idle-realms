@@ -1,0 +1,122 @@
+{ "frames": [
+   {
+    "filename": "flow-0",
+    "frame": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-1",
+    "frame": { "x": 144, "y": 0, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-2",
+    "frame": { "x": 288, "y": 0, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-3",
+    "frame": { "x": 432, "y": 0, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-4",
+    "frame": { "x": 0, "y": 72, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-5",
+    "frame": { "x": 144, "y": 72, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-6",
+    "frame": { "x": 288, "y": 72, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-7",
+    "frame": { "x": 432, "y": 72, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-8",
+    "frame": { "x": 0, "y": 144, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-9",
+    "frame": { "x": 144, "y": 144, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-10",
+    "frame": { "x": 288, "y": 144, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   },
+   {
+    "filename": "flow-11",
+    "frame": { "x": 432, "y": 144, "w": 144, "h": 72 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 144, "h": 72 },
+    "sourceSize": { "w": 144, "h": 72 },
+    "duration": 110
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.18.6-x64",
+  "image": "water-surface-ocean.png",
+  "format": "RGBA8888",
+  "size": { "w": 576, "h": 216 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "flow", "from": 0, "to": 11, "direction": "forward", "color": "#000000ff" }
+  ]
+ }
+}

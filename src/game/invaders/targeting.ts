@@ -5,6 +5,8 @@ import type { WorkerInstance } from '../WorkerManager';
 import type { InvaderContext } from './context';
 import type { ActiveInvader, InvaderBlocker, InvaderTarget } from './types';
 import { isHacked } from '../hackState';
+import { defenceScore } from '../../state/scoutRaid';
+import type { TowerId } from '../../types/state';
 
 /** Invaders only break off toward a defender or sapling this close (world px). */
 const AGGRO_RADIUS = 110;
@@ -66,6 +68,20 @@ export const chooseTarget = (
 
   const structures = standingStructures(ctx);
   const castle = structures.find((s) => s.id === 'CASTLE');
+  // Raider scouts size up every establishment and go for the weakest defence
+  if (invader.isScout && invader.scoutRole === 'RAIDER' && !((invader.provokedTimer ?? 0) > 0)) {
+    let weakest: StructureTarget | undefined;
+    let low = Infinity;
+    for (const s of structures) {
+      if (s.id === 'CASTLE') continue;
+      const score = defenceScore(s.id as TowerId);
+      if (score < low) {
+        low = score;
+        weakest = s;
+      }
+    }
+    if (weakest) return { kind: 'structure', structure: weakest };
+  }
   if (((invader.provokedTimer ?? 0) > 0 || invader.isRusher || invader.isScout) && castle) return { kind: 'structure', structure: castle };
 
   const x = invader.container.x;

@@ -82,6 +82,30 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
     set({ musicLibrary: next, musicIndex: clampMusicIndex(current, next) });
   },
 
+  removeMusicLinks: (indices: number[]) => {
+    const { musicLibrary, musicIndex } = get();
+    const drop = new Set(indices.filter((i) => i >= 0 && i < musicLibrary.length));
+    if (!drop.size) return;
+    const next = musicLibrary.filter((_, i) => !drop.has(i));
+    // Keep the current track if it survives; otherwise land on whatever slid into its place
+    const current = musicIndex - [...drop].filter((i) => i < musicIndex).length;
+    set({ musicLibrary: next, musicIndex: clampMusicIndex(current, next) });
+  },
+
+  moveMusicLink: (from: number, to: number) => {
+    const { musicLibrary, musicIndex } = get();
+    if (from === to || from < 0 || to < 0 || from >= musicLibrary.length || to >= musicLibrary.length) return;
+    const next = [...musicLibrary];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    // The playing track stays the same entry wherever it ends up
+    let current = musicIndex;
+    if (musicIndex === from) current = to;
+    else if (from < musicIndex && to >= musicIndex) current = musicIndex - 1;
+    else if (from > musicIndex && to <= musicIndex) current = musicIndex + 1;
+    set({ musicLibrary: next, musicIndex: current });
+  },
+
   selectMusic: (index: number) => {
     const count = get().musicLibrary.length;
     if (!count) return;
@@ -167,6 +191,12 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
     const isAudioMuted = soundFx.toggleMute();
     set({ isAudioMuted });
     return isAudioMuted;
+  },
+
+  toggleWallpaper: () => {
+    const showWallpaper = !get().showWallpaper;
+    set({ showWallpaper });
+    return showWallpaper;
   },
 
   toggleGore: () => {

@@ -230,3 +230,23 @@
 .wx-rays-slow { animation: wx-rays 40s linear infinite; }
 .wx-rays, .wx-rays-slow { transform-box: fill-box; }
 @media (prefers-reduced-motion: reduce) { .wx-rays-slow { animation: none; } }
+
+/* Live-stream focus (LiveStreamOverlay) */
+@keyframes live-reaction {
+  0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+  10% { transform: translate(calc(var(--drift) * 0.1), -8px) scale(1.15); opacity: 1; }
+  50% { transform: translate(var(--drift), calc(var(--rise, 140px) * -0.5)) scale(1); opacity: 1; }
+  100% { transform: translate(calc(var(--drift) * -0.4), calc(var(--rise, 140px) * -1)) scale(0.9); opacity: 0; }
+}
+.live-reaction { animation: live-reaction 3s ease-out forwards; }
+@keyframes live-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.live-pop { animation: live-pop 0.35s ease-out; transform-origin: top right; }
+@keyframes live-dot { 50% { opacity: 0.2; } }
+.live-dot { animation: live-dot 1s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .live-reaction { animation-duration: 1.5s !important; }
+}

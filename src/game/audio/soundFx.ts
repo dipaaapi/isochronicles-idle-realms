@@ -714,6 +714,42 @@ class SoundFxManager {
     this.ring(ctx, 420, 0.06, 0.12, 'square');
   }
 
+  /** Battle siren: a rising-falling wail repeated `cycles` times. */
+  public playAlarm(cycles = 3): void {
+    if (this.isMuted || this.isSfxDisabled) return;
+    const ctx = this.initContext();
+    if (!ctx || !this.masterGain) return;
+
+    const now = ctx.currentTime;
+    const period = 0.9;
+    const end = now + cycles * period;
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(560, now);
+    for (let i = 0; i < cycles; i++) {
+      const t = now + i * period;
+      osc.frequency.linearRampToValueAtTime(980, t + period * 0.5);
+      osc.frequency.linearRampToValueAtTime(560, t + period);
+    }
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2200, now);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.16, now + 0.08);
+    gain.gain.setValueAtTime(0.16, end - 0.2);
+    gain.gain.exponentialRampToValueAtTime(0.001, end);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(end + 0.05);
+  }
+
   public playCastleHit(): void {
     if (this.isMuted || this.isSfxDisabled) return;
     const ctx = this.initContext();

@@ -1,5 +1,6 @@
 import config from '../data/defenseConfig.json';
 import type { CastleDefenseState, ResourceBuildingState, Resources, SpireTowerState, TowerId } from '../types/state';
+import ESTABLISHMENT_DEFENSE from '../data/establishmentDefense.json';
 
 /**
  * Establishment towers, the citadel's Provoke Beacon and invader portals —
@@ -173,3 +174,17 @@ export function portalBounty(wave: number): Partial<Resources> {
 
 export const canAfford = (resources: Resources, cost: Partial<Resources> | null): boolean =>
   !!cost && Object.entries(cost).every(([key, amount]) => (resources[key as keyof Resources] ?? 0) >= (amount ?? 0));
+
+/** Chance a tower shot from this establishment hits (establishmentDefense.json). */
+export function towerAccuracy(id: TowerId, towerLevel: number): number {
+  const d = ESTABLISHMENT_DEFENSE;
+  const base = (d.profiles as Record<string, { accuracy: number }>)[id]?.accuracy ?? 0.85;
+  return Math.min(d.caps.accuracy, base + d.perLevel.accuracy * (Math.max(1, towerLevel) - 1));
+}
+
+/** Share of each invader hit this establishment's walls ignore. */
+export function buildingArmor(id: TowerId, towerLevel: number): number {
+  const d = ESTABLISHMENT_DEFENSE;
+  const base = (d.profiles as Record<string, { armor: number }>)[id]?.armor ?? 0.1;
+  return Math.min(d.caps.armor, base + d.perLevel.armor * (Math.max(1, towerLevel) - 1));
+}

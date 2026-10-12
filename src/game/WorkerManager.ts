@@ -50,6 +50,12 @@ export class WorkerManager implements WorkerContext {
   public groundLoot?: GroundLootManager;
   public defenders?: import('./DefenderSystem').DefenderSystem;
 
+  private fires?: import('./FireSystem').FireSystem;
+
+  public setFireSystem(fires: import('./FireSystem').FireSystem): void {
+    this.fires = fires;
+  }
+
   public setDefenderSystem(defenders: import('./DefenderSystem').DefenderSystem): void {
     this.defenders = defenders;
   }
@@ -592,6 +598,8 @@ export class WorkerManager implements WorkerContext {
         worker.overrideEmoteTimer = 300;
         continue;
       }
+      // A torch just landed on their establishment: the Treant and the General panic
+      if (this.fires?.panic(worker, frame.deltaSec, (x, y, step) => this.moveToward(worker, x, y, step, frame.deltaSec))) continue;
       if ((worker.slowTimer ?? 0) > 0) frame.effectiveSpeed *= worker.slowFactor ?? 1;
       if (isModActive('beastSurge')) frame.effectiveSpeed *= 1.3;
 

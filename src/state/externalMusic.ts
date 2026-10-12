@@ -96,8 +96,8 @@ export function musicEmbedUrl(src: MusicSource): string {
   if (src.provider === 'YOUTUBE') {
     const origin = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
     return src.kind === 'playlist'
-      ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(src.id)}&rel=0&enablejsapi=1${origin}`
-      : `https://www.youtube-nocookie.com/embed/${encodeURIComponent(src.id)}?rel=0&enablejsapi=1${origin}`;
+      ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(src.id)}&rel=0&fs=0&enablejsapi=1${origin}`
+      : `https://www.youtube-nocookie.com/embed/${encodeURIComponent(src.id)}?rel=0&fs=0&enablejsapi=1${origin}`;
   }
   return `https://open.spotify.com/embed/${src.kind}/${encodeURIComponent(src.id)}?theme=0`;
 }
