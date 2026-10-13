@@ -45,6 +45,8 @@ import {
 import { gameConfirm } from './GameDialog';
 import { StructureAtlas } from './StructureAtlas';
 import STRUCTURE_TEXT from '../i18n/structureAtlas.json';
+import { useTranslation } from '../i18n/translations';
+import { realmIntensity } from '../state/waveBalance';
 
 export type AtlasTab = 'GUIDE' | 'BESTIARY' | 'STRUCTURES' | 'REGRESSION' | 'FAQ' | 'LORE';
 
@@ -125,12 +127,15 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
   onClose,
   initialSection = 'GUIDE',
 }) => {
+  const { t: tr } = useTranslation();
   const {
     language,
     discoveredBeasts,
     discoveredInvaders,
     invasion,
     platformPhase,
+    realmChoice,
+    setRealmChoice,
     regressionCount,
     regressionHistory,
     performRegression,
@@ -753,18 +758,35 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
 
               {/* 4 Phases Overview Map */}
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  {isTL ? 'Mga Yugto ng Plataporma (Phases 1 - 4)' : 'Platform Phases (Waves 1 - 100)'}
-                </h4>
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    {isTL ? 'Mga Yugto ng Plataporma (Phases 1 - 4)' : 'Platform Phases (Waves 1 - 100)'}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => { soundFx.playClick(); setRealmChoice(null); }}
+                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
+                      realmChoice == null
+                        ? 'bg-purple-600/40 border-purple-400 text-white'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {tr('realmFollowWaves')}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">{tr('realmPickHint')}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {([1, 2, 3, 4] as const).map((pIndex) => {
                     const pCfg = PLATFORM_CONFIGS[pIndex];
                     const isActive = platformPhase === pIndex;
                     const isPassed = platformPhase > pIndex;
+                    const intensity = realmIntensity(invasion.waveNumber, pIndex).hp;
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={pIndex}
-                        className={`p-3 rounded-xl border transition-all ${
+                        onClick={() => { soundFx.playClick(); setRealmChoice(pIndex); }}
+                        className={`text-left cursor-pointer hover:opacity-100 hover:border-purple-400 p-3 rounded-xl border transition-all ${
                           isActive
                             ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
                             : isPassed
@@ -783,7 +805,13 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                         <p className="text-[11px] text-slate-400 leading-tight line-clamp-2">
                           {isTL ? pCfg.description : pCfg.descriptionEn}
                         </p>
-                      </div>
+                        <div className="flex items-center justify-between mt-1.5 text-[10px] font-mono">
+                          <span className={intensity > 1.001 ? 'text-rose-400' : intensity < 0.999 ? 'text-emerald-400' : 'text-slate-500'}>
+                            {tr('realmIntensity').replace('{n}', intensity.toFixed(2))}
+                          </span>
+                          {realmChoice === pIndex && <span className="text-purple-300 font-bold">✔ {tr('realmChosen')}</span>}
+                        </div>
+                      </button>
                     );
                   })}
                 </div>

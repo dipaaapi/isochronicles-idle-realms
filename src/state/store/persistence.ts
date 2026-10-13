@@ -18,10 +18,13 @@ import {
   createSupportSlime,
   perBuilding,
 } from './initialState';
-import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
+import type { GameStoreState, PlatformPhase, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import { INVADER_CONFIGS, UNIT_CLASSES } from '../../types/game';
 import type { InvaderType, UnitClass } from '../../types/game';
 import type { SliceArgs } from './types';
+
+/** A saved realm pick (1-4), or null when the save follows the waves / holds junk. */
+const validRealm = (v: unknown): PlatformPhase | null => (v === 1 || v === 2 || v === 3 || v === 4 ? v : null);
 
 const SAVE_VERSION = '1.3.0';
 
@@ -109,6 +112,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       buildingPositions: state.buildingPositions,
       munitions: state.munitions,
       platformPhase: state.platformPhase,
+      realmChoice: state.realmChoice,
       year: state.year,
       season: state.season,
       exportedAt: new Date().toISOString(),
@@ -158,7 +162,8 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         difficulty: normalizeDifficulty(data.difficulty),
         ...normalizeSkillProgress(data),
         regressionHistory: Array.isArray(data.regressionHistory) ? data.regressionHistory : [],
-        platformPhase: getPhaseFromWave(data.invasion?.waveNumber ?? 1),
+        realmChoice: validRealm(data.realmChoice),
+        platformPhase: validRealm(data.realmChoice) ?? getPhaseFromWave(data.invasion?.waveNumber ?? 1),
         year: data.year || 1,
         season: data.season || 'SPRING',
         hasCompletedIntro: !!data.hasCompletedIntro,
@@ -237,6 +242,7 @@ const partialize = (state: GameStoreState) => ({
   year: state.year,
   season: state.season,
   platformPhase: state.platformPhase,
+  realmChoice: state.realmChoice,
   regressionCount: state.regressionCount,
   regressionHistory: state.regressionHistory,
   layoutSeed: state.layoutSeed,

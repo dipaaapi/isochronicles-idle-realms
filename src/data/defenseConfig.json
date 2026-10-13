@@ -844,5 +844,46 @@
       "en": "Outputs",
       "tl": "Produkto"
     }
+  },
+  "holdStrike": {
+    "_doc": "Demon Lord sky lasers: double-click an invader (or near one) during a battle to lock a beam on it; up to maxBeams at once (a new lock replaces the oldest, double-clicking a locked target releases it). Each beam deals damage every tickMs until its target dies; crit chance grows from baseCrit to maxCrit and missChance shrinks to 0 over focusMs on the same target. doubleClickMs / doubleClickPx: how close two clicks must be in time and space. aimMs: the lock-on reticle closes in on the target for this long before the beam fires. slow: speed multiplier on a beamed target while it burns.",
+    "damage": 12,
+    "tickMs": 150,
+    "focusMs": 2500,
+    "baseCrit": 0.05,
+    "maxCrit": 0.6,
+    "critMultiplier": 2.5,
+    "scars": {
+      "_doc": "The beam scorches the ground under its target every everyMs (not closer than radius to another scar). Each scar smoulders for seconds and burns invaders standing on it for dps; at most max scars at once. slow: speed multiplier while standing in a scar.",
+      "everyMs": 350,
+      "seconds": 6,
+      "radius": 14,
+      "dps": 10,
+      "max": 30,
+      "slow": 0.75
+    },
+    "missChance": 0.15,
+    "labels": {
+      "_doc": "Damage numbers popped over the beamed invader (the one exception to the no-floating-text rule).",
+      "crit": {
+        "en": "CRIT",
+        "tl": "KRITIKAL"
+      },
+      "miss": {
+        "en": "MISS",
+        "tl": "MINTIS"
+      }
+    },
+    "maxBeams": 10,
+    "doubleClickMs": 320,
+    "doubleClickPx": 14,
+    "aimMs": 500,
+    "slow": 0.6
+  },
+  "promotion": {
+    "_doc": "A slain General is replaced by its healthiest island tenant: a star badge spins over its head for badgeMs, then it grows to growScale over growMs and turns into the General.",
+    "badgeMs": 2000,
+    "growMs": 600,
+    "growScale": 1.7
   }
 }

@@ -1,4 +1,5 @@
 import { soundFx } from '../../game/audio/soundFx';
+import { devFlag } from '../devMode';
 import { ESTABLISHMENT_SKILLS } from '../../data/establishmentSkills';
 import {
   DEFENSE_CONFIG,
@@ -196,7 +197,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
 
     damageBuilding: (buildingId: TowerId, amount: number): boolean => {
       const state = get();
-      if (state.defense.forceFieldTimer > 0) return false;
+      if (state.defense.forceFieldTimer > 0 || devFlag('godMode')) return false;
       const building = towerBuildingOf(get(), buildingId);
       if (!building || building.level < 1 || !(amount > 0)) return false;
       const hp = buildingHpOf(building);

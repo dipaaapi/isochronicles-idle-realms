@@ -12,6 +12,7 @@ const SCOUT_SPOILS_LIFE = 120;
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
+import { devFlag } from '../state/devMode';
 import { soundFx } from './audio/soundFx';
 import type { GroundLootManager } from './GroundLootManager';
 import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
@@ -41,7 +42,7 @@ import { pickWaveInvader } from './invaders/wavePool';
 import type { Resources } from '../types/state';
 import { pickScout, rollScoutDrops } from '../state/scoutLoot';
 import { buildWavePlan, type PlannedSpawn } from './invaders/wavePlan';
-import { WAVE_BALANCE, invaderStats, portalHpMultiplier, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
+import { WAVE_BALANCE, invaderStats, portalHpMultiplier, realmIntensity, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
 import { TACTIC_EFFECTS, tacticOf, type WaveTactic } from '../state/waveTactics';
 import { SCOUT_DEFENCE_CAP, SCOUT_ROLES, pickScoutRole, rollStolen, scoutCount, scoutScaling, scoutWave } from '../state/scoutRaid';
 
@@ -79,6 +80,13 @@ export class InvasionManager {
   private portals?: PortalManager;
   private autoSmiteTimer: number = 0;
   private lastSmiteTime: number = 0;
+  /** Sky lasers locked by double-click: each keeps burning its target (and building focus) until it dies. */
+  private beams: { target: ActiveInvader; aimMs: number; focusMs: number; tickMs: number; scarMs: number; gfx: Phaser.GameObjects.Graphics }[] = [];
+  /** Last click, to detect a double-click. */
+  private lastClick = { time: 0, x: 0, y: 0 };
+  /** Burn scars the sky laser leaves on the ground; they hurt invaders that step on them. */
+  private scars: { x: number; y: number; life: number; tick: number }[] = [];
+  private scarGfx?: Phaser.GameObjects.Graphics;
   private wasInvasionActive: boolean = false;
 
   /** Hands the movement / targeting helpers (invaders/) access to this manager. */
@@ -123,6 +131,13 @@ export class InvasionManager {
     this.blockerProvider = world.blockers;
   }
 
+  /** Dev mode: defeat every invader on the island (normal rewards). */
+  public devKillAll(): number {
+    const alive = this.invaders.filter((i) => !i.isDead);
+    for (const invader of alive) this.eliminateInvader(invader);
+    return alive.length;
+  }
+
   public getInvaders(): ActiveInvader[] {
     return this.invaders;
   }
@@ -136,6 +151,16 @@ export class InvasionManager {
   public update(delta: number): void {
     const deltaSec = delta / 1000;
     const store = useGameStore.getState();
+    this.beams = this.beams.filter((beam) => {
+      if (beam.target.isDead || !beam.target.container.active) {
+        beam.gfx.destroy();
+        return false;
+      }
+      return true;
+    });
+    if ((store.defense.laserStormTimer ?? 0) > 0) this.autoLockBeams();
+    for (const beam of this.beams) this.updateBeam(beam, delta);
+    this.updateScars(delta);
 
     // Clean up when a wave closes, while allowing peacetime scouts to survive.
     if (!store.invasion.isActive && this.wasInvasionActive) {
@@ -190,7 +215,7 @@ export class InvasionManager {
       this.spawnPlan = buildWavePlan(wave, this.totalEnemiesToSpawn, this.tactic, difficulty);
       this.burstLeft = Math.max(1, this.tactic.burst);
       this.spawnTimer = WAVE_BALANCE.spawn.firstDelayMs;
-      this.portals?.open(wave, portalHpMultiplier(wave, difficulty, this.tactic.portalHp), this.tactic.portals, this.tactic.rotateEvery);
+      this.portals?.open(wave, portalHpMultiplier(wave, difficulty, (this.tactic.portalHp ?? 1) * realmIntensity(wave, store.platformPhase).portalHp), this.tactic.portals, this.tactic.rotateEvery);
       this.assignSquads(wave);
       // Technician raid part-way through the wave
       this.raidsLeft = hackersForWave(wave);
@@ -214,7 +239,7 @@ export class InvasionManager {
         } else {
           this.burstLeft = Math.max(1, this.tactic.burst);
           const burstGap = Math.max(1, this.tactic.burst) * 0.75 + 0.25;
-          this.spawnTimer = spawnIntervalMs(store.invasion.waveNumber, normalizeDifficulty(store.difficulty), (this.tactic.interval ?? 1) * burstGap);
+          this.spawnTimer = spawnIntervalMs(store.invasion.waveNumber, normalizeDifficulty(store.difficulty), (this.tactic.interval ?? 1) * burstGap * realmIntensity(store.invasion.waveNumber, store.platformPhase).interval);
         }
         if (this.spawnSingleInvader(store.invasion.waveNumber)) this.enemiesSpawnedCount++;
         if (this.raidsLeft > 0 && this.enemiesSpawnedCount >= this.raidAt) this.spawnTechnicianRaid(store.invasion.waveNumber);
@@ -357,7 +382,7 @@ export class InvasionManager {
     container.on('pointerdown', (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
       if (pointer.leftButtonDown() && !invader.isDead) {
         event.stopPropagation();
-        this.tapInvader(invader);
+        this.handleStrikeClick(pointer, invader);
       }
     });
 
@@ -408,7 +433,7 @@ export class InvasionManager {
     const store = useGameStore.getState();
     const stats = invaderStats(
       cfg,
-      { wave: waveNumber, difficulty: normalizeDifficulty(store.difficulty), day: store.day, year: store.year, season: store.season },
+      { wave: waveNumber, difficulty: normalizeDifficulty(store.difficulty), day: store.day, year: store.year, season: store.season, phase: store.platformPhase },
       rank,
       { hp: this.tactic.hp, damage: this.tactic.damage },
     );
@@ -482,7 +507,7 @@ export class InvasionManager {
     container.on('pointerdown', (pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
       if (pointer.leftButtonDown() && !invader.isDead) {
         event.stopPropagation();
-        this.tapInvader(invader);
+        this.handleStrikeClick(pointer, invader);
       }
     });
 
@@ -688,7 +713,281 @@ export class InvasionManager {
     }
   }
 
-  public smiteClosestInvader(worldX?: number, worldY?: number, isAutoTap: boolean = false): boolean {
+  /**
+   * Double-click an invader (or near one) to lock a laser from the sky on it.
+   * Up to maxBeams burn at once, no button holding needed; the longer a beam
+   * stays on the same target, the higher its crit chance. Double-clicking a
+   * locked target releases its beam.
+   */
+  public handleStrikeClick(pointer: Phaser.Input.Pointer, target?: ActiveInvader): void {
+    const cfg = DEFENSE_CONFIG.holdStrike;
+    const isActive = useGameStore.getState().invasion.isActive;
+    // Peacetime scouts still fall to a single tap
+    if (target?.isScout && !isActive) {
+      this.tapInvader(target);
+      return;
+    }
+    const now = this.scene.time.now;
+    const isDouble = now - this.lastClick.time <= cfg.doubleClickMs
+      && Math.hypot(pointer.x - this.lastClick.x, pointer.y - this.lastClick.y) <= cfg.doubleClickPx;
+    this.lastClick = isDouble ? { time: 0, x: 0, y: 0 } : { time: now, x: pointer.x, y: pointer.y };
+    if (!isDouble || (!target && !isActive)) return;
+
+    const locked = target ?? this.nearestInvader(this.pointerLocal(pointer));
+    if (!locked || locked.isDead) return;
+    const existing = this.beams.find((b) => b.target === locked);
+    if (existing) {
+      existing.gfx.destroy();
+      this.beams = this.beams.filter((b) => b !== existing);
+      return;
+    }
+    while (this.beams.length >= cfg.maxBeams) this.beams.shift()?.gfx.destroy();
+    const gfx = this.scene.add.graphics().setDepth(9500);
+    this.parentContainer?.add(gfx);
+    this.beams.push({ target: locked, aimMs: 0, focusMs: 0, tickMs: 0, scarMs: 0, gfx });
+    soundFx.playClick();
+  }
+
+  /**
+   * Ground lock-on reticle (isometric ellipse): an outer ring that shrinks as
+   * open goes 1 → 0, four corner brackets spinning in, and a centre cross.
+   */
+  private drawReticle(g: Phaser.GameObjects.Graphics, x: number, y: number, open: number, t: number, color: number, alpha: number): void {
+    const r = 12 + open * 30;
+    g.lineStyle(1.5, color, alpha * (0.4 + 0.6 * (1 - open)));
+    g.strokeEllipse(x, y, r * 2, r);
+    const spin = t / 220 + open * 3;
+    g.lineStyle(2, color, alpha);
+    for (let i = 0; i < 4; i++) {
+      const a = spin + (i * Math.PI) / 2;
+      const ax = x + Math.cos(a) * (r + 5);
+      const ay = y + Math.sin(a) * (r + 5) * 0.5;
+      const tx = -Math.sin(a) * 5;
+      const ty = Math.cos(a) * 5 * 0.5;
+      g.lineBetween(ax - tx, ay - ty, ax + tx, ay + ty);
+      g.lineBetween(ax, ay, x + Math.cos(a) * (r - 2), y + Math.sin(a) * (r - 2) * 0.5);
+    }
+    g.lineStyle(1, 0xffffff, alpha * 0.9);
+    g.lineBetween(x - 4, y, x + 4, y);
+    g.lineBetween(x, y - 2, x, y + 2);
+  }
+
+  /**
+   * Laser Storm (R): fill every free beam slot with the unlocked invaders
+   * closest to the citadel, so lasers keep firing without any clicking.
+   */
+  private autoLockBeams(): void {
+    const cfg = DEFENSE_CONFIG.holdStrike;
+    if (this.beams.length >= cfg.maxBeams) return;
+    const castle = this.castleCenter();
+    const locked = new Set(this.beams.map((b) => b.target));
+    const free = this.invaders
+      .filter((i) => !i.isDead && i.container.visible && !locked.has(i))
+      .sort((a, b) => Math.hypot(a.container.x - castle.x, a.container.y - castle.y) - Math.hypot(b.container.x - castle.x, b.container.y - castle.y));
+    for (const target of free.slice(0, cfg.maxBeams - this.beams.length)) {
+      const gfx = this.scene.add.graphics().setDepth(9500);
+      this.parentContainer?.add(gfx);
+      this.beams.push({ target, aimMs: 0, focusMs: 0, tickMs: 0, scarMs: 0, gfx });
+    }
+  }
+
+  private nearestInvader(at: { x: number; y: number }): ActiveInvader | undefined {
+    let best: ActiveInvader | undefined;
+    let bestDist = Infinity;
+    for (const inv of this.invaders) {
+      if (inv.isDead) continue;
+      const d = Math.hypot(inv.container.x - at.x, inv.container.y - at.y);
+      if (d < bestDist) { bestDist = d; best = inv; }
+    }
+    return best;
+  }
+
+  /** Pointer position in the invaders' container space. */
+  private pointerLocal(pointer: Phaser.Input.Pointer): { x: number; y: number } {
+    if (!this.parentContainer) return { x: pointer.worldX, y: pointer.worldY };
+    const p = this.parentContainer.getWorldTransformMatrix().applyInverse(pointer.worldX, pointer.worldY);
+    return { x: p.x, y: p.y };
+  }
+
+  /** Laser damage number over the target: white hit, big orange CRIT, grey MISS. */
+  private popBeamNumber(target: ActiveInvader, kind: 'hit' | 'crit' | 'miss', amount = 0): void {
+    const labels = DEFENSE_CONFIG.holdStrike.labels;
+    const tl = useGameStore.getState().language === 'TL';
+    const text = kind === 'miss' ? (tl ? labels.miss.tl : labels.miss.en)
+      : kind === 'crit' ? `${tl ? labels.crit.tl : labels.crit.en} ${amount}!` : String(amount);
+    const head = (target.container.height || 40) * 0.5 + 24;
+    const label = this.scene.add.text(
+      target.container.x + Phaser.Math.Between(-10, 10),
+      target.container.y - head,
+      text,
+      {
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+        fontSize: kind === 'crit' ? '15px' : '10px',
+        color: kind === 'crit' ? '#fb923c' : kind === 'miss' ? '#94a3b8' : '#f8fafc',
+        stroke: '#000000',
+        strokeThickness: kind === 'crit' ? 4 : 3,
+      },
+    ).setOrigin(0.5).setDepth(9600);
+    this.parentContainer?.add(label);
+    if (kind === 'crit') label.setScale(0.4);
+    this.scene.tweens.add({
+      targets: label,
+      y: label.y - (kind === 'crit' ? 26 : 18),
+      alpha: 0,
+      scale: kind === 'crit' ? 1.15 : 1,
+      duration: kind === 'crit' ? 750 : 520,
+      ease: 'Cubic.easeOut',
+      onComplete: () => label.destroy(),
+    });
+  }
+
+  /** Smouldering scars: burn invaders standing on them, then fade out. */
+  private updateScars(delta: number): void {
+    if (this.scars.length === 0) {
+      if (this.scarGfx) { this.scarGfx.destroy(); this.scarGfx = undefined; }
+      return;
+    }
+    const sc = DEFENSE_CONFIG.holdStrike.scars;
+    if (!this.scarGfx || !this.scarGfx.active) {
+      this.scarGfx = this.scene.add.graphics().setDepth(-9500);
+      // Beneath every unit in the layer
+      this.parentContainer?.addAt(this.scarGfx, 0);
+    }
+    const g = this.scarGfx;
+    g.clear();
+    const t = this.scene.time.now;
+    for (const s of this.scars) {
+      s.life -= delta;
+      s.tick += delta;
+      if (s.tick >= 500) {
+        s.tick -= 500;
+        for (const inv of this.invaders) {
+          if (inv.isDead || !inv.container.visible) continue;
+          if (Math.hypot(inv.container.x - s.x, (inv.container.y - s.y) * 2) < sc.radius) {
+            this.damageInvader(inv, Math.max(1, Math.round(sc.dps * 0.5)), undefined, true);
+            this.applySlow(inv, sc.slow, 0.6);
+          }
+        }
+      }
+      const fade = Math.max(0, Math.min(1, s.life / 1500));
+      const r = sc.radius;
+      // Charred patch, glowing embers, flickering heat
+      g.fillStyle(0x1c1917, 0.75 * fade);
+      g.fillEllipse(s.x, s.y, r * 2.2, r * 1.1);
+      g.fillStyle(0x7c2d12, 0.6 * fade);
+      g.fillEllipse(s.x, s.y, r * 1.5, r * 0.75);
+      const glow = 0.5 + 0.5 * Math.sin(t / 120 + s.x);
+      g.fillStyle(0xf97316, (0.35 + 0.35 * glow) * fade);
+      g.fillEllipse(s.x, s.y, r * 0.8, r * 0.4);
+      g.fillStyle(0xfde047, 0.8 * glow * fade);
+      g.fillRect(s.x - 3 + Math.sin(s.y) * 4, s.y - 1, 2, 2);
+      g.fillRect(s.x + 2 + Math.cos(s.x) * 4, s.y + 1, 2, 2);
+    }
+    this.scars = this.scars.filter((s) => s.life > 0);
+  }
+
+  private updateBeam(beam: (typeof this.beams)[number], delta: number): void {
+    const cfg = DEFENSE_CONFIG.holdStrike;
+    const target = beam.target;
+    beam.gfx.clear();
+
+    // Aiming: a lock-on reticle closes in on the ground under the target, then the beam fires
+    const t = this.scene.time.now;
+    const fx = target.container.x;
+    const fy = target.container.y + 2;
+    if (beam.aimMs < cfg.aimMs) {
+      beam.aimMs += delta;
+      const k = Math.min(1, beam.aimMs / cfg.aimMs);
+      this.drawReticle(beam.gfx, fx, fy, 1 - k, t, 0xf43f5e, 0.35 + 0.65 * k);
+      if (beam.aimMs >= cfg.aimMs) soundFx.playLaser();
+      if (this.parentContainer) this.parentContainer.bringToTop(beam.gfx);
+      return;
+    }
+    // Burning slows the target (refreshed every frame while the beam holds)
+    this.applySlow(target, cfg.slow, 0.4);
+    // Locked: a small spinning reticle stays under the target while it burns
+    this.drawReticle(beam.gfx, fx, fy, 0, t, 0xf43f5e, 0.55);
+
+    beam.focusMs += delta;
+    beam.tickMs += delta;
+    const focus = Math.min(1, beam.focusMs / cfg.focusMs);
+    let crit = false;
+    while (beam.tickMs >= cfg.tickMs && !target.isDead) {
+      beam.tickMs -= cfg.tickMs;
+      if (Math.random() < cfg.missChance * (1 - focus)) {
+        this.popBeamNumber(target, 'miss');
+      } else if (Math.random() < cfg.baseCrit + (cfg.maxCrit - cfg.baseCrit) * focus) {
+        crit = true;
+        const dmg = Math.round(cfg.damage * cfg.critMultiplier);
+        this.damageInvader(target, dmg, '⚡ Critical Smite!');
+        this.popBeamNumber(target, 'crit', dmg);
+      } else {
+        this.damageInvader(target, cfg.damage, undefined, true);
+        this.popBeamNumber(target, 'hit', cfg.damage);
+      }
+    }
+    if (crit) soundFx.playLaser();
+
+    // Scorch the ground under the target
+    beam.scarMs += delta;
+    const sc = cfg.scars;
+    if (beam.scarMs >= sc.everyMs) {
+      beam.scarMs = 0;
+      const sx = target.container.x;
+      const sy = target.container.y;
+      if (!this.scars.some((s) => Math.hypot(s.x - sx, (s.y - sy) * 2) < sc.radius)) {
+        if (this.scars.length >= sc.max) this.scars.shift();
+        this.scars.push({ x: sx, y: sy, life: sc.seconds * 1000, tick: 0 });
+      }
+    }
+    if (target.isDead) return;
+
+    // Keep the beam above the units drawn after it
+    if (this.parentContainer) this.parentContainer.bringToTop(beam.gfx);
+    const x = target.container.x;
+    const y = target.container.y - 12;
+    const top = y - 320;
+    const flicker = 0.75 + 0.25 * Math.sin(t / 30);
+    // Hotter colour and wider beam as the focus (crit chance) builds
+    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+      Phaser.Display.Color.ValueToColor(0x22d3ee), Phaser.Display.Color.ValueToColor(0xf43f5e), 100, Math.round(focus * 100));
+    const hot = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
+    const width = 4 + focus * 6 + (crit ? 8 : 0);
+    const g = beam.gfx;
+    g.fillStyle(hot, 0.18 * flicker);
+    g.fillTriangle(x - width * 2.2, top, x + width * 2.2, top, x, y);
+    g.lineStyle(width * 2, hot, 0.35 * flicker);
+    g.lineBetween(x, top, x, y);
+    g.lineStyle(width, hot, 0.8);
+    g.lineBetween(x, top, x, y);
+    g.lineStyle(Math.max(1.5, width * 0.35), 0xffffff, 1);
+    g.lineBetween(x, top, x, y);
+    // Impact: pulsing ring + scorch glow, a focus ring that closes in as crit chance builds
+    const pulse = 6 + 3 * Math.sin(t / 45) + (crit ? 10 : 0);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillEllipse(x, y + 10, pulse * 1.4, pulse * 0.6);
+    g.fillStyle(hot, 0.4 * flicker);
+    g.fillEllipse(x, y + 10, pulse * 3, pulse * 1.3);
+    const ring = 26 - focus * 14;
+    g.lineStyle(1.5, hot, 0.5 + focus * 0.5);
+    g.strokeEllipse(x, y + 10, ring * 2, ring);
+    // Sparks thrown off the impact
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 6 + Math.random() * (10 + focus * 12);
+      g.fillStyle(i % 2 ? 0xffffff : hot, 0.9);
+      g.fillRect(x + Math.cos(a) * r, y + 10 + Math.sin(a) * r * 0.5 - Math.random() * 8, 2, 2);
+    }
+    // Hit flash on the target itself
+    if (crit && target.sprite) {
+      const sprite = target.sprite;
+      sprite.setTintFill(0xffffff);
+      this.scene.time.delayedCall(70, () => sprite.active && sprite.clearTint());
+    }
+  }
+
+  public smiteClosestInvader(worldX?: number, worldY?: number, isAutoTap: boolean = false, power: number = 1): boolean {
     const aliveInvaders = this.invaders.filter((i) => !i.isDead);
     if (aliveInvaders.length === 0) return false;
 
@@ -766,8 +1065,8 @@ export class InvasionManager {
     // [Camera shake removed]
     soundFx.playLaser();
 
-    const smiteDmg = 35;
-    this.damageInvader(closest, smiteDmg, isAutoTap ? '⚡ -35 AUTO' : '⚡ -35 SMITE');
+    const smiteDmg = Math.round(35 * power);
+    this.damageInvader(closest, smiteDmg, power > 1 ? '⚡ Critical Smite!' : isAutoTap ? `⚡ -${smiteDmg} AUTO` : `⚡ -${smiteDmg} SMITE`);
 
     this.scene.tweens.add({
       targets: boltGfx,
@@ -780,18 +1079,18 @@ export class InvasionManager {
     return true;
   }
 
-  public tapInvader(invader: ActiveInvader): void {
+  public tapInvader(invader: ActiveInvader, power: number = 1): void {
     if (invader.isDead) return;
     if (invader.isScout && !useGameStore.getState().invasion.isActive) {
       this.eliminateInvader(invader);
     } else {
-      this.strikeInvaderWithLightning(invader);
+      this.strikeInvaderWithLightning(invader, power);
     }
   }
 
-  public strikeInvaderWithLightning(invader: ActiveInvader): void {
-    const smiteDmg = 35;
-    this.damageInvader(invader, smiteDmg, '⚡ Smite');
+  public strikeInvaderWithLightning(invader: ActiveInvader, power: number = 1): void {
+    const smiteDmg = Math.round(35 * power);
+    this.damageInvader(invader, smiteDmg, power > 1 ? '⚡ Critical Smite!' : '⚡ Smite');
     soundFx.playLaser();
 
     // Visual electric flash
@@ -815,6 +1114,7 @@ export class InvasionManager {
    */
   public damageInvader(invader: ActiveInvader, rawDamage: number, popupText?: string, quiet: boolean = false): void {
     if (invader.isDead) return;
+    if (devFlag('oneHitKill')) rawDamage = Math.max(rawDamage, 1e7);
     if ((invader.invulnTimer ?? 0) > 0) {
       if (popupText) this.spawnFloatingPopup(invader.container.x, invader.container.y - 24, '🛡️ Immune', '#fde68a');
       return;
@@ -1455,6 +1755,8 @@ export class InvasionManager {
   }
 
   public wipeAllInvaders(): void {
+    for (const beam of this.beams) beam.gfx.destroy();
+    this.beams = [];
     for (const invader of this.invaders) {
       if (invader.container.active) {
         invader.container.destroy();

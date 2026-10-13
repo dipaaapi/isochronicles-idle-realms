@@ -141,5 +141,45 @@
     "peekDensity": 0.25,
     "fadePerSecond": 1.4,
     "puffs": 18
+  },
+  "codex": {
+    "tab": {
+      "en": "Rifts & Sentinels",
+      "tl": "Lagusan at mga Bantay"
+    },
+    "rift": {
+      "name": {
+        "en": "Invasion Rift",
+        "tl": "Lagusan ng Pagsalakay"
+      },
+      "subtitle": {
+        "en": "Gateway of the human realm",
+        "tl": "Pintuan ng mundo ng mga tao"
+      },
+      "desc": {
+        "en": "A tear in the sky at the platform corners. Every wave pours through an open rift. It lashes back at nearby demons and beasts, wards itself and its sentinels, and erupts once per wave when badly hurt. Your minions can strike it once its sentinels fall.",
+        "tl": "Isang punit sa langit sa mga sulok ng plataporma. Dito dumaraan ang bawat alon. Gumaganti ito sa kalapit na demonyo at halimaw, pinoprotektahan ang sarili at mga bantay, at sumasabog minsan bawat alon kapag malubha ang sugat. Matatamaan ito ng iyong mga alagad kapag bumagsak na ang mga bantay."
+      }
+    },
+    "baseNote": {
+      "en": "Wave-1 base values; rifts grow stronger with the wave, day, realm and difficulty.",
+      "tl": "Batayang halaga sa alon 1; lumalakas ang lagusan habang tumataas ang alon, araw, mundo at hirap."
+    },
+    "perRift": {
+      "en": "per rift",
+      "tl": "bawat lagusan"
+    },
+    "ultimate": {
+      "en": "Ultimate",
+      "tl": "Ultimate"
+    },
+    "skills": {
+      "en": "Skills",
+      "tl": "Kakayahan"
+    },
+    "every": {
+      "en": "every",
+      "tl": "bawat"
+    }
   }
 }

@@ -13,7 +13,7 @@ class SoundFxManager {
   // 0..1 volume per bus, persisted like the on/off toggles
   private musicVolume = 1;
   private sfxVolume = 1;
-  // A YouTube / Spotify player is open: the procedural BGM steps aside (SFX stay)
+  // A YouTube player is open: the procedural BGM steps aside (SFX stay)
   private isExternalMusicActive = false;
 
   private bgmOscillators: OscillatorNode[] = [];

@@ -5,6 +5,7 @@ import type { SkillRanks } from '../skillTree';
 import type {
   AutoSettings,
   CastleDefenseState,
+  PlatformPhase,
   GameSpeed,
   GameStoreState,
   InvasionState,
@@ -70,6 +71,7 @@ export const INITIAL_DEFENSE: CastleDefenseState = {
   beaconLevel: 1,
   shieldLevel: 1,
   forceFieldTimer: 0,
+  laserStormTimer: 0,
   minionFrenzyTimer: 0,
   massRegenTimer: 0,
 };
@@ -240,6 +242,7 @@ export const createInitialProgress = () => {
     citadelSkillCooldowns: { overdrive: 0, overcharge: 0, resonance: 0 },
     pendingBattleEffects: [] as import('../../types/state').BattleEffect[],
     platformPhase: 1 as const,
+    realmChoice: null as PlatformPhase | null,
     regressionCount: 0,
     regressionHistory: [],
     isRegressionModalOpen: false,

@@ -71,7 +71,7 @@ interface ItemMeta {
   nameTl: string;
   keyBinding: string;
   maxDuration: number;
-  timerKey?: 'minionFrenzyTimer' | 'forceFieldTimer' | 'massRegenTimer';
+  timerKey?: 'minionFrenzyTimer' | 'forceFieldTimer' | 'massRegenTimer' | 'laserStormTimer';
   color: string;
   glowColor: string;
   descEn: string;
@@ -108,8 +108,8 @@ const BATTLE_ITEMS: ItemMeta[] = [
     glowColor: 'rgba(2, 132, 199, 0.7)',
     descEn: 'Erects an impenetrable energy barrier over the entire realm.',
     descTl: 'Nagtatayo ng hindi matitibag na harang sa buong kaharian.',
-    buffEffectEn: 'Absolute invulnerability for Citadel & Establishments (15s).',
-    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali (15s).',
+    buffEffectEn: 'Absolute invulnerability for Citadel & Establishments (15s), refills the shield to 100% and repairs structures.',
+    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali (15s), pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
   },
   {
     id: 'MASS_REGEN',
@@ -127,18 +127,19 @@ const BATTLE_ITEMS: ItemMeta[] = [
     buffEffectTl: 'Mabilisang nagpapagaling ng HP ng Kastilyo at gusali (20s).',
   },
   {
-    id: 'SHIELD_OVERLOAD',
-    icon: '⚡',
-    nameEn: 'Shield Overload',
-    nameTl: 'Soberkarga ng Kalasag',
+    id: 'LASER_STORM',
+    icon: '🔴',
+    nameEn: 'Laser Storm',
+    nameTl: 'Bagyo ng Laser',
     keyBinding: 'r',
-    maxDuration: 0,
-    color: '#eab308',
-    glowColor: 'rgba(234, 179, 8, 0.6)',
-    descEn: 'Supercharges Citadel barrier to maximum capacity.',
-    descTl: 'Pinupuno ang kalasag ng Kuta hanggang sa pinakamataas na antas.',
-    buffEffectEn: 'Instantly restores Citadel shield to 100% & repairs structures.',
-    buffEffectTl: 'Agad na pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
+    maxDuration: 20,
+    timerKey: 'laserStormTimer',
+    color: '#f43f5e',
+    glowColor: 'rgba(244, 63, 94, 0.6)',
+    descEn: 'The sky opens and the Demon Lord\'s lasers hunt on their own.',
+    descTl: 'Bumubukas ang langit at kusang nanghuhuli ang mga laser ng Demon Lord.',
+    buffEffectEn: 'Sky lasers lock onto up to 10 invaders automatically (20s).',
+    buffEffectTl: 'Kusang tinututukan ng laser ang hanggang 10 kalaban (20s).',
   },
   {
     id: 'CHRONO_SURGE',
@@ -833,7 +834,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <div className="p-2.5 border-t border-slate-800/80 bg-slate-900 flex flex-col gap-1.5">
           {/* Pause, speed, audio, fullscreen, settings and the menu toggle live in the key list above (` 1 2 M N K J I) */}
           <div className="flex items-center justify-end gap-1">
-              {/* Your music: YouTube / Spotify player (opens the music manager when no link is saved) */}
+              {/* Your music: YouTube player (opens the music manager when no link is saved) */}
               <button
                 onClick={() => {
                   soundFx.playClick();

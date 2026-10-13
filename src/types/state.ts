@@ -22,8 +22,8 @@ export interface Resources {
   coins: number;
 }
 
-export type BattleItemId = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'SHIELD_OVERLOAD' | 'CHRONO_SURGE';
-export type BattleEffect = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'SHIELD_OVERLOAD' | 'CHRONO_SURGE';
+export type BattleItemId = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'LASER_STORM' | 'CHRONO_SURGE';
+export type BattleEffect = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'LASER_STORM' | 'CHRONO_SURGE';
 
 export type ResourceBuildingId =
   | 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE'
@@ -107,6 +107,8 @@ export interface CastleDefenseState {
   forceFieldTimer: number;
   minionFrenzyTimer: number;
   massRegenTimer: number;
+  /** Laser Storm (R): seconds left of automatic sky lasers. */
+  laserStormTimer?: number;
 }
 
 export interface InvasionState {
@@ -249,7 +251,7 @@ export interface GameStoreState {
   isGoreEnabled: boolean;
   /** Phase wallpaper behind the island (off = plain dark backdrop). */
   showWallpaper: boolean;
-  /** Saved YouTube / Spotify links for the in-game music player (kept across regression, saved with the realm). */
+  /** Saved YouTube links for the in-game music player (kept across regression, saved with the realm). */
   musicLibrary: import('../state/externalMusic').MusicEntry[];
   /** Which library entry the player is on. */
   musicIndex: number;
@@ -291,6 +293,9 @@ export interface GameStoreState {
   /** Fractional landmark yields waiting to become whole resources. */
   landmarkCarry?: Record<string, number>;
   platformPhase: PlatformPhase; // 1: Demon Citadel, 2: Magma Caldera, 3: Frost Spire, 4: Astral Sanctum
+  /** Realm picked by the player (null = follow the waves); sets platformPhase and the waves' intensity. */
+  realmChoice: PlatformPhase | null;
+  setRealmChoice: (phase: PlatformPhase | null) => void;
   regressionCount: number;
   regressionHistory: RegressionRecord[];
   isRegressionModalOpen: boolean;
@@ -320,7 +325,7 @@ export interface GameStoreState {
   // Actions
   setScreen: (screen: ScreenState) => void;
   setLanguage: (lang: Language) => void;
-  /** Parses and appends a link without switching what plays (already saved counts as success); false when the link is not a valid YouTube / Spotify link. */
+  /** Parses and appends a link without switching what plays (already saved counts as success); false when the link is not a valid YouTube link. */
   addMusicLink: (link: string, name?: string) => boolean;
   removeMusicLink: (index: number) => void;
   /** Removes several saved entries at once (checked in the music library). */

@@ -95,6 +95,7 @@
     "gathered": { "category": "economy", "tone": "neutral", "icon": "⛏️", "en": "+{total} {resource} gathered", "tl": "+{total} {resource} naipon" },
     "bounty": { "category": "economy", "tone": "epic", "icon": "🪙", "en": "+{total} coins in bounties", "tl": "+{total} barya mula sa gantimpala" },
     "looted": { "category": "economy", "tone": "good", "icon": "🎁", "en": "+{total} {resource} looted from invaders", "tl": "+{total} {resource} nakuha sa kalaban" },
+    "generalPromoted": { "category": "minions", "tone": "good", "icon": "🎖️", "en": "The {general} fell, and one of its tenants steps up as the new General", "tl": "Bumagsak ang {general}, at isa sa mga tenant nito ang umangat bilang bagong General" },
     "tenantGathered": { "category": "economy", "tone": "neutral", "icon": "⛏️", "en": "+{total} {resource} gathered from the {source}", "tl": "+{total} {resource} naipon mula sa {source}" },
     "expeditionDeparts": { "category": "minions", "tone": "neutral", "icon": "🌀", "en": "{name} slipped through the {portal} into the human realm", "tl": "Pumasok ang {name} sa {portal} patungo sa kaharian ng tao" },
     "expeditionReturns": { "category": "economy", "tone": "good", "icon": "🏰", "en": "{name} came back from the human realm with {loot}", "tl": "Bumalik ang {name} mula sa kaharian ng tao dala ang {loot}" },
@@ -161,6 +162,7 @@
   },
 
   "phrases": [
+    ["Critical Smite!", "Kritikal na Kidlat!"],
     ["Incursion Repelled!", "Natalo ang pagsalakay!"],
     ["Critically Wounded!", "Malubhang sugatan!"],
     ["Servant Died!", "Namatay ang alagad!"],

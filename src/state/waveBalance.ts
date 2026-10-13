@@ -20,6 +20,8 @@ export interface WaveContext {
   day?: number;
   year?: number;
   season?: Season;
+  /** Realm the player is in (may differ from the wave's own realm when picked by hand). */
+  phase?: number;
 }
 
 export interface TacticMods {
@@ -43,18 +45,43 @@ export const isBossWave = (wave: number) => wave % 5 === 0 || isClimaxWave(wave)
 export const realmMultiplier = (wave: number) =>
   config.stats.realmMultiplier[Math.min(config.stats.realmMultiplier.length - 1, Math.floor((clampWave(wave) - 1) / 25))];
 
+export type RealmIntensity = { hp: number; damage: number; count: number; interval: number; portalHp: number };
+
+/** The wave's own realm (1-4): 25 waves each. */
+export const naturalRealm = (wave: number) => Math.min(4, Math.floor((clampWave(wave) - 1) / 25) + 1);
+
+/**
+ * Extra intensity from playing a wave in a realm the player picked: chosen
+ * realm ÷ the wave's own realm, so 1 everywhere when following the waves.
+ */
+export function realmIntensity(wave: number, phase?: number): RealmIntensity {
+  const r = config.realmIntensity;
+  const at = (n: number) => Math.max(0, Math.min(3, n - 1));
+  const chosen = at(phase ?? naturalRealm(wave));
+  const own = at(naturalRealm(wave));
+  return {
+    hp: r.hp[chosen] / r.hp[own],
+    damage: r.damage[chosen] / r.damage[own],
+    count: r.count[chosen] / r.count[own],
+    interval: r.interval[chosen] / r.interval[own],
+    portalHp: r.portalHp[chosen] / r.portalHp[own],
+  };
+}
+
 export function hpMultiplier(ctx: WaveContext): number {
   const season = ctx.season ? (config.day.seasonHp as Record<Season, number>)[ctx.season] ?? 1 : 1;
   return (1 + (clampWave(ctx.wave) - 1) * config.stats.hpGrowthPerWave)
     * realmMultiplier(ctx.wave)
     * (1 + config.day.hpAtMaxDay * dayProgress(ctx))
     * season
+    * realmIntensity(ctx.wave, ctx.phase).hp
     * WAVE_BALANCE.difficulty[ctx.difficulty].hp;
 }
 
 export function damageMultiplier(ctx: WaveContext): number {
   return (1 + (clampWave(ctx.wave) - 1) * config.stats.damageGrowthPerWave)
     * (1 + config.day.damageAtMaxDay * dayProgress(ctx))
+    * realmIntensity(ctx.wave, ctx.phase).damage
     * WAVE_BALANCE.difficulty[ctx.difficulty].damage;
 }
 

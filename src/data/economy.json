@@ -739,7 +739,8 @@
     },
     "FORCE_FIELD": {
       "cost": {
-        "soulFragments": 5
+        "soulFragments": 5,
+        "aetherShards": 3
       }
     },
     "MASS_REGEN": {
@@ -747,10 +748,13 @@
         "abyssalPearl": 2
       }
     },
-    "SHIELD_OVERLOAD": {
+    "LASER_STORM": {
       "cost": {
-        "aetherShards": 3
-      }
+        "aetherShards": 6,
+        "arcaneEssence": 12,
+        "coins": 200
+      },
+      "seconds": 20
     },
     "CHRONO_SURGE": {
       "cost": {

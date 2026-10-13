@@ -7,7 +7,10 @@ import {
   Flame,
   Swords,
   Lock,
+  Tornado,
 } from 'lucide-react';
+import portalDefense from '../data/portalDefense.json';
+import defenseConfig from '../data/defenseConfig.json';
 import {
   UNIT_CLASSES,
   INVADER_CONFIGS,
@@ -23,7 +26,7 @@ interface BestiaryModalProps {
 
 export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose }) => {
   const { discoveredBeasts, discoveredInvaders, language } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'BEASTS' | 'INVADERS'>('BEASTS');
+  const [activeTab, setActiveTab] = useState<'BEASTS' | 'INVADERS' | 'RIFTS'>('BEASTS');
 
   if (!isOpen) return null;
 
@@ -37,6 +40,12 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
     [...keys.filter((k) => roleOf(k) === 'RULER'), ...keys.filter((k) => roleOf(k) !== 'RULER')];
   const beastKeys = byRole(Object.keys(UNIT_CLASSES) as UnitClass[], (k) => UNIT_CLASSES[k].role);
   const invaderKeys = byRole(Object.keys(INVADER_CONFIGS) as InvaderType[], (k) => INVADER_CONFIGS[k].role);
+
+  const tx = (t: { en: string; tl: string }) => (language === 'TL' ? t.tl : t.en);
+  const codex = portalDefense.codex;
+  const towers = portalDefense.towers;
+  const riftArt = `${import.meta.env.BASE_URL}structures/portal.jpg`;
+  const riftHp = defenseConfig.portal.hp * portalDefense.scaling.riftHp;
 
   const totalBeasts = beastKeys.length;
   const unlockedBeastsCount = beastKeys.filter((k) =>
@@ -79,7 +88,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Category Tabs */}
-        <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-900/70 p-1.5 rounded-2xl border border-slate-800">
+        <div className="grid grid-cols-3 gap-2 mb-4 bg-slate-900/70 p-1.5 rounded-2xl border border-slate-800">
           <button
             onClick={() => {
               soundFx.playClick();
@@ -114,6 +123,21 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
             <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/40 font-mono">
               {unlockedInvadersCount}/{totalInvaders}
             </span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setActiveTab('RIFTS');
+            }}
+            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'RIFTS'
+                ? 'bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white shadow-lg shadow-fuchsia-600/30 scale-[1.02]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Tornado className="w-4 h-4 text-fuchsia-300" />
+            <span>{tx(codex.tab)}</span>
           </button>
         </div>
 
@@ -322,6 +346,68 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {activeTab === 'RIFTS' && (
+            <div className="space-y-3">
+              <p className="text-[11px] text-slate-500 italic">{tx(codex.baseNote)}</p>
+              {[
+                {
+                  key: 'rift',
+                  name: tx(codex.rift.name),
+                  subtitle: tx(codex.rift.subtitle),
+                  desc: tx(codex.rift.desc),
+                  hp: Math.round(riftHp),
+                  damage: portalDefense.retaliation.damage,
+                  cooldown: portalDefense.retaliation.cooldown,
+                  range: portalDefense.retaliation.range,
+                  coins: defenseConfig.portal.coins,
+                },
+                {
+                  key: 'sentinel',
+                  name: tx(towers.name),
+                  subtitle: `🗼 ×${towers.perPortal} ${tx(codex.perRift)}`,
+                  desc: tx(towers.desc),
+                  hp: Math.round(riftHp * towers.hpShare),
+                  damage: towers.damage,
+                  cooldown: towers.cooldown,
+                  range: towers.range,
+                  coins: towers.coins,
+                },
+              ].map((entry) => (
+                <div key={entry.key} className="p-4 rounded-2xl border bg-slate-900/80 border-fuchsia-500/30 shadow-md">
+                  <div className="flex items-start gap-3">
+                    <div className="w-20 h-20 shrink-0 rounded-2xl overflow-hidden border border-fuchsia-500/40">
+                      <img src={riftArt} alt={entry.name} className="w-full h-full object-cover" draggable={false} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm tracking-wide text-white">{entry.name}</h3>
+                      <p className="text-xs text-fuchsia-300/90 font-medium mt-0.5">{entry.subtitle}</p>
+                      <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{entry.desc}</p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 pt-2 border-t border-slate-800/80 text-[11px] text-slate-300">
+                        <span className="font-bold whitespace-nowrap">❤️ HP: <strong className="text-rose-400">{entry.hp}</strong></span>
+                        <span className="font-bold whitespace-nowrap">💥 {language === 'TL' ? 'Pinsala' : 'Damage'}: <strong className="text-amber-400">{entry.damage}</strong> {tx(codex.every)} {entry.cooldown}s</span>
+                        <span className="font-bold whitespace-nowrap">🎯 {language === 'TL' ? 'Abot' : 'Range'}: <strong className="text-sky-300">{entry.range}</strong></span>
+                        <span className="font-bold whitespace-nowrap">🪙 {language === 'TL' ? 'Barya' : 'Bounty'}: <strong className="text-yellow-300">+{entry.coins}</strong></span>
+                      </div>
+                      {entry.key === 'rift' && (
+                        <div className="mt-2.5 pt-2 border-t border-slate-800/80 space-y-1.5">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-fuchsia-300">{tx(codex.skills)}</p>
+                          {Object.values(portalDefense.skills).map((skill) => (
+                            <p key={skill.name.en} className="text-xs text-slate-300">
+                              <strong className="text-violet-300">{tx(skill.name)}</strong> <span className="text-slate-500">({skill.cooldown}s)</span> — {tx(skill.desc)}
+                            </p>
+                          ))}
+                          <p className="text-xs text-slate-300">
+                            <strong className="text-rose-300">👑 {tx(codex.ultimate)}: {tx(portalDefense.ultimate.name)}</strong> — {tx(portalDefense.ultimate.desc)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

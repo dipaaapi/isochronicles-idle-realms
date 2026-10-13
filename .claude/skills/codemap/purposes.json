@@ -156,5 +156,10 @@
   "src/data/establishmentDefense.json": "Per-establishment tower accuracy (hit chance) and wall armor, with per-level growth and caps",
   "src/game/scene/waterLife.ts": "Live water: animated HD Aseprite surface over every water tile and wandering/diving fish, one biome per realm (ocean, magma, frost, astral)",
   "src/data/waterfalls.json": "Edge waterfall styles per realm and random moods (calm, torrent, gusty, eruption, freeze, ascent)",
-  "src/data/leapingFish.json": "Leaping fish per realm: species colours, rare catch, jump style (height, hops, school), splash and trail"
+  "src/data/leapingFish.json": "Leaping fish per realm: species colours, rare catch, jump style (height, hops, school), splash and trail",
+  "src/ui/TitleAmbience.tsx": "Title screen ambience: rising embers, drifting mist, pulsing glow",
+  "src/ui/DevPanel.tsx": "Dev-build-only developer panel: resources, waves, realms, time/weather, unlocks, god mode, one-hit kill, live stats",
+  "src/state/devMode.ts": "Developer mode flags (enabled, godMode, oneHitKill); switched from Settings → Credits in dev builds only",
+  "src/game/devBridge.ts": "Dev-mode handle on the live scene (InvasionManager) for the dev panel",
+  "src/game/promotions.ts": "General classes mid-promotion (tenant star badge → grow), so the Treant does not summon a duplicate"
 }

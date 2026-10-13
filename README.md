@@ -43,6 +43,7 @@ Each realm places the thirteen establishments at random (`layoutSeed`). The cast
 
 - **Generals** are unique roster units. They don't gather; they build their home, then guard it and the citadel, scout the island and fight.
 - **Tenants** are spawned by the world itself and are never stored in the roster. They garrison their home during waves.
+- **Promotion:** when a General is slain, its healthiest tenant on the island is promoted on the spot and becomes the new General (free); the tenant slot refills through the normal respawn.
 - **Expeditions:** some tenants slip through a rift into the human realm and come back with loot. Every return stirs **vengeance**, which adds extra invaders to the next wave.
 - Establishments level up for by-products and stronger output, and each has its own active skills.
 
@@ -54,17 +55,20 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - Minions, Generals and invaders drawn as 8-direction animated pixel-art sprites, ray-cast from jointed voxel models in background Web Workers.
 - Structures rendered from voxel models that follow the Codex art, with construction, idle, firing, hit and destroyed states.
 - Autonomous units with movement, gathering, combat, healing, construction and expedition states, plus EasyStar.js pathfinding.
-- 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel.
-- Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's lightning strike.
+- 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel. Each rift is guarded by two **Rift Sentinel** towers and fights back with its own skills and ultimate.
+- **Realm picker:** choose the realm (Demon Citadel, Magma Caldera, Frost Spire, Astral Sanctum) anytime in Atlas → Regression, or follow the waves. A later realm scales wave HP, damage, count, spawn speed and rift HP up; an earlier one eases them (`realmIntensity` in `src/data/waveBalance.json`).
+- Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's **sky lasers**: double-click invaders to lock up to 10 beams that burn and slow them; crit chance grows (and misses fade) the longer a beam stays on one target, and they leave burn scars that hurt and slow invaders walking over them (`holdStrike` in `src/data/defenseConfig.json`).
 - Support Slime and Ancient Treant evolution (five forms each), God Blessings, research upgrades and equipment crafting/buying.
 - Skill Tree with ranked skills earned by clearing waves, plus a free respec.
 - Regression prestige with permanent team-only boosts.
 - Easy / Normal / Hard difficulty.
 - Day/night cycle, seasons and weather: rain (sometimes stormy, with lightning and camera shake), snow and heat haze.
 - Living world: grass sways and water wakes follow units, fish leap, clouds drift, and the sun and moon arc over the island.
-- **Activity log tray** that narrates days, weather, waves, construction, roster changes, achievements and skills. There is no floating text over the map.
+- **Activity log tray** that narrates days, weather, waves, construction, roster changes, achievements and skills. There is no floating text over the map, except the sky laser's damage / CRIT / MISS numbers.
 - **Atlas:** Guide, Lore, and a Structures tab that compares each structure's art with its in-game render.
-- Bestiary of discovered minions and invaders, with portraits.
+- Bestiary (Demon Lord Codex) of discovered minions and invaders, with portraits, plus a **Rifts & Sentinels** tab with the rift's and sentinels' stats, skills and ultimate.
+- Animated title screen (drifting camera, rising embers, mist and glow; off with reduced motion).
+- In-game music player for your own **YouTube** links (Spotify support was removed).
 - Procedural Web Audio for battle sounds, fanfares and ambience.
 - Local-first IndexedDB persistence, offline progression, and JSON save export/import.
 - PWA service worker for offline play.
@@ -116,7 +120,7 @@ RESET REGRESSIONS
 
 - **Left-click and drag:** pan the camera. The island always stays inside the frame.
 - **Mouse wheel:** zoom between 0.65× and 2.2×.
-- **Click an invader:** strike it with the Demon Lord's lightning.
+- **Double-click an invader** (or near one during a wave): lock a sky laser on it. A ground reticle closes in, then the beam burns and slows the target until it dies. Up to 10 beams at once; double-click a locked invader to release it. Tapping a scout between waves still kills it at once.
 - **Click a building:** open its establishment panel. **Hold** an establishment to move it (not during a wave).
 - **Click a resource badge:** open quick trade for that resource. To set the amount:
   - turn the **quantity knob** (drag, or scroll with Shift held for ×10, or use the arrow keys),
@@ -141,7 +145,7 @@ Shortcuts are ignored while you type in a text field.
 - **Servants:** minion roster and commands.
 - **Citadel Command:** reconstruction status, minions, market, forge, research and defenses.
 - **Atlas:** Guide, Lore and Structures.
-- **Bestiary:** discovered minions and invaders.
+- **Bestiary:** discovered minions and invaders, plus the rifts and their Rift Sentinels.
 - **Skill Tree** and **Regression:** skills, prestige and reset controls.
 - **Settings:** language (EN/TL), audio, blood & gore, difficulty, FPS and performance, saves, and the tile coordinate overlay.
 

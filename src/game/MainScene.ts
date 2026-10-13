@@ -1,4 +1,5 @@
 import { GraphicsFx } from './graphicsFx';
+import { devBridge } from './devBridge';
 import Phaser from 'phaser';
 import { normalizeDifficulty, type Difficulty } from '../state/difficulty';
 import { TileInfo, TileType } from '../types/game';
@@ -366,6 +367,8 @@ export class MainScene extends Phaser.Scene {
     // The loading screen lifts once the world is up and the bakes have landed
     useLoadProgress.getState().setSceneReady(true);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => useLoadProgress.getState().setSceneReady(false));
+    devBridge.invasion = this.invasionManager;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (devBridge.invasion === this.invasionManager) devBridge.invasion = undefined; });
   }
 
   private createAtmosphere(): void {
@@ -881,11 +884,12 @@ export class MainScene extends Phaser.Scene {
   /**
    * Draw order inside the entity layer follows each object's feet (y), so a
    * minion walking behind the citadel is hidden by it and one in front is not.
-   * Effects with depth >= 9000 (bursts, projectiles) always stay on top.
+   * Effects with depth >= 9000 (bursts, projectiles) always stay on top; depth <= -9000 stays under everything.
    */
   private sortEntities(): void {
     const key = (obj: Phaser.GameObjects.GameObject) => {
       const o = obj as unknown as { depth: number; y: number };
+      if (o.depth <= -9000) return -100000 + o.depth; // ground decals (laser burn scars)
       return o.depth >= 9000 ? 100000 + o.depth : o.y;
     };
     this.entityLayer.sort('y', (a: Phaser.GameObjects.GameObject, b: Phaser.GameObjects.GameObject) => key(a) - key(b));
@@ -1022,9 +1026,7 @@ export class MainScene extends Phaser.Scene {
       }
 
       if (useGameStore.getState().invasion.isActive && this.invasionManager) {
-        const localX = pointer.worldX - this.islandContainer.x;
-        const localY = pointer.worldY - this.islandContainer.y;
-        this.invasionManager.smiteClosestInvader(localX, localY);
+        this.invasionManager.handleStrikeClick(pointer);
       }
 
       this.isDragging = true;

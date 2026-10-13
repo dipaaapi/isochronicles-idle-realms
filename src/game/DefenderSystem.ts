@@ -12,6 +12,7 @@ import type { ResourceBuildingId, TowerId, Resources } from '../types/state';
 import { UNIT_CLASSES, type UnitClass, type HarvestTask } from '../types/game';
 import { createMinionSprite, faceCharacterSprite, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
 import { soundFx } from './audio/soundFx';
+import { DEFENSE_CONFIG } from '../state/defenseStats';
 import { useTenantCounts, type TenantCount } from '../state/tenantCounts';
 import { logFloatingText, logMessage, resourceName } from '../state/activityLog';
 import { CREW_CONFIG, ESTABLISHMENT_CREWS, vengeanceExtraInvaders, type GatherJob, type GatherSource } from '../state/establishmentCrews';
@@ -176,6 +177,75 @@ export class DefenderSystem {
   /** Invaders fight defenders that get in their way. */
   getBlockers(): InvaderBlocker[] {
     return this.getDefenders();
+  }
+
+  /**
+   * A fallen General is replaced by the healthiest tenant of its establishment
+   * still on the island. The tenant leaves the crew (the usual respawn refills
+   * it) and stops where it is: a star badge spins over its head, then it grows
+   * and `onPromoted` gets its grid spot so the new General appears there.
+   * Returns false when no tenant can be promoted.
+   */
+  promoteTenant(home: TowerId, onPromoted: (spot: { x: number; y: number }) => void): boolean {
+    const pick = this.defenders
+      .filter((d) => !d.dead && d.home === home && d.state !== 'IN_HUMAN_REALM')
+      .sort((a, b) => b.hp / b.maxHp - a.hp / a.maxHp)[0];
+    if (!pick) return false;
+    const cfg = DEFENSE_CONFIG.promotion;
+    // Out of the crew and out of the fight: invaders and the update loop skip it from now on
+    pick.dead = true;
+    this.defenders = this.defenders.filter((o) => o !== pick);
+    pick.hpBar.setVisible(false);
+    pick.sprite?.anims?.pause();
+
+    const badge = this.scene.add.container(0, -46);
+    const glow = this.scene.add.graphics();
+    glow.fillStyle(0xfde047, 0.35);
+    glow.fillCircle(0, 0, 13);
+    const star = this.scene.add.graphics();
+    const points: Phaser.Math.Vector2[] = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const r = i % 2 === 0 ? 10 : 4.5;
+      points.push(new Phaser.Math.Vector2(Math.cos(a) * r, Math.sin(a) * r));
+    }
+    star.fillStyle(0xfacc15, 1);
+    star.fillPoints(points, true);
+    star.lineStyle(1.5, 0x78350f, 1);
+    star.strokePoints(points, true);
+    badge.add([glow, star]);
+    badge.setScale(0);
+    pick.container.add(badge);
+    soundFx.playUpgrade();
+
+    this.scene.tweens.add({ targets: badge, scale: 1, duration: 250, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: badge, y: -52, duration: 450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.scene.tweens.add({ targets: star, angle: 360, duration: 1200, repeat: -1 });
+    this.scene.tweens.add({ targets: glow, alpha: 0.3, duration: 300, yoyo: true, repeat: -1 });
+
+    const finish = () => {
+      const spot = IsometricHelper.screenToGrid(pick.container.x, pick.container.y);
+      this.scene.tweens.killTweensOf([badge, star, glow, pick.container]);
+      pick.container.destroy();
+      onPromoted({
+        x: Phaser.Math.Clamp(Math.round(spot.x), 0, GRID_SIZE - 1),
+        y: Phaser.Math.Clamp(Math.round(spot.y), 0, GRID_SIZE - 1),
+      });
+    };
+    this.scene.time.delayedCall(cfg.badgeMs, () => {
+      if (!pick.container.active) return;
+      badge.setVisible(false);
+      pick.sprite?.setTintFill(0xfef08a);
+      soundFx.playEvolve();
+      this.scene.tweens.add({
+        targets: pick.container,
+        scale: cfg.growScale,
+        duration: cfg.growMs,
+        ease: 'Back.easeIn',
+        onComplete: finish,
+      });
+    });
+    return true;
   }
 
   /** Number of living garrisoned tenants tethered at an establishment. */

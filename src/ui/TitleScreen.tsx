@@ -5,6 +5,7 @@ import { soundFx } from '../game/audio/soundFx';
 import { gameAlert } from './GameDialog';
 import { Play, RotateCcw, Sliders, BookOpen } from 'lucide-react';
 import { useTranslation } from '../i18n/translations';
+import { TitleAmbience } from './TitleAmbience';
 
 interface TitleScreenProps {
   onStartNewRealm: () => void;
@@ -114,12 +115,13 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       
       {/* --- MALIWANAG NA PIXEL ART BACKGROUND --- */}
       <div 
-        className="absolute inset-0 bg-cover bg-center pointer-events-none z-0"
+        className="title-drift absolute inset-0 bg-cover bg-center pointer-events-none z-0"
         style={{ backgroundImage: `url('/backgrounds/title-screen.jpeg')` }}
       />
 
       {/* Banayad na bottom gradient para readable ang buttons nang hindi dumidilim ang visual title */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none z-0" />
+      <TitleAmbience />
 
       {/* --- TOP BAR: EN / TL TOGGLE SWITCH --- */}
       <div className="relative z-20 w-full flex justify-end p-6">

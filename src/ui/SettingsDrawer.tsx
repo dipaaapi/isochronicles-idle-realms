@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useDevMode } from '../state/devMode';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
@@ -66,6 +67,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentTab, setCurrentTab] = useState<'GAME' | 'SAVE' | 'CREDITS'>('GAME');
+  const devEnabled = useDevMode((s) => s.enabled);
 
   const {
     language,
@@ -731,6 +733,31 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           {/* CREDITS TAB */}
           {currentTab === 'CREDITS' && (
             <div className="space-y-4">
+              {/* Developer mode: only exists in a dev build (npm run dev), never in production */}
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundFx.playClick();
+                    useDevMode.getState().setEnabled(!devEnabled);
+                  }}
+                  className={`w-full rounded-2xl border p-4 text-left transition-colors cursor-pointer ${
+                    devEnabled
+                      ? 'border-lime-400/60 bg-lime-950/40 hover:bg-lime-950/60'
+                      : 'border-dashed border-lime-500/40 bg-slate-900/70 hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-lime-300">🛠️ Developer Mode</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${devEnabled ? 'bg-lime-500 text-black' : 'bg-slate-800 text-slate-400'}`}>
+                      {devEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Dev build only. Opens the dev panel over the map: resources, waves, realms, god mode, one-hit kills, unlocks and live stats.
+                  </p>
+                </button>
+              )}
               {/* Creator */}
               <section className="rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-950/40 to-slate-900/80 p-5">
                 <div className="flex items-center gap-3">

@@ -78,7 +78,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🔥 What are the Q W E R T buttons?',
-        answer: 'Battle relics: Minion Frenzy (Q), Aegis Barrier (W), Mass Restoration (E), Shield Overload (R) and Chrono Surge (T). Hover a button to see its effect and cost. They run on landmark materials — obsidian from the Brimstone Perch, souls from the Crypt of Souls, pearls from the Abyssal Trench.',
+        answer: 'Battle relics: Minion Frenzy (Q), Aegis Barrier (W, also refills the shield and repairs structures), Mass Restoration (E), Laser Storm (R, sky lasers lock onto up to 10 invaders automatically for 20 s) and Chrono Surge (T). Hover a button to see its effect and cost. They run on landmark materials — obsidian from the Brimstone Perch, souls from the Crypt of Souls, pearls from the Abyssal Trench.',
       },
       {
         question: '⛈️ Does the weather matter?',
@@ -102,7 +102,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌍 Why does the scenery change?',
-        answer: 'Each realm brings a new world: Demon Citadel (waves 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, and Astral Sanctum (76–100) ✨.',
+        answer: 'Each realm brings a new world: Demon Citadel (waves 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, and Astral Sanctum (76–100) ✨. You can also pick a realm anytime in the Atlas: a later realm makes waves tougher, bigger and faster, an earlier one eases them.',
       },
     ],
   },
@@ -172,7 +172,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🔥 Para saan ang mga button na Q W E R T?',
-        answer: 'Mga relikya ng labanan: Siklab ng Minion (Q), Kalasag ng Kuta (W), Malawakang Lunas (E), Soberkarga ng Kalasag (R) at Pampabilis ng Oras (T). Itapat ang mouse sa button para makita ang epekto at halaga. Pinapagana sila ng materyales ng landmark — obsidian mula sa Dapuan ng Asupre, kaluluwa mula sa Libingan, perlas mula sa Bangin ng Kailaliman.',
+        answer: 'Mga relikya ng labanan: Siklab ng Minion (Q), Kalasag ng Kuta (W, pinupuno rin ang kalasag at inaayos ang mga gusali), Malawakang Lunas (E), Bagyo ng Laser (R, kusang tinututukan ng laser ang hanggang 10 kalaban sa loob ng 20 segundo) at Pampabilis ng Oras (T). Itapat ang mouse sa button para makita ang epekto at halaga. Pinapagana sila ng materyales ng landmark — obsidian mula sa Dapuan ng Asupre, kaluluwa mula sa Libingan, perlas mula sa Bangin ng Kailaliman.',
       },
       {
         question: '⛈️ Mahalaga ba ang panahon?',
@@ -196,7 +196,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌍 Bakit nagbabago ang paligid?',
-        answer: 'Bawat kaharian ay bagong mundo: Kuta ng Kadiliman (alon 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, at Astral Sanctum (76–100) ✨.',
+        answer: 'Bawat kaharian ay bagong mundo: Kuta ng Kadiliman (alon 1–25) 🔥, Magma Caldera (26–50) 🌋, Frost Spire (51–75) ❄️, at Astral Sanctum (76–100) ✨. Maaari ka ring pumili ng kaharian kahit kailan sa Atlas: mas mabagsik, mas marami at mas mabilis ang alon sa mas huling kaharian, mas magaan sa mas nauna.',
       },
     ],
   },

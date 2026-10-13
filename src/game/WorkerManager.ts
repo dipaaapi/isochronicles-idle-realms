@@ -1,14 +1,14 @@
 import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
 import { GridPoint, UnitClass, UNIT_CLASSES, TASK_NODE_LOCATIONS, TASK_CONFIG } from '../types/game';
-import { ResourceBuildingId, UnitRosterItem } from '../types/state';
+import { ResourceBuildingId, TowerId, UnitRosterItem } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { PathfindingService } from './PathfindingService';
 import { useGameStore } from '../state/useGameStore';
 import { isModActive } from './skills/combatMods';
 import { ConstructionStatus, CONSTRUCTION_SECONDS, nextConstruction, nextChampionConstruction, nextMinionSpireConstruction } from '../state/constructionProgress';
 import { soundFx } from './audio/soundFx';
-import { logFloatingText, nearestName } from '../state/activityLog';
+import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import type { InvasionManager } from './InvasionManager';
 import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
 import { Navigation, TILES_FOR } from './Navigation';
@@ -25,6 +25,7 @@ import { updateConstruction, updateTreant } from './workers/treant';
 import { generalHomeSite, updateGeneralConstruction } from './workers/generalConstruction';
 import { updateGeneralLooting } from './workers/generalLooting';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
+import { promotingClasses } from './promotions';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
 import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
@@ -86,6 +87,8 @@ export class WorkerManager implements WorkerContext {
     this.pathfinder = pathfinder;
     this.nexusGridPos = nexusGridPos;
     this.parentContainer = parentContainer;
+    // A promotion cut short by a scene restart must not block that General for good
+    promotingClasses.clear();
   }
 
   public setParentContainer(container: Phaser.GameObjects.Container): void {
@@ -198,7 +201,13 @@ export class WorkerManager implements WorkerContext {
     let startX = this.nexusGridPos.x;
     let startY = this.nexusGridPos.y;
 
-    if (isTenant && parentBuildingId && BUILDING_SITES[parentBuildingId]) {
+    const promoted = isGeneral ? this.promotionSpots.get(item.unitClass) : undefined;
+    if (promoted) {
+      // A tenant promoted to General takes over right where it stood
+      this.promotionSpots.delete(item.unitClass);
+      startX = promoted.x;
+      startY = promoted.y;
+    } else if (isTenant && parentBuildingId && BUILDING_SITES[parentBuildingId]) {
       startX = BUILDING_SITES[parentBuildingId].workSpot.x;
       startY = BUILDING_SITES[parentBuildingId].workSpot.y;
     } else if (isGeneral && minionMoveMode(item.unitClass) === 'water') {
@@ -760,12 +769,38 @@ export class WorkerManager implements WorkerContext {
     worker.overrideEmoteTimer = 1500;
   }
 
-  /** Permadeath: remove the minion from the map and the roster (with a partial refund). */
+  /** Grid spots where a promoted tenant stands, used when its General's new worker is created. */
+  private promotionSpots = new Map<UnitClass, { x: number; y: number }>();
+
+  /**
+   * Permadeath: remove the minion from the map and the roster (with a partial
+   * refund). A fallen General is replaced on the spot by one of its tenants.
+   */
   private killWorker(worker: WorkerInstance): void {
     this.spawnFloatingPopup(worker.container.x, worker.container.y - 30, '💀 KIA', '#ef4444');
     worker.container.destroy();
     this.workers = this.workers.filter((w) => w.id !== worker.id);
-    useGameStore.getState().removeUnit(worker.id, true);
+    const store = useGameStore.getState();
+    const unit = store.roster.find((u) => u.id === worker.id);
+    const home = UNIT_CLASSES[worker.unitClass]?.requiredBuilding as TowerId | undefined;
+    const isGeneral = !!unit && !!home && !unit.parentBuildingId && !unit.id.startsWith('tenant_');
+    const unitClass = worker.unitClass;
+    // The tenant shows a star badge, grows, then the new General appears where it stood
+    const promoting = isGeneral && home
+      ? this.defenders?.promoteTenant(home, (spot) => {
+          promotingClasses.delete(unitClass);
+          this.promotionSpots.set(unitClass, spot);
+          if (!useGameStore.getState().summonUnit(unitClass, unit?.assignedTask, true)) this.promotionSpots.delete(unitClass);
+        })
+      : false;
+    if (!promoting) {
+      store.removeUnit(worker.id, true);
+      return;
+    }
+    promotingClasses.add(unitClass);
+    store.removeUnit(worker.id, false);
+    const cfg = UNIT_CLASSES[unitClass];
+    logMessage('generalPromoted', { general: { en: cfg.nameEn ?? cfg.name ?? unitClass, tl: cfg.name ?? unitClass } });
   }
 
   /** Bobbing, HP/stamina gauges, night lantern and emote timers. */

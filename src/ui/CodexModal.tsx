@@ -115,11 +115,11 @@ export const CodexModal: React.FC<CodexModalProps> = ({ isOpen, onClose }) => {
             <p className="text-xs text-slate-300 leading-relaxed pl-8">
               {isTL ? (
                 <>
-                  Kapag may sumugod na halimaw mula sa dilim, i-click o i-tap sila kahit saan sa screen para tamaan ng kidlat! ⚡ Huwag hayaang masira ang iyong Kastilyo!
+                  Kapag may sumugod na halimaw mula sa dilim, i-double-click ang kalaban para tutukan ito ng laser mula sa langit (hanggang 10 nang sabay)! ⚡ Pinababagal at sinusunog nito ang kalaban, at habang mas matagal na nakatutok, mas malaki ang tsansa ng kritikal na tama. Huwag hayaang masira ang iyong Kastilyo!
                 </>
               ) : (
                 <>
-                  When invaders assault the realm, click or tap them anywhere on the map to smite with lightning! ⚡ Defend your Castle at all costs!
+                  When invaders assault the realm, double-click an invader to lock a laser from the sky on it (up to 10 at once)! ⚡ It burns and slows its target, and the longer the beam stays on one enemy, the higher the chance of a critical hit. Defend your Castle at all costs!
                 </>
               )}
             </p>

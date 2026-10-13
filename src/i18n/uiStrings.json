@@ -644,12 +644,12 @@
     "tl": "Iyong Musika"
   },
   "musicPlayerDesc": {
-    "en": "Play your own YouTube or Spotify music while you play. Save as many playlists, albums, tracks or videos as you like and switch between them in the player. Your list is saved on this device on its own, apart from your realm progress: saving, exporting, importing or resetting the game never changes it (use the playlist export to move it).",
-    "tl": "Patugtugin ang sarili mong musika mula sa YouTube o Spotify habang naglalaro. Mag-save ng kahit ilang playlist, album, kanta o video at magpalipat-lipat sa player. Hiwalay na naka-save ang listahan sa device na ito, hindi kasama ng progress ng realm: hindi ito nagbabago kapag nag-save, nag-export, nag-import o nag-reset ng laro (gamitin ang export ng playlist para ilipat ito)."
+    "en": "Play your own YouTube music while you play. Save as many playlists, albums, tracks or videos as you like and switch between them in the player. Your list is saved on this device on its own, apart from your realm progress: saving, exporting, importing or resetting the game never changes it (use the playlist export to move it).",
+    "tl": "Patugtugin ang sarili mong musika mula sa YouTube habang naglalaro. Mag-save ng kahit ilang playlist, album, kanta o video at magpalipat-lipat sa player. Hiwalay na naka-save ang listahan sa device na ito, hindi kasama ng progress ng realm: hindi ito nagbabago kapag nag-save, nag-export, nag-import o nag-reset ng laro (gamitin ang export ng playlist para ilipat ito)."
   },
   "musicPlayerPlaceholder": {
-    "en": "Paste a YouTube or Spotify link…",
-    "tl": "I-paste ang link ng YouTube o Spotify…"
+    "en": "Paste a YouTube link…",
+    "tl": "I-paste ang link ng YouTube…"
   },
   "musicPlayerSave": {
     "en": "Add",
@@ -692,28 +692,28 @@
     "tl": "Isara ang player"
   },
   "musicPlayerInvalid": {
-    "en": "That isn't a YouTube or Spotify link we can play.",
-    "tl": "Hindi iyan link ng YouTube o Spotify na kayang patugtugin."
+    "en": "That isn't a YouTube link we can play.",
+    "tl": "Hindi iyan link ng YouTube na kayang patugtugin."
   },
   "musicPlayerCurrent": {
     "en": "Now set",
     "tl": "Nakatakda"
   },
   "musicPlayerNote": {
-    "en": "Needs an internet connection. The game's own music goes quiet while the player is open; sound effects keep playing. Spotify plays full tracks only when you're logged in to Spotify in this browser.",
-    "tl": "Kailangan ng internet. Tumatahimik ang sariling musika ng laro habang bukas ang player; tuloy pa rin ang sound effects. Buong kanta lang ang pinapatugtog ng Spotify kapag naka-login ka sa Spotify sa browser na ito."
+    "en": "Needs an internet connection. The game's own music goes quiet while the player is open; sound effects keep playing.",
+    "tl": "Kailangan ng internet. Tumatahimik ang sariling musika ng laro habang bukas ang player; tuloy pa rin ang sound effects."
   },
   "musicPlayerOffline": {
     "en": "You're offline. The music player needs an internet connection.",
     "tl": "Offline ka. Kailangan ng internet ng music player."
   },
   "musicPlayerEmpty": {
-    "en": "No music set yet. Add a YouTube or Spotify link in Settings.",
-    "tl": "Wala pang nakatakdang musika. Maglagay ng link ng YouTube o Spotify sa Settings."
+    "en": "No music set yet. Add a YouTube link in Settings.",
+    "tl": "Wala pang nakatakdang musika. Maglagay ng link ng YouTube sa Settings."
   },
   "hudMusicPlayer": {
-    "en": "Your music (YouTube / Spotify)",
-    "tl": "Iyong musika (YouTube / Spotify)"
+    "en": "Your music (YouTube)",
+    "tl": "Iyong musika (YouTube)"
   },
   "musicKind_playlist": {
     "en": "Playlist",
@@ -816,8 +816,8 @@
     "tl": "File ng playlist"
   },
   "musicPlayerFileDesc": {
-    "en": "Download your list to edit it in Excel / Sheets (.csv) or a docs app (.txt), then upload it back. Any line with a YouTube or Spotify link is added; the rest of the line becomes its name.",
-    "tl": "I-download ang listahan para i-edit sa Excel / Sheets (.csv) o sa docs app (.txt), tapos i-upload ulit. Idinadagdag ang bawat linya na may link ng YouTube o Spotify; ang natitirang text sa linya ang magiging pangalan."
+    "en": "Download your list to edit it in Excel / Sheets (.csv) or a docs app (.txt), then upload it back. Any line with a YouTube link is added; the rest of the line becomes its name.",
+    "tl": "I-download ang listahan para i-edit sa Excel / Sheets (.csv) o sa docs app (.txt), tapos i-upload ulit. Idinadagdag ang bawat linya na may link ng YouTube; ang natitirang text sa linya ang magiging pangalan."
   },
   "musicPlayerUpload": {
     "en": "Upload list",
@@ -828,8 +828,8 @@
     "tl": "Nadagdag ang {n} link sa listahan."
   },
   "musicPlayerImportNone": {
-    "en": "No new YouTube or Spotify links found in that file.",
-    "tl": "Walang bagong link ng YouTube o Spotify sa file na iyon."
+    "en": "No new YouTube links found in that file.",
+    "tl": "Walang bagong link ng YouTube sa file na iyon."
   },
   "titleAllRights": {
     "en": "All rights reserved",
@@ -918,5 +918,21 @@
   "quickSidebar": {
     "en": "Expand / collapse side menu",
     "tl": "Palakihin / paliitin ang side menu"
+  },
+  "realmPickHint": {
+    "en": "Pick the realm to fight in anytime. A later realm brings tougher, bigger and faster waves; an earlier one eases them. The realm changes after the current wave if one is on.",
+    "tl": "Pumili ng kaharian na paglalabanan kahit kailan. Mas mabagsik, mas marami at mas mabilis ang alon sa mas huling kaharian; mas magaan sa mas nauna. Magbabago ang lakas ng alon sa susunod na alon kung may laban ngayon."
+  },
+  "realmFollowWaves": {
+    "en": "Follow the waves",
+    "tl": "Sundan ang alon"
+  },
+  "realmChosen": {
+    "en": "Chosen",
+    "tl": "Napili"
+  },
+  "realmIntensity": {
+    "en": "Wave intensity ×{n}",
+    "tl": "Lakas ng alon ×{n}"
   }
 }

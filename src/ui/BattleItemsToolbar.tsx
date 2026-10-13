@@ -12,7 +12,7 @@ interface ItemMeta {
   nameTl: string;
   keyBinding: string;
   maxDuration: number;
-  timerKey?: 'minionFrenzyTimer' | 'forceFieldTimer' | 'massRegenTimer';
+  timerKey?: 'minionFrenzyTimer' | 'forceFieldTimer' | 'massRegenTimer' | 'laserStormTimer';
   color: string;
   glowColor: string;
   bgGradient: string;
@@ -52,8 +52,8 @@ const ITEMS: ItemMeta[] = [
     bgGradient: 'from-sky-600/80 to-cyan-500/80',
     descEn: 'Erects an impenetrable energy barrier over the entire realm.',
     descTl: 'Nagtatayo ng hindi matitibag na harang sa buong kaharian.',
-    buffEffectEn: 'Absolute invulnerability for Castle & all Establishments (15s).',
-    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali laban sa pinsala (15s).',
+    buffEffectEn: 'Absolute invulnerability for Castle & all Establishments (15s), refills the Citadel shield to 100% and fully repairs structures.',
+    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali laban sa pinsala (15s), pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
   },
   {
     id: 'MASS_REGEN',
@@ -72,19 +72,20 @@ const ITEMS: ItemMeta[] = [
     buffEffectTl: 'Mabilisang nagpapagaling ng HP ng Kastilyo at lahat ng gusali (20s).',
   },
   {
-    id: 'SHIELD_OVERLOAD',
-    icon: '⚡',
-    nameEn: 'Shield Overload',
-    nameTl: 'Soberkarga ng Kalasag',
+    id: 'LASER_STORM',
+    icon: '🔴',
+    nameEn: 'Laser Storm',
+    nameTl: 'Bagyo ng Laser',
     keyBinding: 'r',
-    maxDuration: 0,
-    color: '#eab308',
-    glowColor: 'rgba(234, 179, 8, 0.6)',
-    bgGradient: 'from-amber-600/80 to-yellow-400/80',
-    descEn: 'Supercharges the Citadel barrier to maximum capacity.',
-    descTl: 'Pinupuno ang kalasag ng Kuta hanggang sa pinakamataas na antas.',
-    buffEffectEn: 'Instantly restores Citadel shield to 100% & fully repairs structures.',
-    buffEffectTl: 'Agad na pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
+    maxDuration: 20,
+    timerKey: 'laserStormTimer',
+    color: '#f43f5e',
+    glowColor: 'rgba(244, 63, 94, 0.6)',
+    bgGradient: 'from-rose-600/80 to-red-500/80',
+    descEn: 'The sky opens and the Demon Lord\'s lasers hunt on their own.',
+    descTl: 'Bumubukas ang langit at kusang nanghuhuli ang mga laser ng Demon Lord.',
+    buffEffectEn: 'Sky lasers lock onto up to 10 invaders automatically, nearest the citadel first (20s).',
+    buffEffectTl: 'Kusang tinututukan ng laser ang hanggang 10 kalaban, mula sa pinakamalapit sa kuta (20s).',
   },
   {
     id: 'CHRONO_SURGE',

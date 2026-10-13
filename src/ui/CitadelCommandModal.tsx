@@ -189,7 +189,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
       id: 'FORCE_FIELD',
       icon: '🛡️',
       name: isTL ? 'Kalasag ng Kuta' : 'Aegis Barrier',
-      desc: isTL ? 'Kalasag para sa lahat ng pasilidad at kastilyo.' : 'Force field for all establishments and the castle.',
+      desc: isTL ? 'Kalasag para sa lahat ng pasilidad at kastilyo, pinupuno ang shield at inaayos ang mga gusali.' : 'Force field for all establishments and the castle; refills the shield and repairs structures.',
     },
     {
       id: 'MASS_REGEN',
@@ -198,10 +198,10 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
       desc: isTL ? 'Pinapabilis ang pagbabalik ng HP ng lahat ng pasilidad.' : 'Boosts HP regeneration of all establishments.',
     },
     {
-      id: 'SHIELD_OVERLOAD',
-      icon: '⚡',
-      name: isTL ? 'Soberkarga ng Kalasag' : 'Shield Overload',
-      desc: isTL ? 'Pinalalakas ang shield restoration ng lahat.' : 'Shield restoration boost for all establishments.',
+      id: 'LASER_STORM',
+      icon: '🔴',
+      name: isTL ? 'Bagyo ng Laser' : 'Laser Storm',
+      desc: isTL ? 'Kusang tinututukan ng laser ang hanggang 10 kalaban (20s).' : 'Sky lasers lock onto up to 10 invaders automatically (20s).',
     },
     {
       id: 'CHRONO_SURGE',

@@ -1,4 +1,5 @@
 import { CRAFTABLE_ITEMS, TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES, type EquipmentSlot } from '../../types/game';
+import { promotingClasses } from '../promotions';
 import type { GameStoreState, ResourceBuildingId, ResourceBuildingState, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../../state/economy';
@@ -324,7 +325,8 @@ export function updateGeneralSummoning(
   effectiveSpeed: number
 ): boolean {
   const next = nextGeneralToSummon(store);
-  if (!next) return false;
+  // A tenant is being promoted into this General right now: don't summon a second one
+  if (!next || promotingClasses.has(next.unitClass)) return false;
 
   // The ritual happens at the citadel gate
   const target = IsometricHelper.gridToScreen(ctx.nexusGridPos.x, ctx.nexusGridPos.y);

@@ -170,8 +170,8 @@ export class SkillSystem {
             store.useBattleItem('MINION_FRENZY');
             this.shout(w, '⚡ AUTO: Minion Frenzy!');
           }
-          // Trigger W: Force Field if castle in critical danger
-          if (castleHp > 0 && castleHp < castleMaxHp * 0.4 && store.defense.forceFieldTimer <= 0) {
+          // Trigger W: Aegis Barrier if the castle is in critical danger or its shield is broken
+          if (castleHp > 0 && (castleHp < castleMaxHp * 0.4 || shieldHp < shieldMaxHp * 0.25) && store.defense.forceFieldTimer <= 0) {
             store.useBattleItem('FORCE_FIELD');
             this.shout(w, '🛡️ AUTO: Force Field!');
           }
@@ -180,10 +180,10 @@ export class SkillSystem {
             store.useBattleItem('MASS_REGEN');
             this.shout(w, '💖 AUTO: Mass Regen!');
           }
-          // Trigger R: Shield Overload if barrier broken
-          if (shieldHp < shieldMaxHp * 0.25 && store.defense.shieldHp < 50) {
-            store.useBattleItem('SHIELD_OVERLOAD');
-            this.shout(w, '⚡ AUTO: Shield Overload!');
+          // Trigger R: Laser Storm against a big crowd
+          if (invaders.length >= 8 && (store.defense.laserStormTimer ?? 0) <= 0) {
+            store.useBattleItem('LASER_STORM');
+            this.shout(w, '🔴 AUTO: Laser Storm!');
           }
           // Trigger T: Chrono Surge when skills on cooldown under siege
           if (invaders.length >= 6 && (store.citadelSkillCooldowns.overcharge > 5 || store.citadelSkillCooldowns.overdrive > 5)) {

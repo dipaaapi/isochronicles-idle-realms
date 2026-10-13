@@ -4,7 +4,8 @@ import { isConstructionReady } from '../constructionProgress';
 import { DEFENSE_CONFIG, beaconLevelOf, castleUpgradeCost } from '../defenseStats';
 import { ECONOMY_CONFIG, enemiesInWave } from '../economy';
 import { vengeanceExtraInvaders } from '../establishmentCrews';
-import { scaledEnemyCount } from '../waveBalance';
+import { realmIntensity, scaledEnemyCount } from '../waveBalance';
+import { devFlag } from '../devMode';
 import { rollWaveTactic, tacticOf } from '../waveTactics';
 import { lootResources } from '../resources';
 import { availableSkillPoints, teamBonuses } from '../skillTree';
@@ -24,6 +25,14 @@ const { invasion: INVASION, castleRepair: CASTLE_REPAIR } = ECONOMY_CONFIG;
 
 /** Castle fortifications, invasion waves, victories and breaches. */
 export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
+  /** Pick the realm the waves are fought in (null = follow the waves). Harder realms bring tougher waves. */
+  setRealmChoice: (phase: PlatformPhase | null) => {
+    set((prev) => ({
+      realmChoice: phase,
+      platformPhase: phase ?? getPhaseFromWave(prev.invasion.waveNumber),
+    }));
+  },
+
   upgradeDefense: (defenseKey: 'wallLevel' | 'beaconLevel' | 'shieldLevel') => {
     const state = get();
     const currentLevel = defenseKey === 'beaconLevel' ? beaconLevelOf(state.defense) : state.defense[defenseKey];
@@ -71,7 +80,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
 
   damageCastle: (amount: number) => {
       const state = get();
-      if (state.defense.forceFieldTimer > 0) return;
+      if (state.defense.forceFieldTimer > 0 || devFlag('godMode')) return;
     let remainingDmg = amount * teamBonuses(state).castleDamage;
 
     // Damage reduction from wall level (4% per level)
@@ -97,6 +106,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
         forceFieldTimer: Math.max(0, prev.defense.forceFieldTimer - deltaSec),
         minionFrenzyTimer: Math.max(0, prev.defense.minionFrenzyTimer - deltaSec),
         massRegenTimer: Math.max(0, prev.defense.massRegenTimer - deltaSec),
+        laserStormTimer: Math.max(0, (prev.defense.laserStormTimer ?? 0) - deltaSec),
         castleHp: prev.defense.massRegenTimer > 0 ? Math.min(prev.defense.castleMaxHp, prev.defense.castleHp + 25 * deltaSec) : prev.defense.castleHp,
       }
     }));
@@ -122,7 +132,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     // Each wave marches in a random formation (waveTactics.json)
     const difficulty = normalizeDifficulty(state.difficulty);
     const tactic = tacticOf(rollWaveTactic(state.invasion.waveNumber, difficulty, state.invasion.tactic));
-    const totalEnemies = scaledEnemyCount(enemiesInWave(state.invasion.waveNumber), difficulty, tactic.count) + vengeanceExtra;
+    const totalEnemies = scaledEnemyCount(enemiesInWave(state.invasion.waveNumber), difficulty, (tactic.count ?? 1) * realmIntensity(state.invasion.waveNumber, state.platformPhase).count) + vengeanceExtra;
     set((prev) => ({
       invasion: {
         ...prev.invasion,
@@ -167,7 +177,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
           soulFragments: (prev.resources.soulFragments ?? 0) +
             (prev.resourceBuildings.CRYPT?.level ?? 0) * ECONOMY_CONFIG.landmarkYields.CRYPT.soulFragmentsPerWave,
         },
-        platformPhase: getPhaseFromWave(nextWave),
+        platformPhase: prev.realmChoice ?? getPhaseFromWave(nextWave),
         isWave100VictoryCelebration: completedWave100 || prev.isWave100VictoryCelebration,
         isRegressionModalOpen: completedWave100 || prev.isRegressionModalOpen,
         invasion: {

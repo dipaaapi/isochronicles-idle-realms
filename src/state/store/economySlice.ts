@@ -134,23 +134,17 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
     if (item === 'MINION_FRENZY') {
       set((prev) => ({ defense: { ...prev.defense, minionFrenzyTimer: 30 } }));
     } else if (item === 'FORCE_FIELD') {
-      set((prev) => ({ defense: { ...prev.defense, forceFieldTimer: 15 } }));
+      // Aegis Barrier: 15 s of invulnerability, a full shield and repaired structures
+      set((prev) => ({ defense: { ...prev.defense, forceFieldTimer: 15, shieldHp: prev.defense.shieldMaxHp } }));
+      for (const k of Object.keys(state.resourceBuildings)) {
+        get().restoreBuildingHp(k as ResourceBuildingId, 99999);
+      }
     } else if (item === 'MASS_REGEN') {
       set((prev) => ({ defense: { ...prev.defense, massRegenTimer: 20 } }));
-    } else if (item === 'SHIELD_OVERLOAD') {
-      set((prev) => {
-        const d = { ...prev.defense, shieldHp: prev.defense.shieldMaxHp };
-        const b = { ...prev.resourceBuildings };
-        for (const k of Object.keys(b)) {
-           // wait, we can't fully heal buildings easily here because maxHp relies on towerLevel
-           // I will just let the tick loop do a full heal or something, actually let's just heal a massive amount
-        }
-        return { defense: d };
-      });
-      // to heal buildings, we can use a small trick:
-      for (const k of Object.keys(state.resourceBuildings)) {
-        get().restoreBuildingHp(k as any, 99999);
-      }
+    } else if (item === 'LASER_STORM') {
+      // Laser Storm: sky lasers lock onto invaders by themselves (InvasionManager)
+      const seconds = (cfg as { seconds?: number }).seconds ?? 20;
+      set((prev) => ({ defense: { ...prev.defense, laserStormTimer: seconds } }));
     } else if (item === 'CHRONO_SURGE') {
       set((prev) => {
         const cd = { ...prev.citadelSkillCooldowns };

@@ -76,7 +76,7 @@ const useOnline = (): boolean => {
 
 type Translate = ReturnType<typeof useTranslation>['t'];
 
-const providerName = (src: MusicSource) => (src.provider === 'YOUTUBE' ? 'YouTube' : 'Spotify');
+const providerName = (_src: MusicSource) => 'YouTube';
 
 /** The entry's own name, else "YouTube · Playlist"-style. */
 const entryLabel = (entry: MusicEntry, src: MusicSource | null, t: Translate) =>
@@ -92,7 +92,7 @@ const useMusicLibrary = () => {
 };
 
 const ProviderDot: React.FC<{ src: MusicSource | null }> = ({ src }) => (
-  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${src?.provider === 'SPOTIFY' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+  <span className={`h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400`} />
 );
 
 /**
@@ -190,7 +190,7 @@ export const MusicPlayerHost: React.FC = () => {
 
   if (!active || !isOpen || !current || !source) return null;
 
-  const isYouTube = source.provider === 'YOUTUBE';
+
   const kindLabel = t(`musicKind_${source.kind}` as TranslationKey);
   const isFloat = placement === 'FLOAT';
   const hasMany = items.length > 1;
@@ -240,7 +240,7 @@ export const MusicPlayerHost: React.FC = () => {
           className="flex min-w-0 cursor-pointer items-center gap-2 text-left"
           title={isMinimized ? t('musicPlayerExpand') : t('musicPlayerMinimize')}
         >
-          <Music2 className={`h-3.5 w-3.5 shrink-0 ${isYouTube ? 'text-rose-400' : 'text-emerald-400'} ${isMinimized && online ? 'animate-pulse' : ''}`} />
+          <Music2 className={`h-3.5 w-3.5 shrink-0 text-rose-400 ${isMinimized && online ? 'animate-pulse' : ''}`} />
           <span className="min-w-0">
             <span className="block truncate text-[11px] font-bold text-slate-100">{entryLabel(current.entry, source, t)}</span>
             <span className="block truncate text-[9px] text-slate-500">
@@ -343,9 +343,9 @@ export const MusicPlayerHost: React.FC = () => {
           key={sourceKey}
           src={musicEmbedUrl(source)}
           title={`${providerName(source)} ${kindLabel}`}
-          style={size ? { height: Math.max(isYouTube ? 200 : 152, size.height - (showList ? 120 : 82)) } : undefined}
-          // YouTube needs at least a 200×200 visible player; Spotify's compact embed is 152px tall
-          className={`block border-0 ${isYouTube ? 'h-[200px]' : 'h-[152px]'} ${
+          style={size ? { height: Math.max(200, size.height - (showList ? 120 : 82)) } : undefined}
+          // YouTube needs at least a 200×200 visible player
+          className={`block border-0 h-[200px] ${
             embedOffscreen ? 'pointer-events-none fixed -left-[10000px] top-0 w-[320px]' : 'w-full'
           }`}
           aria-hidden={embedOffscreen || undefined}
@@ -478,7 +478,7 @@ export const MusicPlayerHost: React.FC = () => {
   );
 };
 
-/** Music manager modal: add / play / remove saved YouTube / Spotify links and open the player. */
+/** Music manager modal: add / play / remove saved YouTube links and open the player. */
 export const MusicManagerModal: React.FC = () => {
   const { t } = useTranslation();
   const { items, index } = useMusicLibrary();

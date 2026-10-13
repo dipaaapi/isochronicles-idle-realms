@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /**
- * External music: a YouTube or Spotify link the player pastes in Settings,
+ * External music: a YouTube link the player pastes in Settings,
  * played through the provider's official embed in a small in-game player.
  *
  * Only the provider + id parsed from the link is kept; the embed URL is always
@@ -12,13 +12,10 @@ import { create } from 'zustand';
  * player's open / dock / minimized UI state lives here.
  */
 
-export type MusicProvider = 'YOUTUBE' | 'SPOTIFY';
+export type MusicProvider = 'YOUTUBE';
 export type YouTubeKind = 'playlist' | 'video';
-export type SpotifyKind = 'playlist' | 'album' | 'track' | 'artist' | 'show' | 'episode';
 
-export type MusicSource =
-  | { provider: 'YOUTUBE'; kind: YouTubeKind; id: string }
-  | { provider: 'SPOTIFY'; kind: SpotifyKind; id: string };
+export type MusicSource = { provider: 'YOUTUBE'; kind: YouTubeKind; id: string };
 
 const YT_HOSTS = new Set([
   'youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com',
@@ -26,15 +23,11 @@ const YT_HOSTS = new Set([
 ]);
 const YT_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const YT_LIST_ID = /^[A-Za-z0-9_-]{2,64}$/;
-const SPOTIFY_KINDS: readonly SpotifyKind[] = ['playlist', 'album', 'track', 'artist', 'show', 'episode'];
-const SPOTIFY_ID = /^[A-Za-z0-9]{22}$/;
 const MAX_LINK_LENGTH = 500;
 const MAX_EMBED_LENGTH = 2000;
 
-const isSpotifyKind = (k: string): k is SpotifyKind => (SPOTIFY_KINDS as readonly string[]).includes(k);
-
 /**
- * Reads a YouTube / Spotify link, a `spotify:kind:id` URI, or a pasted embed
+ * Reads a YouTube link or a pasted embed
  * snippet (only its iframe `src` is looked at). Anything else returns null.
  */
 export function parseMusicLink(input: string): MusicSource | null {
@@ -47,9 +40,6 @@ export function parseMusicLink(input: string): MusicSource | null {
     raw = src[1].replace(/&amp;/g, '&');
   }
   if (!raw || raw.length > MAX_LINK_LENGTH) return null;
-
-  const uri = raw.match(/^spotify:([a-z]+):([A-Za-z0-9]+)$/);
-  if (uri) return isSpotifyKind(uri[1]) && SPOTIFY_ID.test(uri[2]) ? { provider: 'SPOTIFY', kind: uri[1], id: uri[2] } : null;
 
   let url: URL;
   try {
@@ -76,13 +66,6 @@ export function parseMusicLink(input: string): MusicSource | null {
     return hasVideo ? { provider: 'YOUTUBE', kind: 'video', id: video! } : null;
   }
 
-  if (host === 'open.spotify.com' || host === 'play.spotify.com') {
-    // Skip a locale prefix (/intl-fr/…) and an /embed/ prefix
-    const parts = segments.filter((s) => !/^intl-[a-z-]+$/i.test(s) && s !== 'embed');
-    const [kind, id] = parts;
-    return kind && id && isSpotifyKind(kind) && SPOTIFY_ID.test(id) ? { provider: 'SPOTIFY', kind, id } : null;
-  }
-
   return null;
 }
 
@@ -93,23 +76,17 @@ export function parseMusicLink(input: string): MusicSource | null {
  * URL, so toggling them never reloads the embed.
  */
 export function musicEmbedUrl(src: MusicSource): string {
-  if (src.provider === 'YOUTUBE') {
-    const origin = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
-    return src.kind === 'playlist'
-      ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(src.id)}&rel=0&fs=0&enablejsapi=1${origin}`
-      : `https://www.youtube-nocookie.com/embed/${encodeURIComponent(src.id)}?rel=0&fs=0&enablejsapi=1${origin}`;
-  }
-  return `https://open.spotify.com/embed/${src.kind}/${encodeURIComponent(src.id)}?theme=0`;
+  const origin = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
+  return src.kind === 'playlist'
+    ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(src.id)}&rel=0&fs=0&enablejsapi=1${origin}`
+    : `https://www.youtube-nocookie.com/embed/${encodeURIComponent(src.id)}?rel=0&fs=0&enablejsapi=1${origin}`;
 }
 
 /** Canonical link for a source, used for storage and shown back in Settings. */
 export function musicLink(src: MusicSource): string {
-  if (src.provider === 'YOUTUBE') {
-    return src.kind === 'playlist'
-      ? `https://www.youtube.com/playlist?list=${src.id}`
-      : `https://www.youtube.com/watch?v=${src.id}`;
-  }
-  return `https://open.spotify.com/${src.kind}/${src.id}`;
+  return src.kind === 'playlist'
+    ? `https://www.youtube.com/playlist?list=${src.id}`
+    : `https://www.youtube.com/watch?v=${src.id}`;
 }
 
 /** One saved link in the library; `link` is always the canonical link rebuilt by `musicLink`. */
@@ -158,11 +135,11 @@ export const musicLibraryToCsv = (library: readonly MusicEntry[]): string => {
 export const musicLibraryToText = (library: readonly MusicEntry[]): string =>
   library.map((e) => (e.name ? `${e.name} - ${e.link}` : e.link)).join('\r\n') + '\r\n';
 
-const LINK_IN_TEXT = /(https?:\/\/[^\s",;<>]+|spotify:[a-z]+:[A-Za-z0-9]+)/i;
+const LINK_IN_TEXT = /(https?:\/\/[^\s",;<>]+)/i;
 
 /**
  * Reads a playlist file written by hand, by Excel / Sheets (CSV / TSV) or by a
- * docs app saved as text: every line holding a YouTube / Spotify link becomes
+ * docs app saved as text: every line holding a YouTube link becomes
  * an entry, the rest of the line (minus separators and quotes) its name.
  * The result still goes through `normalizeMusicLibrary`.
  */
@@ -199,7 +176,7 @@ const cleanName = (text: string) =>
 
 /**
  * Reads a playlist file from Excel / Sheets (CSV / TSV) or a docs app saved
- * as text: every line holding a YouTube / Spotify link becomes an entry, the
+ * as text: every line holding a YouTube link becomes an entry, the
  * other cells (or the rest of the line) its name. The result still goes
  * through `normalizeMusicLibrary`.
  */

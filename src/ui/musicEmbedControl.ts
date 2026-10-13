@@ -2,21 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MusicSource } from '../state/externalMusic';
 
 /**
- * Drives the YouTube / Spotify embed through each provider's postMessage
- * protocol (no extra scripts loaded): play / pause / restart, and reports
+ * Drives the YouTube embed through its postMessage protocol (no extra scripts loaded): play / pause / restart, and reports
  * whether it is playing and when it has finished.
  *
- * - YouTube: the embed URL has `enablejsapi=1`; we send `{event:'listening'}`
- *   and it answers with `onReady` / `onStateChange` / `infoDelivery`.
- * - Spotify: the embed posts `{type:'ready'}` and `{type:'playback_update'}`
- *   and accepts `{command:'resume' | 'pause' | 'seek'}`.
+ * The embed URL has `enablejsapi=1`; we send `{event:'listening'}` and it
+ * answers with `onReady` / `onStateChange` / `infoDelivery`.
  *
- * Only messages from the iframe's own window and the provider's origin are
+ * Only messages from the iframe's own window and YouTube's origin are
  * read, and every field is type-checked before use.
  */
 
 const YT_ORIGIN = 'https://www.youtube-nocookie.com';
-const SPOTIFY_ORIGIN = 'https://open.spotify.com';
 const YT_ENDED = 0;
 const YT_PLAYING = 1;
 
@@ -55,10 +51,8 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
 
   const post = useCallback((message: unknown) => {
     const target = iframeRef.current?.contentWindow;
-    const src = sourceRef.current;
-    if (!target || !src) return;
-    if (src.provider === 'YOUTUBE') target.postMessage(JSON.stringify(message), YT_ORIGIN);
-    else target.postMessage(message, SPOTIFY_ORIGIN);
+    if (!target || !sourceRef.current) return;
+    target.postMessage(JSON.stringify(message), YT_ORIGIN);
   }, []);
 
   const isYouTube = () => sourceRef.current?.provider === 'YOUTUBE';
@@ -123,21 +117,6 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
           onEndedRef.current();
         }
         return;
-      }
-      if (event.origin !== SPOTIFY_ORIGIN || !isRecord(event.data)) return;
-      const { type, payload } = event.data;
-      if (type === 'ready') markReady();
-      if (type === 'playback_update' && isRecord(payload)) {
-        markReady();
-        const paused = payload.isPaused === true;
-        setPlaying(!paused);
-        const position = Number(payload.position);
-        const duration = Number(payload.duration);
-        const atEnd = duration > 0 && position > 0 && duration - position < 1000;
-        if (paused && atEnd && !ended.current) {
-          ended.current = true;
-          onEndedRef.current();
-        }
       }
     };
     window.addEventListener('message', handle);

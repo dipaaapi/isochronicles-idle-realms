@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { DevPanel } from './ui/DevPanel';
 import { useGameStore } from './state/useGameStore';
 import { TitleScreen } from './ui/TitleScreen';
 import { IntroNarrativeModal } from './ui/IntroNarrativeModal';
@@ -110,6 +111,7 @@ export const App: React.FC = () => {
             <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
             <LiveStreamOverlay />
             <ActivityLogTray />
+            {import.meta.env.DEV && <DevPanel />}
             <MusicPlayer placement="FLOAT" />
             {/* The one real player: laid over the FLOAT or SIDEBAR slot, never remounted when it moves */}
             <MusicPlayerHost />
@@ -190,7 +192,7 @@ export const App: React.FC = () => {
         onReturnToTitle={screen === 'GAME' ? () => setScreen('TITLE') : undefined}
       />
 
-      {/* YouTube / Spotify music library */}
+      {/* YouTube music library */}
       <MusicManagerModal />
 
       {/* In-game confirm / alert (native dialogs would drop fullscreen) */}
