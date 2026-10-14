@@ -39,6 +39,8 @@ export interface ResourceBuildingState {
   towerLevel?: number;
   /** Current structure HP; 0 = wrecked (no production or attacks until repaired). */
   hp?: number;
+  /** Construction steps already paid for by tenants (level 0 only; see tenantWork.json). */
+  buildStep?: number;
 }
 
 export type ResourceBuildingsState = Record<ResourceBuildingId, ResourceBuildingState>;
@@ -376,6 +378,10 @@ export interface GameStoreState {
   damageCastle: (amount: number) => void;
   upgradeTower: (buildingId: TowerId) => boolean;
   repairBuilding: (buildingId: TowerId) => boolean;
+  /** One tenant construction step: pays its slice of the build cost and advances; 'built' on the last step. */
+  workOnConstruction: (buildingId: ResourceBuildingId) => 'built' | 'progress' | 'waiting' | 'none';
+  /** One tenant repair step: HP restored, 0 when nothing to repair, -1 when the castle cannot pay. */
+  workOnRepair: (buildingId: TowerId) => number;
   /** Invader damage to an establishment or the spire; returns true when this hit wrecked it. */
   damageBuilding: (buildingId: TowerId, amount: number) => boolean;
   /** Free HP restore (Treant repairs); returns the HP actually restored. */

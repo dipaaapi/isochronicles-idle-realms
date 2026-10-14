@@ -36,4 +36,5 @@ export const INVADER_PORTRAITS: Record<string, string> = {
   CHRONO: portrait('chrono-time-mage'),
   // Rendered from the voxel model (front idle frame)
   TECHNICIAN: portrait('technician'),
+  MECHA_V4_LAUNCHER: portrait('mecha-v4-launcher'),
 };

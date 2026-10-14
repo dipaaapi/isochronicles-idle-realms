@@ -26,6 +26,8 @@ export interface EmbedControl {
   play: () => void;
   pause: () => void;
   toggle: () => void;
+  /** Source to load the iframe with (key + src); stays put while a ready player is reused for later entries. */
+  frameSource: MusicSource | null;
   /** Back to the start (first video of a YouTube playlist) and play. */
   restart: () => void;
 }
@@ -75,11 +77,26 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
     }
   }, [sendPlay]);
 
+  // Source the iframe was loaded with. A ready player is reused for the next entry (cue it in place)
+  // instead of remounting: browsers won't start media in a fresh frame while the tab is in the background,
+  // so a new iframe would stall auto-play until the player comes back into view.
+  const [frameSource, setFrameSource] = useState<MusicSource | null>(source);
+
   // New entry: forget the old player's state (a pending play request stays)
   useEffect(() => {
     setPlaying(false);
     ended.current = false;
     playlistPos.current = null;
+    const src = sourceRef.current;
+    if (src && iframeRef.current && readyFor.current !== '' && src.provider === 'YOUTUBE') {
+      if (src.kind === 'playlist') ytCommand('cuePlaylist', [{ list: src.id, listType: 'playlist', index: 0 }]);
+      else ytCommand('cueVideoById', [{ videoId: src.id }]);
+      readyFor.current = '';
+      markReady();
+      return;
+    }
+    setFrameSource(src);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceKey]);
 
   useEffect(() => {
@@ -168,5 +185,5 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
 
   const toggle = useCallback(() => (isPlaying ? pause() : play()), [isPlaying, pause, play]);
 
-  return { ref, onLoad, isPlaying, play, pause, toggle, restart };
+  return { ref, onLoad, isPlaying, play, pause, toggle, restart, frameSource };
 };

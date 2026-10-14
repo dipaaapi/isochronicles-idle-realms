@@ -39,7 +39,7 @@ const FILES = {
 // Reference art for models whose file name isn't the kebab-case of the key
 const PORTRAIT_OVERRIDES = {
   treant: 'ancient-treant', knight: 'human-knight', archer: 'human-archer', valkyrie: 'mecha-valkyrie',
-  drone: 'mecha-drone', siegeTank: 'mecha-siege-tank', chronoMage: 'chrono-time-mage',
+  drone: 'mecha-drone', siegeTank: 'mecha-siege-tank', chronoMage: 'chrono-time-mage', v4Launcher: 'mecha-v4-launcher',
 };
 const kebab = (s) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 

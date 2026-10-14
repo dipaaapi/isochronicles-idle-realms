@@ -1,0 +1,16 @@
+{
+  "_doc": "V4 Rocket Launcher raids (InvasionManager.spawnLauncherRaid): from fromWave, each wave rolls chance (+chancePerWave, capped) for a mobile launcher to roll out of a rift part-way through the wave, escorted by Mecha guards that stay close and only fight minions near it. It parks within rangeTiles of a random establishment (never the citadel), locks on for aimSeconds (red reticle on the target), then fires a rocket that lands flightMs later as a direct hit for damageMultiplier × its scaled damage (force fields and walls still soak it). Reloads for reloadSeconds and picks a new target each salvo. Kill it, or break its line by smashing it before the lock finishes.",
+  "fromWave": 12,
+  "chance": { "EASY": 0.18, "NORMAL": 0.28, "HARD": 0.38 },
+  "chancePerWave": 0.004,
+  "maxChance": 0.65,
+  "launchers": { "base": 1, "perWaves": 40 },
+  "spawnAtFraction": 0.45,
+  "escorts": { "EASY": 2, "NORMAL": 3, "HARD": 4, "perWaves": 30, "types": ["MECHA_SCOUT", "MECHA_SCOUT", "MECHA_TITAN"] },
+  "rangeTiles": 7,
+  "aimSeconds": { "EASY": 3.2, "NORMAL": 2.6, "HARD": 2.1 },
+  "reloadSeconds": { "EASY": 11, "NORMAL": 9, "HARD": 7.5 },
+  "damageMultiplier": 1.8,
+  "flightMs": 1500,
+  "arcHeight": 170
+}

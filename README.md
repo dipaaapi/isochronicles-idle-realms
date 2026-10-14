@@ -14,8 +14,8 @@ Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 2. The Slime summons the **Ancient Treant** for free.
 3. The Treant builds the **Citadel Castle**, then the **Crystal Spire**. It waits whenever supplies run short and auto-buys any shortfall with coins.
 4. Next, the Treant summons the **thirteen Generals** one by one, in construction order, until every one of them stands.
-5. **Each General builds its own establishment.** Once it stands, five **tenants** of the same kind move in and start working.
-6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Treant repairs, enriches the soil and forges gear.
+5. **Each General summons its tenants one at a time** (the first free, the rest paid from the castle). The **tenants build** the establishment, taking its cost from the castle step by step while a gauge above the site fills, and later **repair** it the same way.
+6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Treant tends the castle, enriches the soil and forges gear.
 7. Defend against human and mecha invasions. Every **5 waves** cleared earns skill points for the Skill Tree.
 8. Reach Wave 100 (or regress at any time) to restart with permanent team boosts.
 
@@ -97,7 +97,7 @@ Skill points come from clearing waves; you don't need to regress to earn them.
 Regression resets the active realm and keeps your long-term progression.
 
 - The realm returns to ruins with a new random establishment layout. Only the Support Slime remains.
-- The Slime summons the Treant again. The Treant rebuilds the castle and spire and summons the Generals, and each General rebuilds its establishment.
+- The Slime summons the Treant again. The Treant rebuilds the castle and spire and summons the Generals, and each General calls its tenants to rebuild its establishment.
 - Regression bonuses, Support Slime evolution and regression history are kept. Skill ranks are refunded.
 - Each Regression tier permanently boosts **your team only**; enemies never get stronger from it:
   - +5% minion attack

@@ -15,6 +15,7 @@ import { INITIAL_RESOURCE_BUILDINGS, INITIAL_SPIRE_TOWER, applyRealmLayout } fro
 import { BUILDING_IDS, BUILDING_SITES, canPlaceEstablishment } from '../buildingLayout';
 import type { GameStoreState, ResourceBuildingId, ResourceBuildingsState, SpireTowerState, TowerId } from '../../types/state';
 import type { SliceArgs } from './types';
+import { TENANT_WORK, buildStepCost } from '../tenantWork';
 
 /** Fills in fields older saves lack (the Mystic Cave, tower levels, structure HP). */
 export const normalizeResourceBuildings = (raw?: Partial<ResourceBuildingsState>): ResourceBuildingsState => {
@@ -193,6 +194,38 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       get().restoreBuildingHp(buildingId, Math.round(max * DEFENSE_CONFIG.building.repairFraction));
       soundFx.playHeal();
       return true;
+    },
+
+    workOnConstruction: (buildingId: ResourceBuildingId) => {
+      const config = RESOURCE_BUILDING_CONFIG[buildingId];
+      const previous = get().resourceBuildings[buildingId];
+      if (!config || !previous || previous.level >= 1 || !get().castleBuilt) return 'none';
+      const steps = Math.max(1, TENANT_WORK.buildSteps);
+      const done = Math.min(steps - 1, Math.max(0, Math.floor(previous.buildStep ?? 0)));
+      if (!get().spendResources(buildStepCost(config.costs[0] ?? {}, done, steps))) return 'waiting';
+      if (done + 1 < steps) {
+        patchBuilding(buildingId, { buildStep: done + 1 });
+        return 'progress';
+      }
+      const towerLevel = Math.max(1, previous.towerLevel ?? 1);
+      patchBuilding(buildingId, {
+        level: 1,
+        unlockedOutputs: config.outputs.slice(0, 1),
+        towerLevel,
+        hp: buildingMaxHp(towerLevel),
+        buildStep: undefined,
+      });
+      soundFx.playUpgrade();
+      return 'built';
+    },
+
+    workOnRepair: (buildingId: TowerId): number => {
+      const building = towerBuildingOf(get(), buildingId);
+      if (!building || building.level < 1) return 0;
+      const missing = buildingMaxHp(towerLevelOf(building)) - buildingHpOf(building);
+      if (missing <= 0) return 0;
+      if (!get().spendResources(TENANT_WORK.repairStepCost)) return -1;
+      return get().restoreBuildingHp(buildingId, Math.min(missing, TENANT_WORK.repairStepHp));
     },
 
     damageBuilding: (buildingId: TowerId, amount: number): boolean => {

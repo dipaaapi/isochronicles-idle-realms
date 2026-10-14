@@ -917,11 +917,79 @@ const technician = (): VoxelModel => {
   };
 };
 
+// ── 12. V4 Rocket Launcher — 8-wheel mecha carrier, armoured cab, erector rail with a fin-tailed rocket ──
+
+const v4Launcher = (): VoxelModel => {
+  const M = { olive: 0, oliveDark: 1, tire: 2, steel: 3, rocket: 4, nose: 5, glow: 6, optic: 7 };
+  const cx = 16;
+  const parts: Part[] = [
+    // Eight wheels, four a side
+    ...pair('Wheels', [8, 20, 4], [
+      ...[8, 15, 25, 32].map((y) => ell(5, y, 3.6, 1.8, 3.4, 3.4, M.tire)),
+      ...[8, 15, 25, 32].map((y) => ell(3.6, y, 3.6, 0.5, 1.4, 1.4, M.steel)),
+    ], cx),
+    {
+      name: 'hull', pivot: [16, 20, 6], shapes: [
+        box(6, 4, 4, 26, 37, 9, M.oliveDark),                  // chassis
+        box(5, 5, 8, 27, 28, 10, M.olive),                     // flatbed deck
+        box(4.5, 6, 7, 5.5, 34, 9.5, M.steel), box(26.5, 6, 7, 27.5, 34, 9.5, M.steel), // side rails
+        // Armoured cab at the front
+        box(7, 28, 8, 25, 39, 18, M.olive),
+        box(8, 38.5, 13, 24, 39.5, 16.5, M.optic),             // visor slit
+        box(7, 30, 17.5, 25, 37, 19, M.oliveDark),             // cab roof
+        box(20, 32, 19, 21, 33, 24, M.steel),                  // antenna
+        box(9, 39, 9, 12, 40, 11, M.glow), box(20, 39, 9, 23, 40, 11, M.glow), // headlights
+        // Rear jacks (planted while firing)
+        box(5, 3, 1, 8, 6, 7, M.steel), box(24, 3, 1, 27, 6, 7, M.steel),
+      ],
+    },
+    {
+      // Erector rail hinged at the rear; raised to fire
+      name: 'rail', parent: 'hull', pivot: [16, 6, 11], shapes: [
+        box(12, 4, 10, 20, 27, 12, M.steel),                   // rail bed
+        box(11, 8, 10, 12, 24, 15, M.oliveDark), box(20, 8, 10, 21, 24, 15, M.oliveDark), // cradle arms
+        cyl(16, 2, 12, 2.8, 1, M.steel),
+        // The rocket lies along the rail (+y), nose toward the cab
+        box(13.2, 3, 12, 18.8, 23, 17.6, M.rocket),            // body
+        box(13.2, 9, 12, 18.8, 11, 17.6, M.oliveDark),         // black checker band
+        box(13.2, 17, 12, 18.8, 19, 17.6, M.oliveDark),
+        box(14, 23, 12.6, 18, 26, 17, M.rocket),               // ogive
+        box(15, 26, 13.6, 17, 28, 16, M.nose),                 // warhead tip
+        box(10.5, 2, 13.8, 21.5, 6, 15.8, M.oliveDark),        // tail fins (left/right)
+        box(15, 2, 11, 17, 6, 20, M.oliveDark),                // tail fins (up/down)
+        box(14.4, 1.4, 13.2, 17.6, 3, 16.4, M.glow),           // exhaust
+      ],
+    },
+  ];
+  const walk: Pose[] = STRIDE.map((s) => ({
+    hull: { offset: [0, 0, s === 0 ? 0.4 : 0] },
+    leftWheels: { offset: [0, 0, s > 0 ? 0.3 : 0] },
+    rightWheels: { offset: [0, 0, s < 0 ? 0.3 : 0] },
+  }));
+  // Erect the rail, launch kick, settle
+  const attack: Pose[] = [
+    { rail: { pitch: 0.55 } },
+    { rail: { pitch: 0.9 } },
+    { rail: { pitch: 0.95, offset: [0, -1, 0] }, hull: { offset: [0, -0.6, 0] } },
+  ];
+  const idle = breathe('hull');
+  return {
+    size: [32, 44, 34],
+    foot: [16, 20, 0],
+    materials: [
+      { color: 0x6b7560 }, { color: 0x3f4639 }, { color: 0x1f2937 }, { color: 0x64748b },
+      { color: 0xe5e7eb }, { color: 0xdc2626, emissive: true }, { color: 0xf97316, emissive: true }, { color: 0x38bdf8, emissive: true },
+    ],
+    parts,
+    animations: { walk, attack, idle },
+  };
+};
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export type EnemySpriteKey =
   | 'knight' | 'archer' | 'mechaScout' | 'mechaTitan'
-  | 'highPriest' | 'valkyrie' | 'assassin' | 'drone' | 'siegeTank' | 'chronoMage' | 'technician';
+  | 'highPriest' | 'valkyrie' | 'assassin' | 'drone' | 'siegeTank' | 'chronoMage' | 'technician' | 'v4Launcher';
 
 export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   knight,
@@ -935,6 +1003,7 @@ export const ENEMY_MODELS: Record<EnemySpriteKey, () => VoxelModel> = {
   siegeTank,
   chronoMage,
   technician,
+  v4Launcher,
 };
 
 /** Which sprite each invader type uses. */
@@ -950,4 +1019,5 @@ export const INVADER_SPRITE: Record<InvaderType, EnemySpriteKey> = {
   MECHA_SIEGE_TANK: 'siegeTank',
   CHRONO: 'chronoMage',
   TECHNICIAN: 'technician',
+  MECHA_V4_LAUNCHER: 'v4Launcher',
 };

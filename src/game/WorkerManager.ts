@@ -22,13 +22,16 @@ import { renderCargoGraphics, renderWorkerGraphics } from './workers/legacyWorke
 import { computeWorkerFrame } from './workers/modifiers';
 import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
-import { generalHomeSite, updateGeneralConstruction } from './workers/generalConstruction';
+import { updateGeneralConstruction } from './workers/generalConstruction';
 import { updateGeneralLooting } from './workers/generalLooting';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { promotingClasses } from './promotions';
 import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
 import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import MOVEMENT from '../data/minionMovement.json';
+
+const GAIT = MOVEMENT.gait;
 
 export type { WorkerInstance } from './workers/types';
 
@@ -493,10 +496,10 @@ export class WorkerManager implements WorkerContext {
     if (worker.unitClass === 'AQUA_SLIME') {
       if (moving) {
         // Bouncy gelatinous hop
-        const hopCycle = (time / 140 + offset) % Math.PI;
-        const hopHeight = Math.sin(hopCycle) * 5;
+        const hopCycle = (time / GAIT.slimeHopMs + offset) % Math.PI;
+        const hopHeight = Math.sin(hopCycle) * GAIT.slimeHop;
         sprite.setPosition(worker.body.x, worker.body.y - hopHeight);
-        const stretch = Math.sin(hopCycle) * 0.16;
+        const stretch = Math.sin(hopCycle) * GAIT.slimeStretch;
         sprite.setScale(baseScale * (1 - stretch), baseScale * (1 + stretch));
       } else {
         // Gentle breathing gelatin pulse
@@ -513,8 +516,8 @@ export class WorkerManager implements WorkerContext {
     } else if (worker.unitClass === 'TREANT' || worker.unitClass === 'GOLEM' || worker.unitClass === 'MINOTAUR') {
       // Heavy impactful grounded cadence
       if (moving) {
-        const stepCycle = (time / 150 + offset) % Math.PI;
-        const bob = Math.sin(stepCycle) * 2.0;
+        const stepCycle = (time / GAIT.heavyStepMs + offset) % Math.PI;
+        const bob = Math.sin(stepCycle) * GAIT.heavyBob;
         sprite.setPosition(worker.body.x, worker.body.y - bob);
         sprite.setScale(baseScale, baseScale);
       } else {
@@ -524,7 +527,7 @@ export class WorkerManager implements WorkerContext {
     } else {
       // Ground beasts (Merman, Necromancer, Demon Hound, etc.): Natural gait
       if (moving) {
-        const gait = Math.sin(time / 130 + offset) * 1.8;
+        const gait = Math.sin(time / GAIT.walkStepMs + offset) * GAIT.walkBob;
         sprite.setPosition(worker.body.x, worker.body.y - Math.abs(gait));
         sprite.setScale(baseScale, baseScale);
       } else {
@@ -678,39 +681,7 @@ export class WorkerManager implements WorkerContext {
     const { store, deltaSec, effectiveSpeed } = frame;
     const homeBuilding = frame.config.requiredBuilding;
 
-    // 1. If damaged home establishment exists, head there to guard and assist
-    if (homeBuilding) {
-      const b = towerBuildingOf(store, homeBuilding);
-      if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) {
-        const spot = homeBuilding === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[homeBuilding]?.workSpot;
-        if (spot) {
-          const target = IsometricHelper.gridToScreen(spot.x, spot.y);
-          const dist = Math.hypot(target.x - worker.container.x, target.y - worker.container.y);
-          if (dist > 20) {
-            worker.status = 'MOVING_TO_NODE';
-            worker.overrideEmote = '🔨';
-            worker.overrideEmoteTimer = 400;
-            this.moveToward(worker, target.x, target.y, effectiveSpeed * 1.1 * deltaSec, deltaSec);
-            return;
-          }
-          // At home establishment: guard and assist repair
-          worker.status = 'HARVESTING';
-          worker.stateTimer = (worker.stateTimer ?? 0) - frame.delta;
-          worker.overrideEmote = '🔨';
-          worker.overrideEmoteTimer = 400;
-          if (worker.stateTimer <= 0) {
-            const restored = useGameStore.getState().restoreBuildingHp(homeBuilding, 25);
-            if (restored > 0) {
-              this.spawnFloatingPopup(worker.container.x, worker.container.y - 35, `🔨 General Repaired +${restored} HP!`, '#86efac');
-              soundFx.playHarvest('wood');
-            }
-            worker.stateTimer = 1500;
-          }
-          return;
-        }
-      }
-    }
-
+    // Repairs belong to the tenants now (DefenderSystem); the General scouts and patrols
     // 2. Active Scouting & Realm Patrol
     if (worker.status === 'MOVING_TO_NODE' && worker.targetTile) {
       const target = IsometricHelper.gridToScreen(worker.targetTile.x, worker.targetTile.y);
@@ -1002,7 +973,7 @@ export class WorkerManager implements WorkerContext {
     worker.pathIndex = 0;
   }
 
-  /** Active construction jobs: the Treant's castle/spire site and every General building its home. */
+  /** The Treant's construction job (castle / spire). */
   public getConstructionStatus(): ConstructionStatus[] {
     const store = useGameStore.getState();
     const jobs: ConstructionStatus[] = [];
@@ -1013,11 +984,7 @@ export class WorkerManager implements WorkerContext {
     });
     const entSite = nextConstruction(store);
     if (entSite) jobs.push(statusOf(this.workers.find((w) => w.unitClass === 'TREANT'), entSite.id));
-    for (const w of this.workers) {
-      if (w.parentBuildingId || w.id.startsWith('tenant_') || w.unitClass === 'TREANT') continue;
-      const site = generalHomeSite(w, store);
-      if (site) jobs.push(statusOf(w, site.id));
-    }
+    // Establishments are built by their tenants (DefenderSystem.getConstructionStatus)
     return jobs;
   }
 

@@ -340,8 +340,8 @@ export const MusicPlayerHost: React.FC = () => {
         <iframe
           ref={control.ref}
           onLoad={control.onLoad}
-          key={sourceKey}
-          src={musicEmbedUrl(source)}
+          key={control.frameSource ? `${control.frameSource.provider}-${control.frameSource.kind}-${control.frameSource.id}` : sourceKey}
+          src={musicEmbedUrl(control.frameSource ?? source)}
           title={`${providerName(source)} ${kindLabel}`}
           style={size ? { height: Math.max(200, size.height - (showList ? 120 : 82)) } : undefined}
           // YouTube needs at least a 200×200 visible player

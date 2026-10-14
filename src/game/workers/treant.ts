@@ -1,13 +1,12 @@
 import { CRAFTABLE_ITEMS, TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES, type EquipmentSlot } from '../../types/game';
 import { promotingClasses } from '../promotions';
-import type { GameStoreState, ResourceBuildingId, ResourceBuildingState, TowerId } from '../../types/state';
+import type { GameStoreState, ResourceBuildingId, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../../state/economy';
 import { canAfford } from '../../state/resources';
 import { craftingCost } from '../../state/store/rosterSlice';
 import { CONSTRUCTION_SECONDS, nextEntConstruction, nextGeneralToSummon } from '../../state/constructionProgress';
-import { BUILDING_IDS, BUILDING_SITES, SPIRE_WORK_SPOT } from '../../state/buildingLayout';
-import { DEFENSE_TEXT, buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
+import { DEFENSE_TEXT } from '../../state/defenseStats';
 import { logMessage } from '../../state/activityLog';
 import { IsometricHelper } from '../IsometricHelper';
 import { soundFx } from '../audio/soundFx';
@@ -17,25 +16,6 @@ import type { EnrichableNode, WorkerContext, WorkerFrame, WorkerInstance } from 
 const ENRICHABLE: EnrichableNode[] = ['AETHER', 'STONE', 'WOOD', 'ESSENCE'];
 
 type TreantProfile = typeof TREANT_EVOLUTION[1];
-
-const hpRatio = (b: ResourceBuildingState | undefined) =>
-  buildingHpOf(b) / buildingMaxHp(towerLevelOf(b));
-
-const isBuildingBuilt = (store: GameStoreState, id: TowerId): boolean => {
-  if (id === 'SPIRE') return !!store.spireBuilt;
-  return (store.resourceBuildings[id]?.level ?? 0) >= 1;
-};
-
-const isDamaged = (store: GameStoreState, id: TowerId): boolean => {
-  if (!isBuildingBuilt(store, id)) return false;
-  const b = towerBuildingOf(store, id);
-  return !!b && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b));
-};
-
-/** Everything the Treant repairs besides the citadel. */
-const REPAIRABLE: TowerId[] = ['SPIRE', ...BUILDING_IDS];
-
-const repairSpot = (id: TowerId) => (id === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[id].workSpot);
 
 const towerLabel = (id: TowerId, tl: boolean): { name: string; icon: string } => {
   if (id === 'SPIRE') return { name: tl ? DEFENSE_TEXT.spireName.tl : DEFENSE_TEXT.spireName.en, icon: '💎' };
@@ -119,18 +99,7 @@ function chooseTreantJob(
     return;
   }
 
-  // Most damaged BUILT establishment or spire (wrecked ones first, only if already constructed)
-  const damagedId = REPAIRABLE
-    .filter((id) => isDamaged(store, id))
-    .sort((a, b) => hpRatio(towerBuildingOf(store, a)) - hpRatio(towerBuildingOf(store, b)))[0];
-
-  if (damagedId) {
-    worker.treantMode = 'REPAIR';
-    worker.treantRepairId = damagedId;
-    worker.treantActionTimer = 8.0;
-    worker.treantTargetTile = { ...repairSpot(damagedId) };
-    return;
-  }
+  // Establishment repairs are the tenants' job now (DefenderSystem), paid from the castle
 
   // Replenish & enrich a resource node ONLY for built establishments
   const availableEnrichNodes: EnrichableNode[] = [];

@@ -30,7 +30,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Who builds the castle and buildings?',
-        answer: 'Your starting Slime summons the Treant for free. The Treant raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General builds its own establishment, and the Treant calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Builders walk to their site and build once you have the supplies. There is no build button — it\'s all on autopilot.',
+        answer: 'Your starting Slime summons the Treant for free. The Treant raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General summons its tenants one at a time at its plot and the tenants build the establishment, and the Treant calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Construction takes the building cost from the castle step by step while the gauge above the site fills; it pauses when supplies run short. The first tenant is free, each next summon costs coins. There is no build button — it\'s all on autopilot.',
       },
       {
         question: '🎁 How do I get supplies early on?',
@@ -46,7 +46,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🛠️ What does the Treant do after construction?',
-        answer: 'It never really rests: it repairs wrecked or damaged buildings, tends the castle walls, enriches the soil so harvests grow richer, and forges or buys gear for itself. A wrecked establishment stops producing and fighting until the Treant repairs it.',
+        answer: 'It never really rests: it tends and repairs the castle walls, enriches the soil so harvests grow richer, and forges or buys gear for itself. Establishments are repaired by their own tenants, paid from the castle step by step; a wrecked one stops producing and fighting until they fix it.',
       },
       {
         question: '🏰 Why doesn\'t my castle shoot?',
@@ -124,7 +124,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
-        answer: 'Libreng tatawagin ng panimulang Slime mo ang Treant. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ang magtatayo ng sariling pasilidad, at tatawagin lang ng Treant ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Lalakad ang bawat nagtatayo sa puwesto nito at magtatayo kapag sapat na ang supply. Walang build button — puro autopilot!',
+        answer: 'Libreng tatawagin ng panimulang Slime mo ang Treant. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ay isa-isang magsa-summon ng mga tenant sa puwesto nito at ang mga tenant ang magtatayo ng pasilidad, at tatawagin lang ng Treant ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Unti-unting kinukuha ang gastos mula sa kastilyo habang napupuno ang gauge sa itaas ng puwesto; humihinto ito kapag kulang ang supply. Libre ang unang tenant, may bayad na coins ang mga kasunod. Walang build button — puro autopilot!',
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',
@@ -140,7 +140,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🛠️ Ano ang ginagawa ng Treant pagkatapos magtayo?',
-        answer: 'Hindi ito nagpapahinga: inaayos nito ang mga nasira o nawasak na gusali, binabantayan ang pader ng kastilyo, pinatataba ang lupa para lumaki ang ani, at nagpapanday o bumibili ng sariling gamit. Humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang ayusin ito ng Treant.',
+        answer: 'Hindi ito nagpapahinga: binabantayan at inaayos nito ang pader ng kastilyo, pinatataba ang lupa para lumaki ang ani, at nagpapanday o bumibili ng sariling gamit. Ang mga tenant ng bawat pasilidad ang nag-aayos nito, may bayad mula sa kastilyo bawat hakbang; humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang maayos nila ito.',
       },
       {
         question: '🏰 Bakit hindi bumabaril ang kastilyo ko?',

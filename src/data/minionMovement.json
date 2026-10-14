@@ -1,0 +1,16 @@
+{
+  "_comment": "How fast and how bouncy minions (Generals, Support Slime, Ancient Treant) move on the map. speedScale multiplies every unit's baseSpeed; all speed bonuses (upgrades, buffs, blessings, weather, skills) multiply together and are clamped to [bonusFloor, bonusCap] so stacked buffs never turn units into blurs. Gait values are pixel heights / scale changes of the walking bob (WorkerManager.syncMinionSprite); walkFps is the walk-cycle frame rate.",
+  "speedScale": 0.72,
+  "bonusCap": 1.5,
+  "bonusFloor": 0.5,
+  "walkFps": 6,
+  "gait": {
+    "slimeHop": 2.2,
+    "slimeStretch": 0.06,
+    "slimeHopMs": 210,
+    "heavyBob": 0.8,
+    "heavyStepMs": 230,
+    "walkBob": 0.9,
+    "walkStepMs": 170
+  }
+}

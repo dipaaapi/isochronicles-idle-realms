@@ -167,27 +167,7 @@ function updateHarvesting(ctx: WorkerContext, worker: WorkerInstance, frame: Wor
   if (isGeneralUnit) {
     worker.stateTimer -= frame.delta;
 
-    // Check if home establishment is damaged
-    if (homeBuilding) {
-      const b = towerBuildingOf(store, homeBuilding);
-      if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) {
-        worker.overrideEmote = '🔨';
-        worker.overrideEmoteTimer = 400;
-        if (Math.random() < 0.15) {
-          ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 12, 0x15803d, 4);
-        }
-        if (worker.stateTimer <= 0) {
-          const restored = useGameStore.getState().restoreBuildingHp(homeBuilding, 25);
-          if (restored > 0) {
-            ctx.spawnFloatingPopup(worker.container.x, worker.container.y - 35, `🔨 General Repaired +${restored} HP!`, '#86efac');
-            soundFx.playHarvest('wood');
-          }
-          worker.stateTimer = 1200;
-        }
-        return;
-      }
-    }
-
+    // Establishment repairs are the tenants' job (DefenderSystem)
     // Check if Citadel Castle is damaged
     if (store.defense.castleHp < store.defense.castleMaxHp) {
       worker.overrideEmote = '🛡️';

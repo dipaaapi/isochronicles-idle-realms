@@ -28,6 +28,7 @@ import { Navigation, TILES_FOR } from './Navigation';
 import { invaderMoveMode } from './terrain';
 import { TECHNICIANS, chooseHackTarget, escortType, escortsFor, hackSeconds, hackersForWave } from './invaders/hacking';
 import { clearHacks, hackedIds, setHacked } from './hackState';
+import { LAUNCHERS, aimSeconds, chooseRocketTarget, launcherEscortType, launcherEscortsFor, launchersForWave, reloadSeconds } from './invaders/rocketLauncher';
 import { COMMANDER_FROM_WAVE, SQUADS, pickByShare, rollSquads, squadBias, type SquadId } from './invaders/riftSquads';
 import type { TowerId } from '../types/state';
 import type { StructureManager, StructureTarget } from './StructureManager';
@@ -200,6 +201,7 @@ export class InvasionManager {
     // 3. Update living invaders movement and attacks
     this.updateInvaders(deltaSec);
     this.tidyHacks();
+    this.tidyReticles();
   }
 
   private handleActiveIncursion(delta: number, _deltaSec: number): void {
@@ -220,6 +222,9 @@ export class InvasionManager {
       // Technician raid part-way through the wave
       this.raidsLeft = hackersForWave(wave);
       this.raidAt = Math.max(1, Math.floor(this.totalEnemiesToSpawn * TECHNICIANS.spawnAtFraction));
+      // V4 Rocket Launcher raid (a random few waves)
+      this.launchersLeft = launchersForWave(wave, difficulty);
+      this.launcherAt = Math.max(1, Math.floor(this.totalEnemiesToSpawn * LAUNCHERS.spawnAtFraction));
     }
 
     // Every portal smashed: the rest of the wave never arrives
@@ -243,6 +248,7 @@ export class InvasionManager {
         }
         if (this.spawnSingleInvader(store.invasion.waveNumber)) this.enemiesSpawnedCount++;
         if (this.raidsLeft > 0 && this.enemiesSpawnedCount >= this.raidAt) this.spawnTechnicianRaid(store.invasion.waveNumber);
+        if (this.launchersLeft > 0 && this.enemiesSpawnedCount >= this.launcherAt) this.spawnLauncherRaid(store.invasion.waveNumber);
       }
     }
 
@@ -393,7 +399,7 @@ export class InvasionManager {
   /** Returns false when no portal is left to spawn from. */
   private spawnSingleInvader(
     waveNumber: number,
-    extra?: { type: InvaderType; portal?: PortalState; escortOf?: ActiveInvader; hacker?: boolean }
+    extra?: { type: InvaderType; portal?: PortalState; escortOf?: ActiveInvader; hacker?: boolean; launcher?: boolean }
   ): ActiveInvader | null {
     if (!useGameStore.getState().invasion.isActive) return null;
 
@@ -499,6 +505,7 @@ export class InvasionManager {
       retargetTimer: 0,
       isRusher,
       isHacker: extra?.hacker,
+      isLauncher: extra?.launcher,
       escortOf: extra?.escortOf,
     };
 
@@ -571,6 +578,167 @@ export class InvasionManager {
       logMessage('technicianRaid', { portal: rift, escorts });
     }
     useGameStore.getState().setEnemiesRemaining(this.invaders.filter((i) => !i.isDead).length);
+  }
+
+  /** A V4 Rocket Launcher rolls out of one rift with its Mecha guards; extra invaders on top of the wave. */
+  private spawnLauncherRaid(wave: number): void {
+    const difficulty = normalizeDifficulty(useGameStore.getState().difficulty);
+    while (this.launchersLeft > 0) {
+      this.launchersLeft--;
+      const portal = this.portals?.pickSpawn() ?? undefined;
+      const launcher = this.spawnSingleInvader(wave, { type: 'MECHA_V4_LAUNCHER', portal, launcher: true });
+      if (!launcher) return;
+      launcher.reloadTimer = 0;
+      const escorts = launcherEscortsFor(wave, difficulty);
+      for (let i = 0; i < escorts; i++) this.spawnSingleInvader(wave, { type: launcherEscortType(i), portal, escortOf: launcher });
+      const rift = portal ? (useGameStore.getState().language === 'TL' ? portal.site.name.tl : portal.site.name.en) : '';
+      logMessage('launcherRaid', { portal: rift, escorts });
+    }
+    useGameStore.getState().setEnemiesRemaining(this.invaders.filter((i) => !i.isDead).length);
+  }
+
+  /**
+   * V4 Rocket Launcher: drives within range of an establishment, locks on
+   * (reticle on the target) and launches a rocket that lands as a direct hit,
+   * then reloads and picks a new target. Returns false when no establishment
+   * is left (it then fights normally).
+   */
+  private updateLauncher(invader: ActiveInvader, speed: number, deltaSec: number): boolean {
+    if (!this.structures) return false;
+    const targets = this.structures.getTargets();
+    const tiles = (t: StructureTarget) => (this.nav ? this.nav.distanceToRect(invader.container.x, invader.container.y, t.rect) : Math.hypot(t.x - invader.container.x, t.y - invader.container.y) / 40);
+    let target = targets.find((t) => t.id === invader.rocketTargetId && t.id !== 'CASTLE');
+    if (!target) {
+      target = chooseRocketTarget(targets, tiles);
+      if (!target) return false;
+      invader.rocketTargetId = target.id;
+      invader.aimProgress = 0;
+    }
+    if (tiles(target) > LAUNCHERS.rangeTiles) {
+      invader.aimProgress = 0;
+      approachStructure(this.ctx, invader, target, speed * deltaSec, deltaSec);
+      return true;
+    }
+    this.faceInvader(invader, target.x - invader.container.x, target.y - invader.container.y, false);
+    if ((invader.reloadTimer ?? 0) > 0) {
+      invader.reloadTimer = Math.max(0, (invader.reloadTimer ?? 0) - deltaSec);
+      return true;
+    }
+    const difficulty = normalizeDifficulty(useGameStore.getState().difficulty);
+    const total = aimSeconds(difficulty);
+    const before = invader.aimProgress ?? 0;
+    invader.aimProgress = before + deltaSec;
+    if (before === 0) {
+      logMessage('rocketLockOn', { building: this.structures.displayName(target.id) });
+      if (invader.sprite) playEnemyAttack(invader.sprite);
+    }
+    this.drawRocketReticle(invader, target, invader.aimProgress / total);
+    if (invader.aimProgress >= total) {
+      this.launchRocket(invader, target);
+      invader.aimProgress = 0;
+      invader.reloadTimer = reloadSeconds(difficulty);
+      invader.rocketTargetId = undefined; // next salvo picks a new target
+    }
+    return true;
+  }
+
+  /** Red lock-on reticle tightening around the target establishment. */
+  private drawRocketReticle(invader: ActiveInvader, target: StructureTarget, progress: number): void {
+    let g = this.rocketReticles.get(invader.id);
+    if (!g) {
+      g = this.scene.add.graphics();
+      g.setDepth(9995);
+      this.parentContainer?.add(g);
+      this.rocketReticles.set(invader.id, g);
+    }
+    g.clear();
+    const p = Math.min(1, progress);
+    const r = 46 - 26 * p;
+    const blink = p > 0.7 && Math.floor(this.scene.time.now / 120) % 2 === 0;
+    g.lineStyle(2, blink ? 0xffffff : 0xef4444, 0.9);
+    g.strokeEllipse(target.x, target.y, r * 2, r);
+    for (let i = 0; i < 4; i++) {
+      const a = (Math.PI / 2) * i + p * Math.PI;
+      g.lineBetween(target.x + Math.cos(a) * r, target.y + Math.sin(a) * r * 0.5, target.x + Math.cos(a) * (r + 10), target.y + Math.sin(a) * (r + 10) * 0.5);
+    }
+    g.lineStyle(1, 0xef4444, 0.35);
+    g.lineBetween(invader.container.x, invader.container.y - 20, target.x, target.y);
+  }
+
+  /** Lock-on reticles of dead / idle launchers go away. */
+  private tidyReticles(): void {
+    for (const [id, g] of this.rocketReticles) {
+      const inv = this.invaders.find((i) => i.id === id);
+      if (inv && !inv.isDead && (inv.aimProgress ?? 0) > 0) continue;
+      g.destroy();
+      this.rocketReticles.delete(id);
+    }
+  }
+
+  /** The rocket arcs over the island and lands as a direct hit on the establishment. */
+  private launchRocket(invader: ActiveInvader, target: StructureTarget): void {
+    const damage = Math.round(invader.damage * LAUNCHERS.damageMultiplier);
+    const from = { x: invader.container.x, y: invader.container.y - 22 };
+    const rocket = this.scene.add.graphics();
+    rocket.setDepth(9996);
+    this.parentContainer?.add(rocket);
+    soundFx.playLaser();
+    const trail: { x: number; y: number }[] = [];
+    const point = (t: number) => ({
+      x: from.x + (target.x - from.x) * t,
+      y: from.y + (target.y - 20 - from.y) * t - Math.sin(Math.PI * t) * LAUNCHERS.arcHeight,
+    });
+    this.scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: LAUNCHERS.flightMs,
+      ease: 'Sine.easeIn',
+      onUpdate: (tw) => {
+        const t = tw.getValue() ?? 0;
+        const p = point(t);
+        const ahead = point(Math.min(1, t + 0.02));
+        trail.push(p);
+        if (trail.length > 14) trail.shift();
+        rocket.clear();
+        trail.forEach((q, i) => {
+          rocket.fillStyle(i > trail.length - 4 ? 0xf97316 : 0x9ca3af, (i / trail.length) * 0.7);
+          rocket.fillCircle(q.x, q.y, 1.5 + (i / trail.length) * 2.5);
+        });
+        const ang = Math.atan2(ahead.y - p.y, ahead.x - p.x);
+        const dx = Math.cos(ang) * 7;
+        const dy = Math.sin(ang) * 7;
+        rocket.lineStyle(4, 0xe5e7eb, 1);
+        rocket.lineBetween(p.x - dx, p.y - dy, p.x + dx, p.y + dy);
+        rocket.fillStyle(0xdc2626, 1);
+        rocket.fillCircle(p.x + dx, p.y + dy, 2);
+      },
+      onComplete: () => {
+        rocket.destroy();
+        const live = this.structures?.getTargets().find((t) => t.id === target.id);
+        if (!live || !this.structures) return;
+        this.structures.damage(live, damage);
+        logMessage('rocketHit', { building: this.structures.displayName(live.id) }, { mergeKey: `rocket:${live.id}`, amount: damage });
+        soundFx.playExplosion();
+        this.scene.cameras.main.shake(180, 0.004);
+        const blast = this.scene.add.graphics();
+        blast.setDepth(9996);
+        this.parentContainer?.add(blast);
+        this.scene.tweens.addCounter({
+          from: 0,
+          to: 1,
+          duration: 450,
+          onUpdate: (tw) => {
+            const t = tw.getValue() ?? 0;
+            blast.clear();
+            blast.fillStyle(0xf97316, 0.6 * (1 - t));
+            blast.fillEllipse(live.x, live.y - 10, 20 + 70 * t, 10 + 35 * t);
+            blast.fillStyle(0xfde68a, 0.8 * (1 - t));
+            blast.fillCircle(live.x, live.y - 18, 14 * (1 - t) + 3);
+          },
+          onComplete: () => blast.destroy(),
+        });
+      },
+    });
   }
 
   /**
@@ -1199,6 +1367,10 @@ export class InvasionManager {
   private squads = new Map<PortalState, SquadId>();
   private commandersDue: PortalState[] = [];
   private raidAt = 0;
+  /** V4 Rocket Launcher raid: launchers still to send this wave and the spawn count that triggers them. */
+  private launchersLeft = 0;
+  private launcherAt = 0;
+  private rocketReticles = new Map<string, Phaser.GameObjects.Graphics>();
   private hackBars = new Map<string, Phaser.GameObjects.Graphics>();
   public markStructure(id: string, seconds: number): void {
     this.markedStructures.set(id, this.scene.time.now + seconds * 1000);
@@ -1431,6 +1603,8 @@ export class InvasionManager {
 
       // Technician: hack establishments instead of fighting
       if (invader.isHacker && (invader.charmTimer ?? 0) <= 0 && this.updateHacker(invader, speed, deltaSec)) continue;
+      // V4 Rocket Launcher: park at range and shell establishments
+      if (invader.isLauncher && (invader.charmTimer ?? 0) <= 0 && this.updateLauncher(invader, speed, deltaSec)) continue;
       // Escort: guard the Technician — only engage minions near it, otherwise stay at its side
       const ward = invader.escortOf;
       if (ward && !ward.isDead && (invader.charmTimer ?? 0) <= 0 && (invader.tauntTimer ?? 0) <= 0) {

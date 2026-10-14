@@ -293,7 +293,8 @@ export class MainScene extends Phaser.Scene {
       this, this.entityLayer, this.portals, this.invasionManager, this.defenders, () => this.workerManager.getWorkers(), this.nav
     );
     this.structures.setInvaderProvider(() => this.invasionManager.getInvaders());
-    this.structures.setConstructionProvider(() => this.workerManager.getConstructionStatus());
+    this.structures.setConstructionProvider(() => [...this.workerManager.getConstructionStatus(), ...this.defenders.getConstructionStatus()]);
+    this.structures.setRepairProvider(() => this.defenders.getRepairStatus());
 
     this.airFxLayer = this.add.container(0, 0);
     this.islandContainer.add(this.airFxLayer);

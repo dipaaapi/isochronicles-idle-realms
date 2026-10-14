@@ -17,6 +17,10 @@ import { useTenantCounts, type TenantCount } from '../state/tenantCounts';
 import { logFloatingText, logMessage, resourceName } from '../state/activityLog';
 import { CREW_CONFIG, ESTABLISHMENT_CREWS, vengeanceExtraInvaders, type GatherJob, type GatherSource } from '../state/establishmentCrews';
 import { applyLocomotion, locomotionOf } from './locomotion';
+import { TENANT_WORK, buildProgressOf } from '../state/tenantWork';
+import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { BUILDING_IDS } from '../state/buildingLayout';
+import type { ConstructionStatus } from '../state/constructionProgress';
 
 export type DefenderState =
   | 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT'
@@ -63,6 +67,19 @@ export interface Defender extends InvaderBlocker, NavAgent {
   /** Seconds left gathering in the human realm. */
   awayTimer?: number;
   takeHit: (damage: number) => void;
+  /** Screen spot beside its establishment where it builds / repairs. */
+  workSpot?: { x: number; y: number };
+}
+
+/** Building or repairing work shared by an establishment's tenants. */
+interface SiteWork {
+  kind: 'BUILD' | 'REPAIR';
+  /** Seconds of tenant work toward the next paid step. */
+  acc: number;
+  /** The castle could not pay the last step. */
+  waiting: boolean;
+  /** Tenants working on it this frame. */
+  workers: number;
 }
 
 const MAX_PER_ESTABLISHMENT = 5;
@@ -107,6 +124,7 @@ export class DefenderSystem {
   private spawnTimers = new Map<TowerId, number>();
   private nextId = 1;
   private wasWaveActive = false;
+  private siteWork = new Map<TowerId, SiteWork>();
 
   constructor(
     private scene: Phaser.Scene,
@@ -315,26 +333,39 @@ export class DefenderSystem {
 
     // ── 1. Spawn / Re-summon Tenants for Establishments ──
     // Fallen tenants wait until post-wave / peace cooldown to be re-summoned with zero cost
-    for (const tower of this.structures.getTowers()) {
-      if (!castleAlive) continue;
-      const crew = ESTABLISHMENT_CREWS[tower.id as ResourceBuildingId];
-      if (!crew) continue;
+    // Each establishment's General summons its tenants one at a time (the first free, the rest paid
+    // from the castle when it can); an unbuilt site gets tenants once its General stands there
+    for (const id of ['SPIRE', ...BUILDING_IDS] as TowerId[]) {
+      if (!castleAlive || !store.castleBuilt) continue;
+      const crew = ESTABLISHMENT_CREWS[id as ResourceBuildingId];
+      const site = this.structures.getSite(id);
+      const general = this.generalOf(id);
+      if (!crew || !site || !general) continue;
+      const unbuilt = id === 'SPIRE' ? !store.spireBuilt : (towerBuildingOf(store, id)?.level ?? 0) < 1;
+      if (unbuilt && Math.hypot(general.container.x - site.x, general.container.y - site.y) > 140) continue;
 
-      const livingGuards = this.getLivingTenantsCount(tower.id);
-      if (livingGuards >= MAX_PER_ESTABLISHMENT) {
-        this.spawnTimers.set(tower.id, spawnInterval);
+      const living = this.getLivingTenantsCount(id);
+      if (living >= MAX_PER_ESTABLISHMENT) {
+        this.spawnTimers.set(id, spawnInterval);
         continue;
       }
-
-      // If in wave, killed tenants must wait until wave finish or pure cooldown
-      const timer = (this.spawnTimers.get(tower.id) ?? spawnInterval) - dt;
-      if (timer <= 0) {
-        this.spawn(tower.id, tower.rect, crew.general, DEFENDER_HP + researchHpBonus, Math.round(DEFENDER_DAMAGE * researchAtkBonus));
-        this.spawnTimers.set(tower.id, spawnInterval);
-      } else {
-        this.spawnTimers.set(tower.id, timer);
+      // The first tenant comes right away; the rest follow spawnInterval apart
+      const timer = (this.spawnTimers.get(id) ?? (living === 0 ? 0 : spawnInterval)) - dt;
+      if (timer > 0) {
+        this.spawnTimers.set(id, timer);
+        continue;
       }
+      const free = living === 0 && TENANT_WORK.firstTenantFree;
+      if (!free && !store.spendResources(TENANT_WORK.summonCost)) {
+        this.spawnTimers.set(id, 0); // waits for the castle's supplies
+        continue;
+      }
+      this.spawn(id, site.rect, crew.general, DEFENDER_HP + researchHpBonus, Math.round(DEFENDER_DAMAGE * researchAtkBonus));
+      this.spawnTimers.set(id, spawnInterval);
+      logMessage('tenantSummoned', { general: general.name, building: this.structures.displayName(id) }, { mergeKey: `summon:${id}`, amount: 1 });
     }
+
+    for (const w of this.siteWork.values()) w.workers = 0;
 
     // Live counts for the Citadel Command / establishment windows
     const counts: Record<string, TenantCount> = {};
@@ -496,7 +527,9 @@ export class DefenderSystem {
           d.workTimer = 0;
         }
 
-        if (d.state === 'TO_PORTAL' && d.portal) {
+        if (d.state === 'HARVESTING' && this.updateSiteWork(d, dt)) {
+          // Building or repairing its establishment
+        } else if (d.state === 'TO_PORTAL' && d.portal) {
           // Rifts sit on the ocean corners: step onto the exit tile and vanish into the swirl
           const rift = IsometricHelper.gridToScreen(d.portal.exit.x, d.portal.exit.y);
           if (Math.hypot(rift.x - d.container.x, rift.y - d.container.y) > 10) {
@@ -571,6 +604,104 @@ export class DefenderSystem {
         if (loco !== 'walk') d.sprite.setY(applyLocomotion(d.sprite, d.shadow, loco, this.scene.time.now, d.phase, d.container.x, d.container.y));
       }
     }
+  }
+
+  /** What the tenant's establishment needs: built (its General is present), repaired, or nothing. */
+  private siteJob(home: TowerId): 'BUILD' | 'REPAIR' | undefined {
+    const store = useGameStore.getState();
+    const b = towerBuildingOf(store, home);
+    if (home !== 'SPIRE' && (b?.level ?? 0) < 1) return this.generalOf(home) ? 'BUILD' : undefined;
+    if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) return 'REPAIR';
+    return undefined;
+  }
+
+  /**
+   * Peacetime building / repairs: the tenant walks to a spot beside its
+   * establishment and works; the crew's work adds up, and every step the
+   * castle pays one slice (construction cost or repair). Returns false when
+   * there is nothing to build or repair.
+   */
+  private updateSiteWork(d: Defender, dt: number): boolean {
+    const home = d.home as TowerId;
+    const kind = this.siteJob(home);
+    const site = kind ? this.structures.getSite(home) : undefined;
+    if (!kind || !site) {
+      d.workSpot = undefined;
+      return false;
+    }
+    if (!d.workSpot) {
+      const water = minionMoveMode(d.unitClass) === 'water' && home !== 'SPIRE' ? BUILDING_SITES[home as BuildingId]?.waterSpot : undefined;
+      const ring = this.ringAround(site.rect);
+      const tile = water ?? ring[Math.floor(Math.random() * ring.length)] ?? { x: site.rect.x - 1, y: site.rect.y };
+      d.workSpot = IsometricHelper.gridToScreen(tile.x + (Math.random() - 0.5) * 0.4, tile.y + (Math.random() - 0.5) * 0.4);
+      d.targetNodePos = undefined;
+      d.job = undefined;
+    }
+    if (Math.hypot(d.workSpot.x - d.container.x, d.workSpot.y - d.container.y) > TENANT_WORK.workRadiusPx * 0.5) {
+      this.step(d, d.workSpot.x, d.workSpot.y, dt, DEFENDER_SPEED);
+      return true;
+    }
+    if (d.sprite) {
+      faceCharacterSprite(d.sprite, site.x - d.container.x, site.y - d.container.y, false);
+      if (Math.floor(this.scene.time.now / 250) % 2 === 0) playCharacterWork(d.sprite);
+    }
+
+    let work = this.siteWork.get(home);
+    if (!work || work.kind !== kind) {
+      work = { kind, acc: 0, waiting: false, workers: 0 };
+      this.siteWork.set(home, work);
+    }
+    work.workers++;
+    const stepSeconds = kind === 'BUILD' ? TENANT_WORK.buildStepSeconds : TENANT_WORK.repairStepSeconds;
+    work.acc += dt;
+    if (work.acc < stepSeconds) return true;
+
+    const store = useGameStore.getState();
+    if (kind === 'BUILD') {
+      const result = store.workOnConstruction(home as ResourceBuildingId);
+      work.waiting = result === 'waiting';
+      if (result === 'built') {
+        this.siteWork.delete(home);
+        (this.scene as any).paveEstablishment?.(home, true);
+        logMessage('tenantsBuilt', { building: this.structures.displayName(home) });
+        soundFx.playFanfare();
+        return true;
+      }
+    } else {
+      const restored = store.workOnRepair(home);
+      work.waiting = restored < 0;
+      if (restored > 0) {
+        logMessage('tenantsRepaired', { building: this.structures.displayName(home) }, { mergeKey: `repair:${home}`, amount: restored });
+        soundFx.playHarvest('wood');
+      }
+    }
+    work.acc = work.waiting ? stepSeconds : work.acc - stepSeconds;
+    return true;
+  }
+
+  /** Establishments being built by their tenants, for the site scaffold and its gauge. */
+  getConstructionStatus(): ConstructionStatus[] {
+    const store = useGameStore.getState();
+    const out: ConstructionStatus[] = [];
+    for (const id of BUILDING_IDS) {
+      if ((store.resourceBuildings[id]?.level ?? 0) >= 1 || !this.generalOf(id)) continue;
+      const work = this.siteWork.get(id);
+      const step = work?.kind === 'BUILD' && !work.waiting ? Math.min(1, work.acc / TENANT_WORK.buildStepSeconds) : 0;
+      const progress = buildProgressOf((store.resourceBuildings[id]?.buildStep ?? 0) + step);
+      const phase: ConstructionStatus['phase'] = !work || work.workers === 0 ? 'arriving' : work.waiting ? 'waiting' : 'building';
+      out.push({ siteId: id, phase, progress });
+    }
+    return out;
+  }
+
+  /** Establishments being repaired by their tenants: progress of the current step, or waiting for supplies. */
+  getRepairStatus(): Map<string, { progress: number; waiting: boolean }> {
+    const out = new Map<string, { progress: number; waiting: boolean }>();
+    for (const [id, work] of this.siteWork) {
+      if (work.kind !== 'REPAIR' || work.workers === 0) continue;
+      out.set(id, { progress: Math.min(1, work.acc / TENANT_WORK.repairStepSeconds), waiting: work.waiting });
+    }
+    return out;
   }
 
   private updateSummonCombat(d: Defender, invaders: ActiveInvader[], dt: number): void {

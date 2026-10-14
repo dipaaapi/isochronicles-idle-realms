@@ -1,0 +1,11 @@
+{
+  "_comment": "Tenants build and repair their establishment (DefenderSystem). Once its General is present, the General summons tenants one at a time (CREW_CONFIG.spawnIntervalSeconds apart); each summon after the first costs summonCost from the castle and waits until the castle can pay. Construction is split into buildSteps: each step takes the matching slice of the establishment's build cost (economy.json costs[0]) from the castle, so supplies drain while the gauge above the site fills; a step waits when the castle cannot pay. Every working tenant adds stepSeconds of work, so more tenants build faster. Repairs work the same way: each repair step restores repairStepHp for repairStepCost. Tenants only build or repair outside battles.",
+  "summonCost": { "coins": 12 },
+  "firstTenantFree": true,
+  "buildSteps": 12,
+  "buildStepSeconds": 2.4,
+  "repairStepSeconds": 1.6,
+  "repairStepHp": 30,
+  "repairStepCost": { "coins": 3, "stone": 2, "wood": 1 },
+  "workRadiusPx": 26
+}

@@ -231,7 +231,7 @@ export interface WorkerData {
 export type InvaderType =
   | 'HIGH_PRIEST' | 'MECHA_VALKYRIE'
   | 'HUMAN_KNIGHT' | 'HUMAN_ARCHER' | 'MECHA_SCOUT' | 'MECHA_TITAN'
-  | 'ASSASSIN' | 'MECHA_DRONE' | 'MECHA_SIEGE_TANK' | 'CHRONO' | 'TECHNICIAN';
+  | 'ASSASSIN' | 'MECHA_DRONE' | 'MECHA_SIEGE_TANK' | 'CHRONO' | 'TECHNICIAN' | 'MECHA_V4_LAUNCHER';
 
 export interface InvaderConfig {
   type: InvaderType;

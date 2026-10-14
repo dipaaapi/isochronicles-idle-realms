@@ -88,10 +88,14 @@ function measureIncome(built, seconds) {
     const c = iso.gridToScreen(rect.x + rect.w / 2, rect.y + rect.h / 2);
     return { id, rect, x: c.x, y: c.y };
   });
-  const structures = { getTowers: () => towers, getCastleTarget: () => null };
+  const structures = { getTowers: () => towers, getCastleTarget: () => null, getSite: (id) => towers.find((t) => t.id === id), displayName: (id) => id };
   const invasion = { getInvaders: () => [], damageInvader() {} };
   const nav = { steer: (_a, _x, _y, tx, ty) => ({ x: tx, y: ty }), pushOut: (x, y) => ({ x, y }), isSolidTile: () => false };
   const sys = new DefenderSystem(scene, { add() {} }, structures, invasion, nav);
+  // Each establishment's General stands at its site (Generals summon the tenants)
+  const unitsMod = require('../src/data/establishmentCrews.json');
+  const generals = towers.map((t) => ({ name: 'General', unitClass: unitsMod.crews[t.id].general, hp: 1, container: { x: t.x, y: t.y, active: true } }));
+  sys.setWorkerProvider(() => generals);
   const before = { ...state().resources };
   for (let t = 0; t < seconds * 10; t++) {
     sys.update(100);

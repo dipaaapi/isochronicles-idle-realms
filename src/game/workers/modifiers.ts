@@ -5,6 +5,7 @@ import { teamBonuses } from '../../state/skillTree';
 import { isBuildingOperational } from '../../state/defenseStats';
 import { ECONOMY_CONFIG } from '../../state/economy';
 import type { WorkerFrame, WorkerInstance } from './types';
+import MOVEMENT from '../../data/minionMovement.json';
 
 type EvolutionLevel = 1 | 2 | 3 | 4 | 5;
 /** The Infernal Kennel's pack howl: +15% beast speed while a wave is under way. */
@@ -122,11 +123,16 @@ export function computeWorkerFrame(
   const majestyBonus = TREANT_EVOLUTION[clampLevel(treantLevel)]?.castleMajestyBonus || 15;
   const citadelMajestySpeedBonus = castleHpRatio >= 0.9 ? 1 + majestyBonus / 100 : 1.0;
 
-  const effectiveSpeed =
-    (worker.speed + equipStat(worker, 'bonusSpeed', ['tool', 'armor', 'relic'])) *
+  // Every bonus stacks, but the total is clamped so units keep a believable pace (minionMovement.json)
+  const speedBonus = Phaser.Math.Clamp(
     (1 + (store.upgrades.golemSpeedLevel - 1) * 0.2) *
-    motivationMult * taskSpecialtySpeed * weather.speed * slimeMovementBonus *
-    blessingSpeedBonus * citadelMajestySpeedBonus * slimeBuffSpeedMult * skills.speed;
+      motivationMult * taskSpecialtySpeed * weather.speed * slimeMovementBonus *
+      blessingSpeedBonus * citadelMajestySpeedBonus * slimeBuffSpeedMult * skills.speed,
+    MOVEMENT.bonusFloor,
+    MOVEMENT.bonusCap,
+  );
+  const effectiveSpeed =
+    (worker.speed + equipStat(worker, 'bonusSpeed', ['tool', 'armor', 'relic'])) * MOVEMENT.speedScale * speedBonus;
 
   return {
     store,

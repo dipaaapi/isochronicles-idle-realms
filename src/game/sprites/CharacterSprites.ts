@@ -5,6 +5,7 @@ import { ENEMY_MODELS, INVADER_SPRITE } from './enemyModels';
 import { MINION_MODELS, UNIT_SPRITE } from './minionModels';
 import type { BakedSheet } from './spriteBake.worker';
 import { useLoadProgress } from '../loadProgress';
+import MOVEMENT from '../../data/minionMovement.json';
 
 /**
  * Phaser glue for the baked 8-direction character sprite sheets (minions and
@@ -22,7 +23,7 @@ const listeners = new Set<(sheet: BakedSheet) => void>();
 
 const textureKey = (key: string) => `char-${key}`;
 const animKey = (key: string, anim: AnimationName, dir: number) => `char-${key}-${anim}-${dir}`;
-const FRAME_RATES: Record<AnimationName, number> = { walk: 8, attack: 10, idle: 2.5 };
+const FRAME_RATES: Record<AnimationName, number> = { walk: MOVEMENT.walkFps, attack: 10, idle: 2.5 };
 /** Walk frame shown for a single held pose (the "passing" pose). */
 const HOLD_FRAME = 1;
 

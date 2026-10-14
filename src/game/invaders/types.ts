@@ -93,7 +93,13 @@ export interface ActiveInvader extends NavAgent {
   /** Establishment being hacked and seconds of hacking done on it. */
   hackTargetId?: string;
   hackProgress?: number;
-  /** Fighter guarding a Technician: stays close and only fights minions near it. */
+  /** V4 Rocket Launcher: parks at range and shells establishments. */
+  isLauncher?: boolean;
+  /** Establishment the launcher is locked on to, lock-on seconds so far and reload left. */
+  rocketTargetId?: string;
+  aimProgress?: number;
+  reloadTimer?: number;
+  /** Fighter guarding a Technician or launcher: stays close and only fights minions near it. */
   escortOf?: ActiveInvader;
   target?: InvaderTarget;
   retargetTimer?: number;

@@ -88,6 +88,8 @@ assert.equal(manager.updateConstruction(worker, state(), 4, 65), false, 'the Tre
 // Next the Treant summons every General (free founding summon); each General builds its own establishment.
 const { updateGeneralSummoning } = load('src/game/workers/treant.ts');
 const { updateGeneralConstruction } = load('src/game/workers/generalConstruction.ts');
+const tenantWorkConfig = require('../src/data/tenantWork.json');
+const economyConfig = require('../src/data/economy.json');
 const { nextGeneralToSummon } = load('src/state/constructionProgress.ts');
 const { crewGeneralOf } = load('src/state/establishmentCrews.ts');
 manager.nexusGridPos = { x: 10, y: 10 };
@@ -117,13 +119,28 @@ for (const [i, id] of order.entries()) {
   assert.equal(nextGeneralToSummon(state()), undefined, 'Treant waits until the newest General builds its home');
   const g = general(id);
   if (i === 0) {
-    store.setState({ resources: { ...state().resources, wood: 0, coins: 0 } });
-    updateGeneralConstruction(manager, g, state(), 20, 65);
-    assert.equal(state().resourceBuildings.WOOD.level, 0, 'General waits for supplies');
+    store.setState({ resources: { ...state().resources, wood: 0, stone: 0, coins: 0 } });
+    assert.equal(state().workOnConstruction(id), 'waiting', 'tenants wait for supplies');
+    assert.equal(state().resourceBuildings[id].buildStep ?? 0, 0, 'an unpaid step does not advance');
     store.setState({ resources: Object.fromEntries(Object.keys(savedResources).map(k => [k, 10000])) });
   }
-  assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), true);
-  assert.equal(state().resourceBuildings[id].level, 1, `${id} built by its General`);
+  // The General only holds the plot; its tenants build, paying the castle step by step
+  assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), true, 'General holds its unbuilt plot');
+  assert.equal(state().resourceBuildings[id].level, 0, 'the General does not build');
+  const before = { ...state().resources };
+  let result;
+  let steps = 0;
+  do {
+    result = state().workOnConstruction(id);
+    steps++;
+    if (result === 'progress') assert.equal(state().resourceBuildings[id].level, 0, 'still a site mid-build');
+  } while (result === 'progress' && steps < 100);
+  assert.equal(result, 'built', `${id} built by its tenants`);
+  assert.equal(steps, tenantWorkConfig.buildSteps, 'one paid step per buildSteps');
+  for (const [key, amount] of Object.entries(economyConfig.resourceBuildings[id].costs[0])) {
+    assert.equal(before[key] - state().resources[key], amount, `${id} construction drains exactly its ${key} cost`);
+  }
+  assert.equal(state().resourceBuildings[id].level, 1, `${id} stands`);
   assert.equal(updateGeneralConstruction(manager, g, state(), 4, 65), false, 'General resumes duties once home stands');
 }
 assert.equal(updateGeneralSummoning(manager, worker, state(), 3, 65), false, 'Treant moves on once all Generals stand');
@@ -549,6 +566,8 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     castleBuilt: true, spireBuilt: true,
     defense: { ...state().defense, castleHp: state().defense.castleMaxHp },
     resourceBuildings: Object.fromEntries(Object.entries(state().resourceBuildings).map(([k, b]) => [k, { ...b, level: 1 }])),
+    // Tenant summons after the first are paid from the castle
+    resources: { ...state().resources, coins: 100000 },
   });
   const gfx = () => new Proxy({}, { get: () => () => {} });
   const container = (x, y) => ({ x, y, active: true, visible: true, scale: 1,
@@ -560,10 +579,14 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     const c = iso.gridToScreen(rect.x + rect.w / 2, rect.y + rect.h / 2);
     return { id, rect, x: c.x, y: c.y };
   });
-  const structures = { getTowers: () => towers, getCastleTarget: () => null };
+  const structures = { getTowers: () => towers, getCastleTarget: () => null, getSite: (id) => towers.find((t) => t.id === id), displayName: (id) => id };
   const invasion = { getInvaders: () => [], damageInvader() {} };
   const nav = { steer: (_a, _x, _y, tx, ty) => ({ x: tx, y: ty }), pushOut: (x, y) => ({ x, y }), isSolidTile: () => false };
   const sys = new DefenderSystem(scene, { add() {} }, structures, invasion, nav);
+  // Each establishment's General stands at its site (Generals summon the tenants)
+  const unitsMod = require('../src/data/establishmentCrews.json');
+  const generals = towers.map((t) => ({ name: 'General', unitClass: unitsMod.crews[t.id].general, hp: 1, container: { x: t.x, y: t.y, active: true } }));
+  sys.setWorkerProvider(() => generals);
 
   const metalBefore = state().resources.metal ?? 0;
   const fishBefore = state().resources.fish;
@@ -651,4 +674,51 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.equal(state().inventory.length, before + 1, 'dropped equipment lands in the inventory');
   assert.equal(state().grantEquipmentDrop('nope'), null);
   console.log('Scout drop checks passed.');
+}
+
+// Tenants build: the General summons them at its unbuilt plot, and their work drains the castle step by step
+{
+  const { DefenderSystem } = load('src/game/DefenderSystem.ts');
+  const layout = load('src/state/buildingLayout.ts');
+  const iso = load('src/game/IsometricHelper.ts').IsometricHelper;
+  const work = require('../src/data/tenantWork.json');
+  const crewsJson = require('../src/data/establishmentCrews.json');
+  state().resetRealm();
+  store.setState({
+    castleBuilt: true, spireBuilt: true,
+    defense: { ...state().defense, castleHp: state().defense.castleMaxHp },
+    resources: { ...state().resources, coins: 0, wood: 0, stone: 0 },
+  });
+  const gfx = () => new Proxy({}, { get: () => () => {} });
+  const container = (x, y) => ({ x, y, active: true, visible: true, scale: 1,
+    setPosition(nx, ny) { this.x = nx; this.y = ny; return this; }, setVisible(v) { this.visible = v; return this; },
+    setScale() { return this; }, add() { return this; }, destroy() { this.active = false; } });
+  const scene = { add: { container, ellipse: gfx, graphics: gfx }, tweens: { add() {} }, time: { delayedCall() {}, now: 0 } };
+  const rect = layout.BUILDING_SITES.WOOD.footprint;
+  const c = iso.gridToScreen(rect.x + rect.w / 2, rect.y + rect.h / 2);
+  const site = { id: 'WOOD', rect, x: c.x, y: c.y };
+  const structures = { getTowers: () => [], getCastleTarget: () => null, getSite: (id) => (id === 'WOOD' ? site : undefined), displayName: (id) => id };
+  const invasion = { getInvaders: () => [], damageInvader() {} };
+  const nav = { steer: (_a, _x, _y, tx, ty) => ({ x: tx, y: ty }), pushOut: (x, y) => ({ x, y }), isSolidTile: () => false };
+  const sys = new DefenderSystem(scene, { add() {} }, structures, invasion, nav);
+  sys.setWorkerProvider(() => [{ name: 'General', unitClass: crewsJson.crews.WOOD.general, hp: 1, container: { x: c.x, y: c.y, active: true } }]);
+
+  for (let t = 0; t < 600; t++) sys.update(100);
+  assert.equal(sys.getLivingTenantsCount('WOOD'), 1, 'only the free first tenant comes while the castle is empty');
+  assert.equal(state().resourceBuildings.WOOD.level, 0, 'no supplies, no building');
+  assert.equal(sys.getConstructionStatus()[0].phase, 'waiting', 'the site gauge shows it waits for supplies');
+
+  store.setState({ resources: { ...state().resources, coins: 1000, wood: 1000, stone: 1000 } });
+  const coinsBefore = state().resources.coins;
+  let midway = false;
+  for (let t = 0; t < 3000 && state().resourceBuildings.WOOD.level < 1; t++) {
+    sys.update(100);
+    const step = state().resourceBuildings.WOOD.buildStep ?? 0;
+    if (step > 0 && step < work.buildSteps) midway = true;
+  }
+  assert.ok(midway, 'construction advances in paid steps');
+  assert.equal(state().resourceBuildings.WOOD.level, 1, 'tenants finish the Wood Grove');
+  assert.ok(sys.getLivingTenantsCount('WOOD') > 1, 'the General keeps summoning tenants once supplies arrive');
+  assert.ok(coinsBefore - state().resources.coins > 0, 'summons and construction were paid from the castle');
+  console.log('Tenant construction checks passed.');
 }

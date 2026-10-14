@@ -139,6 +139,19 @@ export class StructureManager {
   }
 
   /** Where the Treant is building, so only that site shows its construction animation. */
+  /** Tenant repair jobs: share of the current repair step done (0–1), or waiting for supplies. */
+  private repairProvider: () => Map<string, { progress: number; waiting: boolean }> = () => new Map();
+
+  setRepairProvider(provider: () => Map<string, { progress: number; waiting: boolean }>): void {
+    this.repairProvider = provider;
+  }
+
+  /** Footprint and centre of an establishment or the spire, built or not. */
+  getSite(id: TowerId): { rect: TileRect; x: number; y: number } | undefined {
+    const view = this.views.get(id);
+    return view ? { rect: view.rect, x: view.x, y: view.y } : undefined;
+  }
+
   setConstructionProvider(provider: () => ConstructionStatus[]): void {
     this.constructionProvider = provider;
   }
@@ -482,6 +495,7 @@ export class StructureManager {
     this.elapsed += dt;
     const store = useGameStore.getState();
     const construction = this.constructionProvider();
+    const repairs = this.repairProvider();
 
     this.drawHacks();
     for (const view of this.views.values()) {
@@ -539,10 +553,13 @@ export class StructureManager {
           })()
         : '';
       const levelKey = view.id !== 'CASTLE' ? towerLevelOf(towerBuildingOf(store, view.id)) : 0;
-      const hpKey = showBar ? `${Math.round((hp / Math.max(1, maxHp)) * 60)}|${Math.round(shield * 60)}${skillKey}|${levelKey}` : 'off';
+      const repair = repairs.get(view.id);
+      const repairKey = repair ? (repair.waiting ? 'w' : Math.round(repair.progress * 30)) : '';
+      const hpKey = showBar ? `${Math.round((hp / Math.max(1, maxHp)) * 60)}|${Math.round(shield * 60)}${skillKey}|${levelKey}|${repairKey}` : 'off';
       if (hpKey !== view.lastHpKey) {
         view.lastHpKey = hpKey;
         this.drawHpBar(view, showBar, hp / Math.max(1, maxHp), shield);
+        if (showBar && repair) this.drawRepairGauge(view, repair);
       }
 
       if (state === 'ruined') {
@@ -619,6 +636,27 @@ export class StructureManager {
       if (b && b.level >= 1 && rectContainsTile(BUILDING_SITES[id].footprint, gx, gy)) return id;
     }
     return undefined;
+  }
+
+  /** Amber gauge above the HP bar while tenants repair: fills as each repair step's supplies are taken; hazard stripes when the castle can't pay. */
+  private drawRepairGauge(view: StructureView, repair: { progress: number; waiting: boolean }): void {
+    const g = view.hpBar;
+    const width = view.rect.w * 22;
+    const top = -(structureHeadroom(view.key) ?? 100) - 13;
+    const x = -width / 2;
+    g.fillStyle(0x000000, 0.7);
+    g.fillRect(x - 1, top - 1, width + 2, 5);
+    if (repair.waiting) {
+      for (let i = 0; i < width; i += 6) {
+        g.fillStyle(i % 12 === 0 ? 0xf59e0b : 0x3f3f46, 1);
+        g.fillRect(x + i, top, Math.min(4, width - i), 3);
+      }
+      return;
+    }
+    g.fillStyle(0x78350f, 1);
+    g.fillRect(x, top, width, 3);
+    g.fillStyle(0xfbbf24, 1);
+    g.fillRect(x, top, width * Phaser.Math.Clamp(repair.progress, 0, 1), 3);
   }
 
   private drawHpBar(view: StructureView, visible: boolean, pct: number, shieldPct: number): void {
