@@ -134,13 +134,13 @@ export const createEconomySlice = (...[set, get]: SliceArgs) => ({
     if (item === 'MINION_FRENZY') {
       set((prev) => ({ defense: { ...prev.defense, minionFrenzyTimer: 30 } }));
     } else if (item === 'FORCE_FIELD') {
-      // Aegis Barrier: 15 s of invulnerability, a full shield and repaired structures
+      // Aegis Barrier: 15 seconds of structure immunity and reduced allied fighter damage.
       set((prev) => ({ defense: { ...prev.defense, forceFieldTimer: 15, shieldHp: prev.defense.shieldMaxHp } }));
-      for (const k of Object.keys(state.resourceBuildings)) {
-        get().restoreBuildingHp(k as ResourceBuildingId, 99999);
-      }
     } else if (item === 'MASS_REGEN') {
       set((prev) => ({ defense: { ...prev.defense, massRegenTimer: 20 } }));
+      set((prev) => ({ defense: { ...prev.defense, castleHp: prev.defense.castleMaxHp } }));
+      for (const k of Object.keys(state.resourceBuildings)) get().restoreBuildingHp(k as ResourceBuildingId, 99999);
+      if (state.spireBuilt) get().restoreBuildingHp('SPIRE', 99999);
     } else if (item === 'LASER_STORM') {
       // Laser Storm: sky lasers lock onto invaders by themselves (InvasionManager)
       const seconds = (cfg as { seconds?: number }).seconds ?? 20;

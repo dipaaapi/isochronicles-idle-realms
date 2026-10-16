@@ -59,6 +59,8 @@ export interface ActiveInvader extends NavAgent {
   /** Seconds left stepping out of (emerge) or into (enter) a portal. */
   emerge?: number;
   enter?: number;
+  /** Seconds suspended under a parachute before joining the ground fight. */
+  dropTimer?: number;
   /** Seconds left under the citadel's Provoke Beacon — must attack the citadel. */
   provokedTimer?: number;
   /** Rushers ignore defenders and establishments and charge straight at the citadel. */

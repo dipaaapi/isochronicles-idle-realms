@@ -180,7 +180,8 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     soundFx.playFanfare();
 
     // Slay / damage all invaders in wide AOE area
-    const aoeDamage = Math.round(effectiveAttack * 3.2 + 90);
+    const crit = useGameStore.getState().defense.minionFrenzyTimer > 0 && Math.random() < 0.2 ? 2 : 1;
+    const aoeDamage = Math.round((effectiveAttack * 3.2 + 90) * crit);
     for (const inv of frame.aliveInvaders) {
       if (inv.isDead || (inv.emerge && inv.emerge > 0)) continue;
       const dist = Math.hypot(inv.container.x - wx, inv.container.y - wy);
@@ -302,15 +303,17 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   worker.overrideEmote = '⚔️';
   worker.overrideEmoteTimer = 900;
 
+  const crit = useGameStore.getState().defense.minionFrenzyTimer > 0 && Math.random() < 0.2 ? 2 : 1;
+  const attackDamage = effectiveAttack * crit;
   if (guard) {
-    guard.hit(effectiveAttack);
+    guard.hit(attackDamage);
   } else if (targetPortal) {
-    ctx.portals?.damage(targetPortal, effectiveAttack);
+    ctx.portals?.damage(targetPortal, attackDamage);
   } else {
     // Shield Wall: knights block 60% of ranged blows
     const ranged = config.attackRange > 60;
     const shielded = ranged && targetInvader!.type === 'HUMAN_KNIGHT';
-    const dealt = shielded ? Math.max(1, Math.round(effectiveAttack * 0.4)) : effectiveAttack;
+    const dealt = shielded ? Math.max(1, Math.round(attackDamage * 0.4)) : attackDamage;
     ctx.invasionManager?.damageInvader(targetInvader!, dealt, shielded ? `-${dealt} 🛡️` : `-${dealt} ⚔️`);
     // Blood Frenzy (Infernal Kennel, citadel below 30%): melee beasts steal life
     if (!ranged && auras.bloodFrenzy && worker.hp < worker.maxHp) {

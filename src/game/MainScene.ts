@@ -278,6 +278,7 @@ export class MainScene extends Phaser.Scene {
     this.invasionManager.setWorkerProvider(() => this.workerManager.getWorkers());
     this.towers = new TowerSystem(this, this.entityLayer, this.groundFxLayer, this.structures, this.invasionManager, this.nav);
     this.defenders = new DefenderSystem(this, this.entityLayer, this.structures, this.invasionManager, this.nav);
+    this.invasionManager.setDefenderProvider(() => this.defenders.getDefenders());
     this.workerManager.setDefenderSystem(this.defenders);
     this.defenders.setWorkerProvider(() => this.workerManager.getWorkers());
     this.structures.setDefenderSystem(this.defenders);
@@ -1283,6 +1284,12 @@ export class MainScene extends Phaser.Scene {
           }
           if (store.spireBuilt) {
             store.restoreBuildingHp('SPIRE', 25 * seconds);
+          }
+          for (const ally of this.workerManager.getWorkers()) {
+            if (ally.hp > 0) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.02 * seconds);
+          }
+          for (const ally of this.defenders.getDefenders()) {
+            if (!ally.dead) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.02 * seconds);
           }
         }
     }

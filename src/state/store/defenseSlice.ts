@@ -132,7 +132,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     // Each wave marches in a random formation (waveTactics.json)
     const difficulty = normalizeDifficulty(state.difficulty);
     const tactic = tacticOf(rollWaveTactic(state.invasion.waveNumber, difficulty, state.invasion.tactic));
-    const totalEnemies = scaledEnemyCount(enemiesInWave(state.invasion.waveNumber), difficulty, (tactic.count ?? 1) * realmIntensity(state.invasion.waveNumber, state.platformPhase).count) + vengeanceExtra;
+    const totalEnemies = scaledEnemyCount(enemiesInWave(state.invasion.waveNumber), difficulty, (tactic.count ?? 1) * realmIntensity(state.invasion.waveNumber, state.platformPhase).count, state.invasion.waveNumber) + vengeanceExtra;
     set((prev) => ({
       invasion: {
         ...prev.invasion,

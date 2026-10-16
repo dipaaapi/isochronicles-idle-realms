@@ -4,6 +4,7 @@ import { Navigation, NavAgent } from './Navigation';
 import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionManager';
 import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
+import { alliedDamageMultiplier } from '../state/waveBalance';
 import { teamBonuses } from '../state/skillTree';
 import { TileRect, isLandTile } from '../state/buildingLayout';
 import { towerAccuracy, towerStats, TowerStats } from '../state/defenseStats';
@@ -138,7 +139,7 @@ export class TowerSystem {
 
     const aegis = (store.activeGodBlessings?.AEGIS_WRATH || 0) > 0;
     const team = teamBonuses(store);
-    const damageMultiplier = team.turret;
+    const damageMultiplier = team.turret * alliedDamageMultiplier(store.invasion.waveNumber) * (store.defense.minionFrenzyTimer > 0 ? 3 : 1);
     const invaders = this.invasion.getInvaders().filter((i) => !i.isDead && !i.isRetreating && !(i.emerge && i.emerge > 0));
 
     for (const tower of this.structures.getTowers()) {
@@ -195,6 +196,9 @@ export class TowerSystem {
     const cfg = INVADER_CONFIGS[inv.type];
     if (this.shotAccuracy < 1 && Math.random() > this.shotAccuracy) return 0; // Missed
     let dealt = damage;
+
+    // Q: realm-wide attack surge also gives allied structures a 20% critical chance.
+    if (useGameStore.getState().defense.minionFrenzyTimer > 0 && Math.random() < 0.2) dealt *= 2;
 
     // 1. Armor-Piercing Munitions
     const ap = munitions?.armorPiercing ?? 0;

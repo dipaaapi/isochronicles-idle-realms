@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SUPPORT_SLIME_EVOLUTION, TASK_CONFIG, TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { WeatherType, GameStoreState } from '../../types/state';
 import { teamBonuses } from '../../state/skillTree';
+import { alliedDamageMultiplier } from '../../state/waveBalance';
 import { isBuildingOperational } from '../../state/defenseStats';
 import { ECONOMY_CONFIG } from '../../state/economy';
 import type { WorkerFrame, WorkerInstance } from './types';
@@ -80,10 +81,10 @@ export function computeWorkerFrame(
 
   // Titan Awakening: +150% combat attack power (2.5x)
   const titanAttackBonus = isTitanBlessingActive ? 2.5 : 1.0;
-  const frenzyAttackBonus = store.defense.minionFrenzyTimer > 0 ? 2.0 : 1.0;
+  const frenzyAttackBonus = store.defense.minionFrenzyTimer > 0 ? 3.0 : 1.0;
   const effectiveAttack = Math.round(
     ((worker.attackPower || 22) + equipStat(worker, 'bonusAttack', ['tool', 'armor', 'relic'])) *
-      titanAttackBonus * frenzyAttackBonus * slimeBuffAttackMult * skills.attack
+      titanAttackBonus * frenzyAttackBonus * alliedDamageMultiplier(store.invasion.waveNumber) * slimeBuffAttackMult * skills.attack
   );
 
   // Titan Awakening: Radiant Armor Shield to all non-slime minions

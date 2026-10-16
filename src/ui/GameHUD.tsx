@@ -93,8 +93,8 @@ const BATTLE_ITEMS: ItemMeta[] = [
     glowColor: 'rgba(249, 115, 22, 0.6)',
     descEn: 'Empowers all allied minions with fiery battle fury.',
     descTl: 'Pinupuno ng nagliliyab na galit sa pakikipaglaban ang lahat ng minion.',
-    buffEffectEn: '+200% Attack Damage for active minions (30s).',
-    buffEffectTl: '+200% Lakas ng Pag-atake para sa mga minion (30s).',
+    buffEffectEn: '+200% allied attack damage and a chance to critically hit (30s).',
+    buffEffectTl: '+200% Lakas ng Pag-atake at pagkakataon ng critical sa buong pangkat (30s).',
   },
   {
     id: 'FORCE_FIELD',
@@ -108,8 +108,8 @@ const BATTLE_ITEMS: ItemMeta[] = [
     glowColor: 'rgba(2, 132, 199, 0.7)',
     descEn: 'Erects an impenetrable energy barrier over the entire realm.',
     descTl: 'Nagtatayo ng hindi matitibag na harang sa buong kaharian.',
-    buffEffectEn: 'Absolute invulnerability for Citadel & Establishments (15s), refills the shield to 100% and repairs structures.',
-    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali (15s), pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
+    buffEffectEn: 'Shields the Castle, Establishments and allied fighters from most damage (15s).',
+    buffEffectTl: 'Pinoprotektahan ang Kastilyo, mga gusali at kakamping mandirigma laban sa karamihan ng pinsala (15s).',
   },
   {
     id: 'MASS_REGEN',
@@ -123,8 +123,8 @@ const BATTLE_ITEMS: ItemMeta[] = [
     glowColor: 'rgba(236, 72, 153, 0.6)',
     descEn: 'Pours rejuvenative life essence into realm foundations.',
     descTl: 'Nagbubuhos ng nagpapagaling na enerhiya sa lahat ng gusali.',
-    buffEffectEn: 'Rapid HP regeneration for Castle & Establishments (20s).',
-    buffEffectTl: 'Mabilisang nagpapagaling ng HP ng Kastilyo at gusali (20s).',
+    buffEffectEn: 'Instantly repairs structures and heals allies, then regenerates HP for 20s.',
+    buffEffectTl: 'Agad na kinukumpuni ang mga gusali at pinagagaling ang mga kakampi, saka patuloy na nagpapagaling sa loob ng 20s.',
   },
   {
     id: 'LASER_STORM',
@@ -146,7 +146,7 @@ const BATTLE_ITEMS: ItemMeta[] = [
     icon: '⏱️',
     nameEn: 'Chrono Surge',
     nameTl: 'Pampabilis ng Oras',
-    keyBinding: 't',
+    keyBinding: 'u',
     maxDuration: 0,
     color: '#a855f7',
     glowColor: 'rgba(168, 85, 247, 0.6)',
@@ -155,13 +155,25 @@ const BATTLE_ITEMS: ItemMeta[] = [
     buffEffectEn: 'Instantly resets all skill cooldowns for Citadel & Establishments.',
     buffEffectTl: 'Agad na nirereset ang lahat ng skill cooldown ng Kuta at gusali.',
   },
+  {
+    id: 'POISON_SMOKE', icon: '☠️', nameEn: 'Poison Smoke', nameTl: 'Usok na Lason', keyBinding: 't', maxDuration: 0,
+    color: '#84cc16', glowColor: 'rgba(132,204,22,0.6)', descEn: 'Poison clouds spread around the Castle and several Establishments.',
+    descTl: 'Kumakalat ang ulap na lason sa paligid ng Kastilyo at ilang gusali.',
+    buffEffectEn: 'Poisons nearby invaders for 8s.', buffEffectTl: 'Nilalason ang mga kalapit na kalaban sa loob ng 8s.',
+  },
+  {
+    id: 'BONE_CAGE', icon: '🦇', nameEn: 'Bone Cage', nameTl: 'Kulungan ng Buto', keyBinding: 'y', maxDuration: 0,
+    color: '#c4b5fd', glowColor: 'rgba(196,181,253,0.6)', descEn: 'A bone cage traps the nearest invader as a dark pit swallows it.',
+    descTl: 'Kinukulong ng hawla ng buto ang pinakamalapit na kalaban habang nilulunok ito ng madilim na hukay.',
+    buffEffectEn: 'Stuns the nearest invader for 6s.', buffEffectTl: 'Pinatitigil ang pinakamalapit na kalaban sa loob ng 6s.',
+  },
 ];
 
 
 type QuickActionId = 'PAUSE' | 'SPEED2' | 'SPEED3' | 'WAVE' | 'DAY' | 'WEATHER' | 'MUSIC' | 'SFX' | 'FULLSCREEN' | 'SETTINGS' | 'SIDEBAR'
   | 'ATLAS' | 'SKILLS' | 'TAB_COMMAND' | 'TAB_STATUS' | 'TAB_RESOURCES';
 /**
- * Keyboard quick actions. Most are listed as buttons under the castle bars after the Q–T battle
+ * Keyboard quick actions. Most are listed as buttons under the castle bars after the QWERTY battle
  * items; `inline` ones already have a button elsewhere (sky panel, tabs, Skills / Atlas) that shows the key.
  */
 const QUICK_KEYS: Array<{ id: QuickActionId; codes: string[]; key: string; icon: string; label: string; inline?: true }> = [
@@ -304,7 +316,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const quickActionRef = useRef(runQuickAction);
   quickActionRef.current = runQuickAction;
 
-  // Keyboard shortcuts: ` play/pause, 1 = 2x, 2 = 3x, Q/W/E/R/T battle items,
+  // Keyboard shortcuts: ` play/pause, 1 = 2x, 2 = 3x, Q/W/E/R/T/Y battle items,
   // O = next day, P = next weather, L = launch the wave (instant, no confirm), M = music on/off, N = sound effects on/off
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -616,7 +628,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 </div>
               </div>
 
-              {/* Every keyboard shortcut as a button: Q–T battle items, then time, wave, audio and window keys */}
+              {/* Every keyboard shortcut as a button: QWERTY battle items, then time, wave, audio and window keys */}
               <div className="grid grid-cols-7 gap-1 rounded-xl border border-purple-500/30 bg-slate-900/60 p-1.5">
               {BATTLE_ITEMS.map((item) => {
                 const cost = (ECONOMY_CONFIG.battleItems[item.id]?.cost ?? {}) as Partial<Record<string, number>>;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { ECONOMY_CONFIG, RESOURCE_PRICES } from '../state/economy';
 import type { BattleItemId, Resources } from '../types/state';
@@ -36,8 +36,8 @@ const ITEMS: ItemMeta[] = [
     bgGradient: 'from-orange-600/80 to-amber-500/80',
     descEn: 'Empowers all allied minions with fiery battle fury.',
     descTl: 'Pinupuno ng nagliliyab na galit sa pakikipaglaban ang lahat ng minion.',
-    buffEffectEn: '+200% Attack Damage for all active minions (30s).',
-    buffEffectTl: '+200% Lakas ng Pag-atake para sa lahat ng minion (30s).',
+    buffEffectEn: '+200% allied attack damage and a chance to critically hit (30s).',
+    buffEffectTl: '+200% Lakas ng Pag-atake at pagkakataon ng critical sa buong pangkat (30s).',
   },
   {
     id: 'FORCE_FIELD',
@@ -52,8 +52,8 @@ const ITEMS: ItemMeta[] = [
     bgGradient: 'from-sky-600/80 to-cyan-500/80',
     descEn: 'Erects an impenetrable energy barrier over the entire realm.',
     descTl: 'Nagtatayo ng hindi matitibag na harang sa buong kaharian.',
-    buffEffectEn: 'Absolute invulnerability for Castle & all Establishments (15s), refills the Citadel shield to 100% and fully repairs structures.',
-    buffEffectTl: 'Ganap na proteksyon sa Kastilyo at lahat ng gusali laban sa pinsala (15s), pinupuno ang kalasag sa 100% at kinukumpuni ang mga gusali.',
+    buffEffectEn: 'Shields the Castle, Establishments and allied fighters from most damage (15s).',
+    buffEffectTl: 'Pinoprotektahan ang Kastilyo, mga gusali at kakamping mandirigma laban sa karamihan ng pinsala (15s).',
   },
   {
     id: 'MASS_REGEN',
@@ -68,8 +68,8 @@ const ITEMS: ItemMeta[] = [
     bgGradient: 'from-pink-600/80 to-emerald-500/80',
     descEn: 'Pours rejuvenative life essence into the realm foundations.',
     descTl: 'Nagbubuhos ng nagpapagaling na enerhiya sa lahat ng gusali.',
-    buffEffectEn: 'Rapid HP regeneration for Castle & all Establishments (20s).',
-    buffEffectTl: 'Mabilisang nagpapagaling ng HP ng Kastilyo at lahat ng gusali (20s).',
+    buffEffectEn: 'Instantly repairs structures and heals allies, then regenerates HP for 20s.',
+    buffEffectTl: 'Agad na kinukumpuni ang mga gusali at pinagagaling ang mga kakampi, saka patuloy na nagpapagaling sa loob ng 20s.',
   },
   {
     id: 'LASER_STORM',
@@ -92,7 +92,7 @@ const ITEMS: ItemMeta[] = [
     icon: '⏱️',
     nameEn: 'Chrono Surge',
     nameTl: 'Pampabilis ng Oras',
-    keyBinding: 't',
+    keyBinding: 'u',
     maxDuration: 0,
     color: '#a855f7',
     glowColor: 'rgba(168, 85, 247, 0.6)',
@@ -102,7 +102,20 @@ const ITEMS: ItemMeta[] = [
     buffEffectEn: 'Instantly resets all skill cooldowns for Citadel & Establishments.',
     buffEffectTl: 'Agad na nirereset ang lahat ng skill cooldown ng Kuta at gusali.',
   },
+  {
+    id: 'POISON_SMOKE', icon: '☠️', nameEn: 'Poison Smoke', nameTl: 'Usok na Lason', keyBinding: 't', maxDuration: 0,
+    color: '#84cc16', glowColor: 'rgba(132,204,22,0.6)', bgGradient: 'from-lime-700/80 to-emerald-500/80',
+    descEn: 'Poison clouds spread around the Castle and several Establishments.', descTl: 'Kumakalat ang ulap na lason sa paligid ng Kastilyo at ilang gusali.',
+    buffEffectEn: 'Poisons nearby invaders for 8s.', buffEffectTl: 'Nilalason ang mga kalapit na kalaban sa loob ng 8s.',
+  },
+  {
+    id: 'BONE_CAGE', icon: '🦇', nameEn: 'Bone Cage', nameTl: 'Kulungan ng Buto', keyBinding: 'y', maxDuration: 0,
+    color: '#c4b5fd', glowColor: 'rgba(196,181,253,0.6)', bgGradient: 'from-violet-700/80 to-purple-500/80',
+    descEn: 'A bone cage traps the nearest invader as a dark pit swallows it.', descTl: 'Kinukulong ng hawla ng buto ang pinakamalapit na kalaban habang nilulunok ito ng madilim na hukay.',
+    buffEffectEn: 'Stuns the nearest invader for 6s.', buffEffectTl: 'Pinatitigil ang pinakamalapit na kalaban sa loob ng 6s.',
+  },
 ];
+const DISPLAY_ITEMS = [...ITEMS].sort((a, b) => 'qwertyu'.indexOf(a.keyBinding) - 'qwertyu'.indexOf(b.keyBinding));
 
 export const BattleItemsToolbar: React.FC = () => {
   const { language, resources, defense, useBattleItem } = useGameStore();
@@ -119,22 +132,9 @@ export const BattleItemsToolbar: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const key = e.key.toLowerCase();
-      const item = ITEMS.find((i) => i.keyBinding === key);
-      if (item) {
-        handleUseItem(item.id);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [resources, useBattleItem]);
-
   return (
     <div className="absolute bottom-3 right-3 z-30 flex items-end gap-2.5 pointer-events-auto select-none">
-      {ITEMS.map((item) => {
+      {DISPLAY_ITEMS.map((item) => {
         const cost = (ECONOMY_CONFIG.battleItems[item.id]?.cost ?? {}) as Partial<Record<string, number>>;
         const canAfford = Object.entries(cost).every(([k, v]) => ((resources[k as keyof typeof resources] ?? 0) as number) >= (v as number));
         

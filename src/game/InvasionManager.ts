@@ -33,17 +33,17 @@ import { COMMANDER_FROM_WAVE, SQUADS, pickByShare, rollSquads, squadBias, type S
 import type { TowerId } from '../types/state';
 import type { StructureManager, StructureTarget } from './StructureManager';
 import type { PortalManager, PortalState } from './PortalManager';
-import { CASTLE_FOOTPRINT, PORTAL_SITES, rectCenter } from '../state/buildingLayout';
+import { CASTLE_FOOTPRINT, GRID_SIZE, PORTAL_SITES, rectCenter } from '../state/buildingLayout';
 import { invaderWeather, type ActiveInvader, type InvaderBlocker, type InvaderTarget } from './invaders/types';
 import { renderInvaderBody } from './invaders/legacyInvaderArt';
 import type { InvaderContext } from './invaders/context';
 import { approachStructure, chase, EMERGE_SECONDS, ENTER_SECONDS, followPath, stepToward, updatePortalTransit } from './invaders/movement';
 import { chooseTarget, isTargetValid } from './invaders/targeting';
-import { pickWaveInvader } from './invaders/wavePool';
+import { pickWaveInvader, pickWaveInvaderOfCategory } from './invaders/wavePool';
 import type { Resources } from '../types/state';
 import { pickScout, rollScoutDrops } from '../state/scoutLoot';
 import { buildWavePlan, type PlannedSpawn } from './invaders/wavePlan';
-import { WAVE_BALANCE, invaderStats, portalHpMultiplier, realmIntensity, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
+import { WAVE_BALANCE, aircraftCount, aircraftDropCount, invaderStats, portalHpMultiplier, realmIntensity, skillPower, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
 import { TACTIC_EFFECTS, tacticOf, type WaveTactic } from '../state/waveTactics';
 import { SCOUT_DEFENCE_CAP, SCOUT_ROLES, pickScoutRole, rollStolen, scoutCount, scoutScaling, scoutWave } from '../state/scoutRaid';
 
@@ -75,6 +75,7 @@ export class InvasionManager {
   private spawnPlan: PlannedSpawn[] = [];
   private burstLeft = 0;
   private workerProvider?: () => WorkerInstance[];
+  private defenderProvider?: () => import('./DefenderSystem').Defender[];
   private blockerProvider: () => InvaderBlocker[] = () => [];
   private nav?: Navigation;
   private structures?: StructureManager;
@@ -87,8 +88,14 @@ export class InvasionManager {
   private lastClick = { time: 0, x: 0, y: 0 };
   /** Burn scars the sky laser leaves on the ground; they hurt invaders that step on them. */
   private scars: { x: number; y: number; life: number; tick: number }[] = [];
+  private poisonZones: { x: number; y: number; radius: number; dps: number; life: number; tick: number }[] = [];
   private scarGfx?: Phaser.GameObjects.Graphics;
   private wasInvasionActive: boolean = false;
+  private battleFxReady = false;
+  private pendingBattleFx: Array<'POISON_SMOKE' | 'BONE_CAGE'> = [];
+  private aircraftRemaining = 0;
+  private aircraftTimer = 0;
+  private activeAircraft = new Set<Phaser.GameObjects.Sprite>();
 
   /** Hands the movement / targeting helpers (invaders/) access to this manager. */
   private readonly ctx: InvaderContext = (() => {
@@ -113,10 +120,42 @@ export class InvasionManager {
     this.scene = scene;
     this.pathfinder = pathfinder;
     this.parentContainer = parentContainer;
+    this.loadBattleFx();
+  }
+
+  private loadBattleFx(): void {
+    const base = import.meta.env.BASE_URL;
+    this.scene.load.aseprite('battle-poison-smoke', `${base}skills/poison-smoke.png`, `${base}skills/poison-smoke.json`);
+    this.scene.load.aseprite('battle-bone-cage', `${base}skills/bone-cage.png`, `${base}skills/bone-cage.json`);
+    this.scene.load.aseprite('battle-transport', `${base}skills/troop-transport.png`, `${base}skills/troop-transport.json`);
+    this.scene.load.aseprite('battle-parachute', `${base}skills/parachute.png`, `${base}skills/parachute.json`);
+    this.scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      for (const key of ['battle-poison-smoke', 'battle-bone-cage', 'battle-transport', 'battle-parachute']) {
+        if (this.scene.textures.exists(key)) this.scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
+      }
+      this.createBattleAnim('battle-poison-smoke:poof', 'battle-poison-smoke', 'poof-', 0, 11, 9, -1);
+      this.createBattleAnim('battle-bone-cage:rise', 'battle-bone-cage', 'rise-', 0, 2, 8, 0);
+      this.createBattleAnim('battle-bone-cage:hold', 'battle-bone-cage', 'hold-', 0, 2, 6, -1);
+      this.createBattleAnim('battle-bone-cage:sink', 'battle-bone-cage', 'sink-', 0, 7, 8, 0);
+      this.createBattleAnim('battle-transport:fly', 'battle-transport', 'fly-', 0, 5, 12, -1);
+      this.createBattleAnim('battle-parachute:fall', 'battle-parachute', 'fall-', 0, 3, 7, -1);
+      this.battleFxReady = true;
+      for (const effect of this.pendingBattleFx.splice(0)) this.playBattleEffect(effect);
+    });
+    this.scene.load.start();
+  }
+
+  private createBattleAnim(key: string, texture: string, prefix: string, start: number, end: number, frameRate: number, repeat: number): void {
+    if (this.scene.anims.exists(key) || !this.scene.textures.exists(texture)) return;
+    this.scene.anims.create({ key, frames: this.scene.anims.generateFrameNames(texture, { prefix, start, end }), frameRate, repeat });
   }
 
   public setWorkerProvider(provider: () => WorkerInstance[]): void {
     this.workerProvider = provider;
+  }
+
+  public setDefenderProvider(provider: () => import('./DefenderSystem').Defender[]): void {
+    this.defenderProvider = provider;
   }
 
   /** Obstacles, attackable structures, portals and sapling blockers. */
@@ -197,6 +236,7 @@ export class InvasionManager {
 
     // Battle items fired from the Armory
     for (const effect of store.takeBattleEffects()) this.playBattleEffect(effect);
+    this.updatePoisonZones(deltaSec);
 
     // 3. Update living invaders movement and attacks
     this.updateInvaders(deltaSec);
@@ -225,6 +265,8 @@ export class InvasionManager {
       // V4 Rocket Launcher raid (a random few waves)
       this.launchersLeft = launchersForWave(wave, difficulty);
       this.launcherAt = Math.max(1, Math.floor(this.totalEnemiesToSpawn * LAUNCHERS.spawnAtFraction));
+      this.aircraftRemaining = aircraftCount(wave);
+      this.aircraftTimer = Phaser.Math.Between(WAVE_BALANCE.airlift.firstDelayMinMs, WAVE_BALANCE.airlift.firstDelayMaxMs);
     }
 
     // Every portal smashed: the rest of the wave never arrives
@@ -252,14 +294,19 @@ export class InvasionManager {
       }
     }
 
+    this.updateAircraft(delta, store.invasion.waveNumber);
+
     // Check Victory
     if (
       this.enemiesSpawnedCount >= this.totalEnemiesToSpawn &&
       this.invaders.length === 0 &&
+      this.aircraftRemaining === 0 &&
+      this.activeAircraft.size === 0 &&
       store.invasion.isActive
     ) {
       this.totalEnemiesToSpawn = 0;
       this.enemiesSpawnedCount = 0;
+      this.aircraftRemaining = 0;
       const victoryBounty = waveVictoryBounty(store.invasion.waveNumber);
       store.resolveInvasionVictory(victoryBounty);
 
@@ -282,11 +329,155 @@ export class InvasionManager {
     }
   }
 
-  /** Lava Bomb: heavy damage to every invader. Death Curse: everyone withers (burn). */
+  /** Wave-only transport raids. The plane crosses the island and drops a wave-scaled mixed squad. */
+  private updateAircraft(delta: number, wave: number): void {
+    if (!this.aircraftRemaining || !useGameStore.getState().invasion.isActive) return;
+    this.aircraftTimer -= delta;
+    if (this.aircraftTimer > 0) return;
+    this.aircraftRemaining--;
+    this.aircraftTimer = Phaser.Math.Between(WAVE_BALANCE.airlift.nextDelayMinMs, WAVE_BALANCE.airlift.nextDelayMaxMs);
+    this.sendAircraft(wave);
+  }
+
+  private sendAircraft(wave: number): void {
+    if (!this.scene.textures.exists('battle-transport')) return;
+    const plane = this.scene.add.sprite(-820, 215, 'battle-transport');
+    plane.setScale(2.5).setDepth(100000).play('battle-transport:fly');
+    this.parentContainer?.add(plane);
+    this.activeAircraft.add(plane);
+
+    const duration = WAVE_BALANCE.airlift.flightMs;
+    const dropCount = aircraftDropCount(wave);
+    const groups: Array<{ category: 'HUMAN' | 'MECHA'; type: InvaderType }> = [];
+    for (let i = 0; i < dropCount; i++) {
+      const category = i % 2 === 0 ? 'HUMAN' : 'MECHA';
+      groups.push({ category, type: pickWaveInvaderOfCategory(wave, category) });
+    }
+    const force = `${groups.filter((g) => g.category === 'HUMAN').length} Humans / ${groups.filter((g) => g.category === 'MECHA').length} Mechas`;
+    const forceTl = `${groups.filter((g) => g.category === 'HUMAN').length} tao / ${groups.filter((g) => g.category === 'MECHA').length} mecha`;
+    logMessage('aircraftDrop', { count: dropCount, force: { en: force, tl: forceTl }, wave });
+
+    groups.forEach((group, i) => {
+      const fraction = 0.24 + (0.52 * (i + 1)) / (groups.length + 1);
+      this.scene.time.delayedCall(duration * fraction, () => {
+        const invasion = useGameStore.getState().invasion;
+        if (!invasion.isActive || invasion.waveNumber !== wave || !this.nav) return;
+        const tile = this.airdropTile(fraction);
+        if (tile) this.spawnSingleInvader(wave, { type: group.type, grid: tile, airborne: true });
+      });
+    });
+    this.scene.tweens.add({
+      targets: plane,
+      x: 960,
+      duration,
+      ease: 'Linear',
+      onComplete: () => {
+        this.activeAircraft.delete(plane);
+        plane.destroy();
+      },
+    });
+  }
+
+  private airdropTile(fraction: number): GridPoint | null {
+    if (!this.nav) return null;
+    const along = Math.max(1, Math.min(17, Math.round(18 * fraction)));
+    const base = { x: along, y: 17 - along };
+    for (let radius = 0; radius <= 4; radius++) {
+      const candidates: GridPoint[] = [];
+      for (let dx = -radius; dx <= radius; dx++) for (let dy = -radius; dy <= radius; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        const x = base.x + dx, y = base.y + dy;
+        if (x >= 0 && y >= 0 && x < GRID_SIZE && y < GRID_SIZE && this.nav.allows(x, y, 'land')) candidates.push({ x, y });
+      }
+      if (candidates.length) return Phaser.Utils.Array.GetRandom(candidates);
+    }
+    return null;
+  }
+
+  private attachParachute(invader: ActiveInvader): void {
+    if (!this.scene.textures.exists('battle-parachute')) return;
+    const parachute = this.scene.add.sprite(0, -65, 'battle-parachute').setScale(1.6).play('battle-parachute:fall');
+    invader.container.add(parachute);
+    invader.dropTimer = WAVE_BALANCE.airlift.descentMs / 1000;
+    this.scene.tweens.add({
+      targets: parachute,
+      y: -18,
+      duration: WAVE_BALANCE.airlift.descentMs,
+      ease: 'Sine.easeIn',
+      onComplete: () => parachute.destroy(),
+    });
+  }
+
+  /** Realm-wide consumables are resolved here so the UI can queue them without owning Phaser. */
   private playBattleEffect(effect: import('../types/state').BattleEffect): void {
+    if ((effect === 'POISON_SMOKE' || effect === 'BONE_CAGE') && !this.battleFxReady) {
+      this.pendingBattleFx.push(effect);
+      return;
+    }
+    const store = useGameStore.getState();
+    const foes = this.invaders.filter((i) => !i.isDead && !i.isRetreating && i.container.active);
+    if (effect === 'MASS_REGEN') {
+      for (const w of this.workerProvider?.() ?? []) if (w.hp > 0) w.hp = w.maxHp;
+      for (const d of this.defenderProvider?.() ?? []) if (!d.dead) d.hp = d.maxHp;
+      soundFx.playHeal();
+      return;
+    }
+    if (effect === 'POISON_SMOKE') {
+      const towers = this.structures?.getTowers().filter((t) => t.id !== 'SPIRE') ?? [];
+      const picked = Phaser.Utils.Array.Shuffle([...towers]).slice(0, 3);
+      const centers = [this.castleCenter(), ...picked.map((t) => ({ x: t.x, y: t.y }))];
+      const radius = 112;
+      const dps = Math.round((24 + store.invasion.waveNumber * 0.7) * skillPower(store.invasion.waveNumber));
+      for (const p of centers) {
+        const cloud = this.scene.add.sprite(p.x, p.y - 10, 'battle-poison-smoke')
+          .setOrigin(0.5, 0.55).setAlpha(0.9).setScale(2.8).setDepth(9997);
+        this.parentContainer?.add(cloud);
+        cloud.play('battle-poison-smoke:poof');
+        this.scene.tweens.add({ targets: cloud, alpha: 0, scale: 1.2, duration: 8000, ease: 'Sine.easeInOut', onComplete: () => cloud.destroy() });
+        this.poisonZones.push({ x: p.x, y: p.y, radius, dps, life: 8, tick: 0 });
+      }
+      soundFx.playExplosion();
+      return;
+    }
+    if (effect === 'BONE_CAGE') {
+      const center = this.castleCenter();
+      const target = foes.sort((a, b) => Math.hypot(a.container.x - center.x, a.container.y - center.y) - Math.hypot(b.container.x - center.x, b.container.y - center.y))[0];
+      if (!target) return;
+      target.frozenTimer = Math.max(target.frozenTimer ?? 0, 6);
+      const cage = this.scene.add.sprite(target.container.x, target.container.y, 'battle-bone-cage')
+        .setOrigin(0.5, 0.84).setScale(2).setDepth(target.container.depth + 1);
+      this.parentContainer?.add(cage);
+      cage.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (animation: Phaser.Animations.Animation) => {
+        if (!cage.active) return;
+        if (animation.key === 'battle-bone-cage:rise') cage.play('battle-bone-cage:hold');
+        else if (animation.key === 'battle-bone-cage:sink') cage.destroy();
+      });
+      cage.play('battle-bone-cage:rise');
+      this.scene.time.delayedCall(4700, () => { if (cage.active) cage.play('battle-bone-cage:sink'); });
+      this.applyBurn(target, Math.max(1, Math.round(target.maxHp * 0.175)), 6);
+      soundFx.playExplosion();
+      return;
+    }
+    if (effect === 'LASER_STORM') {
       soundFx.playExplosion();
       this.scene.cameras.main.flash(180, 255, 255, 255, true);
     }
+  }
+
+  private updatePoisonZones(deltaSec: number): void {
+    this.poisonZones = this.poisonZones.filter((zone) => {
+      zone.life -= deltaSec;
+      zone.tick -= deltaSec;
+      if (zone.tick <= 0) {
+        zone.tick = 1;
+        for (const foe of this.invaders) {
+          if (foe.isDead || foe.isRetreating || !foe.container.active) continue;
+          if (Math.hypot(foe.container.x - zone.x, foe.container.y - zone.y) <= zone.radius) this.applyBurn(foe, zone.dps, 1.5);
+        }
+      }
+      return zone.life > 0;
+    });
+  }
 
   /** The High Priest mends nearby soldiers every few seconds. */
   private priestHeal(priest: ActiveInvader, deltaSec: number): void {
@@ -399,7 +590,7 @@ export class InvasionManager {
   /** Returns false when no portal is left to spawn from. */
   private spawnSingleInvader(
     waveNumber: number,
-    extra?: { type: InvaderType; portal?: PortalState; escortOf?: ActiveInvader; hacker?: boolean; launcher?: boolean }
+    extra?: { type: InvaderType; portal?: PortalState; escortOf?: ActiveInvader; hacker?: boolean; launcher?: boolean; grid?: GridPoint; airborne?: boolean }
   ): ActiveInvader | null {
     if (!useGameStore.getState().invasion.isActive) return null;
 
@@ -409,7 +600,7 @@ export class InvasionManager {
       : this.spawnPlan[this.enemiesSpawnedCount] ?? { type: pickWaveInvader(waveNumber, this.tactic.bias), rank: 'normal' as InvaderRank };
 
     let portal: PortalState | null = extra?.portal ?? null;
-    if (this.portals && !portal) {
+    if (this.portals && !portal && !extra?.grid) {
       portal = this.pickSquadPortal(planned);
       if (!portal) return null;
     }
@@ -425,9 +616,9 @@ export class InvasionManager {
       }
     }
     const mods = squad && !extra ? SQUADS[squad].mods : { hp: 1, speed: 1, damage: 1 };
-    const spawnGrid = portal
+    const spawnGrid = extra?.grid ?? (portal
       ? portal.site.exit
-      : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
+      : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)]);
 
     const type = planned.type;
     const rank = planned.rank;
@@ -520,6 +711,7 @@ export class InvasionManager {
 
     if (portal) this.beginEmerge(invader, portal);
     this.invaders.push(invader);
+    if (extra?.airborne) this.attachParachute(invader);
     soundFx.playCastleHit();
     if (this.tactic.effect === 'PHASE_VEIL') invader.invulnTimer = Math.max(invader.invulnTimer ?? 0, TACTIC_EFFECTS.PHASE_VEIL.veilSeconds);
     if (extra) {
@@ -1584,6 +1776,10 @@ export class InvasionManager {
 
       this.tickStatus(invader, deltaSec);
       if (invader.isDead) continue;
+      if ((invader.dropTimer ?? 0) > 0) {
+        invader.dropTimer = Math.max(0, invader.dropTimer! - deltaSec);
+        continue;
+      }
       if (invader.type === 'HIGH_PRIEST') this.priestHeal(invader, deltaSec);
       for (const key of ['frozenTimer', 'vulnTimer', 'invulnTimer', 'charmTimer', 'tauntTimer'] as const) {
         if ((invader[key] ?? 0) > 0) invader[key] = Math.max(0, (invader[key] ?? 0) - deltaSec);
@@ -1753,7 +1949,8 @@ export class InvasionManager {
     // Seismic Taunt halves damage; Target Lock adds 20%
     const weatherDmg = Math.round(baseDmg *
       ((closestDefender.armorBuffTimer ?? 0) > 0 ? 0.5 : 1) *
-      ((closestDefender.markedTimer ?? 0) > 0 ? 1.2 : 1));
+      ((closestDefender.markedTimer ?? 0) > 0 ? 1.2 : 1) *
+      (useGameStore.getState().defense.forceFieldTimer > 0 ? 0.4 : 1));
     const defenderX = closestDefender.container.x;
     const defenderY = closestDefender.container.y;
 
@@ -1929,6 +2126,9 @@ export class InvasionManager {
   }
 
   public wipeAllInvaders(): void {
+    for (const plane of this.activeAircraft) plane.destroy();
+    this.activeAircraft.clear();
+    this.aircraftRemaining = 0;
     for (const beam of this.beams) beam.gfx.destroy();
     this.beams = [];
     for (const invader of this.invaders) {
@@ -1944,6 +2144,8 @@ export class InvasionManager {
   }
 
   public destroy(): void {
+    for (const plane of this.activeAircraft) plane.destroy();
+    this.activeAircraft.clear();
     for (const invader of this.invaders) {
       invader.container.destroy();
     }

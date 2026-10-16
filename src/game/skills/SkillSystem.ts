@@ -815,8 +815,9 @@ export class SkillSystem {
     workers: WorkerInstance[]
   ): void {
     // Flat skill damage grows with the wave (waveBalance.json skills.powerPerWave)
-    const power = skillPower(useGameStore.getState().invasion.waveNumber);
-    const p = (n: number) => Math.round(n * power);
+    const surge = useGameStore.getState().defense.minionFrenzyTimer > 0;
+    const power = skillPower(useGameStore.getState().invasion.waveNumber) * (surge ? 3 : 1);
+    const p = (n: number) => Math.round(n * power * (surge && Math.random() < 0.2 ? 2 : 1));
 
     switch (id) {
       // ── Codex landmarks ──

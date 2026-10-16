@@ -756,6 +756,20 @@
       },
       "seconds": 20
     },
+    "POISON_SMOKE": {
+      "cost": {
+        "arcaneEssence": 8,
+        "water": 10,
+        "coins": 120
+      }
+    },
+    "BONE_CAGE": {
+      "cost": {
+        "soulFragments": 5,
+        "obsidianShard": 3,
+        "coins": 180
+      }
+    },
     "CHRONO_SURGE": {
       "cost": {
         "arcaneEssence": 10

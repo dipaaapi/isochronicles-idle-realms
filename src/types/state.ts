@@ -22,8 +22,8 @@ export interface Resources {
   coins: number;
 }
 
-export type BattleItemId = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'LASER_STORM' | 'CHRONO_SURGE';
-export type BattleEffect = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'LASER_STORM' | 'CHRONO_SURGE';
+export type BattleItemId = 'MINION_FRENZY' | 'FORCE_FIELD' | 'MASS_REGEN' | 'LASER_STORM' | 'POISON_SMOKE' | 'BONE_CAGE' | 'CHRONO_SURGE';
+export type BattleEffect = BattleItemId;
 
 export type ResourceBuildingId =
   | 'WOOD' | 'MINE' | 'QUARRY' | 'PORT' | 'CAVE'

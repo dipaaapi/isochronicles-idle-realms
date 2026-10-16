@@ -6,6 +6,7 @@ import { minionMoveMode } from './terrain';
 import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionManager';
 import type { StructureManager } from './StructureManager';
 import { useGameStore } from '../state/useGameStore';
+import { alliedDamageMultiplier } from '../state/waveBalance';
 import { BUILDING_SITES, CANALS, CASTLE_GATE, GRID_SIZE, PORTAL_SITES, ROAD_TILES, TileRect, expandRect, isLandTile, isWaterTile, rectCenter, waterRegionOf, type PortalSite } from '../state/buildingLayout';
 import type { ResourceBuildingId as BuildingId } from '../types/state';
 import type { ResourceBuildingId, TowerId, Resources } from '../types/state';
@@ -38,6 +39,7 @@ export interface Defender extends InvaderBlocker, NavAgent {
   state: DefenderState;
   unitClass: UnitClass;
   tag?: string;
+  tint?: number;
   life?: number;
   damage: number;
   container: Phaser.GameObjects.Container;
@@ -45,6 +47,8 @@ export interface Defender extends InvaderBlocker, NavAgent {
   /** Random offset so hovering / swimming units don't bob in unison. */
   phase: number;
   sprite?: Phaser.GameObjects.Sprite;
+  /** Temporary vector stand-in, cleared when the baked voxel sprite arrives. */
+  body?: Phaser.GameObjects.Graphics;
   hpBar: Phaser.GameObjects.Graphics;
   garrisonBadge?: Phaser.GameObjects.Graphics;
   maxHp: number;
@@ -386,6 +390,7 @@ export class DefenderSystem {
     // ── 2. Update Defenders & Tenants Behavior ──
     for (const d of [...this.defenders]) {
       if (d.dead || !d.container.active) continue;
+      this.syncUnitSprite(d);
 
       // Temporary Summons decay
       if (d.life !== undefined) {
@@ -460,7 +465,7 @@ export class DefenderSystem {
             if (d.cooldown <= 0) {
               d.cooldown = 0.9;
               if (d.sprite) playCharacterAttack(d.sprite);
-              const totalDmg = Math.round(d.damage * researchAtkBonus * slimeAtkMult);
+              const totalDmg = this.outgoingDamage(d, researchAtkBonus * slimeAtkMult);
               this.invasion.damageInvader(d.target, totalDmg, '⚔️');
             }
           } else {
@@ -498,7 +503,7 @@ export class DefenderSystem {
             if (d.cooldown <= 0) {
               d.cooldown = 1.0;
               if (d.sprite) playCharacterAttack(d.sprite);
-              this.invasion.damageInvader(d.target, Math.round(d.damage * researchAtkBonus * slimeAtkMult));
+              this.invasion.damageInvader(d.target, this.outgoingDamage(d, researchAtkBonus * slimeAtkMult));
             }
           } else {
             this.step(d, tx, ty, dt, DEFENDER_SPEED * 1.15 * slimeSpdMult);
@@ -720,7 +725,7 @@ export class DefenderSystem {
       if (d.cooldown <= 0) {
         d.cooldown = 1;
         if (d.sprite) playCharacterAttack(d.sprite);
-        this.invasion.damageInvader(d.target, d.damage);
+        this.invasion.damageInvader(d.target, this.outgoingDamage(d));
       }
     } else if (dist > 3) {
       this.step(d, tx, ty, dt, DEFENDER_SPEED);
@@ -939,6 +944,21 @@ export class DefenderSystem {
     return { en: `${cfg?.nameEn ?? d.unitClass} tenant`, tl: `tenant na ${cfg?.name ?? d.unitClass}` };
   }
 
+  /** Replace the startup placeholder when this unit's voxel sheet finishes baking. */
+  private syncUnitSprite(d: Defender): void {
+    if (d.sprite) return;
+    const sprite = createMinionSprite(this.scene, d.unitClass);
+    if (!sprite) return;
+
+    sprite.setScale(sprite.scaleX * 0.8);
+    if (d.tint !== undefined) sprite.setTint(d.tint);
+    const bodyIndex = d.body ? d.container.getIndex(d.body) : d.container.getIndex(d.hpBar);
+    d.container.addAt(sprite, Math.max(1, bodyIndex));
+    d.sprite = sprite;
+    d.body?.destroy();
+    d.body = undefined;
+  }
+
   private createUnit(
     home: TowerId | 'SUMMON',
     unitClass: UnitClass,
@@ -953,13 +973,14 @@ export class DefenderSystem {
     const hpBar = this.scene.add.graphics();
     const garrisonBadge = this.scene.add.graphics();
     const sprite = createMinionSprite(this.scene, unitClass) ?? undefined;
+    let body: Phaser.GameObjects.Graphics | undefined;
 
     if (sprite) {
       sprite.setScale(sprite.scaleX * 0.8);
       if (summon?.tint !== undefined) sprite.setTint(summon.tint);
       container.add([shadow, sprite, hpBar, garrisonBadge]);
     } else {
-      const body = this.scene.add.graphics();
+      body = this.scene.add.graphics();
       body.fillStyle(0x64748b, 1);
       body.fillEllipse(0, -8, 10, 14);
       body.fillStyle(0x38bdf8, 1);
@@ -977,12 +998,14 @@ export class DefenderSystem {
       state: 'HARVESTING',
       container,
       sprite,
+      body,
       shadow,
       phase: Math.random() * 100,
       hpBar,
       garrisonBadge,
       damage,
       tag: summon?.tag,
+      tint: summon?.tint,
       life: summon?.life,
       hp,
       maxHp: hp,
@@ -1011,6 +1034,7 @@ export class DefenderSystem {
 
   private hit(d: Defender, damage: number): void {
     if (d.dead) return;
+    if (useGameStore.getState().defense.forceFieldTimer > 0) damage = Math.max(1, Math.round(damage * 0.4));
     d.hp -= damage;
     this.drawHp(d);
     if (d.sprite) {
@@ -1019,6 +1043,13 @@ export class DefenderSystem {
       this.scene.time.delayedCall(60, () => sprite.active && sprite.clearTint());
     }
     if (d.hp <= 0) this.kill(d);
+  }
+
+  private outgoingDamage(d: Defender, multiplier = 1): number {
+    const store = useGameStore.getState();
+    const boosted = store.defense.minionFrenzyTimer > 0;
+    const crit = boosted && Math.random() < 0.2 ? 2 : 1;
+    return Math.round(d.damage * multiplier * alliedDamageMultiplier(store.invasion.waveNumber) * (boosted ? 3 : 1) * crit);
   }
 
   private kill(d: Defender): void {

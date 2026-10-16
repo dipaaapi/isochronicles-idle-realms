@@ -3,7 +3,9 @@
   "stats": {
     "hpFlatPerWave": 16,
     "hpGrowthPerWave": 0.045,
-    "damageGrowthPerWave": 0.032,
+    "damageGrowthPerWave": 0.04,
+    "countGrowthAtWave100": 0.45,
+    "alliedDamageGrowthAtWave100": 1,
     "bountyGrowthPerWave": 0.04,
     "realmMultiplier": [
       1,
@@ -11,6 +13,21 @@
       1.1,
       1.15
     ]
+  },
+  "airlift": {
+    "fromWave": 8,
+    "baseAircraftPerWave": 0.35,
+    "aircraftGrowthAtWave100": 2.4,
+    "maxAircraftPerWave": 3,
+    "baseDropsPerAircraft": 2,
+    "dropsEveryWaves": 20,
+    "maxDropsPerAircraft": 7,
+    "firstDelayMinMs": 4500,
+    "firstDelayMaxMs": 11000,
+    "nextDelayMinMs": 9000,
+    "nextDelayMaxMs": 16000,
+    "flightMs": 6500,
+    "descentMs": 2100
   },
   "day": {
     "_doc": "Pressure from the days the realm has lasted (day 1 to 365, capped). Winter hardens invaders a little more.",

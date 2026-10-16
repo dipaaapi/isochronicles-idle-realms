@@ -117,8 +117,10 @@ export function eliteChance(wave: number, difficulty: Difficulty): number {
 }
 
 /** Invaders in a wave after difficulty and tactic (base count from economy.json). */
-export const scaledEnemyCount = (baseCount: number, difficulty: Difficulty, tacticCount = 1): number =>
-  Math.max(1, Math.round(baseCount * WAVE_BALANCE.difficulty[difficulty].count * tacticCount));
+export const scaledEnemyCount = (baseCount: number, difficulty: Difficulty, tacticCount = 1, wave = 1): number => {
+  const progress = (clampWave(wave) - 1) / (config.stats.realmMultiplier.length * 25 - 1);
+  return Math.max(1, Math.round(baseCount * WAVE_BALANCE.difficulty[difficulty].count * tacticCount * (1 + config.stats.countGrowthAtWave100 * progress)));
+};
 
 /** Gap before the next spawn group, in ms. */
 export function spawnIntervalMs(wave: number, difficulty: Difficulty, tacticInterval = 1, rand: () => number = Math.random): number {
@@ -133,5 +135,24 @@ export const portalHpMultiplier = (wave: number, difficulty: Difficulty, tacticP
 
 export const victoryBounty = (wave: number): number => config.victory.coins + wave * config.victory.coinsPerWave;
 
+/** Allied basic attacks also grow through the realm, reaching the configured gain by wave 100. */
+export const alliedDamageMultiplier = (wave: number): number =>
+  1 + config.stats.alliedDamageGrowthAtWave100 * (clampWave(wave) - 1) / (config.stats.realmMultiplier.length * 25 - 1);
+
 /** Flat structure-skill damage multiplier for the current wave. */
 export const skillPower = (wave: number): number => 1 + (clampWave(wave) - 1) * config.skills.powerPerWave;
+
+/** Expected number of transport aircraft this wave; fractional values are rounded randomly. */
+export function aircraftCount(wave: number, rand: () => number = Math.random): number {
+  const airlift = config.airlift;
+  if (wave < airlift.fromWave) return 0;
+  const progress = (clampWave(wave) - airlift.fromWave) / Math.max(1, 100 - airlift.fromWave);
+  const expected = airlift.baseAircraftPerWave + airlift.aircraftGrowthAtWave100 * progress;
+  return Math.min(airlift.maxAircraftPerWave, Math.floor(expected) + (rand() < expected % 1 ? 1 : 0));
+}
+
+/** Number of parachutists per plane grows by one at the configured wave intervals. */
+export function aircraftDropCount(wave: number): number {
+  const airlift = config.airlift;
+  return Math.min(airlift.maxDropsPerAircraft, airlift.baseDropsPerAircraft + Math.floor(Math.max(0, wave - airlift.fromWave) / airlift.dropsEveryWaves));
+}

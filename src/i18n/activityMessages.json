@@ -35,6 +35,7 @@
     "regression": { "category": "world", "tone": "epic", "icon": "♻️", "en": "Regression performed — Tier {tier}", "tl": "Isinagawa ang Regression — Antas {tier}" },
 
     "waveAttack": { "category": "combat", "tone": "bad", "icon": "⚔️", "en": "Wave {wave} is attacking!", "tl": "Umaatake ang Alon {wave}!" },
+    "aircraftDrop": { "category": "combat", "tone": "bad", "icon": "🪂", "en": "A transport aircraft drops {count} {force} reinforcements into wave {wave}", "tl": "Nagbagsak ang eroplanong pangkawal ng {count} dagdag na {force} sa wave {wave}" },
     "waveRepelled": { "category": "combat", "tone": "epic", "icon": "🏆", "en": "Wave {wave} repelled!", "tl": "Natalo ang Alon {wave}!" },
     "citadelBreached": { "category": "combat", "tone": "bad", "icon": "💥", "en": "The citadel was breached — invaders looted the stores", "tl": "Nasira ang kuta — ninakawan ng mga kalaban" },
     "invaderSlain": { "category": "combat", "tone": "good", "icon": "☠️", "en": "{name} slain", "tl": "Napatay ang {name}" },
