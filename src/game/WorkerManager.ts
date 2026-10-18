@@ -10,7 +10,7 @@ import { ConstructionStatus, CONSTRUCTION_SECONDS, nextConstruction, nextChampio
 import { soundFx } from './audio/soundFx';
 import { logFloatingText, logMessage, nearestName } from '../state/activityLog';
 import type { InvasionManager } from './InvasionManager';
-import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterWork } from './sprites/CharacterSprites';
+import { createMinionSprite, faceCharacterSprite, minionSpriteHeadroom, playCharacterAttack, playCharacterDeath, playCharacterHit, playCharacterWork, type Gait } from './sprites/CharacterSprites';
 import { Navigation, TILES_FOR } from './Navigation';
 import { minionMoveMode } from './terrain';
 import type { PortalManager } from './PortalManager';
@@ -485,8 +485,13 @@ export class WorkerManager implements WorkerContext {
     const dy = worker.container.y - (worker._prevY ?? worker.container.y);
     worker._prevX = worker.container.x;
     worker._prevY = worker.container.y;
-    const moving = Math.hypot(dx, dy) > 0.02;
-    faceCharacterSprite(sprite, dx, dy, moving);
+    const step = Math.hypot(dx, dy);
+    const moving = step > 0.02;
+    faceCharacterSprite(sprite, dx, dy, moving, this.gaitOf(worker, step, delta));
+
+    // Flinch whenever HP drops (healing and regen don't count)
+    if (worker._lastHp !== undefined && worker.hp < worker._lastHp - 0.5 && worker.hp > 0) playCharacterHit(sprite);
+    worker._lastHp = worker.hp;
 
     // Dynamic Organic Character Motion & Physics
     // Tenants are a smaller copy of their General so the General stays the one standout
@@ -546,6 +551,18 @@ export class WorkerManager implements WorkerContext {
     }
   }
 
+  /**
+   * Gait loop for a moving minion: worn out (stamina under the fatigue line)
+   * drags into the tired shuffle; charging into combat, fleeing a fire or
+   * moving well above a normal walk breaks into a run.
+   */
+  private gaitOf(worker: WorkerInstance, step: number, delta: number): Gait {
+    if (worker.stamina < worker.maxStamina * MOVEMENT.fatigueLine) return 'tired';
+    const pxPerSec = delta > 0 ? (step / delta) * 1000 : 0;
+    if (worker.status === 'COMBAT' || pxPerSec > worker.speed * MOVEMENT.speedScale * MOVEMENT.runAbove) return 'run';
+    return 'walk';
+  }
+
   /** Turns a minion toward a target and plays its attack / cast. */
   public playMinionAttack(worker: WorkerInstance, targetX: number, targetY: number): void {
     if (!worker.sprite) return;
@@ -587,6 +604,11 @@ export class WorkerManager implements WorkerContext {
     const store = useGameStore.getState();
     const treantLevel = this.workers.find((w) => w.unitClass === 'TREANT')?.treantEvolutionLevel ?? 1;
 
+    // One filtered list per frame, shared by every minion (was rebuilt per minion)
+    const aliveInvaders = this.invasionManager
+      ? this.invasionManager.getInvaders().filter((i) => !i.isDead && !i.isRetreating)
+      : [];
+
     for (const worker of [...this.workers]) {
       if (worker.hp <= 0) {
         // A Support Slime may revive the fallen; otherwise it is permadeath
@@ -595,9 +617,6 @@ export class WorkerManager implements WorkerContext {
       }
 
       worker.timeSinceLastTap += delta;
-      const aliveInvaders = this.invasionManager
-        ? this.invasionManager.getInvaders().filter((i) => !i.isDead && !i.isRetreating)
-        : [];
       const frame = computeWorkerFrame(worker, store, treantLevel, delta, aliveInvaders);
       this.updateOverhead(worker, frame.config, time, delta, ambientDarkness);
 
@@ -749,7 +768,20 @@ export class WorkerManager implements WorkerContext {
    */
   private killWorker(worker: WorkerInstance): void {
     this.spawnFloatingPopup(worker.container.x, worker.container.y - 30, '💀 KIA', '#ef4444');
-    worker.container.destroy();
+    // The body stays for its collapse, then fades; the roster and AI let go of it right away
+    const body = worker.container;
+    if (worker.sprite) {
+      worker.gaugeGfx?.clear();
+      body.each((child: Phaser.GameObjects.GameObject) => {
+        if (child !== worker.sprite && child !== worker.shadow) (child as unknown as Phaser.GameObjects.Components.Visible).setVisible?.(false);
+      });
+      playCharacterDeath(worker.sprite, () => {
+        if (!body.active) return;
+        this.scene.tweens.add({ targets: body, alpha: 0, delay: 600, duration: 700, onComplete: () => body.destroy() });
+      });
+    } else {
+      body.destroy();
+    }
     this.workers = this.workers.filter((w) => w.id !== worker.id);
     const store = useGameStore.getState();
     const unit = store.roster.find((u) => u.id === worker.id);

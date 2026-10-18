@@ -2,6 +2,7 @@ import type { UnitClass } from '../../types/game';
 import type { Part, Pose, Shape, Vec3, VoxelModel } from './VoxelSprite';
 import { breathe, flightCycle } from './enemyModels';
 import { recolorModel } from './VoxelSprite';
+import { withStateAnimations } from './stateAnimations';
 
 /**
  * Voxel models for the Demon Lord's minions, following the bestiary artwork in
@@ -1165,24 +1166,27 @@ export type MinionSpriteKey =
   | 'lavaGargoyle' | 'succubus' | 'demonHound' | 'harpy' | 'kraken'
   | 'dryad' | 'minotaur' | 'emberImp' | 'voidWraith' | 'boneKnight' | 'prismWarden';
 
+/** The Generals (and the Treant) get run / tired / skill / hit / death sheets; the Slime and saplings keep the core three. */
+const G = withStateAnimations;
+
 export const MINION_MODELS: Record<MinionSpriteKey, () => VoxelModel> = {
-  golem,
+  golem: G(golem),
   slime,
-  treant,
-  merman,
-  necromancer,
+  treant: G(treant),
+  merman: G(merman),
+  necromancer: G(necromancer),
   sapling,
-  lavaGargoyle,
-  succubus,
-  demonHound,
-  harpy,
-  kraken,
-  dryad,
-  minotaur,
-  emberImp,
-  voidWraith,
-  boneKnight,
-  prismWarden,
+  lavaGargoyle: G(lavaGargoyle),
+  succubus: G(succubus),
+  demonHound: G(demonHound),
+  harpy: G(harpy),
+  kraken: G(kraken),
+  dryad: G(dryad),
+  minotaur: G(minotaur),
+  emberImp: G(emberImp),
+  voidWraith: G(voidWraith),
+  boneKnight: G(boneKnight),
+  prismWarden: G(prismWarden),
 };
 
 export const UNIT_SPRITE: Record<UnitClass, MinionSpriteKey> = {

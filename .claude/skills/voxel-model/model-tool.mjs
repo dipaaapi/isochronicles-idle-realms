@@ -8,10 +8,11 @@
  *   node .claude/skills/voxel-model/model-tool.mjs render <key> [options]
  *
  * render options:
- *   --anim walk|attack|idle|<structure anim>|all   (default: idle)
+ *   --anim walk|attack|idle|run|tired|skill|hit|death|<structure anim>|all   (default: idle)
  *   --frames 0,2          frame indices inside the animation (default: all)
  *   --dirs 0,2,4,6        directions for characters (default: 0,2,4,6; structures ignore it)
  *   --scale 3             nearest-neighbour upscale (default 3)
+ *   --blockout            flat colour per body part, no detail (check the motion first, then the detail)
  *   --ref                 put the reference art next to the render (needs python3 + Pillow)
  *   --out <file.png>      output path (default: <scratch>/<key>-<anim>.png)
  *
@@ -149,10 +150,20 @@ function parseList(v, fallback) {
   return String(v).split(',').map((n) => parseInt(n, 10)).filter((n) => Number.isFinite(n));
 }
 
+// Blockout: every part in one flat, unlit colour so the motion reads without detail
+const BLOCKOUT = [0xff4fa3, 0x4f7cff, 0x9dff4f, 0xffc94f, 0x4fffe1, 0xb44fff, 0xff7a4f, 0x4fff8a, 0xffffff, 0x8a5a3c, 0xff4f4f, 0x4fb4ff];
+function blockout(model) {
+  return {
+    ...model,
+    materials: model.parts.map((_, i) => ({ color: BLOCKOUT[i % BLOCKOUT.length] })),
+    parts: model.parts.map((p, i) => ({ ...p, shapes: p.shapes.map((s) => ({ ...s, mat: i })) })),
+  };
+}
+
 async function render(key, opts) {
   const mods = await loadModules();
   const { kind, make } = findModel(mods, key);
-  const model = make();
+  const model = opts.blockout ? blockout(make()) : make();
   const scale = Math.max(1, parseInt(opts.scale ?? '3', 10));
   const pad = 4;
   let cells = []; // { col, row } in source frames
@@ -168,11 +179,11 @@ async function render(key, opts) {
     }
   } else {
     sheet = mods.VS.renderSheet(model);
-    const names = opts.anim === 'all' ? mods.VS.ANIMATION_ORDER : [opts.anim ?? 'idle'];
+    const names = opts.anim === 'all' ? mods.VS.ANIMATION_ORDER.filter((n) => sheet.layout.animations[n]) : [opts.anim ?? 'idle'];
     const dirs = parseList(opts.dirs, [0, 2, 4, 6]);
     for (const d of dirs) for (const name of names) {
       const a = sheet.layout.animations[name];
-      if (!a) fail(`Unknown animation "${name}" (walk, attack, idle, all)`);
+      if (!a) fail(`No "${name}" animation — this model has: ${Object.keys(sheet.layout.animations).join(', ')}`);
       for (const f of parseList(opts.frames, [...Array(a.count).keys()])) if (f < a.count) cells.push({ col: a.start + f, row: d, dir: d });
     }
   }
@@ -251,7 +262,7 @@ for (let i = 0; i < rest.length; i++) {
   const a = rest[i];
   if (!a.startsWith('--')) continue;
   const name = a.slice(2);
-  if (name === 'ref') opts.ref = true;
+  if (name === 'ref' || name === 'blockout') opts[name] = true;
   else opts[name] = rest[++i];
 }
 

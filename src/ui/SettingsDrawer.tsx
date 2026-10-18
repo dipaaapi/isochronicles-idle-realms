@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { useDevMode } from '../state/devMode';
+import { DEV_TOOLS, useDevMode } from '../state/devMode';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
@@ -734,7 +734,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           {currentTab === 'CREDITS' && (
             <div className="space-y-4">
               {/* Developer mode: only exists in a dev build (npm run dev), never in production */}
-              {import.meta.env.DEV && (
+              {DEV_TOOLS && (
                 <button
                   type="button"
                   onClick={() => {

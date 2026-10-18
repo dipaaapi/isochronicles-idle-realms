@@ -44,6 +44,8 @@ export interface WorkerInstance extends NavAgent {
   _prevX?: number;
   _prevY?: number;
   _workTimer?: number;
+  /** HP seen last frame — a drop plays the flinch animation. */
+  _lastHp?: number;
   cargoIcon: Phaser.GameObjects.Graphics;
   gaugeGfx: Phaser.GameObjects.Graphics; // Dual HP + Stamina floating gauge
   emoteBubble: Phaser.GameObjects.Container;

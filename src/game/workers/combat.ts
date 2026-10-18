@@ -1,4 +1,5 @@
 import { soundFx } from '../audio/soundFx';
+import { playCharacterSkill } from '../sprites/CharacterSprites';
 import { auras } from '../skills/combatMods';
 import { CASTLE_GATE } from '../../state/buildingLayout';
 import { IsometricHelper } from '../IsometricHelper';
@@ -178,6 +179,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     ctx.spawnHarvestBurst(wx, wy - 15, config.lanternColor, 20);
     ctx.spawnFloatingPopup(wx, wy - 52, `💥 ${skillName(ult)}!`, '#f43f5e');
     soundFx.playFanfare();
+    if (worker.sprite) playCharacterSkill(worker.sprite);
 
     // Slay / damage all invaders in wide AOE area
     const crit = useGameStore.getState().defense.minionFrenzyTimer > 0 && Math.random() < 0.2 ? 2 : 1;
@@ -201,6 +203,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     ctx.spawnHarvestBurst(wx, wy - 10, config.lanternColor, 10);
     ctx.spawnFloatingPopup(wx, wy - 42, `✨ ${skillName(sk1)}!`, '#38bdf8');
     soundFx.playGolemCheer();
+    if (worker.sprite) playCharacterSkill(worker.sprite);
     return;
   }
 
@@ -213,6 +216,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     ctx.spawnHarvestBurst(wx, wy - 10, 0x22c55e, 10);
     ctx.spawnFloatingPopup(wx, wy - 42, `🛡️ ${skillName(sk2)}!`, '#22c55e');
     soundFx.playClick();
+    if (worker.sprite) playCharacterSkill(worker.sprite);
   }
 }
 

@@ -4,3 +4,6 @@ dist
 .DS_Store
 *.local
 .vite
+dist-steam
+release
+steam/output

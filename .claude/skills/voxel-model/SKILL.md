@@ -34,7 +34,7 @@ Keys are the names in `MINION_MODELS` / `ENEMY_MODELS` / `STRUCTURE_MODELS` (`ha
 - Model space: +x = the character's right, +y = forward (facing), +z = up. Units are voxels. `size` is the grid `[W, D, H]`; anything outside is clipped. `foot` is the ground contact point.
 - Shapes: `box(min → max, exclusive max)`, `ellipsoid(center, radii)`, `cylinder(center = base centre, radius, height)`. Each has a `mat` index into `materials`. **Later shapes overwrite earlier ones**, so put details (eyes, trims) last.
 - Parts have a `pivot` (joint) and an optional `parent`; a pose rotates a part and its children about the pivot. Pose fields are `pitch` (about +x; positive swings a hanging limb forward), `roll` (about +y), `yaw` (about +z), `offset`, `scale`, `hidden`. Angles are radians.
-- Characters need `walk`, `attack` and `idle` pose arrays. Structures have named animations plus `rates` (fps) and `loops`.
+- Characters need `walk`, `attack` and `idle` pose arrays. Generals also get `run`, `tired`, `skill`, `hit`, `death`, generated from the rig by `stateAnimations.ts` (a hand-authored array on the model overrides the generated one). Animate blockout-first: `render <key> --anim death --blockout` shows each part in one flat colour so you judge the motion before the detail. Structures have named animations plus `rates` (fps) and `loops`.
 - `emissive: true` materials skip lighting (eyes, cores, flames). Colours are `0xRRGGBB`.
 - `pixelsPerVoxel` scales the sprite; `recolorModel` makes tinted variants without a new model.
 - Structures render from one fixed camera (`STRUCTURE_DIRECTION`): model +y runs along grid +x and model +x along grid +y. Tile size is `VOXELS_PER_TILE` (~25.5 voxels).

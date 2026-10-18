@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DevPanel } from './ui/DevPanel';
+import { DEV_TOOLS } from './state/devMode';
 import { useGameStore } from './state/useGameStore';
 import { TitleScreen } from './ui/TitleScreen';
 import { IntroNarrativeModal } from './ui/IntroNarrativeModal';
@@ -111,7 +112,7 @@ export const App: React.FC = () => {
             <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
             <LiveStreamOverlay />
             <ActivityLogTray />
-            {import.meta.env.DEV && <DevPanel />}
+            {DEV_TOOLS && <DevPanel />}
             <MusicPlayer placement="FLOAT" />
             {/* The one real player: laid over the FLOAT or SIDEBAR slot, never remounted when it moves */}
             <MusicPlayerHost />

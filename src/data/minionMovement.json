@@ -4,6 +4,9 @@
   "bonusCap": 1.5,
   "bonusFloor": 0.5,
   "walkFps": 6,
+  "_gaitComment": "Generals switch to the tired shuffle under fatigueLine × max stamina, and run in combat or when moving faster than runAbove × their base walking speed (buffs, Cheered On).",
+  "fatigueLine": 0.3,
+  "runAbove": 1.2,
   "gait": {
     "slimeHop": 2.2,
     "slimeStretch": 0.06,

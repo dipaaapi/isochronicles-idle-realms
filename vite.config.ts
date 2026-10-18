@@ -2,11 +2,23 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+/**
+ * Modes:
+ *  - `vite` / `vite build`        web build (PWA + service worker)
+ *  - `vite build --mode steam`    desktop build loaded by Electron (electron/main.cjs): no service
+ *                                 worker, saves go through the desktop bridge
+ * Dev tools (Developer Mode, DevPanel) exist only in the dev server: `__DEV_TOOLS__` is a
+ * compile-time constant, so release builds drop that code entirely.
+ */
+export default defineConfig(({ command, mode }) => ({
   base: './',
+  define: {
+    __DEV_TOOLS__: JSON.stringify(command === 'serve'),
+    __STEAM__: JSON.stringify(mode === 'steam'),
+  },
   plugins: [
     react(),
-    VitePWA({
+    mode !== 'steam' && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['robots.txt'],
       manifest: {
@@ -37,6 +49,7 @@ export default defineConfig({
     })
   ],
   build: {
+    outDir: mode === 'steam' ? 'dist-steam' : 'dist',
     // Phaser alone is ~1.5 MB minified; keep vendors in their own long-cached chunks
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
@@ -55,4 +68,4 @@ export default defineConfig({
       usePolling: true
     }
   }
-});
+}));

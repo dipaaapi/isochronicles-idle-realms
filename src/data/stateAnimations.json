@@ -1,0 +1,17 @@
+{
+  "_comment": "Key poses for the Generals' state animations (src/game/sprites/stateAnimations.ts). Angles are radians; pitch < 0 leans the body forward. Offsets/sink are voxels. death.keys is one entry per frame (the last one is held).",
+  "run": { "swing": 1.6, "lean": 0.28, "hop": 1.5 },
+  "tired": { "swing": 0.45, "hunch": 0.32, "sag": 1, "droop": 0.35 },
+  "skill": { "windup": 0.12, "raise": 2.5 },
+  "hit": { "recoil": 0.35, "knockback": 1.5 },
+  "death": {
+    "keys": [
+      { "pitch": 0.35, "roll": 0, "head": 0.3, "legs": 1, "arms": -0.6, "sink": 0 },
+      { "pitch": 0.2, "roll": 0.12, "head": 0, "legs": 0.85, "arms": -0.3, "sink": 1.5 },
+      { "pitch": -0.35, "roll": 0.22, "head": -0.3, "legs": 0.6, "arms": 0.2, "sink": 4 },
+      { "pitch": -0.75, "roll": 0.3, "head": -0.5, "legs": 0.4, "arms": 0.5, "sink": 7 },
+      { "pitch": -1.05, "roll": 0.32, "head": -0.6, "legs": 0.3, "arms": 0.7, "sink": 9 },
+      { "pitch": -1.1, "roll": 0.32, "head": -0.6, "legs": 0.3, "arms": 0.7, "sink": 9.5 }
+    ]
+  }
+}

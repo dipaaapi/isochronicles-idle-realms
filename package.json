@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node scripts/test-construction.cjs && node scripts/test-invasions.cjs && node scripts/test-music-links.cjs"
+    "test": "node scripts/test-construction.cjs && node scripts/test-invasions.cjs && node scripts/test-music-links.cjs",
+    "build:steam": "tsc && vite build --mode steam",
+    "desktop": "npm run build:steam && electron .",
+    "desktop:dev-tools": "npm run build:steam && electron . --dev-tools",
+    "dist:steam": "npm run build:steam && electron-builder --win --linux --dir",
+    "steam:art": "python scripts/steam-art.py"
   },
   "dependencies": {
     "easystarjs": "^0.4.4",
@@ -16,6 +21,7 @@
     "phaser": "^3.88.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "steamworks.js": "^0.4.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
@@ -24,10 +30,48 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "daisyui": "^4.12.23",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^5.4.14",
     "vite-plugin-pwa": "^0.21.1"
+  },
+  "allowScripts": {
+    "electron@33.2.1": true
+  },
+  "main": "electron/main.cjs",
+  "description": "IsoChronicle: Idle Realms - offline isometric idle strategy game",
+  "author": "SimplyEd",
+  "build": {
+    "appId": "com.simplyed.isochronicle",
+    "productName": "IsoChronicle Idle Realms",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "dist-steam/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "steam/steam_appid.txt",
+        "to": "steam_appid.txt"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/steamworks.js/**"
+    ],
+    "win": {
+      "target": "dir",
+      "icon": "steam/store-assets/app-icon-256.png"
+    },
+    "linux": {
+      "target": "dir",
+      "icon": "steam/store-assets/app-icon-256.png",
+      "category": "Game"
+    }
   }
 }

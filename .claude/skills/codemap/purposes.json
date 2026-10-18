@@ -166,5 +166,7 @@
   "src/ui/DevPanel.tsx": "Dev-build-only developer panel: resources, waves, realms, time/weather, unlocks, god mode, one-hit kill, live stats",
   "src/state/devMode.ts": "Developer mode flags (enabled, godMode, oneHitKill); switched from Settings → Credits in dev builds only",
   "src/game/devBridge.ts": "Dev-mode handle on the live scene (InvasionManager) for the dev panel",
-  "src/game/promotions.ts": "General classes mid-promotion (tenant star badge → grow), so the Treant does not summon a duplicate"
+  "src/game/promotions.ts": "General classes mid-promotion (tenant star badge → grow), so the Treant does not summon a duplicate",
+  "src/game/sprites/stateAnimations.ts": "Builds run / tired / skill / hit / death key poses for the Generals from each model rig (blockout-style), tuned by src/data/stateAnimations.json",
+  "src/data/stateAnimations.json": "Angles / offsets for the Generals state animations (run, tired, skill, hit, death key frames)"
 }

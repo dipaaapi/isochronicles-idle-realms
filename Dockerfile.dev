@@ -4,6 +4,8 @@ WORKDIR /app
 
 # Install dependencies first for optimal layer caching
 COPY package*.json ./
+# The dev server doesn't need the Electron runtime (Steam build only)
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 RUN npm install
 
 # Copy all source files

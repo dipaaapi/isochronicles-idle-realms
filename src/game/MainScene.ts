@@ -169,6 +169,9 @@ export class MainScene extends Phaser.Scene {
   // Throttle roster sync (avoid JSON.stringify every frame)
   private _rosterSyncTimer: number = 0;
   private static readonly ROSTER_SYNC_INTERVAL_MS = 250;
+  // Depth sorting the whole entity layer is O(n log n) per call; ~30 Hz is indistinguishable at 60–90 FPS
+  private _sortTimer: number = 0;
+  private static readonly SORT_INTERVAL_MS = 33;
 
   // Cached targetFps from store (avoid per-frame getState())
   private _cachedTargetFps: number = 60;
@@ -1259,7 +1262,11 @@ export class MainScene extends Phaser.Scene {
     this.defenders.update(effectiveDelta);
     this.skills.update(effectiveDelta);
     this.groundLoot?.update(effectiveDelta / 1000);
-    this.sortEntities();
+    this._sortTimer += delta;
+    if (this._sortTimer >= MainScene.SORT_INTERVAL_MS) {
+      this._sortTimer = 0;
+      this.sortEntities();
+    }
 
     this.updateWeatherParticles(effectiveDelta, store.targetFps, weather);
 

@@ -46,7 +46,10 @@ export interface PartPose {
 
 export type Pose = Record<string, PartPose>;
 
-export type AnimationName = 'walk' | 'attack' | 'idle';
+export type CoreAnimation = 'walk' | 'attack' | 'idle';
+/** Optional state animations (Generals): run, fatigued walk, skill cast, flinch and death. */
+export type StateAnimation = 'run' | 'tired' | 'skill' | 'hit' | 'death';
+export type AnimationName = CoreAnimation | StateAnimation;
 
 export interface VoxelModel {
   /** Grid size in voxels [x, y, z]. */
@@ -55,7 +58,7 @@ export interface VoxelModel {
   foot: Vec3;
   materials: Material[];
   parts: Part[];
-  animations: Record<AnimationName, Pose[]>;
+  animations: Record<CoreAnimation, Pose[]> & Partial<Record<StateAnimation, Pose[]>>;
   /** Sprite pixels per voxel (default 1). */
   pixelsPerVoxel?: number;
 }
@@ -64,7 +67,7 @@ export interface VoxelModel {
 export type VoxelGeometry = Omit<VoxelModel, 'animations'>;
 
 export const DIRECTION_COUNT = 8;
-export const ANIMATION_ORDER: AnimationName[] = ['walk', 'attack', 'idle'];
+export const ANIMATION_ORDER: AnimationName[] = ['walk', 'attack', 'idle', 'run', 'tired', 'skill', 'hit', 'death'];
 
 const ELEVATION = Math.PI / 6; // 30° → ground squares project exactly 2:1
 
@@ -270,7 +273,8 @@ export interface FrameLayout {
 
 export interface SheetLayout extends FrameLayout {
   columns: number; // total frames per direction
-  animations: Record<AnimationName, { start: number; count: number }>;
+  /** Only the animations the model has (state animations are optional). */
+  animations: Partial<Record<AnimationName, { start: number; count: number }>>;
 }
 
 /** Frame size / foot anchor that fits the model's bounding box as seen from `directions`. */
@@ -303,8 +307,10 @@ export function sheetLayout(model: VoxelModel): SheetLayout {
   const animations = {} as SheetLayout['animations'];
   let start = 0;
   for (const name of ANIMATION_ORDER) {
-    animations[name] = { start, count: model.animations[name].length };
-    start += model.animations[name].length;
+    const poses = model.animations[name];
+    if (!poses) continue;
+    animations[name] = { start, count: poses.length };
+    start += poses.length;
   }
   return {
     ...frameBounds(model, Array.from({ length: DIRECTION_COUNT }, (_, d) => d)),
@@ -463,8 +469,10 @@ export function renderSheet(model: VoxelModel): { layout: SheetLayout; width: nu
   const out = { data, width };
 
   for (const name of ANIMATION_ORDER) {
-    const { start } = layout.animations[name];
-    model.animations[name].forEach((pose, f) => {
+    const slot = layout.animations[name];
+    if (!slot) continue;
+    const { start } = slot;
+    model.animations[name]!.forEach((pose, f) => {
       const grid = voxelize(model, pose);
       for (let d = 0; d < DIRECTION_COUNT; d++) {
         renderView(model, grid, d, layout, out, (start + f) * layout.frameWidth, d * layout.frameHeight);
