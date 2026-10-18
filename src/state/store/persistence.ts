@@ -2,6 +2,8 @@ import { createJSONStorage, type PersistOptions } from 'zustand/middleware';
 import { normalizeDifficulty } from '../difficulty';
 import { beaconLevelOf } from '../defenseStats';
 import { normalizeSkillProgress } from '../skillTree';
+import { brawlLevelOf } from '../brawl';
+import { normalizeRunes } from '../runes';
 import { RESOURCE_KEYS } from '../resources';
 import { localForageStorage } from '../storageAdapter';
 import { clampMusicIndex, hasStoredMusicPrefs, normalizeMusicLibrary } from '../externalMusic';
@@ -39,7 +41,34 @@ const migrateRoster = (roster: UnitRosterItem[]): UnitRosterItem[] =>
     .map((unit) => ({ ...unit, unitClass: migrateBeast(unit.unitClass) as UnitClass }))
     .filter((unit) => unit.unitClass in UNIT_CLASSES)
     // Tenants now live only in the world (DefenderSystem spawns five per establishment), never in the roster
-    .filter((unit) => !unit.parentBuildingId && !unit.id.startsWith('tenant_'));
+    .filter((unit) => !unit.parentBuildingId && !unit.id.startsWith('tenant_'))
+    // Gear was replaced by brawls: drop old equipment and the HP its armour added
+    .map((unit) => {
+      const { equipment, ...rest } = unit as UnitRosterItem & { equipment?: { armor?: { stats?: { bonusHp?: number } } } };
+      const bonusHp = equipment?.armor?.stats?.bonusHp ?? 0;
+      if (!bonusHp) return rest;
+      const maxHp = Math.max(1, (rest.maxHp || 100) - bonusHp);
+      return { ...rest, maxHp, hp: Math.min(rest.hp ?? maxHp, maxHp) };
+    })
+    // Brawl levels from a save stay within +0 … +10 with non-negative bonuses
+    .map((unit) => ({
+      ...unit,
+      brawlLevel: brawlLevelOf(unit),
+      brawlAttack: Math.max(0, Math.round(Number(unit.brawlAttack) || 0)),
+      brawlHp: Math.max(0, Math.round(Number(unit.brawlHp) || 0)),
+    }));
+
+/** Brawl tension from a save: only well-formed { count, x, y } entries. */
+const normalizeTension = (raw: unknown): GameStoreState['brawlTension'] => {
+  const out: GameStoreState['brawlTension'] = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [key, t] of Object.entries(raw as Record<string, any>)) {
+    if (t && Number.isFinite(t.count) && Number.isFinite(t.x) && Number.isFinite(t.y) && key.includes('|')) {
+      out[key] = { count: Math.max(0, Math.floor(t.count)), x: t.x, y: t.y };
+    }
+  }
+  return out;
+};
 
 /** Codex discoveries limited to entries that still exist (the Deep One left the invaders). */
 const migrateDiscovered = <K extends string>(list: unknown, known: Record<K, unknown>, fallback: K[]): K[] =>
@@ -133,7 +162,6 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       defense: state.defense,
       invasion: state.invasion,
       achievements: state.achievements,
-      inventory: state.inventory,
       autoSettings: state.autoSettings,
       timeOfDay: state.timeOfDay,
       day: state.day,
@@ -142,6 +170,9 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       isGoreEnabled: state.isGoreEnabled,
       showWallpaper: state.showWallpaper,
       discoveredBeasts: state.discoveredBeasts,
+      brawlTension: state.brawlTension,
+      runes: state.runes,
+      runeSlots: state.runeSlots,
       discoveredInvaders: state.discoveredInvaders,
       promptedUpgrades: state.promptedUpgrades,
       targetFps: state.targetFps,
@@ -187,7 +218,6 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         },
         invasion: { ...INITIAL_INVASION, ...(data.invasion || {}) },
         achievements: data.achievements || [],
-        inventory: data.inventory || [],
         autoSettings: { ...INITIAL_AUTO_SETTINGS, ...(data.autoSettings || {}) },
         timeOfDay: data.timeOfDay || 'DAY',
         day: data.day || 1,
@@ -196,6 +226,8 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         isGoreEnabled: data.isGoreEnabled || false,
         showWallpaper: data.showWallpaper !== false,
         discoveredBeasts: migrateDiscovered<UnitClass>(data.discoveredBeasts, UNIT_CLASSES, ['DRYAD', 'MINOTAUR']),
+        brawlTension: normalizeTension(data.brawlTension),
+        ...normalizeRunes(data.runes, data.runeSlots),
         discoveredInvaders: migrateDiscovered<InvaderType>(data.discoveredInvaders, INVADER_CONFIGS, []),
         lastSavedTimestamp: Date.now(),
         screen: data.hasCompletedIntro ? 'GAME' : 'TITLE',
@@ -234,9 +266,11 @@ const partialize = (state: GameStoreState) => ({
   defense: state.defense,
   invasion: state.invasion,
   achievements: state.achievements,
-  inventory: state.inventory,
   autoSettings: state.autoSettings,
   discoveredBeasts: state.discoveredBeasts,
+  brawlTension: state.brawlTension,
+  runes: state.runes,
+  runeSlots: state.runeSlots,
   discoveredInvaders: state.discoveredInvaders,
   day: state.day,
   year: state.year,
@@ -277,6 +311,8 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     roster,
     workerCount: roster.length,
     discoveredBeasts: migrateDiscovered<UnitClass>(persisted.discoveredBeasts, UNIT_CLASSES, currentState.discoveredBeasts),
+    brawlTension: normalizeTension(persisted.brawlTension),
+    ...normalizeRunes(persisted.runes, persisted.runeSlots),
     discoveredInvaders: migrateDiscovered<InvaderType>(persisted.discoveredInvaders, INVADER_CONFIGS, currentState.discoveredInvaders),
     castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
     munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0, ...(persisted.munitions ?? {}) },

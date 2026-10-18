@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { HarvestTask, TASK_CONFIG, UnitClass, WorkerEquipment } from '../../types/game';
+import { HarvestTask, TASK_CONFIG, UnitClass } from '../../types/game';
 
 /**
  * Legacy vector minion bodies and cargo icons. Minions use these until their
@@ -9,8 +9,7 @@ import { HarvestTask, TASK_CONFIG, UnitClass, WorkerEquipment } from '../../type
 export function renderWorkerGraphics(
   graphics: Phaser.GameObjects.Graphics,
   unitClass: UnitClass,
-  task: HarvestTask,
-  equipment?: WorkerEquipment
+  task: HarvestTask
 ): void {
   graphics.clear();
 
@@ -221,12 +220,6 @@ export function renderWorkerGraphics(
     graphics.strokeEllipse(0, -22, 9, 3);
     graphics.fillStyle(0x86efac, 0.8);
     graphics.fillCircle(0, -22, 1.5);
-  }
-
-  // 3. EQUIPPED GEAR OVERLAYS
-  if (equipment?.armor) {
-    graphics.lineStyle(1.5, 0x38bdf8, 0.85);
-    graphics.strokeCircle(0, -12, 10.5);
   }
 }
 

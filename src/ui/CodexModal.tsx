@@ -91,16 +91,16 @@ export const CodexModal: React.FC<CodexModalProps> = ({ isOpen, onClose }) => {
           <div className="glass-panel p-4 rounded-2xl border-emerald-500/30 bg-emerald-950/20">
             <div className="flex items-center gap-2.5 text-emerald-300 font-bold mb-1.5 text-sm">
               <span className="w-6 h-6 rounded-full bg-emerald-500/30 border border-emerald-400 flex items-center justify-center text-xs text-white">3</span>
-              <span>⭐ {isTL ? 'Mag-Level Up at Kumuha ng Sandata' : 'Level Up & Craft Equipment'}</span>
+              <span>⭐ {isTL ? 'Mag-Level Up at Magrambulan' : 'Level Up & Brawl'}</span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed pl-8">
               {isTL ? (
                 <>
-                  Gamitin ang mga barya at materyales para pabilisin ang mga Golem sa <strong>Pampalakas</strong> o gawan sila ng matatalim na espada sa <strong>Gamit</strong>!
+                  Gamitin ang mga barya at materyales para palakasin ang mga alagad sa <strong>Pampalakas</strong>. Kapag paulit-ulit na nagbanggaan ang dalawang Heneral, magrarambulan sila — inaangkin ng nanalo ang lakas ng natalo (+1 hanggang +10)!
                 </>
               ) : (
                 <>
-                  Use coins and materials to boost servant stats in <strong>Research</strong> or craft powerful tools and weapons in the <strong>Armory</strong>!
+                  Use coins and materials to boost servant stats in <strong>Research</strong>. Generals who keep bumping into each other end up in a <strong>brawl</strong> — the winner absorbs the loser's strength (+1 up to +10)!
                 </>
               )}
             </p>

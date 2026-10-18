@@ -1,5 +1,5 @@
 import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
-import { FIGHTER_CLASSES, craftingCost, summonLock } from '../state/store/rosterSlice';
+import { FIGHTER_CLASSES, summonLock } from '../state/store/rosterSlice';
 import { ECONOMY_CONFIG, type TradeableResource } from '../state/economy';
 import type { BattleItemId } from '../types/state';
 import { getUnitSummonCost } from '../state/economy';
@@ -9,10 +9,11 @@ import { FortificationsPanel } from './FortificationsPanel';
 import { ResearchPanel } from './ResearchPanel';
 import { PowerOverviewPanel } from './PowerOverviewPanel';
 import { SkillTreePanel } from './SkillTreeModal';
+import { RunePanel } from './RunePanel';
 import { buildUpgradeSuggestions } from './upgradeSuggestions';
 import { useGameStore, RESOURCE_PRICES, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
-import { useTranslation, unitName, type TranslationKey } from '../i18n/translations';
+import { useTranslation, unitName } from '../i18n/translations';
 import { useTenantCounts } from '../state/tenantCounts';
 import { BUILDING_IDS } from '../state/buildingLayout';
 import { ESTABLISHMENT_CREWS, crewSourceLabels } from '../state/establishmentCrews';
@@ -21,9 +22,6 @@ import {
   UNIT_CLASSES,
   HarvestTask,
   TASK_CONFIG,
-  CRAFTABLE_ITEMS,
-  EquipmentItem,
-  EquipmentSlot,
   TREANT_EVOLUTION,
 } from '../types/game';
 import { UpgradesState } from '../types/state';
@@ -41,9 +39,10 @@ import {
   ChevronRight,
   LayoutDashboard,
   Sparkles,
+  Gem,
 } from 'lucide-react';
 
-export type CitadelTab = 'OVERVIEW' | 'MINIONS' | 'SKILLS' | 'MARKET' | 'FORGE' | 'RESEARCH' | 'CASTLE';
+export type CitadelTab = 'OVERVIEW' | 'MINIONS' | 'SKILLS' | 'RUNES' | 'MARKET' | 'FORGE' | 'RESEARCH' | 'CASTLE';
 
 interface CitadelCommandModalProps {
   isOpen: boolean;
@@ -51,12 +50,6 @@ interface CitadelCommandModalProps {
   initialTab?: CitadelTab;
 }
 
-const SLOT_LABEL: Record<'ALL' | 'TOOL' | 'ARMOR' | 'RELIC', TranslationKey> = {
-  ALL: 'slotAll',
-  TOOL: 'slotTool',
-  ARMOR: 'slotArmor',
-  RELIC: 'slotRelic',
-};
 
 export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   isOpen,
@@ -68,7 +61,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     roster,
     upgrades,
     defense,
-    inventory,
     language,
     assignUnitTask,
     autoBuySummon,
@@ -79,9 +71,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     upgradeSupportSlime,
     sellResource,
     buyResource,
-    craftEquipment,
-    equipItem,
-    unequipItem,
     upgradeTreant,
     castleBuilt,
     resourceBuildings,
@@ -94,8 +83,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   const tenantCounts = useTenantCounts((s) => s.counts);
 
   const [activeTab, setActiveTab] = useState<CitadelTab>(initialTab);
-  const [selectedUnitId, setSelectedUnitId] = useState<string>(roster[0]?.id || '');
-  const [slotFilter, setSlotFilter] = useState<'ALL' | EquipmentSlot>('ALL');
   const [marketMode, setMarketMode] = useState<'SELL' | 'BUY'>('BUY');
   const [lastTradeMsg, setLastTradeMsg] = useState<{ text: string; id: number } | null>(null);
   const [tradeAmounts, setTradeAmounts] = useState<Partial<Record<TradeableResource, number>>>({});
@@ -126,7 +113,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     upgradeFn();
   };
 
-  const selectedUnit = roster.find((u) => u.id === selectedUnitId) || roster[0];
 
   const tasksList: HarvestTask[] = [
     'AETHER',
@@ -161,13 +147,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
     const stamp = Date.now();
     setTimeout(() => setLastTradeMsg((m) => (m && m.id <= stamp ? null : m)), 2500);
   };
-
-  const filteredCraftItems = CRAFTABLE_ITEMS.filter(
-    (item) => slotFilter === 'ALL' || item.slot === slotFilter
-  );
-
-  const canAffordCraft = (item: EquipmentItem) =>
-    !!item.costResources && canAffordCost(resources, craftingCost(item));
 
   const costLabel = (cost: Partial<Record<string, number>>) =>
     Object.entries(cost)
@@ -297,9 +276,10 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
               {[
                 { id: 'OVERVIEW' as CitadelTab, label: tr('hubTabOverview'), icon: <LayoutDashboard className="w-4 h-4" /> },
                 { id: 'SKILLS' as CitadelTab, label: tr('hubTabSkills'), icon: <Sparkles className="w-4 h-4" /> },
-                { id: 'MINIONS' as CitadelTab, label: isTL ? 'Mga Alagad' : 'Minions', icon: <Users className="w-4 h-4" /> },
+                { id: 'RUNES' as CitadelTab, label: isTL ? 'Mga Runa' : 'Runes', icon: <Gem className="w-4 h-4" /> },
+                { id: 'MINIONS' as CitadelTab, label: isTL ? 'Mga Heneral' : 'Generals', icon: <Users className="w-4 h-4" /> },
                 { id: 'MARKET' as CitadelTab, label: isTL ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
-                { id: 'FORGE' as CitadelTab, label: isTL ? 'Pandayan & Sandata' : 'Armory & Gear', icon: <Hammer className="w-4 h-4" /> },
+                { id: 'FORGE' as CitadelTab, label: isTL ? 'Arsenal' : 'Arsenal', icon: <Hammer className="w-4 h-4" /> },
                 { id: 'RESEARCH' as CitadelTab, label: isTL ? 'Agham (Research)' : 'Research', icon: <Zap className="w-4 h-4" /> },
                 { id: 'CASTLE' as CitadelTab, label: isTL ? 'Tanggulan' : 'Fortifications', icon: <Shield className="w-4 h-4" /> },
               ].map((tab) => {
@@ -436,11 +416,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   })()}
                 </div>
 
-                {/* Establishment Champions & Tenants Directory */}
+                {/* Establishment Champions & Minions Directory */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      {isTL ? 'Mga Kampeon & Umuupa ng mga Pasilidad' : 'Establishment Champions & Tenants'}
+                      {isTL ? 'Mga Kampeon & Alagad ng mga Pasilidad' : 'Establishment Champions & Minions'}
                     </h3>
                     <span className="text-[10px] text-purple-400 font-mono">
                       {isTL ? 'Pinamamahalaan sa Pasilidad' : 'Managed via Establishments'}
@@ -616,7 +596,7 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
               </div>
             )}
 
-            {/* ================= TAB 3: ARMORY & GEAR ================= */}
+            {/* ================= TAB 3: ARSENAL (battle items & munitions) ================= */}
             {activeTab === 'FORGE' && (
               <div className="space-y-4">
                 {/* Battle items & munitions */}
@@ -673,100 +653,6 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
-                  <div className="flex items-center gap-1">
-                    {(['ALL', 'TOOL', 'ARMOR', 'RELIC'] as const).map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => {
-                          soundFx.playClick();
-                          setSlotFilter(slot);
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          slotFilter === slot ? 'bg-purple-600 text-white' : 'text-slate-400 hover:bg-slate-800'
-                        }`}
-                      >
-                        {tr(SLOT_LABEL[slot])}
-                      </button>
-                    ))}
-                  </div>
-
-                  <select
-                    value={selectedUnitId}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
-                    aria-label={isTL ? 'Piliin ang alagad na magsusuot ng gamit' : 'Select minion to equip gear'}
-                    className="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold cursor-pointer"
-                  >
-                    {roster.map((u) => {
-                      const uCfg = UNIT_CLASSES[u.unitClass];
-                      const uName = isTL ? (uCfg?.name || u.name) : (uCfg?.nameEn || uCfg?.name || u.name);
-                      return (
-                        <option key={u.id} value={u.id}>
-                          {unitName(u.name, u.unitClass, language)} · {uName}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {filteredCraftItems.map((item) => {
-                    const canCraft = canAffordCraft(item);
-                    const isEquipped =
-                      selectedUnit?.equipment?.tool?.id === item.id ||
-                      selectedUnit?.equipment?.armor?.id === item.id ||
-                      selectedUnit?.equipment?.relic?.id === item.id;
-
-                    return (
-                      <div key={item.id} className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between gap-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl">{item.icon}</span>
-                            <div>
-                              <div className="text-xs font-bold text-white">{isTL ? item.nameTl ?? item.name : item.name}</div>
-                              <div className="text-[10px] text-slate-400">{isTL ? item.descriptionTl ?? item.description : item.description}</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{tr(SLOT_LABEL[item.slot])}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                          <div className="text-[10px] font-mono text-slate-400">
-                            {costLabel(craftingCost(item))}
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            {item.costResources && (
-                              <button
-                                disabled={!canCraft}
-                                onClick={() => craftEquipment(item)}
-                                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                  canCraft ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                }`}
-                              >
-                                {isTL ? 'Pandayin' : 'Craft'}
-                              </button>
-                            )}
-
-                            {inventory.some((inv) => inv.id === item.id) && selectedUnit && (
-                              <button
-                                onClick={() => {
-                                  if (isEquipped) unequipItem(selectedUnit.id, item.slot);
-                                  else equipItem(selectedUnit.id, item);
-                                }}
-                                className={`px-2.5 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                  isEquipped ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                }`}
-                              >
-                                {isTL ? (isEquipped ? 'I-hubad' : 'I-suot') : (isEquipped ? 'Unequip' : 'Equip')}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
 
@@ -774,6 +660,8 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             {activeTab === 'OVERVIEW' && <PowerOverviewPanel onNavigate={setActiveTab} />}
 
             {activeTab === 'SKILLS' && <SkillTreePanel />}
+
+            {activeTab === 'RUNES' && <RunePanel />}
 
             {activeTab === 'RESEARCH' && <ResearchPanel />}
 

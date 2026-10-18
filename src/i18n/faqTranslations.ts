@@ -30,23 +30,23 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Who builds the castle and buildings?',
-        answer: 'Your starting Slime summons the Treant for free. The Treant raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General summons its tenants one at a time at its plot and the tenants build the establishment, and the Treant calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Construction takes the building cost from the castle step by step while the gauge above the site fills; it pauses when supplies run short. The first tenant is free, each next summon costs coins. There is no build button — it\'s all on autopilot.',
+        answer: 'Your starting Slime summons the Treant for free. The Treant raises the Castle first, then the Crystal Spire, then summons the Generals one by one — each General summons its minions one at a time at its plot and the minions build the establishment, and the Treant calls the next only once that one stands, in this order: Wood Grove, Stone Quarry, Metal Mine, Water Port, Mystic Cave, Infernal Kennel, Brimstone Perch, Abyssal Trench, Crypt of Souls, Golem Foundry, Shadow Pavilion, Void Gate and Bone Crypt. Construction takes the building cost from the castle step by step while the gauge above the site fills; it pauses when supplies run short. The first minion is free, each next summon costs coins. There is no build button — it\'s all on autopilot.',
       },
       {
         question: '🎁 How do I get supplies early on?',
-        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground as gold-glowing spoils that only your Generals can collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal), and now and then a piece of equipment that joins your Armory inventory when a General picks it up. Spoils fade after two minutes. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Treant simply waits while supplies are short.',
+        answer: 'Lone scouts wander the island between waves: human knights, archers and assassins, or Mecha scouts and drones. Strike them down and they scatter coins and supplies on the ground as gold-glowing spoils that only your Generals can collect (humans carry wood, stone, fish and shards; Mecha carry scrap and metal). Spoils fade after two minutes. You can also sell spare materials for coins (or buy what you lack) in Citadel Command → Market, or click a resource in the sidebar\'s Resources tab for a quick trade. The Treant simply waits while supplies are short.',
       },
       {
         question: '⚔️ When do minions and waves unlock?',
         answer: 'As soon as the Castle stands. The wave countdown starts, and each establishment can summon its General once it is built (some Generals also need a higher Nexus or Refinery level). Open an establishment by clicking it on the map.',
       },
       {
-        question: '🏠 What are tenants?',
-        answer: 'Every establishment raises 5 tenants of its General\'s kind on its own. In peace they gather on their own ground: fishers wade into the ocean, others work the grass, the roads, their building or the air around the rifts, and some slip through a rift to raid the human realm for metal, souls and coin. Those raids anger the humans: every few of them add an avenging invader to the next wave. In battle tenants garrison the building, each holding part of its defence, and break out to counter-attack when it is battered.',
+        question: '🏠 What are minions?',
+        answer: 'Every establishment raises 2 minions of its General\'s kind on its own. In peace they gather on their own ground: fishers wade into the ocean, others work the grass, the roads, their building or the air around the rifts, and some slip through a rift to raid the human realm for metal, souls and coin. Those raids anger the humans: every few of them add an avenging invader to the next wave. In battle minions garrison the building, each holding part of its defence, and break out to counter-attack when it is battered.',
       },
       {
         question: '🛠️ What does the Treant do after construction?',
-        answer: 'It never really rests: it tends and repairs the castle walls, enriches the soil so harvests grow richer, and forges or buys gear for itself. Establishments are repaired by their own tenants, paid from the castle step by step; a wrecked one stops producing and fighting until they fix it.',
+        answer: 'It never really rests: it tends and repairs the castle walls, and enriches the soil so harvests grow richer. Establishments are repaired by their own minions, paid from the castle step by step; a wrecked one stops producing and fighting until they fix it.',
       },
       {
         question: '🏰 Why doesn\'t my castle shoot?',
@@ -62,7 +62,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌊 What are the canals for?',
-        answer: 'Four canals run from the ocean straight to the citadel walls (north, west, east and south), and wooden bridges carry the roads across them. Water-type units, the Merman and the Kraken with their tenants, stay in the water: they fish the ocean and canals and deliver their catch at the canal dock against the citadel wall. Land units and human or Mecha invaders cannot wade in; only flyers and the Slime Lord cross water freely.',
+        answer: 'Four canals run from the ocean straight to the citadel walls (north, west, east and south), and wooden bridges carry the roads across them. Water-type units, the Merman and the Kraken with their minions, stay in the water: they fish the ocean and canals and deliver their catch at the canal dock against the citadel wall. Land units and human or Mecha invaders cannot wade in; only flyers and the Slime Lord cross water freely.',
       },
       {
         question: '🌀 Why does each rift send different invaders?',
@@ -86,11 +86,15 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '✨ How do I get skill points?',
-        answer: 'Just keep winning! Every 5 waves you clear gives 2 skill points (40 by Wave 100). Open Skills and click a skill to add a rank — it works immediately. Each branch unlocks top to bottom, and "Reset skills" refunds every point for free, so experiment as much as you like.',
+        answer: 'Just keep winning! Every 5 waves you clear gives 3 skill points (60 by Wave 100). Open Skills and click a skill to add a rank — it works immediately. Seven branches (Legion, Citadel, Resources, Mystic, Establishments, Generals, Minions) unlock top to bottom; each rank adds a passive bonus, and enhancements come from Runes that wave bosses drop (Citadel Command → Runes), and "Reset skills" refunds every point for free, so experiment as much as you like.',
       },
       {
         question: '🔁 What do I gain from regression?',
         answer: 'Days and waves restart at 1 and the Treant rebuilds your realm from scratch. In return, every regression tier permanently strengthens YOUR team — never the enemy: +5% minion attack, +3% minion speed, 3% less damage to minions, +5% tower damage, +5% harvest, and +100 Castle HP, plus bonus starting coins and shards. Your skill ranks are refunded and you earn the points again by clearing waves.',
+      },
+      {
+        question: '🥊 What are General brawls?',
+        answer: 'Generals who keep bumping into each other build tension. Each bump at the same spot fills their gauge; past 10 clashes the two brawl (never during a wave) while their minions gather round to cheer. The winner absorbs the loser\u2019s base attack and HP, goes up one level (+1 to +10, shown beside its status icon) and glows gold; the loser is knocked down to a sliver of HP and back to +0. Brawls replaced gear and armour. To keep the realm fair, while any General has a +, some invaders in each wave copy that General\u2019s attack and HP (purple Mirror invaders).',
       },
       {
         question: '🚚 Can I move an establishment?',
@@ -124,23 +128,23 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌳 Sino ang nagtatayo ng kastilyo at mga gusali?',
-        answer: 'Libreng tatawagin ng panimulang Slime mo ang Treant. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ay isa-isang magsa-summon ng mga tenant sa puwesto nito at ang mga tenant ang magtatayo ng pasilidad, at tatawagin lang ng Treant ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Unti-unting kinukuha ang gastos mula sa kastilyo habang napupuno ang gauge sa itaas ng puwesto; humihinto ito kapag kulang ang supply. Libre ang unang tenant, may bayad na coins ang mga kasunod. Walang build button — puro autopilot!',
+        answer: 'Libreng tatawagin ng panimulang Slime mo ang Treant. Kastilyo muna ang itatayo nito, pagkatapos ang Tore ng Kristal, saka isa-isang tatawagin ang mga Heneral — bawat Heneral ay isa-isang magsa-summon ng mga minion sa puwesto nito at ang mga minion ang magtatayo ng pasilidad, at tatawagin lang ng Treant ang susunod kapag tapos na iyon, ayon sa pagkakasunod: Kagubatan, Kwartel ng Bato, Minahan, Pantalan, Yungib ng Hiwaga, Kulungan ng Impiyerno, Dapuan ng Asupre, Bangin ng Kailaliman, Libingan ng mga Kaluluwa, Pandayan ng Golem, Tolda ng Anino, Tarangkahan ng Kawalan at Kripta ng mga Kaluluwa. Unti-unting kinukuha ang gastos mula sa kastilyo habang napupuno ang gauge sa itaas ng puwesto; humihinto ito kapag kulang ang supply. Libre ang unang minion, may bayad na coins ang mga kasunod. Walang build button — puro autopilot!',
       },
       {
         question: '🎁 Paano makakakuha ng supply sa simula?',
-        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa bilang kumikinang-gintong samsam na ang mga Heneral mo lang ang makakapulot (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha), at paminsan-minsan ay isang kagamitan na mapupunta sa imbentaryo ng Armory kapag pinulot ng Heneral. Naglalaho ang samsam pagkalipas ng dalawang minuto. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Treant habang kulang ang supply.',
+        answer: 'May mga nag-iisang espiya na gumagala sa isla sa pagitan ng mga alon: mga kawal, mamamana at assassin na tao, o mga Mecha scout at drone. Kapag napatay, nagkakalat sila ng barya at suplay sa lupa bilang kumikinang-gintong samsam na ang mga Heneral mo lang ang makakapulot (kahoy, bato, isda at kristal ang dala ng tao; scrap at bakal ang sa Mecha). Naglalaho ang samsam pagkalipas ng dalawang minuto. Puwede mo ring ibenta ang sobrang materyales para sa barya (o bilhin ang kulang) sa Sentro ng Kuta → Pamilihan, o i-click ang isang yaman sa tab na Yaman ng sidebar para sa mabilisang palitan. Maghihintay lang ang Treant habang kulang ang supply.',
       },
       {
         question: '⚔️ Kailan magbubukas ang mga alagad at alon?',
         answer: 'Kapag nakatayo na ang Kastilyo. Magsisimula ang countdown ng alon, at matatawag ng bawat pasilidad ang Heneral nito kapag naitayo na ito (may ilang Heneral na kailangan din ng mas mataas na antas ng Nexus o Refinery). Buksan ang pasilidad sa pag-click dito sa mapa.',
       },
       {
-        question: '🏠 Ano ang mga umuupa?',
-        answer: 'Kusang nagpapalabas ang bawat pasilidad ng 5 umuupa na kauri ng Heneral nito. Sa kapayapaan, nangangalap sila sa sarili nilang lupa: lumulusong sa dagat ang mga mangingisda, ang iba ay sa damuhan, lansangan, sa kanilang gusali o sa paligid ng mga lagusan, at may ilang pumapasok sa lagusan para nakawan ang kaharian ng tao ng bakal, kaluluwa at barya. Ikinagagalit ito ng mga tao: bawat ilang pagnanakaw ay nagdadagdag ng isang naghihiganting kalaban sa susunod na alon. Sa labanan, nagbabantay ang mga umuupa sa gusali, may hawak ang bawat isa na bahagi ng depensa nito, at kumakawala para gumanti kapag nabugbog ito.',
+        question: '🏠 Ano ang mga alagad?',
+        answer: 'Kusang nagpapalabas ang bawat pasilidad ng 2 alagad na kauri ng Heneral nito. Sa kapayapaan, nangangalap sila sa sarili nilang lupa: lumulusong sa dagat ang mga mangingisda, ang iba ay sa damuhan, lansangan, sa kanilang gusali o sa paligid ng mga lagusan, at may ilang pumapasok sa lagusan para nakawan ang kaharian ng tao ng bakal, kaluluwa at barya. Ikinagagalit ito ng mga tao: bawat ilang pagnanakaw ay nagdadagdag ng isang naghihiganting kalaban sa susunod na alon. Sa labanan, nagbabantay ang mga alagad sa gusali, may hawak ang bawat isa na bahagi ng depensa nito, at kumakawala para gumanti kapag nabugbog ito.',
       },
       {
         question: '🛠️ Ano ang ginagawa ng Treant pagkatapos magtayo?',
-        answer: 'Hindi ito nagpapahinga: binabantayan at inaayos nito ang pader ng kastilyo, pinatataba ang lupa para lumaki ang ani, at nagpapanday o bumibili ng sariling gamit. Ang mga tenant ng bawat pasilidad ang nag-aayos nito, may bayad mula sa kastilyo bawat hakbang; humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang maayos nila ito.',
+        answer: 'Hindi ito nagpapahinga: binabantayan at inaayos nito ang pader ng kastilyo, at pinatataba ang lupa para lumaki ang ani. Ang mga minion ng bawat pasilidad ang nag-aayos nito, may bayad mula sa kastilyo bawat hakbang; humihinto sa paggawa at paglaban ang nawasak na pasilidad hanggang maayos nila ito.',
       },
       {
         question: '🏰 Bakit hindi bumabaril ang kastilyo ko?',
@@ -156,7 +160,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌊 Para saan ang mga kanal?',
-        answer: 'Apat na kanal ang tumatakbo mula sa karagatan diretso sa pader ng kuta (hilaga, kanluran, silangan at timog), at may mga kahoy na tulay kung saan tumatawid ang daan. Ang mga water-type, ang Merman at ang Kraken kasama ang kanilang mga tenant, ay nasa tubig lang: nangingisda sila sa karagatan at sa mga kanal at inihahatid ang huli sa daungan ng kanal sa tabi ng pader ng kuta. Hindi makalusong ang mga land unit at ang mga tao o Mecha; ang mga lumilipad at ang Slime Lord lang ang malayang tumatawid sa tubig.',
+        answer: 'Apat na kanal ang tumatakbo mula sa karagatan diretso sa pader ng kuta (hilaga, kanluran, silangan at timog), at may mga kahoy na tulay kung saan tumatawid ang daan. Ang mga water-type, ang Merman at ang Kraken kasama ang kanilang mga minion, ay nasa tubig lang: nangingisda sila sa karagatan at sa mga kanal at inihahatid ang huli sa daungan ng kanal sa tabi ng pader ng kuta. Hindi makalusong ang mga land unit at ang mga tao o Mecha; ang mga lumilipad at ang Slime Lord lang ang malayang tumatawid sa tubig.',
       },
       {
         question: '🌀 Bakit iba-iba ang kalaban sa bawat lagusan?',
@@ -180,11 +184,15 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '✨ Paano makakuha ng puntos ng kasanayan?',
-        answer: 'Manalo lang nang manalo! Kada 5 alon na matapos mo, may 2 puntos ka (40 pagdating ng Alon 100). Buksan ang Kasanayan at i-click ang isang kasanayan para magdagdag ng antas — gagana agad. Bawat sangay ay nagbubukas mula taas pababa, at libre ang "I-reset" para maibalik lahat ng puntos, kaya mag-eksperimento ka lang.',
+        answer: 'Manalo lang nang manalo! Kada 5 alon na matapos mo, may 3 puntos ka (60 pagdating ng Alon 100). Buksan ang Kasanayan at i-click ang isang kasanayan para magdagdag ng antas — gagana agad. Pitong sangay (Hukbo, Kuta, Yaman, Mahika, Establisimyento, Heneral, Alagad) ang nagbubukas mula taas pababa; nagdaragdag ng pasibong bonus ang bawat antas, at ang mga pagpapahusay ay galing sa Runa na hinuhulog ng boss ng alon (Citadel Command → Mga Runa), at libre ang "I-reset" para maibalik lahat ng puntos, kaya mag-eksperimento ka lang.',
       },
       {
         question: '🔁 Ano ang makukuha ko sa regression?',
         answer: 'Babalik sa 1 ang araw at alon at muling itatayo ng Treant ang kaharian mo mula sa simula. Kapalit nito, bawat antas ng regression ay permanenteng nagpapalakas sa KOPONAN mo — hindi sa kalaban: +5% atake ng alagad, +3% bilis ng alagad, 3% bawas pinsala sa alagad, +5% pinsala ng tore, +5% ani, at +100 HP ng Kastilyo, dagdag pa ang panimulang barya at kristal. Ibabalik ang mga antas ng kasanayan mo at kikitain muli ang puntos sa pagtapos ng mga alon.',
+      },
+      {
+        question: '🥊 Ano ang rambulan ng mga Heneral?',
+        answer: 'Nagkakaroon ng tensyon ang mga Heneral na paulit-ulit na nagbabanggaan. Bawat banggaan sa iisang puwesto ay pumupuno sa sukatan; kapag lumampas sa 10, magrarambulan ang dalawa (hindi kailanman habang may alon) habang nakapaligid at nagchi-cheer ang kanilang mga alagad. Inaangkin ng nanalo ang batayang atake at HP ng natalo, tumataas ng isang antas (+1 hanggang +10, nasa tabi ng status icon nito) at kumikinang na ginto; babagsak sa kaunting HP ang natalo at babalik sa +0. Pinalitan ng rambulan ang kagamitan at baluti. Para patas, habang may Heneral na may +, may ilang kalaban bawat alon na gumagaya sa atake at HP nito (lilang Salamin na kalaban).',
       },
       {
         question: '🚚 Puwede bang ilipat ang isang pasilidad?',

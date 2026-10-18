@@ -30,8 +30,6 @@ export interface GroundLootItem {
   maxLife: number;
   /** Scout spoils: only Generals may pick these up. */
   generalsOnly?: boolean;
-  /** Equipment piece (craftableItems.json id) granted on pickup instead of a resource. */
-  itemId?: string;
   /** Worker heading for / carrying this drop; others leave it alone. */
   claimedBy?: string;
   /** Picked up: rides with its carrier and only counts once delivered to the castle. */
@@ -42,7 +40,6 @@ export interface GroundLootItem {
 
 export interface DropOptions {
   generalsOnly?: boolean;
-  itemId?: string;
   /** Seconds on the ground before it fades (default 45). */
   life?: number;
 }
@@ -171,7 +168,6 @@ export class GroundLootManager {
       lifeTimer: 0,
       maxLife: options.life ?? 45, // stays on the ground this long before despawning
       generalsOnly: options.generalsOnly,
-      itemId: options.itemId,
     };
 
     // Parabolic pop animation
@@ -341,23 +337,11 @@ export class GroundLootManager {
     this.lootItems.delete(id);
 
     const store = useGameStore.getState();
-    if (loot.itemId) {
-      // An equipment piece: straight into the Armory inventory
-      const item = store.grantEquipmentDrop(loot.itemId);
-      soundFx.playCoin();
-      if (item) {
-        logMessage('scoutItem', {
-          name: collectorName ?? 'General',
-          item: { en: `${item.icon} ${item.name}`, tl: `${item.icon} ${item.nameTl ?? item.name}` },
-        });
-      }
-    } else {
-      // Grant resources to store
-      store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
-      soundFx.playDeposit();
-      // Narrated in the activity log tray (no floating text over the map)
-      logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
-    }
+    // Grant resources to store
+    store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
+    soundFx.playDeposit();
+    // Narrated in the activity log tray (no floating text over the map)
+    logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
 
     // Animate item flying upward & shrinking
     this.scene.tweens.add({

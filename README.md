@@ -4,7 +4,7 @@
 
 IsoChronicle: Idle Realms is an offline-first isometric idle strategy game about castle reconstruction, monster summoning, resource automation and wave-based defense. It runs entirely in the browser, with no backend, and can be installed as a PWA. It is fully playable in **English** and **Tagalog**.
 
-You play as a weakened Demon Lord who wakes in the ruins of a former citadel. Your only ally is a Support Slime. The Slime calls forth an Ancient Treant, the Treant rebuilds the castle and summons the realm's Generals, and the Generals raise the establishments and their tenants. Together they have to survive 100 invasion waves across four realms.
+You play as a weakened Demon Lord who wakes in the ruins of a former citadel. Your only ally is a Support Slime. The Slime calls forth an Ancient Treant, the Treant rebuilds the castle and summons the realm's Generals, and the Generals raise the establishments and their minions. Together they have to survive 100 invasion waves across four realms.
 
 Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 
@@ -14,18 +14,18 @@ Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 2. The Slime summons the **Ancient Treant** for free.
 3. The Treant builds the **Citadel Castle**, then the **Crystal Spire**. It waits whenever supplies run short and auto-buys any shortfall with coins.
 4. Next, the Treant summons the **thirteen Generals** one by one, in construction order, until every one of them stands.
-5. **Each General summons its tenants one at a time** (the first free, the rest paid from the castle). The **tenants build** the establishment, taking its cost from the castle step by step while a gauge above the site fills, and later **repair** it the same way.
-6. Tenants gather, craft and go on expeditions; Generals scout and lead in battle; the Treant tends the castle, enriches the soil and forges gear.
+5. **Each General summons its minions one at a time** (the first free, the rest paid from the castle). The **minions build** the establishment, taking its cost from the castle step by step while a gauge above the site fills, and later **repair** it the same way.
+6. Minions gather, craft and go on expeditions; Generals scout, lead in battle and **brawl** rival Generals; the Treant tends the castle and enriches the soil.
 7. Defend against human and mecha invasions. Every **5 waves** cleared earns skill points for the Skill Tree.
 8. Reach Wave 100 (or regress at any time) to restart with permanent team boosts.
 
 There is no build button. Construction runs on autopilot, and you steer the realm through the market, upgrades, skills and battle actions.
 
-## Establishments, Generals and Tenants
+## Establishments, Generals and Minions
 
-Each realm places the thirteen establishments at random (`layoutSeed`). The castle, gate, Crystal Spire and the four corner rifts stay in fixed positions. Every establishment has one General and five tenants of the General's kind:
+Each realm places the thirteen establishments at random (`layoutSeed`). The castle, gate, Crystal Spire and the four corner rifts stay in fixed positions. Every establishment has one General and two minions of the General's kind:
 
-| # | Establishment | General | Tenants work… | Expeditions |
+| # | Establishment | General | Minions work… | Expeditions |
 | --- | --- | --- | --- | --- |
 | 1 | Wood Grove | Thornwood Dryad | grass and the grove: wood, charcoal | — |
 | 2 | Stone Quarry | Watchtower Minotaur | roads and the quarry: stone, minerals | — |
@@ -42,9 +42,9 @@ Each realm places the thirteen establishments at random (`layoutSeed`). The cast
 | 13 | Bone Crypt | Bone Knight | roads: stone | ✓ |
 
 - **Generals** are unique roster units. They don't gather; they build their home, then guard it and the citadel, scout the island and fight.
-- **Tenants** are spawned by the world itself and are never stored in the roster. They garrison their home during waves.
-- **Promotion:** when a General is slain, its healthiest tenant on the island is promoted on the spot and becomes the new General (free); the tenant slot refills through the normal respawn.
-- **Expeditions:** some tenants slip through a rift into the human realm and come back with loot. Every return stirs **vengeance**, which adds extra invaders to the next wave.
+- **Minions** are spawned by the world itself and are never stored in the roster. They garrison their home during waves.
+- **Promotion:** when a General is slain, its healthiest minion on the island is promoted on the spot and becomes the new General (free); the minion slot refills through the normal respawn.
+- **Expeditions:** some minions slip through a rift into the human realm and come back with loot. Every return stirs **vengeance**, which adds extra invaders to the next wave.
 - Establishments level up for by-products and stronger output, and each has its own active skills.
 
 Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
@@ -58,7 +58,7 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel. Each rift is guarded by two **Rift Sentinel** towers and fights back with its own skills and ultimate.
 - **Realm picker:** choose the realm (Demon Citadel, Magma Caldera, Frost Spire, Astral Sanctum) anytime in Atlas → Regression, or follow the waves. A later realm scales wave HP, damage, count, spawn speed and rift HP up; an earlier one eases them (`realmIntensity` in `src/data/waveBalance.json`).
 - Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's **sky lasers**: double-click invaders to lock up to 10 beams that burn and slow them; crit chance grows (and misses fade) the longer a beam stays on one target, and they leave burn scars that hurt and slow invaders walking over them (`holdStrike` in `src/data/defenseConfig.json`).
-- Support Slime and Ancient Treant evolution (five forms each), God Blessings, research upgrades and equipment crafting/buying.
+- Support Slime and Ancient Treant evolution (five forms each), God Blessings and research upgrades. There is no gear: Generals grow by winning brawls.
 - Skill Tree with ranked skills earned by clearing waves, plus a free respec.
 - Regression prestige with permanent team-only boosts.
 - Easy / Normal / Hard difficulty.
@@ -74,30 +74,59 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - PWA service worker for offline play.
 - Tile Coordinates overlay with chess-style names: columns **A–T** for grid X, rows **1–20** for grid Y, so `(4,5)` is **E6**.
 
+## General Brawls
+
+Brawls replaced gear and armour (tuned in `src/data/brawl.json`, logic in `src/state/brawl.ts` and `src/game/workers/brawl.ts`).
+
+- Two Generals **clash** whenever they bump into each other. Each clash at the same spot fills that pair's tension gauge; more than **10** clashes and they **brawl**. Clashes only count, and brawls only happen, between waves. Their minions gather round to cheer, and the fight pops up in the live-stream split screen with a **🥊 BRAWL** badge. During waves that frame shows the LIVE battle, so the two never overlap.
+- The **winner** absorbs the loser's base attack and HP and gains **+1** (up to **+10**), shown beside its status icon. Only Generals with a + glow (the Treant and Slime always glow). The **loser** is knocked down to a sliver of HP and back to +0.
+- **Mirror invaders:** while any General has a +, some invaders each wave copy that General's attack and HP (at most one per upgraded General each wave, never bosses), so upgraded Generals never trivialise the waves.
+
 ## Skill Tree
 
 Skill points come from clearing waves; you don't need to regress to earn them.
 
-- Every **5 waves** cleared grants **2 skill points** (40 points by Wave 100).
-- There are four branches. Each branch is a chain: a skill needs at least one rank in the skill before it.
+- Every **5 waves** cleared grants **3 skill points** (60 points by Wave 100).
+- There are seven branches. Each branch is a chain: a skill needs at least one rank in the skill before it. Every skill is a ranked **passive**; enhancements come from **Runes** (below).
 
 | Branch | Skills |
 | --- | --- |
-| ⚔️ Minions | Demon Might (attack), Swift Servants (speed), Hardened Hides (less damage taken), Overwhelming Force (big attack capstone) |
+| ⚔️ Legion | Demon Might (attack), Swift Servants (speed), Hardened Hides (less damage taken), Overwhelming Force (big attack capstone) |
 | 🏰 Citadel | Obsidian Walls (less castle damage), Arcane Artillery (tower damage), Rapid Siegecraft (tower cooldown), Mending Stones (heal the citadel after each wave) |
 | 🌾 Resources | Rich Foundations (wood & stone), Realm Abundance (all harvests), Plunder Tax (invader bounty) |
 | ✨ Mystic | Arcane Attunement (longer God Blessings), Ley Line Surge (cheaper God Blessings) |
+| 🏛️ Establishments | Demon Masonry (less establishment damage), Landmark Rites (skill power), Quickened Sigils (skill cooldowns) |
+| 👑 Generals | Warlord's Command (General attack), Iron Resolve (less General damage), Battle Focus (General skill cooldowns) |
+| 🧑‍🌾 Minions | Bountiful Toil (bigger hauls), Master Builders (faster build/repair), Hardy Stock (minion HP & damage) |
 
 - Click a skill to add a rank; it takes effect immediately. **Reset skills** refunds every point for free.
 - Skills belong to the current realm. Regression refunds them, and you earn the points again from Wave 1.
 - Numbers and EN/TL text live in `src/data/skillTree.json`.
+
+## Runes
+
+Runes replaced the skill tree's unlock enhancements (`src/data/runes.json`, `src/state/runes.ts`, Citadel Command → **Runes**).
+
+- Every **wave boss carries a rune** (announced in the activity log) and drops it into the Rune Vault when slain. Tier grows with the wave (I at waves 1–25 … IV by wave 76; the realm climax adds one), up to **V**.
+- Four targets with **3 slots** each; a rune only fits its own target:
+
+| Target | Runes |
+| --- | --- |
+| 🏰 Citadel | Obsidian (less castle damage), Mending (heal after each wave), Artillery (tower damage) |
+| 🏛️ Establishments | Bastion (less establishment damage), Ward (force-field HP), Sigil (establishment skill power) |
+| 👑 Generals | Fury (attack), Aegis (less damage taken), Focus (skill cooldowns) |
+| 🧑‍🌾 Minions | Banner (stronger while their General lives), Vigor (HP & damage), Spoils (expedition loot), Muster (cheaper summons; 100% = free) |
+
+- **Escalation:** merge 3 unslotted runes of the same kind and tier into one of the next tier (power ×1, ×2, ×3.5, ×5.5, ×8).
+- Rune bonuses add to the skill tree totals and are **kept through Regression** (a new realm starts with an empty vault).
+- Minions are only ever summoned by their own General (two per establishment).
 
 ## Regression
 
 Regression resets the active realm and keeps your long-term progression.
 
 - The realm returns to ruins with a new random establishment layout. Only the Support Slime remains.
-- The Slime summons the Treant again. The Treant rebuilds the castle and spire and summons the Generals, and each General calls its tenants to rebuild its establishment.
+- The Slime summons the Treant again. The Treant rebuilds the castle and spire and summons the Generals, and each General calls its minions to rebuild its establishment.
 - Regression bonuses, Support Slime evolution and regression history are kept. Skill ranks are refunded.
 - Each Regression tier permanently boosts **your team only**; enemies never get stronger from it:
   - +5% minion attack
@@ -255,7 +284,7 @@ src/
 │   └── offlineProgression.ts, storageAdapter.ts
 ├── types/                 game.ts (shared types), state.ts (store and save shape)
 └── ui/                    GameHUD, ActivityLogTray, Atlas (+ StructureAtlas), CitadelCommand,
-                           EstablishmentModal, UnitRoster, Merchant, Equipment, Research,
+                           EstablishmentModal, UnitRoster, Merchant, Research,
                            Fortifications, SkillTree, Regression, Bestiary, Settings, …
 ```
 

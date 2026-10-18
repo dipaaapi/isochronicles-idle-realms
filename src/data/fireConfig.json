@@ -1,5 +1,5 @@
 {
-  "_comment": "Torch raids: in random fights (scouts between waves) human scouts lob torches at establishments. The fire gauge climbs on its own; tenants' water buckets push it down. 0 = put out (safe, HP untouched), 100 = the establishment collapses (wrecked).",
+  "_comment": "Torch raids: in random fights (scouts between waves) human scouts lob torches at establishments. The fire gauge climbs on its own; minions' water buckets push it down. 0 = put out (safe, HP untouched), 100 = the establishment collapses (wrecked).",
   "torch": { "range": 260, "cooldown": [6, 11], "chance": 0.45, "flightSeconds": 0.8, "ignite": 22, "hitAdd": 15 },
   "risePerSecond": 2.5,
   "splash": 14,

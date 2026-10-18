@@ -579,7 +579,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <span className="text-2xl">🏰</span>
                   <div className="text-left">
                     <div className="text-xs font-bold text-white">{isTL ? 'Sentro ng Kuta' : 'Citadel Command'}</div>
-                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Lahat ng upgrade: Skill, Agham, Tanggulan, Pandayan' : 'Every upgrade: Skills, Research, Defenses, Armory'}</div>
+                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Lahat ng upgrade: Skill, Agham, Tanggulan, Arsenal' : 'Every upgrade: Skills, Research, Defenses, Arsenal'}</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-purple-400" />

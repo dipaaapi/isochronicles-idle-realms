@@ -45,7 +45,7 @@ const ESTABLISHMENTS_LIST: { id: StructureId; label: string; labelEn: string; ic
   })),
 ];
 
-// One General per establishment (its tenants share its kind); the castle hosts the two rulers
+// One General per establishment (its minions share its kind); the castle hosts the two rulers
 const ESTABLISHMENT_CHAMPIONS: Partial<Record<StructureId, UnitClass[]>> = {
   ...Object.fromEntries(Object.entries(ESTABLISHMENT_CREWS).map(([id, crew]) => [id, [crew.general]])),
   CASTLE: ['TREANT', 'AQUA_SLIME'],
@@ -223,7 +223,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
   const availableHarvestTasks: HarvestTask[] = ['WOOD', 'STONE', 'METAL', 'FISH', 'AETHER', 'ESSENCE'];
 
 
-  // Living tenants calculations for this establishment
+  // Living minions calculations for this establishment
   const tenantAttackBonus = 1 + ((upgrades.tenantAttackCounter ?? 1) - 1) * 0.25;
   const tenantHpBonus = ((upgrades.tenantDefenseBar ?? 1) - 1) * 40;
   const tenantCdBonus = Math.min(0.6, ((upgrades.tenantCooldownSummon ?? 1) - 1) * 0.12);
@@ -245,7 +245,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                 {isTL ? 'Pangangasiwa ng mga Pasilidad' : 'Establishments & Outposts'}
               </h2>
               <p className="text-[11px] text-slate-400">
-                {isTL ? 'Pasilidad, Umuupa (Tenants), Kampeon, at mga Upgrade' : 'Establishment, Tenants & General Champions, and Upgrades'}
+                {isTL ? 'Pasilidad, Alagad (Minions), Kampeon, at mga Upgrade' : 'Establishment, Minions & General Champions, and Upgrades'}
               </p>
             </div>
           </div>
@@ -346,11 +346,11 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
           </div>
         </div>
 
-        {/* ── 3 Main Tabs: Establishment, Tenant, General Upgrades ── */}
+        {/* ── 3 Main Tabs: Establishment, Minion, General Upgrades ── */}
         <div className="flex border-b border-slate-800/80 shrink-0 bg-slate-900/80 px-4">
           {[
             { id: 'ESTABLISHMENT' as EstabTab, label: isTL ? '🏛️ Pasilidad' : '🏛️ Establishment', desc: isTL ? 'Info, Skills, Upgrade & Kumpuni' : 'Info, Skills, Upgrades & Repair' },
-            { id: 'TENANT' as EstabTab, label: isTL ? '👥 Umuupa & Kampeon' : '👥 Tenant & Generals', desc: isTL ? '20% Depensa, Umuupa, at Kampeon' : '20% Defense Tether & Generals' },
+            { id: 'TENANT' as EstabTab, label: isTL ? '👥 Alagad & Kampeon' : '👥 Minion & Generals', desc: isTL ? '20% Depensa, Alagad, at Kampeon' : '20% Defense Tether & Generals' },
             { id: 'GENERAL_UPGRADES' as EstabTab, label: isTL ? '⚡ Pangkalahatang Upgrade' : '⚡ General Upgrades', desc: isTL ? 'Sentro ng Agham at Pagsulong' : 'Domain Research Matrix' },
           ].map((tab) => (
             <button
@@ -579,8 +579,8 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                         </div>
                         <p className="mt-2 text-[11px] text-slate-400 leading-snug">
                           {isTL
-                            ? 'Ibalik ang buong HP ng pasilidad upang maibalik ang ani at mapanatiling nakatali ang mga tenant.'
-                            : 'Restores structural integrity. Prevents tenant detachment and re-activates output.'}
+                            ? 'Ibalik ang buong HP ng pasilidad upang maibalik ang ani at mapanatiling nakatali ang mga minion.'
+                            : 'Restores structural integrity. Prevents minion detachment and re-activates output.'}
                         </p>
                       </div>
                       <button
@@ -614,12 +614,12 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     <span className="text-xl">🛡️</span>
                     <div>
                       <h3 className="text-xs md:text-sm font-bold text-cyan-200">
-                        {isTL ? '20% Depensa Bawat Umuupa (Tenant Tether System)' : '20% Defense Bar Per Living Tenant'}
+                        {isTL ? '20% Depensa Bawat Alagad (Minion Tether System)' : '20% Defense Bar Per Living Minion'}
                       </h3>
                       <p className="text-[11px] text-slate-300">
                         {isTL
-                          ? 'Bawat umuupa ay nagbibigay ng 20% proteksyon sa bar ng gusali. Kapag inatake, sila ay kusang lalabas sa labanan upang ipagtanggol ang kuta!'
-                          : 'Each living tenant fortifies 20% of this establishment\'s defense bar and detaches into combat when under siege!'}
+                          ? 'Bawat alagad ay nagbibigay ng 20% proteksyon sa bar ng gusali. Kapag inatake, sila ay kusang lalabas sa labanan upang ipagtanggol ang kuta!'
+                          : 'Each living minion fortifies 20% of this establishment\'s defense bar and detaches into combat when under siege!'}
                       </p>
                     </div>
                   </div>
@@ -638,14 +638,14 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
 
                 <p className="text-[10px] text-cyan-200/70 leading-snug">
                   {isTL
-                    ? 'Kusang lumilitaw nang libre ang mga umuupa kapag nakatayo ang gusali at kamukha nila ang Kampeon nito — ang mga nakikita mo sa mapa ay umuupa. Hiwalay ang Heneral sa ibaba: iisa lang ito at kailangang tawagin.'
-                    : 'Tenants appear on their own for free once the building stands, and they look like its Champion — the ones you see on the map are tenants. The General below is a separate, unique unit you summon yourself.'}
+                    ? 'Kusang lumilitaw nang libre ang mga alagad kapag nakatayo ang gusali at kamukha nila ang Kampeon nito — ang mga nakikita mo sa mapa ay alagad. Hiwalay ang Heneral sa ibaba: iisa lang ito at kailangang tawagin.'
+                    : 'Minions appear on their own for free once the building stands, and they look like its Champion — the ones you see on the map are minions. The General below is a separate, unique unit you summon yourself.'}
                 </p>
 
-                {/* Tenant Combat Stats Grid */}
+                {/* Minion Combat Stats Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-cyan-500/20 text-xs">
                   <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <div className="text-slate-400 text-[10px]">{isTL ? 'Buhay ng Tenant (HP)' : 'Tenant HP'}</div>
+                    <div className="text-slate-400 text-[10px]">{isTL ? 'Buhay ng Minion (HP)' : 'Minion HP'}</div>
                     <div className="font-mono font-bold text-emerald-300">80 {tenantHpBonus > 0 && `(+${tenantHpBonus})`}</div>
                   </div>
                   <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
@@ -677,7 +677,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
 
                 {championClasses.length === 0 ? (
                   <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-xs text-slate-400">
-                    {isTL ? 'Walang sariling Heneral ang pasilidad na ito — ang mga umuupa nito ang nagbabantay.' : 'This establishment has no General of its own — its tenants guard it.'}
+                    {isTL ? 'Walang sariling Heneral ang pasilidad na ito — ang mga alagad nito ang nagbabantay.' : 'This establishment has no General of its own — its minions guard it.'}
                   </div>
                 ) : (
                   championClasses.map((cls) => {

@@ -507,7 +507,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                                 <img
                                   src={portraitSrc}
                                   alt={config.nameEn || config.name}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover [image-rendering:pixelated]"
                                   draggable={false}
                                 />
                               ) : (
@@ -516,7 +516,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                                     <img
                                       src={portraitSrc}
                                       alt=""
-                                      className="w-full h-full object-cover brightness-0 opacity-70"
+                                      className="w-full h-full object-cover [image-rendering:pixelated] grayscale brightness-[0.3] contrast-150 blur-[1.5px] opacity-80"
                                       draggable={false}
                                     />
                                   ) : (
@@ -623,7 +623,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                                 <img
                                   src={portraitSrc}
                                   alt={config.nameEn || config.name}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover [image-rendering:pixelated]"
                                   draggable={false}
                                 />
                               ) : (
@@ -632,7 +632,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                                     <img
                                       src={portraitSrc}
                                       alt=""
-                                      className="w-full h-full object-cover brightness-0 opacity-70"
+                                      className="w-full h-full object-cover [image-rendering:pixelated] grayscale brightness-[0.3] contrast-150 blur-[1.5px] opacity-80"
                                       draggable={false}
                                     />
                                   ) : (

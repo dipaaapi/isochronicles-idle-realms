@@ -1,0 +1,52 @@
+{
+  "_doc": "Runes (src/state/runes.ts) replaced the skill tree's unlock enhancements. Every wave boss carries one rune (rolled at spawn from `runes`, tier from the wave: 1 + floor((wave-1)/wavesPerTier), +climaxBonus for the realm climax, capped at the top tier) and drops it into the Rune Vault when slain. Each target (Citadel, Establishments, Generals, Minions) has slotsPerTarget slots; a rune only fits its own target. A slotted rune adds perTier × tierPower[tier-1] to its stat (summed with the skill tree, capped by the stat's cap). Three runes of the same kind and tier merge into one of the next tier. Runes are kept through Regression.",
+  "slotsPerTarget": 3,
+  "mergeCount": 3,
+  "wavesPerTier": 25,
+  "climaxBonus": 1,
+  "tierPower": [1, 2, 3.5, 5.5, 8],
+  "tierNames": ["I", "II", "III", "IV", "V"],
+  "tierColors": ["#94a3b8", "#4ade80", "#60a5fa", "#c084fc", "#fbbf24"],
+
+  "targets": {
+    "CASTLE": { "icon": "🏰", "color": "#60a5fa", "name": { "en": "Citadel", "tl": "Kuta" } },
+    "ESTABLISHMENTS": { "icon": "🏛️", "color": "#fbbf24", "name": { "en": "Establishments", "tl": "Mga Establisimyento" } },
+    "GENERALS": { "icon": "👑", "color": "#f472b6", "name": { "en": "Generals", "tl": "Mga Heneral" } },
+    "MINIONS": { "icon": "🧑‍🌾", "color": "#2dd4bf", "name": { "en": "Minions", "tl": "Mga Alagad" } }
+  },
+
+  "runes": {
+    "OBSIDIAN": { "target": "CASTLE", "icon": "🪨", "stat": "castleArmor", "perTier": 0.03, "name": { "en": "Obsidian Rune", "tl": "Runa ng Obsidian" }, "desc": { "en": "Less damage taken by the citadel", "tl": "Bawas pinsala sa kuta" } },
+    "MENDING": { "target": "CASTLE", "icon": "💖", "stat": "waveRepair", "perTier": 0.03, "name": { "en": "Mending Rune", "tl": "Runa ng Paggaling" }, "desc": { "en": "Citadel heals after each cleared wave", "tl": "Gumagaling ang kuta pagkatapos ng bawat alon" } },
+    "ARTILLERY": { "target": "CASTLE", "icon": "🎯", "stat": "towerDamage", "perTier": 0.05, "name": { "en": "Artillery Rune", "tl": "Runa ng Artilerya" }, "desc": { "en": "Tower damage", "tl": "Pinsala ng tore" } },
+
+    "BASTION": { "target": "ESTABLISHMENTS", "icon": "🧱", "stat": "buildingArmor", "perTier": 0.03, "name": { "en": "Bastion Rune", "tl": "Runa ng Balwarte" }, "desc": { "en": "Less damage taken by establishments", "tl": "Bawas pinsala sa mga establisimyento" } },
+    "WARD": { "target": "ESTABLISHMENTS", "icon": "🔮", "stat": "forceFieldHp", "perTier": 0.1, "name": { "en": "Ward Rune", "tl": "Runa ng Pananggalang" }, "desc": { "en": "Establishment force-field HP", "tl": "HP ng force field ng establisimyento" } },
+    "SIGIL": { "target": "ESTABLISHMENTS", "icon": "📜", "stat": "structureSkillPower", "perTier": 0.06, "name": { "en": "Sigil Rune", "tl": "Runa ng Sigil" }, "desc": { "en": "Establishment skill power", "tl": "Lakas ng kasanayan ng establisimyento" } },
+
+    "FURY": { "target": "GENERALS", "icon": "⚔️", "stat": "generalAttack", "perTier": 0.05, "name": { "en": "Fury Rune", "tl": "Runa ng Bangis" }, "desc": { "en": "General attack", "tl": "Atake ng Heneral" } },
+    "AEGIS": { "target": "GENERALS", "icon": "🛡️", "stat": "generalArmor", "perTier": 0.03, "name": { "en": "Aegis Rune", "tl": "Runa ng Kalasag" }, "desc": { "en": "Less damage taken by Generals", "tl": "Bawas pinsala sa mga Heneral" } },
+    "FOCUS": { "target": "GENERALS", "icon": "🌀", "stat": "generalSkillCooldown", "perTier": 0.04, "name": { "en": "Focus Rune", "tl": "Runa ng Pokus" }, "desc": { "en": "Shorter General skill cooldowns", "tl": "Mas maikling pahinga ng kasanayan ng Heneral" } },
+
+    "BANNER": { "target": "MINIONS", "icon": "🚩", "stat": "generalBanner", "perTier": 0.04, "name": { "en": "Banner Rune", "tl": "Runa ng Bandila" }, "desc": { "en": "While their General lives, minions deal more and take less damage", "tl": "Habang buhay ang Heneral, mas malakas at mas matibay ang mga alagad nito" } },
+    "VIGOR": { "target": "MINIONS", "icon": "💪", "stat": "tenantHp", "perTier": 0.08, "name": { "en": "Vigor Rune", "tl": "Runa ng Sigla" }, "desc": { "en": "Minion HP and damage", "tl": "HP at pinsala ng alagad" } },
+    "SPOILS": { "target": "MINIONS", "icon": "💰", "stat": "expeditionYield", "perTier": 0.1, "name": { "en": "Spoils Rune", "tl": "Runa ng Samsam" }, "desc": { "en": "Loot from human-realm expeditions", "tl": "Samsam mula sa ekspedisyon sa mundo ng tao" } },
+    "MUSTER": { "target": "MINIONS", "icon": "📯", "stat": "summonDiscount", "perTier": 0.1, "name": { "en": "Muster Rune", "tl": "Runa ng Pagtitipon" }, "desc": { "en": "Cheaper minion summons by their General (100% = free)", "tl": "Mas murang pagtawag ng Heneral sa alagad (100% = libre)" } }
+  },
+
+  "text": {
+    "tab": { "en": "Runes", "tl": "Mga Runa" },
+    "title": { "en": "Rune Vault", "tl": "Kaban ng Runa" },
+    "howTo": { "en": "Every wave boss carries a rune and drops it when slain. Slot runes to empower the citadel, establishments, Generals and minions. Merge {count} identical runes into the next tier. Runes are kept through Regression.", "tl": "May dalang runa ang bawat boss ng alon at nahuhulog ito kapag napatay. Ilagay ang runa para palakasin ang kuta, mga establisimyento, Heneral at alagad. Pagsamahin ang {count} magkaparehong runa para sa susunod na antas. Nananatili ang mga runa sa Regression." },
+    "slots": { "en": "Slots", "tl": "Puwesto" },
+    "empty": { "en": "Empty slot", "tl": "Bakanteng puwesto" },
+    "vault": { "en": "Unslotted runes", "tl": "Mga runang hindi nakalagay" },
+    "noRunes": { "en": "No runes yet — defeat a wave boss to earn one.", "tl": "Wala pang runa — talunin ang boss ng alon para makakuha." },
+    "slot": { "en": "Slot", "tl": "Ilagay" },
+    "unslot": { "en": "Remove", "tl": "Alisin" },
+    "merge": { "en": "Merge {count} → {tier}", "tl": "Pagsamahin {count} → {tier}" },
+    "full": { "en": "Slots full", "tl": "Puno ang puwesto" },
+    "tier": { "en": "Tier {tier}", "tl": "Antas {tier}" },
+    "bonuses": { "en": "Rune bonuses", "tl": "Bonus ng runa" }
+  }
+}

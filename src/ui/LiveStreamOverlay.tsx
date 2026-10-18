@@ -22,6 +22,8 @@ const MAX_BUBBLES = 30;
  */
 export const LiveStreamOverlay: React.FC = () => {
   const live = useLiveFocus((s) => s.live);
+  const brawl = useLiveFocus((s) => s.mode === 'brawl');
+  const fighters = useLiveFocus((s) => s.fighters);
   const spot = useLiveFocus((s) => s.spot);
   const requestFocus = useLiveFocus((s) => s.requestFocus);
   const { t } = useTranslation();
@@ -43,7 +45,8 @@ export const LiveStreamOverlay: React.FC = () => {
       const burst = Math.random() < 0.15 ? 3 + Math.floor(Math.random() * 4) : 1;
       const fresh: Bubble[] = [];
       for (let i = 0; i < burst; i++) {
-        const r = CONFIG.reactions[Math.floor(Math.random() * CONFIG.reactions.length)];
+        const pool = useLiveFocus.getState().mode === 'brawl' ? CONFIG.brawlReactions : CONFIG.reactions;
+        const r = pool[Math.floor(Math.random() * pool.length)];
         fresh.push({
           id: ++serial.current,
           emoji: r.emoji,
@@ -59,7 +62,7 @@ export const LiveStreamOverlay: React.FC = () => {
     };
     spawn();
     return () => window.clearTimeout(timer);
-  }, [live]);
+  }, [live, brawl]);
 
   const remove = (id: number) => setBubbles((prev) => prev.filter((b) => b.id !== id));
   const { width, height, margin } = CONFIG.frame;
@@ -72,20 +75,26 @@ export const LiveStreamOverlay: React.FC = () => {
           onClick={requestFocus}
           title={t('liveFocusHint')}
           aria-label={t('liveFocusHint')}
-          className="live-pop pointer-events-auto absolute cursor-pointer rounded-lg border-2 border-rose-500/80 shadow-[0_0_24px_rgba(244,63,94,0.45)] transition hover:border-rose-300 hover:shadow-[0_0_32px_rgba(251,113,133,0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-300"
+          className={`live-pop pointer-events-auto absolute cursor-pointer rounded-lg border-2 transition focus-visible:outline focus-visible:outline-2 ${
+            brawl
+              ? 'border-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] hover:border-amber-200 focus-visible:outline-amber-200'
+              : 'border-rose-500/80 shadow-[0_0_24px_rgba(244,63,94,0.45)] hover:border-rose-300 hover:shadow-[0_0_32px_rgba(251,113,133,0.7)] focus-visible:outline-rose-300'
+          }`}
           style={{ top: margin, right: margin, width, height }}
         >
           <div className="absolute left-2 top-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-1 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-black tracking-wider text-white">
-              <span className="live-dot h-1.5 w-1.5 rounded-full bg-white" />
-              {t('liveBadge')}
+            <span className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-black tracking-wider ${brawl ? 'bg-amber-400 text-slate-950' : 'bg-rose-600 text-white'}`}>
+              {brawl ? '🥊' : <span className="live-dot h-1.5 w-1.5 rounded-full bg-white" />}
+              {t(brawl ? 'brawlBadge' : 'liveBadge')}
             </span>
             <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
               👁 {viewers.toLocaleString()}
             </span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 rounded-b-md bg-gradient-to-t from-black/80 to-transparent px-2 pb-1 pt-4 text-[11px] font-bold text-white">
-            {t('liveTitle').replace('{spot}', spot)}
+            {brawl && fighters
+              ? t('brawlTitle').replace('{a}', fighters[0]).replace('{b}', fighters[1])
+              : t('liveTitle').replace('{spot}', spot)}
           </div>
           {/* Reactions rise inside the stream window only */}
           <div className="absolute inset-0 overflow-hidden rounded-md">

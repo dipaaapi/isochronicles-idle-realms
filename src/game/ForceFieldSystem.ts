@@ -1,3 +1,4 @@
+import { teamBonuses } from '../state/skillTree';
 import Phaser from 'phaser';
 import { TILE_WIDTH } from './IsometricHelper';
 import type { StructureManager, StructureId } from './StructureManager';
@@ -65,7 +66,8 @@ export class ForceFieldSystem {
     const store = useGameStore.getState();
     const b = towerBuildingOf(store, id);
     const wave = store.invasion.waveNumber || 1;
-    return Math.round(buildingMaxHp(towerLevelOf(b)) * CONFIG.establishment.maxHpFraction * (1 + wave * CONFIG.establishment.perWave));
+    return Math.round(buildingMaxHp(towerLevelOf(b)) * CONFIG.establishment.maxHpFraction * (1 + wave * CONFIG.establishment.perWave) *
+      teamBonuses(store).forceFieldHp); // Rune Wards skill
   }
 
   /** Lazily raises a dome the first time it is needed this wave (new rifts, freshly built establishments). */

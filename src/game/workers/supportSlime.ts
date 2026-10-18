@@ -286,7 +286,7 @@ export function pulseMoraleBoost(ctx: WorkerContext, slime: WorkerInstance, delt
   for (const d of defenders) {
     targets.push({
       type: 'DEFENDER',
-      name: d.unitClass === 'TREANT' ? 'Grove Tenant' : `${d.unitClass} Tenant`,
+      name: d.unitClass === 'TREANT' ? 'Grove Minion' : `${d.unitClass} Minion`,
       x: d.container.x,
       y: d.container.y,
       hasBuff: ((d as any).activeSlimeBuff?.duration ?? 0) > 0,

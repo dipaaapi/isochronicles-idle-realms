@@ -37,6 +37,7 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
   const maxed = rank >= skill.maxRank;
   const locked = !!skill.requires && rankOf(ranks, skill.requires) === 0;
   const learnable = canLearn(id, ranks, points);
+  const unlock = skill.kind === 'unlock';
   const status = maxed
     ? t(SKILL_TEXT.maxed)
     : locked
@@ -51,8 +52,11 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
       disabled={!learnable}
       onClick={() => onLearn(id)}
       title={t(skill.desc)}
-      style={{ borderColor: rank > 0 || learnable ? color : undefined }}
-      className={`group w-full rounded-xl border p-2.5 text-left transition-all ${
+      style={{
+        borderColor: rank > 0 || learnable ? color : undefined,
+        boxShadow: unlock && rank > 0 ? `0 0 14px -4px ${color}` : undefined,
+      }}
+      className={`group w-full rounded-xl border p-2.5 text-left transition-all ${unlock ? 'border-dashed' : ''} ${
         maxed
           ? 'bg-slate-900/90'
           : learnable
@@ -65,7 +69,15 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
       <div className="flex items-center gap-2">
         <span className="text-xl leading-none" aria-hidden="true">{skill.icon}</span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-bold text-white">{t(skill.name)}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-xs font-bold text-white">{t(skill.name)}</span>
+            <span
+              className="shrink-0 rounded px-1 py-px text-[8.5px] font-bold uppercase tracking-wide"
+              style={unlock ? { background: color, color: '#0f172a' } : { color, border: `1px solid ${color}55` }}
+            >
+              {unlock ? `✦ ${t(SKILL_TEXT.unlock)}` : t(SKILL_TEXT.passive)}
+            </span>
+          </div>
           <div className="mt-1 flex gap-1" aria-label={`${rank}/${skill.maxRank}`}>
             {Array.from({ length: skill.maxRank }, (_, i) => (
               <span
@@ -81,9 +93,13 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
       <p className="mt-1.5 text-[10.5px] leading-snug text-slate-400">{t(skill.desc)}</p>
       <div className="mt-1.5 flex items-center justify-between gap-2 text-[10.5px]">
         <span className="font-mono text-slate-300">
+          {unlock ? (
+            <span style={{ color: rank > 0 ? color : undefined }}>{rank > 0 ? `✦ ${t(SKILL_TEXT.unlocked)}` : '✦'}</span>
+          ) : (<>
           {rank > 0 && <>{formatStat(skill.stat, rank * skill.perRank)}</>}
           {rank > 0 && !maxed && <span className="text-slate-500"> → </span>}
           {!maxed && <span style={{ color }}>{formatStat(skill.stat, (rank + 1) * skill.perRank)}</span>}
+          </>)}
         </span>
         <span
           className={`shrink-0 rounded-md px-1.5 py-0.5 font-bold ${
@@ -100,13 +116,13 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
 
 /** Skill tree body; used as a Citadel Command tab and inside the standalone modal. */
 export const SkillTreePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { skillPoints, skillRanks, learnSkill, resetSkills, regressionCount, invasion, language } = useGameStore();
+  const { skillPoints, skillRanks, learnSkill, resetSkills, regressionCount, invasion, language, runes, runeSlots } = useGameStore();
 
   const t = (text: Localized) => (language === 'TL' ? text.tl : text.en);
   const wavesCleared = invasion.invasionsRepelled;
   const nextWave = nextRewardWave(wavesCleared);
   const setProgress = wavesCleared % WAVES_PER_SET;
-  const totals = teamStatTotals(skillRanks, regressionCount);
+  const totals = teamStatTotals(skillRanks, regressionCount, { runes, runeSlots });
   const activeStats = (Object.keys(totals) as TeamStat[]).filter((s) => totals[s] > 0);
   const spent = Object.values(skillRanks).some((r) => (r ?? 0) > 0);
 
@@ -156,7 +172,9 @@ export const SkillTreePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) 
         </div>
       </div>
 
-      {/* Four branches, each a chain from top to bottom */}
+      <p className="mb-3 text-[11px] text-slate-400">{t(SKILL_TEXT.legend)}</p>
+
+      {/* Branches (team, then establishments / Generals / minions), each a chain from top to bottom */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {(Object.keys(SKILL_BRANCHES) as SkillBranch[]).map((branch) => {
           const b = SKILL_BRANCHES[branch];

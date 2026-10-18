@@ -5,7 +5,6 @@
   "src/main.tsx": "React entry point; mounts App",
   "src/index.css": "Tailwind/DaisyUI imports and global CSS",
   "src/data/buildingLayout.json": "20×20 platform: castle footprint/gate, spire, portals, establishment site sizes and layout rules",
-  "src/data/craftableItems.json": "Armory equipment (tools, weapons, armour, relics): slot, stats, cost, EN/TL text",
   "src/data/defenseConfig.json": "Towers, building HP/repair, castle fortifications, Provoke Beacon, portal stats and their EN/TL text",
   "src/data/economy.json": "Resource prices (sell/buy), build costs, summon costs per class, progression formulas",
   "src/data/establishmentCrews.json": "Single source of each establishment's General, its tenants' gather jobs by terrain and rift expeditions",
@@ -113,7 +112,6 @@
   "src/ui/CastleBreachedModal.tsx": "Shown when the citadel falls (loot lost)",
   "src/ui/CitadelCommandModal.tsx": "Citadel Command tabs: Minions, Market, Forge, Research, Castle",
   "src/ui/CodexModal.tsx": "Codex modal",
-  "src/ui/EquipmentWorkshopModal.tsx": "Armory: craft and equip items",
   "src/ui/EstablishmentModal.tsx": "Per-establishment panel: upgrade, tower, skills, General and tenants",
   "src/ui/FAQModal.tsx": "FAQ modal",
   "src/ui/FortificationsPanel.tsx": "Spire and establishment tower upgrades",
@@ -168,5 +166,13 @@
   "src/game/devBridge.ts": "Dev-mode handle on the live scene (InvasionManager) for the dev panel",
   "src/game/promotions.ts": "General classes mid-promotion (tenant star badge → grow), so the Treant does not summon a duplicate",
   "src/game/sprites/stateAnimations.ts": "Builds run / tired / skill / hit / death key poses for the Generals from each model rig (blockout-style), tuned by src/data/stateAnimations.json",
-  "src/data/stateAnimations.json": "Angles / offsets for the Generals state animations (run, tired, skill, hit, death key frames)"
+  "src/data/stateAnimations.json": "Angles / offsets for the Generals state animations (run, tired, skill, hit, death key frames)",
+  "scripts/render-portraits.mjs": "Renders Codex-style 160px portraits (public/portraits/) from voxel models for characters without painted art",
+  "src/data/brawl.json": "General brawl tuning: clash radius, tension limit, absorb ratios, +1..+10 glow, mirror invaders",
+  "src/state/brawl.ts": "Typed brawl rules: pair tension, clash counting, applyBrawlResult (winner absorbs loser base stats), mirror chance",
+  "src/game/workers/brawl.ts": "BrawlDirector: counts General clashes on the map, runs brawls outside waves, resolves winner via the store",
+  "src/data/runes.json": "Rune kinds per target (Citadel, Establishments, Generals, Minions), tier power, slots, boss tier curve, EN/TL text",
+  "src/state/runes.ts": "Typed rune rules: rune stat totals, boss rune tier/roll, slots, save normalisation",
+  "src/state/store/runesSlice.ts": "Rune Vault actions: grantRune (boss drop), slotRune / unslotRune, mergeRunes (3 → next tier)",
+  "src/ui/RunePanel.tsx": "Citadel Command Runes tab: slots per target, unslotted runes, merges"
 }

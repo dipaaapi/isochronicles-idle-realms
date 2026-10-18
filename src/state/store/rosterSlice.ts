@@ -9,8 +9,9 @@ import {
   slimeEvolutionKillsRequired,
 } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
-import { CRAFTABLE_ITEMS, TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
-import type { EquipmentItem, EquipmentSlot, HarvestTask, InvaderType, UnitClass } from '../../types/game';
+import { addClash, applyBrawlResult, pairKey } from '../brawl';
+import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
+import type { HarvestTask, InvaderType, UnitClass } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
 import type { SliceArgs } from './types';
 import { crewGeneralOf } from '../establishmentCrews';
@@ -42,23 +43,23 @@ export const generalOf = (buildingId: ResourceBuildingId): UnitClass | undefined
 /** Fighters the Slime can summon (rulers are unique and arrive on their own). */
 export const FIGHTER_CLASSES = (Object.keys(UNIT_CLASSES) as UnitClass[]).filter((c) => UNIT_CLASSES[c].role === 'FIGHTER');
 
-type EquipmentKey = 'tool' | 'armor' | 'relic';
-const slotKeyOf = (slot: EquipmentSlot) => slot.toLowerCase() as EquipmentKey;
-
-/** Crafting recipes name their costs differently from the Resources shape. */
-export const craftingCost = (item: EquipmentItem): Partial<Resources> => ({
-  aetherShards: item.costResources.shards,
-  wood: item.costResources.wood,
-  stone: item.costResources.stone,
-  arcaneEssence: item.costResources.essence,
-  obsidianShard: item.costResources.obsidian,
-  soulFragments: item.costResources.souls,
-  abyssalPearl: item.costResources.pearl,
-  scrapMetal: item.costResources.scrap,
-});
-
-/** Minion roster, evolutions, equipment and the Bestiary. */
+/** Minion roster, evolutions and the Bestiary. */
 export const createRosterSlice = (...[set, get]: SliceArgs) => ({
+  recordClash: (aId: string, bId: string, x: number, y: number) => {
+    const key = pairKey(aId, bId);
+    const next = addClash(get().brawlTension[key], x, y);
+    set((prev) => ({ brawlTension: { ...prev.brawlTension, [key]: next } }));
+    return next;
+  },
+
+  resolveBrawl: (winnerId: string, loserId: string) => {
+    set((prev) => {
+      const brawlTension = { ...prev.brawlTension };
+      delete brawlTension[pairKey(winnerId, loserId)];
+      return { roster: applyBrawlResult(prev.roster, winnerId, loserId), brawlTension, lastSavedTimestamp: Date.now() };
+    });
+  },
+
   discoverEntry: (category: 'beast' | 'invader', id: string) => {
     set((prev) => {
       if (category === 'beast') {
@@ -146,37 +147,6 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
 
   summonWorker: (): boolean => get().summonUnit('GOLEM', 'AETHER'),
 
-  summonTenant: (buildingId: ResourceBuildingId): boolean => {
-    const state = get();
-    // Tenants share the look of their establishment's General; each General has one home, so no two establishments share a kind
-    const unitClass = generalOf(buildingId);
-    if (!unitClass) return false;
-    const config = UNIT_CLASSES[unitClass];
-    const hasGeneral = state.roster.some((u) => u.unitClass === unitClass && !u.parentBuildingId && !u.id.startsWith('tenant_'));
-    if (!hasGeneral) return false;
-    const count = state.roster.filter(
-      (u) => u.parentBuildingId === buildingId || (u.id.startsWith(`tenant_${buildingId.toLowerCase()}`))
-    ).length;
-    if (count >= TENANTS_PER_ESTABLISHMENT) return false;
-
-    const newUnitId = `tenant_${buildingId.toLowerCase()}_${Date.now()}`;
-    const newUnit: UnitRosterItem = {
-      id: newUnitId,
-      name: `${config.nameEn} Tenant ${count + 1}`,
-      unitClass,
-      assignedTask: config.preferredTask,
-      parentBuildingId: buildingId,
-    };
-    const nextRoster = [...state.roster, newUnit];
-    set({
-      roster: nextRoster,
-      workerCount: nextRoster.length,
-      lastSavedTimestamp: Date.now(),
-    });
-    soundFx.playGolemCheer();
-    return true;
-  },
-
   upgradeSupportSlime: (): boolean => {
     const state = get();
     const slime = state.roster.find((unit) => unit.unitClass === 'AQUA_SLIME');
@@ -225,92 +195,5 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     return true;
   },
 
-  // Equipment & Crafting Actions
-  craftEquipment: (item: EquipmentItem) => {
-    const cost = craftingCost(item);
-    if (!canAfford(get().resources, cost)) return false;
-
-    set((prev) => ({
-      resources: subtractCost(prev.resources, cost),
-      inventory: [...prev.inventory, item],
-      lastSavedTimestamp: Date.now(),
-    }));
-
-    soundFx.playUpgrade();
-    get().unlockAchievement(
-      'master_smith',
-      'Arcane Blacksmith',
-      'Crafted an equipment piece for your realm constructs.',
-      '⚒️'
-    );
-    return true;
-  },
-
-  /** A slain scout dropped an equipment piece: it goes straight to the inventory, free. */
-  grantEquipmentDrop: (itemId: string) => {
-    const item = CRAFTABLE_ITEMS.find((i) => i.id === itemId);
-    if (!item) return null;
-    set((prev) => ({ inventory: [...prev.inventory, { ...item }], lastSavedTimestamp: Date.now() }));
-    return item;
-  },
-
-  purchaseEquipment: (item: EquipmentItem) => {
-    const cost = item.costCoins || 50;
-    if (get().resources.coins < cost) return false;
-
-    set((prev) => ({
-      resources: { ...prev.resources, coins: prev.resources.coins - cost },
-      inventory: [...prev.inventory, item],
-      lastSavedTimestamp: Date.now(),
-    }));
-
-    soundFx.playCoin();
-    return true;
-  },
-
-  equipItem: (unitId: string, item: EquipmentItem) => {
-    set((prev) => {
-      const slotKey = slotKeyOf(item.slot);
-      const inventory = prev.inventory.filter((i) => i.id !== item.id);
-
-      const roster = prev.roster.map((unit) => {
-        if (unit.id !== unitId) return unit;
-        const curEquip = unit.equipment || {};
-        const prevItem = curEquip[slotKey];
-        if (prevItem) inventory.push(prevItem); // Return old item to inventory
-
-        let maxHp = unit.maxHp || 100;
-        if (item.slot === 'ARMOR' && item.stats.bonusHp) maxHp += item.stats.bonusHp;
-        return {
-          ...unit,
-          equipment: { ...curEquip, [slotKey]: item },
-          maxHp,
-          hp: Math.min(maxHp, (unit.hp || maxHp) + (item.stats.bonusHp || 0)),
-        };
-      });
-
-      return { roster, inventory, lastSavedTimestamp: Date.now() };
-    });
-    soundFx.playClick();
-  },
-
-  unequipItem: (unitId: string, slot: EquipmentSlot) => {
-    set((prev) => {
-      const slotKey = slotKeyOf(slot);
-      const inventory = [...prev.inventory];
-
-      const roster = prev.roster.map((unit) => {
-        if (unit.id !== unitId) return unit;
-        const equipment = { ...(unit.equipment || {}) };
-        const unequipped = equipment[slotKey];
-        if (unequipped) inventory.push(unequipped);
-        delete equipment[slotKey];
-        return { ...unit, equipment };
-      });
-
-      return { roster, inventory, lastSavedTimestamp: Date.now() };
-    });
-    soundFx.playClick();
-  },
 
 }) satisfies Partial<GameStoreState>;

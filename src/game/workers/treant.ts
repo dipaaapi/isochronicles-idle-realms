@@ -1,10 +1,9 @@
-import { CRAFTABLE_ITEMS, TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES, type EquipmentSlot } from '../../types/game';
+import { TASK_NODE_LOCATIONS, TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import { promotingClasses } from '../promotions';
 import type { GameStoreState, ResourceBuildingId, TowerId } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../../state/economy';
 import { canAfford } from '../../state/resources';
-import { craftingCost } from '../../state/store/rosterSlice';
 import { CONSTRUCTION_SECONDS, nextEntConstruction, nextGeneralToSummon } from '../../state/constructionProgress';
 import { DEFENSE_TEXT } from '../../state/defenseStats';
 import { logMessage } from '../../state/activityLog';
@@ -205,81 +204,6 @@ function performTreantAction(ctx: WorkerContext, worker: WorkerInstance, store: 
 }
 
 /**
- * Ancient Treant Auto-Forge & Armory:
- * The Ancient Treant inspects fighting minions in the realm. When a minion lacks
- * gear or a stronger piece is craftable/purchasable, the Ancient Treant automatically
- * crafts from materials or purchases with coins and equips it to the minion.
- */
-function autoForgeAndEquipByAncientEnt(
-  ctx: WorkerContext,
-  worker: WorkerInstance,
-  store: GameStoreState
-): void {
-  const fighters = store.roster.filter(
-    (u) => u.unitClass !== 'TREANT' && u.unitClass !== 'AQUA_SLIME'
-  );
-  if (fighters.length === 0) return;
-
-  const slots: EquipmentSlot[] = ['TOOL', 'ARMOR', 'RELIC'];
-
-  for (const fighter of fighters) {
-    for (const slot of slots) {
-      const slotKey = slot.toLowerCase() as 'tool' | 'armor' | 'relic';
-      const currentItem = fighter.equipment?.[slotKey];
-
-      // 1. Equip from existing inventory first
-      const inInventory = store.inventory.find((i) => i.slot === slot);
-      if (inInventory && !currentItem) {
-        store.equipItem(fighter.id, inInventory);
-        ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0xa855f7, 6);
-        ctx.spawnFloatingPopup(
-          worker.container.x,
-          worker.container.y - 45,
-          `⚒️ Treant equipped ${inInventory.name}!`,
-          '#c084fc'
-        );
-        return;
-      }
-
-      if (currentItem) continue;
-
-      // 2. Craft or buy a missing piece for this slot
-      const candidateItems = CRAFTABLE_ITEMS.filter((i) => i.slot === slot);
-      for (const item of candidateItems) {
-        const cost = craftingCost(item);
-        if (canAfford(store.resources, cost)) {
-          // Craft directly using stockpiled resources
-          if (store.craftEquipment(item)) {
-            store.equipItem(fighter.id, item);
-            ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0xa855f7, 10);
-            ctx.spawnFloatingPopup(
-              worker.container.x,
-              worker.container.y - 45,
-              `⚒️ Treant forged ${item.name}!`,
-              '#c084fc'
-            );
-            return;
-          }
-        } else if (store.resources.coins >= (item.costCoins || 50)) {
-          // Buy using surplus realm gold coins
-          if (store.purchaseEquipment(item)) {
-            store.equipItem(fighter.id, item);
-            ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 15, 0xfbbf24, 10);
-            ctx.spawnFloatingPopup(
-              worker.container.x,
-              worker.container.y - 45,
-              `🪙 Treant bought ${item.name}!`,
-              '#fbbf24'
-            );
-            return;
-          }
-        }
-      }
-    }
-  }
-}
-
-/**
  * Mother Ancient Treant: Life Giver & General Summoner.
  * After the castle and spire, the Treant's first duty is to call forth every
  * establishment's General, one at a time, in construction order. The founding
@@ -329,13 +253,6 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
   worker.cargoIcon.setVisible(false);
 
   const profile = TREANT_EVOLUTION[clampLevel(worker.treantEvolutionLevel)];
-
-  // ── Ancient Treant Auto-Forge & Armory Check ──
-  worker.entGearTimer = (worker.entGearTimer ?? 3.0) - deltaSec;
-  if (worker.entGearTimer <= 0) {
-    worker.entGearTimer = 4.0;
-    autoForgeAndEquipByAncientEnt(ctx, worker, store);
-  }
 
   // Duties in order: castle & spire, then summon every General, then care for the realm
   if (updateConstruction(ctx, worker, store, deltaSec, effectiveSpeed)) return;

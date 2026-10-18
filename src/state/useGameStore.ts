@@ -11,6 +11,7 @@ import { createEconomySlice } from './store/economySlice';
 import { createPersistenceSlice, persistOptions } from './store/persistence';
 import { createProgressionSlice } from './store/progressionSlice';
 import { createRosterSlice } from './store/rosterSlice';
+import { createRunesSlice } from './store/runesSlice';
 import { TARGET_FPS_STORAGE_KEY, createWorldSlice } from './store/worldSlice';
 import type { StoreGet, StoreSet } from './store/types';
 
@@ -47,6 +48,7 @@ const createGameStore = (set: StoreSet, get: StoreGet): GameStoreState => ({
   ...createWorldSlice(set, get),
   ...createEconomySlice(set, get),
   ...createRosterSlice(set, get),
+  ...createRunesSlice(set, get),
   ...createBuildingsSlice(set, get),
   ...createDefenseSlice(set, get),
   ...createProgressionSlice(set, get),

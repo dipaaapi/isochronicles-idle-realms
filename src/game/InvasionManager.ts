@@ -4,7 +4,6 @@ import {
   GridPoint,
   InvaderType,
   INVADER_CONFIGS,
-  CRAFTABLE_ITEMS,
 } from '../types/game';
 
 /** Seconds scout spoils wait on the ground for a General (they roam farther than tenants). */
@@ -22,6 +21,10 @@ import { DEFENSE_CONFIG } from '../state/defenseStats';
 import { ECONOMY_CONFIG } from '../state/economy';
 import { auras, isModActive } from './skills/combatMods';
 import { teamBonuses } from '../state/skillTree';
+import { UNIT_CLASSES } from '../types/game';
+import { RUNES, bossRuneTier, rollRuneKind, tierColor, tierName } from '../state/runes';
+import { BRAWL_CONFIG, MIRROR_TINT, brawlLevelOf, generalStatsOf, mirrorChance } from '../state/brawl';
+import type { UnitRosterItem } from '../types/state';
 import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
 import { applyLocomotion, locomotionOf } from './locomotion';
 import { Navigation, TILES_FOR } from './Navigation';
@@ -124,6 +127,7 @@ export class InvasionManager {
   }
 
   private loadBattleFx(): void {
+    if (!this.scene.load) return; // headless tests stub the scene without a loader
     const base = import.meta.env.BASE_URL;
     this.scene.load.aseprite('battle-poison-smoke', `${base}skills/poison-smoke.png`, `${base}skills/poison-smoke.json`);
     this.scene.load.aseprite('battle-bone-cage', `${base}skills/bone-cage.png`, `${base}skills/bone-cage.json`);
@@ -636,8 +640,14 @@ export class InvasionManager {
     );
     const isBoss = rank === 'boss' || rank === 'climax';
     const isElite = rank === 'elite';
-    const finalMaxHp = Math.max(1, Math.round(stats.hp * mods.hp));
-    const finalDamage = Math.max(1, Math.round(stats.damage * mods.damage));
+    let finalMaxHp = Math.max(1, Math.round(stats.hp * mods.hp));
+    let finalDamage = Math.max(1, Math.round(stats.damage * mods.damage));
+    // Brawl balance: some invaders copy an upgraded General's attack and HP
+    const mirror = !isBoss && !extra ? this.rollMirror(waveNumber) : null;
+    if (mirror) {
+      finalMaxHp = mirror.hp;
+      finalDamage = mirror.attack;
+    }
     const finalBounty = stats.bounty;
     // A random few ignore everything else and charge the citadel
     const rush = DEFENSE_CONFIG?.rushers;
@@ -663,6 +673,7 @@ export class InvasionManager {
       shadow.setScale(stats.scale);
     }
     if (isElite && sprite) sprite.setTint(0xfde68a);
+    if (mirror && sprite) sprite.setTint(MIRROR_TINT);
 
     if (this.parentContainer) {
       this.parentContainer.add(container);
@@ -671,7 +682,8 @@ export class InvasionManager {
     const invader: ActiveInvader = {
       id: `invader_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       type,
-      name: isBoss ? `BOSS ${cfg.nameEn ?? cfg.name}` : isElite ? `Elite ${cfg.nameEn ?? cfg.name}` : (cfg.nameEn ?? cfg.name),
+      name: isBoss ? `BOSS ${cfg.nameEn ?? cfg.name}` : mirror ? BRAWL_CONFIG.text.mirrorName.en.replace('{name}', cfg.nameEn ?? cfg.name)
+        : isElite ? `Elite ${cfg.nameEn ?? cfg.name}` : (cfg.nameEn ?? cfg.name),
       container,
       shadow,
       bodyGfx,
@@ -698,6 +710,8 @@ export class InvasionManager {
       isHacker: extra?.hacker,
       isLauncher: extra?.launcher,
       escortOf: extra?.escortOf,
+      // Every wave boss carries a rune, stronger later in the realm
+      runeDrop: isBoss ? { kind: rollRuneKind(), tier: bossRuneTier(waveNumber, rank === 'climax') } : undefined,
     };
 
     // Interactive Clicking: Demon Lord Lightning Smite! ⚡
@@ -716,11 +730,55 @@ export class InvasionManager {
     if (this.tactic.effect === 'PHASE_VEIL') invader.invulnTimer = Math.max(invader.invulnTimer ?? 0, TACTIC_EFFECTS.PHASE_VEIL.veilSeconds);
     if (extra) {
       // Raid members are narrated by spawnTechnicianRaid
-    } else if (isBoss) logMessage('bossArrives', { name: this.logName(invader) });
+    } else if (isBoss) {
+      logMessage('bossArrives', { name: this.logName(invader) });
+      if (invader.runeDrop) logMessage('bossCarriesRune', { name: this.logName(invader), rune: this.runeLabel(invader.runeDrop) });
+    }
     else if (planned.escort) logMessage('escortArrives', { name: this.logName(invader) });
     else if (isElite) logMessage('eliteArrives', { name: this.logName(invader) });
     if (isRusher) logMessage('rusherCharges', { name: this.logName(invader) });
+    if (mirror) logMessage('mirrorArrives', { name: this.logName(invader), general: mirror.unit.name });
     return invader;
+  }
+
+  /** "Tier III Fury Rune" in both languages, for the activity log. */
+  private runeLabel(drop: { kind: keyof typeof RUNES; tier: number }) {
+    const def = RUNES[drop.kind];
+    return { en: `${def.icon} ${def.name.en} ${tierName(drop.tier)}`, tl: `${def.icon} ${def.name.tl} ${tierName(drop.tier)}` };
+  }
+
+  /** A slain boss drops its rune: it flies up in its tier colour and lands in the Rune Vault. */
+  private dropRune(invader: ActiveInvader): void {
+    const drop = invader.runeDrop!;
+    invader.runeDrop = undefined;
+    useGameStore.getState().grantRune(drop.kind, drop.tier);
+    logMessage('runeDropped', { name: this.logName(invader), rune: this.runeLabel(drop) });
+    soundFx.playFanfare();
+    const color = parseInt(tierColor(drop.tier).replace('#', ''), 16);
+    const gem = this.scene.add.star(invader.container.x, invader.container.y - 20, 4, 4, 9, color, 1);
+    gem.setStrokeStyle(1.5, 0xffffff, 0.9);
+    gem.setDepth(9995);
+    this.parentContainer?.add(gem);
+    this.scene.tweens.add({ targets: gem, y: gem.y - 46, angle: 360, scale: 1.6, alpha: 0, duration: 1400, ease: 'Cubic.easeOut', onComplete: () => gem.destroy() });
+  }
+
+  /** Upgraded Generals already mirrored this wave (at most one mirror each). */
+  private mirrored = new Set<string>();
+  private mirrorWave = -1;
+
+  /** Rolls whether a new invader copies an upgraded General (brawl.json mirror). */
+  private rollMirror(wave: number): { unit: UnitRosterItem; attack: number; hp: number } | null {
+    if (wave !== this.mirrorWave) {
+      this.mirrorWave = wave;
+      this.mirrored.clear();
+    }
+    for (const unit of useGameStore.getState().roster) {
+      const level = brawlLevelOf(unit);
+      if (level <= 0 || this.mirrored.has(unit.id) || Math.random() >= mirrorChance(level)) continue;
+      this.mirrored.add(unit.id);
+      return { unit, ...generalStatsOf(unit) };
+    }
+    return null;
   }
 
   /** Each open rift rolls its own squad (riftSquads.json); command squads queue their General. */
@@ -1638,7 +1696,7 @@ export class InvasionManager {
     }
   }
 
-  /** Scouts scatter coins and supplies on the ground for minions to pick up, and sometimes an item. */
+  /** Scouts scatter coins and supplies on the ground for minions to pick up. */
   private dropScoutLoot(invader: ActiveInvader): void {
     const store = useGameStore.getState();
     const drops = rollScoutDrops(invader.scoutKind ?? 'HUMAN', store.invasion.waveNumber);
@@ -1649,10 +1707,6 @@ export class InvasionManager {
       const spoils = { generalsOnly: true, life: SCOUT_SPOILS_LIFE };
       for (const pile of drops.coinPiles) this.groundLoot.dropLoot(x, y, 'coins', pile, undefined, spoils);
       for (const [key, amount] of drops.resources) this.groundLoot.dropLoot(x, y, key, amount, undefined, spoils);
-      if (drops.itemId) {
-        const item = CRAFTABLE_ITEMS.find((i) => i.id === drops.itemId);
-        if (item) this.groundLoot.dropLoot(x, y, 'coins', 0, item.icon, { ...spoils, itemId: item.id });
-      }
     } else {
       // No ground loot layer (tests): credit the drops directly
       const bundle: Partial<Resources> = { coins };
@@ -1660,13 +1714,6 @@ export class InvasionManager {
       store.addResources(bundle);
     }
     logMessage('scoutLoot', { name: this.logName(invader), coins }, { mergeKey: 'scoutLoot' });
-    if (drops.itemId && !this.groundLoot) {
-      const item = store.grantEquipmentDrop(drops.itemId);
-      if (item) {
-        soundFx.playCoin();
-        logMessage('scoutItem', { name: this.logName(invader), item: { en: `${item.icon} ${item.name}`, tl: `${item.icon} ${item.nameTl ?? item.name}` } });
-      }
-    }
   }
 
   private emberPuff(invader: ActiveInvader): void {
@@ -1705,6 +1752,7 @@ export class InvasionManager {
     if (invader.name.startsWith('BOSS')) soundFx.playExplosion();
     else soundFx.playEnemyDeath();
     logMessage(invader.name.startsWith('BOSS') ? 'bossSlain' : 'invaderSlain', { name: this.logName(invader) }, { mergeKey: `kill:${invader.name}` });
+    if (invader.runeDrop) this.dropRune(invader);
 
     // Reward bounty (Plunder Tax skill)
     const bounty = Math.round(invader.bountyCoins * teamBonuses(useGameStore.getState()).bounty);
@@ -1954,11 +2002,11 @@ export class InvasionManager {
     const defenderX = closestDefender.container.x;
     const defenderY = closestDefender.container.y;
 
-    // Calculate armor damage mitigation from equipped armor/relic
-    const armorMitigationPercent = closestDefender.equipment?.armor?.id === 'ironstone_plating' ? 0.15 : 0;
     // Hardened Hides skill + regression tiers
-    const teamMitigation = teamBonuses(useGameStore.getState()).minionDamageTaken;
-    const mitigatedDamage = Math.max(1, Math.round(weatherDmg * (1 - armorMitigationPercent) * teamMitigation));
+    const team = teamBonuses(useGameStore.getState());
+    // Iron Resolve skill: Generals (fighters) take less on top
+    const teamMitigation = team.minionDamageTaken * (UNIT_CLASSES[closestDefender.unitClass]?.role === 'FIGHTER' ? team.generalDamageTaken : 1);
+    const mitigatedDamage = Math.max(1, Math.round(weatherDmg * teamMitigation));
 
     let armorAbsorb = 0;
     if (closestDefender.armorShield > 0) {
@@ -1971,7 +2019,7 @@ export class InvasionManager {
     this.spawnFloatingPopup(
       defenderX,
       defenderY - 25,
-      `-${actualDamage} HP ${armorMitigationPercent > 0 ? '🛡️(-15%)' : ''} ${armorAbsorb > 0 ? '(shielded)' : '💔'}`,
+      `-${actualDamage} HP ${armorAbsorb > 0 ? '(shielded)' : '💔'}`,
       '#ef4444'
     );
 

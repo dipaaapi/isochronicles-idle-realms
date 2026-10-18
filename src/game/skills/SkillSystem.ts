@@ -1,3 +1,5 @@
+import { teamBonuses } from '../../state/skillTree';
+import { UNIT_CLASSES } from '../../types/game';
 import Phaser from 'phaser';
 import { IsometricHelper } from '../IsometricHelper';
 import { Navigation } from '../Navigation';
@@ -99,7 +101,13 @@ export class SkillSystem {
     this.castFx.update(dt);
 
     if (!store.invasion.isActive || invaders.length === 0) return;
-    for (const w of workers) if ((w.stunTimer ?? 0) <= 0) this.beastSkill(w, invaders, workers);
+    const generalCd = teamBonuses(store).generalSkillCooldown;
+    for (const w of workers) {
+      if ((w.stunTimer ?? 0) > 0) continue;
+      this.cooldownScale = UNIT_CLASSES[w.unitClass]?.role === 'FIGHTER' ? generalCd : 1;
+      this.beastSkill(w, invaders, workers);
+    }
+    this.cooldownScale = 1;
     for (const inv of invaders) if ((inv.frozenTimer ?? 0) <= 0 && (inv.charmTimer ?? 0) <= 0) this.invaderSkill(inv, invaders, workers);
   }
 
@@ -112,9 +120,12 @@ export class SkillSystem {
   }
 
   /** Starts `key`'s cooldown and returns true when it was ready. */
+  /** Battle Focus skill: General (fighter) cooldowns shrink; set per caster in update(). */
+  private cooldownScale = 1;
+
   private ready(key: string, cooldown: number): boolean {
     if ((this.cooldowns.get(key) ?? 0) > 0) return false;
-    this.cooldowns.set(key, cooldown);
+    this.cooldowns.set(key, cooldown * this.cooldownScale);
     return true;
   }
 
@@ -816,7 +827,8 @@ export class SkillSystem {
   ): void {
     // Flat skill damage grows with the wave (waveBalance.json skills.powerPerWave)
     const surge = useGameStore.getState().defense.minionFrenzyTimer > 0;
-    const power = skillPower(useGameStore.getState().invasion.waveNumber) * (surge ? 3 : 1);
+    const power = skillPower(useGameStore.getState().invasion.waveNumber) * (surge ? 3 : 1) *
+      teamBonuses(useGameStore.getState()).structureSkillPower; // Landmark Rites skill
     const p = (n: number) => Math.round(n * power * (surge && Math.random() < 0.2 ? 2 : 1));
 
     switch (id) {

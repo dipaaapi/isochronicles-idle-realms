@@ -1,5 +1,5 @@
 {
-  "_comment": "Live-stream focus: a picture-in-picture camera that pops out over intense fights during a wave, with viewer reactions rising up the right side.",
+  "_comment": "Live-stream focus: a picture-in-picture camera that pops out over intense fights during a wave, with viewer reactions rising up the right side. Between waves the same frame shows General brawls (BRAWL badge, brawlReactions); the two never overlap because brawls cannot start during a wave.",
   "detect": {
     "checkSeconds": 0.5,
     "radius": 130,
@@ -7,17 +7,99 @@
     "minAllies": 2,
     "popChance": 0.35
   },
-  "liveSeconds": [8, 14],
+  "liveSeconds": [
+    8,
+    14
+  ],
   "calmEndSeconds": 3,
-  "cooldownSeconds": [10, 25],
-  "frame": { "width": 320, "height": 180, "margin": 12, "zoom": 1.8 },
-  "reactionsPerSecond": [4, 14],
+  "cooldownSeconds": [
+    10,
+    25
+  ],
+  "frame": {
+    "width": 320,
+    "height": 180,
+    "margin": 12,
+    "zoom": 1.8
+  },
+  "reactionsPerSecond": [
+    4,
+    14
+  ],
   "reactions": [
-    { "key": "like", "emoji": "👍", "en": "Like", "tl": "Gusto" },
-    { "key": "heart", "emoji": "❤️", "en": "Heart", "tl": "Puso" },
-    { "key": "laugh", "emoji": "😂", "en": "Haha", "tl": "Haha" },
-    { "key": "angry", "emoji": "😡", "en": "Angry", "tl": "Galit" },
-    { "key": "wow", "emoji": "😮", "en": "Wow", "tl": "Wow" },
-    { "key": "sad", "emoji": "😢", "en": "Sad", "tl": "Malungkot" }
+    {
+      "key": "like",
+      "emoji": "👍",
+      "en": "Like",
+      "tl": "Gusto"
+    },
+    {
+      "key": "heart",
+      "emoji": "❤️",
+      "en": "Heart",
+      "tl": "Puso"
+    },
+    {
+      "key": "laugh",
+      "emoji": "😂",
+      "en": "Haha",
+      "tl": "Haha"
+    },
+    {
+      "key": "angry",
+      "emoji": "😡",
+      "en": "Angry",
+      "tl": "Galit"
+    },
+    {
+      "key": "wow",
+      "emoji": "😮",
+      "en": "Wow",
+      "tl": "Wow"
+    },
+    {
+      "key": "sad",
+      "emoji": "😢",
+      "en": "Sad",
+      "tl": "Malungkot"
+    }
+  ],
+  "brawlReactions": [
+    {
+      "key": "punch",
+      "emoji": "👊",
+      "en": "Punch",
+      "tl": "Suntok"
+    },
+    {
+      "key": "fire",
+      "emoji": "🔥",
+      "en": "Fire",
+      "tl": "Apoy"
+    },
+    {
+      "key": "shock",
+      "emoji": "😱",
+      "en": "Shock",
+      "tl": "Gulat"
+    },
+    {
+      "key": "laugh",
+      "emoji": "😂",
+      "en": "Haha",
+      "tl": "Haha"
+    },
+    {
+      "key": "clash",
+      "emoji": "💥",
+      "en": "Clash",
+      "tl": "Banggaan"
+    },
+    {
+      "key": "crown",
+      "emoji": "👑",
+      "en": "Crown",
+      "tl": "Korona"
+    }
   ]
 }

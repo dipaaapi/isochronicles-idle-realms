@@ -1,5 +1,5 @@
 {
-  "_comment": "One General and five tenants per establishment. Tenants share their General's kind (drawn smaller). Each gather entry is a job a tenant rotates through; 'source' says which tiles it works: OCEAN (wades into the ocean ring), GRASS (open land), PAVEMENT (road tiles), ESTABLISHMENT (beside its own building), PORTAL (around the nearest rift). 'expedition' sends up to 'slots' tenants through a rift into the human realm for materials the platform lacks; every trip stirs human vengeance (bigger next wave).",
+  "_comment": "One General and two minions per establishment. Minions share their General's kind (drawn smaller). Each gather entry is a job a minion rotates through; 'source' says which tiles it works: OCEAN (wades into the ocean ring), GRASS (open land), PAVEMENT (road tiles), ESTABLISHMENT (beside its own building), PORTAL (around the nearest rift). 'expedition' sends up to 'slots' minions through a rift into the human realm for materials the platform lacks; every trip stirs human vengeance (bigger next wave).",
   "spawnIntervalSeconds": 18,
   "gatherSeconds": 3,
   "searchRadius": 5,

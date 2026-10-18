@@ -63,7 +63,7 @@ export function rallyForInvasion(ctx: WorkerContext, worker: WorkerInstance, fra
     ctx.spawnFloatingPopup(
       worker.container.x,
       worker.container.y - 35,
-      isTenant ? 'Tenant Retaliating! ⚔️' : 'Intercepting Invaders! ⚔️',
+      isTenant ? 'Minion Retaliating! ⚔️' : 'Intercepting Invaders! ⚔️',
       '#38bdf8'
     );
     soundFx.playGolemCheer();

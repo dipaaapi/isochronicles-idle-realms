@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { GridPoint, HarvestTask, TASK_CONFIG, UNIT_CLASSES, UnitClass, WorkerEquipment, WorkerStatus } from '../../types/game';
+import type { GridPoint, HarvestTask, TASK_CONFIG, UNIT_CLASSES, UnitClass, WorkerStatus } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, TowerId } from '../../types/state';
 import type { NavAgent } from '../Navigation';
 import type { ActiveInvader, InvasionManager } from '../InvasionManager';
@@ -41,6 +41,11 @@ export interface WorkerInstance extends NavAgent {
   sprite?: Phaser.GameObjects.Sprite;
   /** Emote bubble / gauge anchor height; depends on the rendered body's height. */
   emoteBaseY: number;
+  /** Brawl wins (+1 … +10) and the badge beside the status bubble that shows them. */
+  brawlLevel?: number;
+  brawlBadge?: Phaser.GameObjects.Text;
+  /** Pulsing aura: the Treant, the Slime and Generals with a brawl +. */
+  glowGfx?: Phaser.GameObjects.Graphics;
   _prevX?: number;
   _prevY?: number;
   _workTimer?: number;
@@ -82,7 +87,6 @@ export interface WorkerInstance extends NavAgent {
   supportEvolutionLevel: number;
   armorShield: number;
   armorShieldTimer: number;
-  equipment?: WorkerEquipment;
   timeSinceLastTap: number;
   treantEvolutionLevel?: number;
   treantActionTimer?: number;
@@ -91,7 +95,6 @@ export interface WorkerInstance extends NavAgent {
   treantTargetTile?: GridPoint;
   /** Establishment the Treant is currently patching up (undefined = castle / none). */
   treantRepairId?: TowerId;
-  entGearTimer?: number;
   autoSummonTimer?: number;
   /** General looting: drop it is walking to, and drops it carries to the castle. */
   lootTargetId?: string;

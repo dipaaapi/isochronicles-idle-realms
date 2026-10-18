@@ -30,6 +30,8 @@ import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
 import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import MOVEMENT from '../data/minionMovement.json';
+import { BrawlDirector } from './workers/brawl';
+import { BRAWL_CONFIG, BRAWL_GLOW_COLOR, brawlLevelOf } from '../state/brawl';
 
 const GAIT = MOVEMENT.gait;
 
@@ -55,6 +57,12 @@ export class WorkerManager implements WorkerContext {
   public defenders?: import('./DefenderSystem').DefenderSystem;
 
   private fires?: import('./FireSystem').FireSystem;
+  private readonly brawls = new BrawlDirector(this);
+
+  /** The two Generals brawling right now (their minions gather round), or null. */
+  public getBrawlers(): [WorkerInstance, WorkerInstance] | null {
+    return this.brawls.brawlers();
+  }
 
   public setFireSystem(fires: import('./FireSystem').FireSystem): void {
     this.fires = fires;
@@ -154,10 +162,6 @@ export class WorkerManager implements WorkerContext {
             this.dispatchToTaskNode(existing);
           }
         }
-        if (JSON.stringify(existing.equipment) !== JSON.stringify(item.equipment)) {
-          existing.equipment = item.equipment;
-          needsVisualRefresh = true;
-        }
         if ((item.slimeEvolutionLevel ?? 1) !== existing.supportEvolutionLevel) {
           const previousLevel = existing.supportEvolutionLevel;
           existing.supportEvolutionLevel = item.slimeEvolutionLevel ?? 1;
@@ -171,6 +175,9 @@ export class WorkerManager implements WorkerContext {
 
         if (item.parentBuildingId !== undefined) {
           existing.parentBuildingId = item.parentBuildingId;
+        }
+        if (brawlLevelOf(item) !== (existing.brawlLevel ?? 0) || this.brawlAttackOf(item) !== existing.attackPower) {
+          this.applyBrawlStats(existing, item);
         }
 
         if (needsVisualRefresh) {
@@ -235,13 +242,27 @@ export class WorkerManager implements WorkerContext {
 
     // Dynamic Night Lantern Ground Light (drawn below shadow)
     const lanternGfx = this.scene.add.graphics();
+    // Brawl aura (Treant, Slime and Generals with a +), under the shadow too
+    const glowGfx = this.scene.add.graphics();
+    glowGfx.setBlendMode(Phaser.BlendModes.ADD);
+    // "+N" brawl badge, beside the status bubble
+    const brawlBadge = this.scene.add.text(8, -40, '', {
+      fontSize: '8px',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontStyle: 'bold',
+      color: BRAWL_CONFIG.glow.color,
+      stroke: '#0f172a',
+      strokeThickness: 2,
+    });
+    brawlBadge.setOrigin(0, 0.5);
+    brawlBadge.setVisible(false);
 
     // Ground shadow
     const shadow = markShadow(this.scene.add.ellipse(0, 4, 20, 10, 0x000000, 0.4));
 
     // Unit body graphics (dynamically tailored to unitClass AND appointed task!)
     const body = this.scene.add.graphics();
-    renderWorkerGraphics(body, item.unitClass, item.assignedTask, item.equipment);
+    renderWorkerGraphics(body, item.unitClass, item.assignedTask);
 
     // Floating cargo icon
     const cargoIcon = this.scene.add.graphics();
@@ -270,7 +291,7 @@ export class WorkerManager implements WorkerContext {
     emoteBubble.add([emoteBg, emoteText]);
     emoteBubble.setVisible(false);
 
-    container.add([lanternGfx, shadow, body, cargoIcon, gaugeGfx, emoteBubble]);
+    container.add([glowGfx, lanternGfx, shadow, body, cargoIcon, gaugeGfx, emoteBubble, brawlBadge]);
     container.setDepth(IsometricHelper.getDepth(startX, startY, 6));
 
     if (this.parentContainer) {
@@ -285,6 +306,8 @@ export class WorkerManager implements WorkerContext {
       parentBuildingId,
       container,
       lanternGfx,
+      glowGfx,
+      brawlBadge,
       shadow,
       body,
       cargoIcon,
@@ -320,7 +343,6 @@ export class WorkerManager implements WorkerContext {
       treantEvolutionLevel: item.treantEvolutionLevel ?? 1,
       armorShield: 0,
       armorShieldTimer: 0,
-      equipment: item.equipment,
       timeSinceLastTap: 0,
       // Dirty-check initial sentinel values
       _gaugeHp: -1,
@@ -330,6 +352,7 @@ export class WorkerManager implements WorkerContext {
       _lanternDarkness: -1,
     };
 
+    this.applyBrawlStats(worker, item);
     this.renderDualGauges(worker);
 
     // Interactive Clicking: motivate worker, play chirp, jump, restore stamina
@@ -457,7 +480,7 @@ export class WorkerManager implements WorkerContext {
       worker.body.clear();
       return;
     }
-    renderWorkerGraphics(worker.body, worker.unitClass, worker.assignedTask, worker.equipment);
+    renderWorkerGraphics(worker.body, worker.unitClass, worker.assignedTask);
   }
 
   /**
@@ -609,6 +632,9 @@ export class WorkerManager implements WorkerContext {
       ? this.invasionManager.getInvaders().filter((i) => !i.isDead && !i.isRetreating)
       : [];
 
+    // Rival Generals bumping into each other build tension, then brawl
+    this.brawls.update(this.workers.filter((w) => this.isFieldGeneral(w)), delta / 1000);
+
     for (const worker of [...this.workers]) {
       if (worker.hp <= 0) {
         // A Support Slime may revive the fallen; otherwise it is permadeath
@@ -619,6 +645,7 @@ export class WorkerManager implements WorkerContext {
       worker.timeSinceLastTap += delta;
       const frame = computeWorkerFrame(worker, store, treantLevel, delta, aliveInvaders);
       this.updateOverhead(worker, frame.config, time, delta, ambientDarkness);
+      if (this.brawls.isBrawling(worker)) continue; // the BrawlDirector moves and swings for it
 
       // Skill status effects: stuns skip the frame, Temporal Stasis slows, surges speed up
       for (const key of ['stunTimer', 'slowTimer', 'armorBuffTimer', 'markedTimer'] as const) {
@@ -782,6 +809,7 @@ export class WorkerManager implements WorkerContext {
     } else {
       body.destroy();
     }
+    this.brawls.forget(worker);
     this.workers = this.workers.filter((w) => w.id !== worker.id);
     const store = useGameStore.getState();
     const unit = store.roster.find((u) => u.id === worker.id);
@@ -819,6 +847,7 @@ export class WorkerManager implements WorkerContext {
     worker.cargoIcon.y = bob;
     worker.gaugeGfx.y = bob + worker.emoteBaseY + 36;
     worker.emoteBubble.y = worker.emoteBaseY + bob - 4;
+    this.updateBrawlAura(worker, config, time, bob);
 
     // Show gauges only when in combat or when HP/stamina is depleted
     const needsGauges = worker.status === 'COMBAT' || worker.hp < worker.maxHp || worker.stamina < worker.maxStamina * 0.85;
@@ -862,6 +891,60 @@ export class WorkerManager implements WorkerContext {
     }
   }
 
+  /** Base attack plus what this General absorbed in brawls. */
+  private brawlAttackOf(item: UnitRosterItem): number {
+    return (UNIT_CLASSES[item.unitClass]?.baseAttack ?? 20) + Math.max(0, item.brawlAttack ?? 0);
+  }
+
+  /** Applies a roster entry's brawl bonus (attack, max HP, + level) to its unit on the map. */
+  private applyBrawlStats(worker: WorkerInstance, item: UnitRosterItem): void {
+    const cfg = UNIT_CLASSES[item.unitClass];
+    const maxHp = (item.maxHp || cfg.baseHp) + Math.max(0, item.brawlHp ?? 0);
+    const gained = maxHp - worker.maxHp;
+    worker.attackPower = this.brawlAttackOf(item);
+    worker.maxHp = maxHp;
+    worker.hp = Math.min(maxHp, Math.max(1, worker.hp + Math.max(0, gained)));
+    worker.brawlLevel = brawlLevelOf(item);
+    worker._lanternDarkness = -1; // the night lantern follows the glow rule
+  }
+
+  /** A General on the map (not the Treant, the Slime or a tenant). */
+  private isFieldGeneral(w: WorkerInstance): boolean {
+    return UNIT_CLASSES[w.unitClass]?.role === 'FIGHTER' && !w.parentBuildingId && !w.id.startsWith('tenant_') && w.hp > 0;
+  }
+
+  /** Who glows: the Treant and the Slime always, other Generals only with a brawl +. */
+  private glows(worker: WorkerInstance): boolean {
+    return worker.unitClass === 'TREANT' || worker.unitClass === 'AQUA_SLIME' || (worker.brawlLevel ?? 0) > 0;
+  }
+
+  /** "+N" badge beside the status bubble and the pulsing aura of upgraded Generals. */
+  private updateBrawlAura(worker: WorkerInstance, config: typeof UNIT_CLASSES[UnitClass], time: number, bob: number): void {
+    const level = worker.brawlLevel ?? 0;
+    if (worker.brawlBadge) {
+      worker.brawlBadge.setVisible(level > 0);
+      if (level > 0) {
+        const label = `+${level}`;
+        if (worker.brawlBadge.text !== label) worker.brawlBadge.setText(label);
+        // Same row as the status bubble, just to its right
+        worker.brawlBadge.setPosition(8, worker.emoteBaseY + bob - 4);
+      }
+    }
+    const g = worker.glowGfx;
+    if (!g) return;
+    g.clear();
+    if (!this.glows(worker)) return;
+    const glow = BRAWL_CONFIG.glow;
+    const color = level > 0 ? BRAWL_GLOW_COLOR : config.lanternColor;
+    const pulse = 0.75 + Math.sin(time / 320 + worker.bobOffset) * 0.25;
+    const alpha = (glow.baseAlpha + glow.alphaPerLevel * level) * pulse;
+    const radius = glow.radius + glow.radiusPerLevel * level;
+    g.fillStyle(color, alpha * 0.5);
+    g.fillEllipse(0, 2, radius * 2.2, radius * 1.2);
+    g.fillStyle(color, alpha);
+    g.fillEllipse(0, -10 + bob, radius * 1.3, radius * 1.9);
+  }
+
   private updateWorkerLantern(
     worker: WorkerInstance,
     config: typeof UNIT_CLASSES[UnitClass],
@@ -874,7 +957,8 @@ export class WorkerManager implements WorkerContext {
 
     worker.lanternGfx.clear();
 
-    if (ambientDarkness > 0.08) {
+    // Only units that glow carry a light (the Treant, the Slime and Generals with a brawl +)
+    if (ambientDarkness > 0.08 && this.glows(worker)) {
       const alpha = Phaser.Math.Clamp(ambientDarkness * 0.75, 0, 0.72);
       const radius = config.lanternRadius;
 

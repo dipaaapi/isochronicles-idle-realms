@@ -72,6 +72,8 @@ export const FortificationsPanel: React.FC = () => {
     spireTower,
     resourceBuildings,
     skillRanks,
+    runes,
+    runeSlots,
     regressionCount,
     upgradeDefense,
     repairCastle,
@@ -80,7 +82,7 @@ export const FortificationsPanel: React.FC = () => {
     upgradeResourceBuilding,
   } = useGameStore();
   const t = (text: Text) => (language === 'TL' ? text.tl : text.en);
-  const damageMultiplier = teamBonuses({ skillRanks, regressionCount }).turret;
+  const damageMultiplier = teamBonuses({ skillRanks, regressionCount, runes, runeSlots }).turret;
 
   const click = (action: () => boolean) => {
     soundFx.playClick();

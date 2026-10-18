@@ -9,7 +9,7 @@ function load(file) {
   if (cache.has(file)) return cache.get(file);
   const exports = {};
   cache.set(file, exports);
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8').replace(/import.meta.env.BASE_URL/g, "'/'"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, {
     exports, console, localStorage: { getItem: () => null, setItem() {} },
@@ -265,21 +265,22 @@ near(teamBonuses({ regressionCount: 0 }).attack, 1);
 
 // Skill points come from clearing wave sets
 assert.equal(earnedSkillPoints(4), 0);
-assert.equal(earnedSkillPoints(5), 2);
-assert.equal(earnedSkillPoints(250), 40, 'rewards stop at wave 100');
+assert.equal(earnedSkillPoints(5), 3);
+assert.equal(earnedSkillPoints(250), 60, 'rewards stop at wave 100');
 assert.equal(state().learnSkill('MINION_MIGHT'), false, 'no points before the first wave set');
 store.setState({ invasion: { ...state().invasion, invasionsRepelled: 4, waveNumber: 5, isActive: true } });
 state().resolveInvasionVictory(0);
-assert.equal(state().skillPoints, 2, 'clearing wave 5 grants 2 points');
+assert.equal(state().skillPoints, 3, 'clearing wave 5 grants 3 points');
 assert.equal(state().learnSkill('MINION_HASTE'), false, 'prerequisites must be enforced');
 assert.equal(state().learnSkill('MINION_MIGHT'), true);
 assert.equal(state().learnSkill('MINION_MIGHT'), true, 'skills have ranks');
-assert.equal(state().skillRanks.MINION_MIGHT, 2);
+assert.equal(state().learnSkill('MINION_MIGHT'), true);
+assert.equal(state().skillRanks.MINION_MIGHT, 3);
 assert.equal(state().learnSkill('CASTLE_ARMOR'), false, 'cannot spend unavailable points');
 assert.equal(state().skillPoints, 0);
-near(teamBonuses(state()).attack, 1 + 0.16 + 0.05);
+near(teamBonuses(state()).attack, 1 + 0.24 + 0.05);
 state().resetSkills();
-assert.equal(state().skillPoints, 2, 'free respec refunds every point');
+assert.equal(state().skillPoints, 3, 'free respec refunds every point');
 assert.equal(state().learnSkill('CASTLE_ARMOR'), true);
 assert.equal(state().learnSkill('CASTLE_ARMOR'), true);
 store.setState({ castleBuilt: true, defense: { ...state().defense, castleHp: 800, shieldHp: 0 } });
@@ -287,7 +288,7 @@ state().damageCastle(100);
 assert.equal(state().defense.castleHp, 710, 'two ranks of armor reduce castle damage by 10%');
 store.setState({ invasion: { ...state().invasion, invasionsRepelled: 19, waveNumber: 20, isActive: true } });
 state().resolveInvasionVictory(0);
-assert.equal(state().skillPoints, 6, '20 waves cleared = 8 points, 2 spent');
+assert.equal(state().skillPoints, 10, '20 waves cleared = 12 points, 2 spent');
 assert.equal(state().learnSkill('CASTLE_TURRETS'), true);
 const { towerStats } = load('src/state/defenseStats.ts');
 assert.ok(towerStats('QUARRY', 1, teamBonuses(state()).turret).damage > towerStats('QUARRY', 1).damage, 'artillery boosts establishment towers');
@@ -302,11 +303,11 @@ assert.equal(state().skillPoints, 0);
 assert.equal(Object.keys(state().skillRanks).length, 0);
 assert.equal(state().importSave(skillSave), true);
 assert.equal(state().skillRanks.CASTLE_ARMOR, 2, 'skill ranks survive export/import');
-assert.equal(state().skillPoints, 3, "8 earned, 5 spent");
+assert.equal(state().skillPoints, 7, "12 earned, 5 spent");
 assert.equal(state().regressionCount, 1);
 assert.equal(normalizeSkillProgress({ regressionCount: 3, unlockedSkills: ['MINION_MIGHT'] }).skillPoints, 0, 'old regression points are not carried over');
-assert.equal(normalizeSkillProgress({ skillRanks: { MINION_MIGHT: 3 }, invasion: { invasionsRepelled: 5 } }).skillPoints, 2, 'overspent saves are refunded');
-assert.equal(normalizeSkillProgress({ skillRanks: { MINION_HASTE: 1, bogus: 2 }, invasion: { invasionsRepelled: 10 } }).skillPoints, 4);
+assert.equal(normalizeSkillProgress({ skillRanks: { MINION_MIGHT: 3, MINION_HASTE: 1 }, invasion: { invasionsRepelled: 5 } }).skillPoints, 3, 'overspent saves are refunded');
+assert.equal(normalizeSkillProgress({ skillRanks: { MINION_HASTE: 1, bogus: 2 }, invasion: { invasionsRepelled: 10 } }).skillPoints, 6);
 state().resetRegressionProgress('RESET REGRESSIONS');
 assert.equal(state().defense.castleMaxHp, 500);
 near(teamBonuses({ regressionCount: state().regressionCount }).attack, 1);
@@ -609,7 +610,7 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   }
   for (const id of layout.BUILDING_IDS) {
     const crew = sys.defenders.filter((d) => d.home === id);
-    assert.equal(crew.length, 5, `${id} raises five tenants`);
+    assert.equal(crew.length, 2, `${id} raises two minions`);
     assert.ok(crew.every((d) => d.unitClass === crews.ESTABLISHMENT_CREWS[id].general), `${id} tenants share their General's kind`);
   }
   assert.ok(!sys.defenders.some((d) => d.home === 'SPIRE'), 'the Crystal Spire is not an establishment crew');
@@ -656,23 +657,16 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   console.log('Wave balance, tactic and formation checks passed.');
 }
 
-// Scouts: random humans and mecha drop coins, supplies and sometimes real equipment
+// Scouts: random humans and mecha drop coins and supplies (gear was removed)
 {
   const scouts = load('src/state/scoutLoot.ts');
-  const { CRAFTABLE_ITEMS } = load('src/types/game.ts');
-  const ids = new Set(CRAFTABLE_ITEMS.map((i) => i.id));
   const cfg = JSON.parse(fs.readFileSync('src/data/scoutLoot.json', 'utf8'));
   for (const kind of ['HUMAN', 'MECHA']) {
-    for (const id of cfg.drops[kind].itemPool) assert.ok(ids.has(id), `${kind} scouts drop a real item (${id})`);
     for (const r of cfg.drops[kind].resources) assert.ok(r.key in state().resources, `${r.key} is a resource`);
     const drop = scouts.rollScoutDrops(kind, 40, () => 0.01);
-    assert.ok(drop.coinPiles.reduce((a, b) => a + b, 0) > 0 && drop.resources.length > 0 && drop.itemId, `${kind} scouts drop coins, supplies and items`);
+    assert.ok(drop.coinPiles.reduce((a, b) => a + b, 0) > 0 && drop.resources.length > 0 && !drop.itemId, `${kind} scouts drop coins and supplies, no gear`);
   }
   assert.ok(scouts.SCOUTS.some((s) => s.kind === 'MECHA') && scouts.SCOUTS.some((s) => s.kind === 'HUMAN'));
-  const before = state().inventory.length;
-  assert.ok(state().grantEquipmentDrop(cfg.drops.MECHA.itemPool[0]));
-  assert.equal(state().inventory.length, before + 1, 'dropped equipment lands in the inventory');
-  assert.equal(state().grantEquipmentDrop('nope'), null);
   console.log('Scout drop checks passed.');
 }
 
@@ -721,4 +715,93 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.ok(sys.getLivingTenantsCount('WOOD') > 1, 'the General keeps summoning tenants once supplies arrive');
   assert.ok(coinsBefore - state().resources.coins > 0, 'summons and construction were paid from the castle');
   console.log('Tenant construction checks passed.');
+}
+
+// Brawls: clashes at one spot fill the tension gauge; the winner absorbs the loser's base stats (+1 … +10)
+{
+  const brawl = load('src/state/brawl.ts');
+  const { UNIT_CLASSES } = load('src/types/game.ts');
+  const max = brawl.BRAWL_CONFIG.clashesToBrawl;
+  assert.equal(brawl.pairKey('b', 'a'), brawl.pairKey('a', 'b'), 'tension is per pair, order-free');
+  let t;
+  for (let i = 0; i < max; i++) t = brawl.addClash(t, 4, 4);
+  assert.equal(t.count, max);
+  assert.ok(!brawl.tensionFull(t), `${max} clashes are not enough`);
+  t = brawl.addClash(t, 4.5, 4);
+  assert.ok(brawl.tensionFull(t), 'more than the limit at the same spot starts a brawl');
+  assert.equal(brawl.addClash(t, 15, 15).count, 1, 'a clash elsewhere restarts the gauge there');
+
+  state().resetRealm();
+  store.setState({ roster: [
+    { id: 'g1', name: 'Golem', unitClass: 'GOLEM', assignedTask: 'WOOD' },
+    { id: 'g2', name: 'Harpy', unitClass: 'HARPY', assignedTask: 'WOOD', brawlLevel: 2, brawlAttack: 30, brawlHp: 200 },
+  ] });
+  for (let i = 0; i <= max; i++) state().recordClash('g1', 'g2', 3, 3);
+  assert.ok(brawl.tensionFull(state().brawlTension[brawl.pairKey('g1', 'g2')]));
+  state().resolveBrawl('g1', 'g2');
+  const [g1, g2] = state().roster;
+  assert.equal(g1.brawlLevel, 1, 'the winner gains +1');
+  assert.equal(g1.brawlAttack, UNIT_CLASSES.HARPY.baseAttack, 'absorbs the loser base attack (not its bonus)');
+  assert.equal(g1.brawlHp, UNIT_CLASSES.HARPY.baseHp);
+  assert.equal(g2.brawlLevel, 0, 'the loser loses its + levels');
+  assert.equal(g2.brawlAttack, 0);
+  assert.equal(state().brawlTension[brawl.pairKey('g1', 'g2')], undefined, 'tension resets after the brawl');
+
+  let r = state().roster;
+  for (let i = 0; i < 15; i++) r = brawl.applyBrawlResult(r, 'g1', 'g2');
+  assert.equal(r[0].brawlLevel, brawl.BRAWL_CONFIG.maxLevel, 'the badge caps at +10');
+  const stats = brawl.generalStatsOf(r[0]);
+  assert.equal(stats.attack, UNIT_CLASSES.GOLEM.baseAttack + r[0].brawlAttack, 'mirror invaders copy the full General stats');
+  assert.equal(brawl.mirrorChance(0), 0, 'no mirrors without a +');
+  assert.ok(brawl.mirrorChance(10) > brawl.mirrorChance(1));
+
+  const save = state().exportSave();
+  state().resetRealm();
+  assert.equal(Object.keys(state().brawlTension).length, 0, 'a new realm has no tension');
+  assert.equal(state().importSave(save), true);
+  assert.equal(state().roster.find((u) => u.id === 'g1').brawlLevel, 1, 'brawl levels survive export/import');
+  console.log('Brawl checks passed.');
+}
+
+// Runes: boss drops, slots per target, three-into-one merges, team bonuses, saves and Regression
+{
+  const runes = load('src/state/runes.ts');
+  const { teamBonuses } = load('src/state/skillTree.ts');
+  state().resetRealm();
+  assert.equal(runes.bossRuneTier(1, false), 1);
+  assert.equal(runes.bossRuneTier(26, false), 2, 'later waves carry stronger runes');
+  assert.equal(runes.bossRuneTier(100, true), runes.MAX_TIER, 'the climax boss carries the top tier');
+
+  const fury = state().grantRune('FURY', 1);
+  assert.ok(fury && state().runes.length === 1, 'a boss rune lands in the vault');
+  near(teamBonuses(state()).generalAttack, 1, 'unslotted runes do nothing');
+  assert.equal(state().slotRune(fury.id), true);
+  assert.equal(state().runeSlots.GENERALS[0], fury.id, 'runes only fit their own target');
+  near(teamBonuses(state()).generalAttack, 1 + runes.runeValue(fury), 'a slotted rune boosts its stat');
+  assert.equal(state().slotRune(fury.id), false, 'a rune sits in one slot only');
+
+  for (let i = 0; i < runes.MERGE_COUNT; i++) state().grantRune('MUSTER', 1);
+  assert.equal(state().mergeRunes('FURY', 1), null, 'slotted runes are not merged');
+  const muster = state().mergeRunes('MUSTER', 1);
+  assert.equal(muster.tier, 2, 'three runes merge into the next tier');
+  assert.equal(state().runes.filter((r) => r.kind === 'MUSTER').length, 1);
+  assert.ok(runes.runeValue(muster) > runes.runeValue({ kind: 'MUSTER', tier: 1 }) * 1.5, 'higher tiers escalate');
+  state().slotRune(muster.id);
+  near(teamBonuses(state()).summonDiscount, runes.runeValue(muster), 'Muster runes discount minion summons');
+
+  const save = state().exportSave();
+  store.setState({ invasion: { ...state().invasion, waveNumber: 30 } });
+  state().performRegression();
+  assert.equal(state().runes.length, 2, 'runes are kept through Regression');
+  assert.equal(state().runeSlots.GENERALS[0], fury.id);
+  state().resetRealm();
+  assert.equal(state().runes.length, 0, 'a new realm starts with an empty vault');
+  assert.equal(state().importSave(save), true);
+  assert.equal(state().runes.length, 2, 'runes survive export/import');
+  const bad = runes.normalizeRunes([{ id: 'x', kind: 'NOPE', tier: 1 }, { id: 'y', kind: 'FURY', tier: 99 }], { CASTLE: ['y'], GENERALS: ['y'] });
+  assert.equal(bad.runes.length, 1);
+  assert.equal(bad.runes[0].tier, runes.MAX_TIER, 'tiers are clamped');
+  assert.equal(bad.runeSlots.CASTLE[0], null, 'a rune cannot sit in another target');
+  assert.equal(bad.runeSlots.GENERALS[0], 'y');
+  console.log('Rune checks passed.');
 }

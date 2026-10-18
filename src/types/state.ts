@@ -1,4 +1,4 @@
-import { UnitClass, InvaderType, HarvestTask, WorkerEquipment, EquipmentItem, EquipmentSlot, GodBlessingId } from './game';
+import { UnitClass, InvaderType, HarvestTask, GodBlessingId } from './game';
 
 export interface Resources {
   aetherShards: number;
@@ -194,7 +194,11 @@ export interface UnitRosterItem {
   maxHp?: number;
   slimeEvolutionLevel?: number;
   treantEvolutionLevel?: number;
-  equipment?: WorkerEquipment;
+  /** Brawl wins kept (+1 … +10, shown over the General's head). */
+  brawlLevel?: number;
+  /** Attack / max HP absorbed from beaten rival Generals. */
+  brawlAttack?: number;
+  brawlHp?: number;
 }
 
 /** 0 = paused, 1 = normal, 2 = 2×, 3 = 3×. */
@@ -234,8 +238,6 @@ export interface GameStoreState {
   lootedResources: Partial<Resources> | null;
   merchantRestockTimer: number;
 
-  // Equipment & Inventory
-  inventory: EquipmentItem[];
   autoSettings: AutoSettings;
 
   // Audio & Environment & Seasons
@@ -322,6 +324,18 @@ export interface GameStoreState {
 
   // Silhouette Discovery System (Bestiary)
   discoveredBeasts: UnitClass[];
+  /** Rune Vault: every rune owned, and which are slotted per target (kept through Regression). */
+  runes: import('../state/runes').Rune[];
+  runeSlots: import('../state/runes').RuneSlots;
+  /** A wave boss dropped a rune: adds it to the vault. */
+  grantRune: (kind: import('../state/runes').RuneKind, tier: number) => import('../state/runes').Rune | null;
+  /** Puts a vault rune into a free slot of its target (or the given slot). */
+  slotRune: (runeId: string, slotIndex?: number) => boolean;
+  unslotRune: (runeId: string) => boolean;
+  /** Merges three unslotted runes of one kind and tier into the next tier. */
+  mergeRunes: (kind: import('../state/runes').RuneKind, tier: number) => import('../state/runes').Rune | null;
+  /** Clash tension between pairs of Generals (key: pairKey of roster ids). */
+  brawlTension: Record<string, import('../state/brawl').BrawlTension>;
   discoveredInvaders: InvaderType[];
 
   // Actions
@@ -342,11 +356,14 @@ export interface GameStoreState {
   selectMusic: (index: number) => void;
   completeIntro: () => void;
   discoverEntry: (category: 'beast' | 'invader', id: string) => void;
+  /** Two Generals bumped into each other at grid (x, y): fills their tension gauge and returns it. */
+  recordClash: (aId: string, bId: string, x: number, y: number) => import('../state/brawl').BrawlTension;
+  /** Ends a brawl: the winner absorbs the loser's base stats (+1), their tension resets. */
+  resolveBrawl: (winnerId: string, loserId: string) => void;
   addResources: (delta: Partial<Resources>) => void;
   spendResources: (cost: Partial<Resources>) => boolean;
   summonWorker: () => boolean;
   summonUnit: (unitClass: UnitClass, initialTask?: HarvestTask, isFreeCost?: boolean) => boolean;
-  summonTenant: (buildingId: ResourceBuildingId) => boolean;
   assignUnitTask: (unitId: string, task: HarvestTask) => void;
   removeUnit: (unitId: string, refundResources?: boolean) => void;
   upgradeSupportSlime: () => boolean;
@@ -399,12 +416,6 @@ export interface GameStoreState {
   closeCastleBreachedModal: () => void;
   unlockAchievement: (id: string, title: string, description: string, icon: string) => void;
 
-  // Equipment & Crafting Actions
-  craftEquipment: (item: EquipmentItem) => boolean;
-  purchaseEquipment: (item: EquipmentItem) => boolean;
-  grantEquipmentDrop: (itemId: string) => EquipmentItem | null;
-  equipItem: (unitId: string, item: EquipmentItem) => void;
-  unequipItem: (unitId: string, slot: EquipmentSlot) => void;
 
   // Automation Actions
   toggleAutoSetting: (key: keyof AutoSettings) => void;

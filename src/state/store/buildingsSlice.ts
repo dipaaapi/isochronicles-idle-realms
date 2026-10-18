@@ -1,6 +1,7 @@
 import { soundFx } from '../../game/audio/soundFx';
 import { devFlag } from '../devMode';
 import { ESTABLISHMENT_SKILLS } from '../../data/establishmentSkills';
+import { teamBonuses } from '../skillTree';
 import {
   DEFENSE_CONFIG,
   buildingHpOf,
@@ -235,7 +236,8 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       if (!building || building.level < 1 || !(amount > 0)) return false;
       const hp = buildingHpOf(building);
       if (hp <= 0) return false;
-      const nextHp = Math.max(0, Math.round(hp - amount));
+      // Demon Masonry skill
+      const nextHp = Math.max(0, Math.round(hp - amount * teamBonuses(state).buildingDamage));
       patchTower(buildingId, { hp: nextHp }, false);
       return nextHp <= 0;
     },
@@ -312,7 +314,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
         pendingSkillCasts: [...prev.pendingSkillCasts, skill.id],
         establishmentSkillCooldowns: {
           ...prev.establishmentSkillCooldowns,
-          [buildingId]: { ...(prev.establishmentSkillCooldowns[buildingId] ?? { skill1: 0, skill2: 0, skill3: 0 }), [slot]: skill.cooldownSeconds },
+          [buildingId]: { ...(prev.establishmentSkillCooldowns[buildingId] ?? { skill1: 0, skill2: 0, skill3: 0 }), [slot]: Math.round(skill.cooldownSeconds * teamBonuses(prev).structureSkillCooldown) },
         },
       }));
       soundFx.playFanfare();

@@ -1,5 +1,6 @@
 import config from '../data/skillTree.json';
 import economy from '../data/economy.json';
+import { runeStatTotals, type Rune, type RuneSlots } from './runes';
 
 /**
  * Skill tree: ranked skills bought with points earned by clearing wave sets
@@ -21,6 +22,8 @@ export interface SkillDef {
   stat: TeamStat;
   perRank: number;
   requires: SkillId | null;
+  /** passive: a bonus per rank; unlock: a one-rank enhancement that switches on a new effect. */
+  kind: 'passive' | 'unlock';
   name: Localized;
   desc: Localized;
 }
@@ -28,6 +31,8 @@ export interface SkillDef {
 export interface StatDef {
   sign: '+' | '-';
   cap?: number;
+  /** On/off stat (an unlock): shown as ✦ instead of a percentage. */
+  flag?: boolean;
   name: Localized;
 }
 
@@ -81,10 +86,17 @@ export const canLearn = (id: SkillId, ranks: SkillRanks | undefined, points: num
   return !skill.requires || rankOf(ranks, skill.requires) > 0;
 };
 
-/** Raw summed bonus per stat from skill ranks and regression tiers. */
-export const teamStatTotals = (ranks: SkillRanks | undefined, regressionCount = 0): Record<TeamStat, number> => {
+/** Raw summed bonus per stat from skill ranks, slotted runes and regression tiers. */
+export const teamStatTotals = (
+  ranks: SkillRanks | undefined,
+  regressionCount = 0,
+  runes?: { runes?: Rune[]; runeSlots?: RuneSlots }
+): Record<TeamStat, number> => {
   const totals = Object.fromEntries(Object.keys(TEAM_STATS).map((k) => [k, 0])) as Record<TeamStat, number>;
   for (const id of SKILL_IDS) totals[SKILLS[id].stat] += rankOf(ranks, id) * SKILLS[id].perRank;
+  for (const [stat, value] of Object.entries(runeStatTotals(runes?.runes, runes?.runeSlots))) {
+    if (stat in totals) totals[stat as TeamStat] += value;
+  }
   const tiers = Math.max(0, regressionCount || 0);
   for (const [stat, per] of Object.entries(REGRESSION_BOOST_PER_TIER) as Array<[TeamStat, number]>) totals[stat] += tiers * per;
   for (const stat of Object.keys(totals) as TeamStat[]) {
@@ -95,8 +107,8 @@ export const teamStatTotals = (ranks: SkillRanks | undefined, regressionCount = 
 };
 
 /** Multipliers the game applies. Everything here helps the Demon Lord's side only. */
-export const teamBonuses = (state: { skillRanks?: SkillRanks; regressionCount?: number } = {}) => {
-  const t = teamStatTotals(state.skillRanks, state.regressionCount);
+export const teamBonuses = (state: { skillRanks?: SkillRanks; regressionCount?: number; runes?: Rune[]; runeSlots?: RuneSlots } = {}) => {
+  const t = teamStatTotals(state.skillRanks, state.regressionCount, state);
   return {
     attack: 1 + t.minionAttack,
     speed: 1 + t.minionSpeed,
@@ -110,6 +122,23 @@ export const teamBonuses = (state: { skillRanks?: SkillRanks; regressionCount?: 
     bounty: 1 + t.bounty,
     blessingDuration: 1 + t.blessingDuration,
     blessingCost: 1 - t.blessingCost,
+    // Establishments
+    buildingDamage: 1 - t.buildingArmor,
+    structureSkillPower: 1 + t.structureSkillPower,
+    structureSkillCooldown: 1 - t.structureSkillCooldown,
+    forceFieldHp: 1 + t.forceFieldHp,
+    // Generals
+    generalAttack: 1 + t.generalAttack,
+    generalDamageTaken: 1 - t.generalArmor,
+    generalSkillCooldown: 1 - t.generalSkillCooldown,
+    generalBanner: t.generalBanner,
+    // Tenants
+    tenantYield: 1 + t.tenantYield,
+    tenantWorkTime: 1 - t.tenantWork,
+    tenantVigor: 1 + t.tenantHp,
+    /** Muster runes: share of a minion summon's cost waived (1 = free). */
+    summonDiscount: t.summonDiscount,
+    expeditionYield: 1 + t.expeditionYield,
   };
 };
 
@@ -137,9 +166,13 @@ export const normalizeSkillProgress = (data: {
   return { regressionCount, skillRanks, skillPoints: availableSkillPoints(wavesCleared, skillRanks) };
 };
 
+/** Scales every amount of a resource bundle, rounding up so small hauls still grow. */
+export const scaleBundle = <T extends Record<string, number | undefined>>(bundle: T, mult: number): T =>
+  (mult === 1 ? { ...bundle } : Object.fromEntries(Object.entries(bundle).map(([k, v]) => [k, v ? Math.ceil(v * mult) : v]))) as T;
+
 /** Formats a stat total, e.g. "+16%" or "-12%". */
 export const formatStat = (stat: TeamStat, value: number): string =>
-  `${TEAM_STATS[stat].sign}${Math.round(value * 100)}%`;
+  TEAM_STATS[stat].flag ? '✦' : `${TEAM_STATS[stat].sign}${Math.round(value * 100)}%`;
 
 /** Replaces {key} placeholders in a localized string. */
 export const fillText = (text: string, vars: Record<string, string | number>): string =>

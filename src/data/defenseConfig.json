@@ -881,7 +881,7 @@
     "slow": 0.6
   },
   "promotion": {
-    "_doc": "A slain General is replaced by its healthiest island tenant: a star badge spins over its head for badgeMs, then it grows to growScale over growMs and turns into the General.",
+    "_doc": "A slain General is replaced by its healthiest island minion: a star badge spins over its head for badgeMs, then it grows to growScale over growMs and turns into the General.",
     "badgeMs": 2000,
     "growMs": 600,
     "growScale": 1.7

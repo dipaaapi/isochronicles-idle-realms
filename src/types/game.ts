@@ -2,7 +2,6 @@ import seasons from '../data/seasons.json';
 import slimeEvolution from '../data/slimeEvolution.json';
 import treantEvolution from '../data/treantEvolution.json';
 import godBlessings from '../data/godBlessings.json';
-import craftableItems from '../data/craftableItems.json';
 
 /**
  * Shared game types. The lookup tables live in src/data/ (JSON for text-heavy
@@ -40,46 +39,6 @@ export type TileType =
   | 'BARRACKS';
 
 export const SEASON_CONFIGS = seasons;
-
-export type EquipmentSlot = 'TOOL' | 'ARMOR' | 'RELIC';
-
-export interface EquipmentStats {
-  bonusSpeed?: number;
-  bonusCargo?: number;
-  bonusAttack?: number;
-  bonusHp?: number;
-  bonusGatherPercent?: number;
-  staminaDrainReduction?: number;
-}
-
-export interface EquipmentItem {
-  id: string;
-  name: string;
-  /** Tagalog name / description (craftable items); `name` / `description` are English. */
-  nameTl?: string;
-  slot: EquipmentSlot;
-  description: string;
-  descriptionTl?: string;
-  icon: string;
-  stats: EquipmentStats;
-  costResources: {
-    shards?: number;
-    wood?: number;
-    stone?: number;
-    essence?: number;
-    obsidian?: number;
-    souls?: number;
-    pearl?: number;
-    scrap?: number;
-  };
-  costCoins?: number;
-}
-
-export interface WorkerEquipment {
-  tool?: EquipmentItem;
-  armor?: EquipmentItem;
-  relic?: EquipmentItem;
-}
 
 export interface TileInfo {
   x: number;
@@ -266,4 +225,3 @@ export interface TurretBolt {
   damage: number;
 }
 
-export const CRAFTABLE_ITEMS = craftableItems as unknown as EquipmentItem[];

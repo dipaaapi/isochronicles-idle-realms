@@ -103,6 +103,8 @@ export interface ActiveInvader extends NavAgent {
   reloadTimer?: number;
   /** Fighter guarding a Technician or launcher: stays close and only fights minions near it. */
   escortOf?: ActiveInvader;
+  /** Wave bosses carry a rune (src/data/runes.json) and drop it when slain. */
+  runeDrop?: { kind: import('../../state/runes').RuneKind; tier: number };
   target?: InvaderTarget;
   retargetTimer?: number;
   structPath?: GridPoint[];

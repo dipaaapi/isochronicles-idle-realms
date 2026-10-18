@@ -19,6 +19,9 @@ import { logFloatingText, logMessage, resourceName } from '../state/activityLog'
 import { CREW_CONFIG, ESTABLISHMENT_CREWS, vengeanceExtraInvaders, type GatherJob, type GatherSource } from '../state/establishmentCrews';
 import { applyLocomotion, locomotionOf } from './locomotion';
 import { TENANT_WORK, buildProgressOf } from '../state/tenantWork';
+import { TENANTS_PER_ESTABLISHMENT } from '../state/economy';
+import { BRAWL_CONFIG } from '../state/brawl';
+import { scaleBundle, teamBonuses } from '../state/skillTree';
 import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { BUILDING_IDS } from '../state/buildingLayout';
 import type { ConstructionStatus } from '../state/constructionProgress';
@@ -86,7 +89,7 @@ interface SiteWork {
   workers: number;
 }
 
-const MAX_PER_ESTABLISHMENT = 5;
+const MAX_PER_ESTABLISHMENT = TENANTS_PER_ESTABLISHMENT;
 const BASE_SPAWN_INTERVAL = CREW_CONFIG.spawnIntervalSeconds; // base seconds between tenant spawns
 const DEFENDER_HP = 80;
 const DEFENDER_DAMAGE = 16;
@@ -147,6 +150,13 @@ export class DefenderSystem {
   private workerProvider: () => import('./workers/types').WorkerInstance[] = () => [];
 
   /** Roster minions (Generals included) so tenants can rally to their General. */
+  private brawlProvider: () => [import('./workers/types').WorkerInstance, import('./workers/types').WorkerInstance] | null = () => null;
+
+  /** The Generals brawling right now: their minions gather round to cheer. */
+  setBrawlProvider(provider: () => [import('./workers/types').WorkerInstance, import('./workers/types').WorkerInstance] | null): void {
+    this.brawlProvider = provider;
+  }
+
   setWorkerProvider(provider: () => import('./workers/types').WorkerInstance[]): void {
     this.workerProvider = provider;
   }
@@ -303,7 +313,7 @@ export class DefenderSystem {
     attachedTenant.state = 'DETACHED_COMBAT';
     attachedTenant.armorShield = (attachedTenant.armorShield || 0) + 50 + researchTetherBonus * 15;
 
-    this.spawnFloatingPopup(attachedTenant.container.x, attachedTenant.container.y - 35, '⚡ Tenant Detached (20% Def)!', '#38bdf8');
+    this.spawnFloatingPopup(attachedTenant.container.x, attachedTenant.container.y - 35, '⚡ Minion Detached (20% Def)!', '#38bdf8');
     soundFx.playCastleHit();
     return true;
   }
@@ -315,6 +325,7 @@ export class DefenderSystem {
     const isWaveActive = (store.invasion.isActive || this.invasion.getInvaders().some((i) => !i.isDead && !i.isRetreating)) && castleAlive;
 
     const castleGatePos = IsometricHelper.gridToScreen(CASTLE_GATE.x + 0.5, CASTLE_GATE.y + 0.5);
+    const brawlers = this.brawlProvider();
 
     // Research multipliers
     const researchAtkBonus = 1 + ((store.upgrades.tenantAttackCounter ?? 1) - 1) * 0.25;
@@ -329,7 +340,7 @@ export class DefenderSystem {
           d.isDetached = false;
           d.state = 'HARVESTING';
           d.target = undefined;
-          this.spawnFloatingPopup(d.container.x, d.container.y - 30, '✨ Tenant Recovered', '#22c55e');
+          this.spawnFloatingPopup(d.container.x, d.container.y - 30, '✨ Minion Recovered', '#22c55e');
         }
       }
     }
@@ -359,12 +370,16 @@ export class DefenderSystem {
         this.spawnTimers.set(id, timer);
         continue;
       }
-      const free = living === 0 && TENANT_WORK.firstTenantFree;
-      if (!free && !store.spendResources(TENANT_WORK.summonCost)) {
+      const team = teamBonuses(store);
+      // Muster runes make summons cheaper, free at 100%
+      const free = (living === 0 && TENANT_WORK.firstTenantFree) || team.summonDiscount >= 1;
+      if (!free && !store.spendResources(scaleBundle({ ...TENANT_WORK.summonCost }, 1 - team.summonDiscount))) {
         this.spawnTimers.set(id, 0); // waits for the castle's supplies
         continue;
       }
-      this.spawn(id, site.rect, crew.general, DEFENDER_HP + researchHpBonus, Math.round(DEFENDER_DAMAGE * researchAtkBonus));
+      // Hardy Stock skill: tenant HP and damage
+      this.spawn(id, site.rect, crew.general, Math.round((DEFENDER_HP + researchHpBonus) * team.tenantVigor),
+        Math.round(DEFENDER_DAMAGE * researchAtkBonus * team.tenantVigor));
       this.spawnTimers.set(id, spawnInterval);
       logMessage('tenantSummoned', { general: general.name, building: this.structures.displayName(id) }, { mergeKey: `summon:${id}`, amount: 1 });
     }
@@ -429,6 +444,21 @@ export class DefenderSystem {
       // ── Bucket brigade: put out torched establishments before anything else ──
       if (this.fires?.driveFirefighter(d, dt, (x, y, speed) => this.step(d, x, y, dt, DEFENDER_SPEED * speed * slimeSpdMult))) {
         this.updateGarrisonVisuals(d, false, false);
+        continue;
+      }
+
+      // ── Brawl: a General's minions gather round it and cheer ──
+      const brawler = brawlers?.find((g) => UNIT_CLASSES[g.unitClass]?.requiredBuilding === d.home);
+      if (brawler && !isWaveActive) {
+        const angle = (d.id.length * 1.7 + (d.id.charCodeAt(d.id.length - 1) || 0)) % (Math.PI * 2);
+        const r = BRAWL_CONFIG.brawl.rallyRadiusPx;
+        const tx = brawler.container.x + Math.cos(angle) * r;
+        const ty = brawler.container.y + Math.sin(angle) * r * 0.6;
+        if (Math.hypot(tx - d.container.x, ty - d.container.y) > 6) this.step(d, tx, ty, dt, DEFENDER_SPEED * 1.2 * slimeSpdMult);
+        else if (d.sprite) {
+          faceCharacterSprite(d.sprite, brawler.container.x - d.container.x, brawler.container.y - d.container.y, false);
+          if (Math.floor(this.scene.time.now / 300) % 3 === 0) playCharacterAttack(d.sprite);
+        }
         continue;
       }
 
@@ -555,7 +585,8 @@ export class DefenderSystem {
               d.workTimer += dt;
               if (d.sprite && Math.floor(d.workTimer * 4) % 2 === 0) playCharacterWork(d.sprite);
               if (d.workTimer >= CREW_CONFIG.gatherSeconds) {
-                d.cargo = { ...(d.job?.yield ?? { wood: 1 }) };
+                // Bountiful Toil skill
+                d.cargo = scaleBundle({ ...(d.job?.yield ?? { wood: 1 }) }, teamBonuses(useGameStore.getState()).tenantYield);
                 d.workTimer = 0;
                 d.state = 'HAULING_TO_CASTLE';
               }
@@ -657,7 +688,9 @@ export class DefenderSystem {
       this.siteWork.set(home, work);
     }
     work.workers++;
-    const stepSeconds = kind === 'BUILD' ? TENANT_WORK.buildStepSeconds : TENANT_WORK.repairStepSeconds;
+    // Master Builders skill: shorter build / repair steps
+    const stepSeconds = (kind === 'BUILD' ? TENANT_WORK.buildStepSeconds : TENANT_WORK.repairStepSeconds) *
+      teamBonuses(useGameStore.getState()).tenantWorkTime;
     work.acc += dt;
     if (work.acc < stepSeconds) return true;
 
@@ -925,7 +958,9 @@ export class DefenderSystem {
     d.lastX = exit.x;
     d.lastY = exit.y;
     d.container.setVisible(true);
-    d.cargo = { ...(crew?.expedition?.yield ?? {}) };
+    // Bountiful Toil skill + Spoils runes
+    const team = teamBonuses(useGameStore.getState());
+    d.cargo = scaleBundle({ ...(crew?.expedition?.yield ?? {}) }, team.tenantYield * team.expeditionYield);
     d.job = undefined;
     d.portal = undefined;
     d.state = 'HAULING_TO_CASTLE';
@@ -941,7 +976,7 @@ export class DefenderSystem {
 
   private tenantName(d: Defender): { en: string; tl: string } {
     const cfg = UNIT_CLASSES[d.unitClass];
-    return { en: `${cfg?.nameEn ?? d.unitClass} tenant`, tl: `tenant na ${cfg?.name ?? d.unitClass}` };
+    return { en: `${cfg?.nameEn ?? d.unitClass} minion`, tl: `alagad na ${cfg?.name ?? d.unitClass}` };
   }
 
   /** Replace the startup placeholder when this unit's voxel sheet finishes baking. */
@@ -1035,6 +1070,7 @@ export class DefenderSystem {
   private hit(d: Defender, damage: number): void {
     if (d.dead) return;
     if (useGameStore.getState().defense.forceFieldTimer > 0) damage = Math.max(1, Math.round(damage * 0.4));
+    damage = Math.max(1, Math.round(damage * (1 - this.bannerOf(d))));
     d.hp -= damage;
     this.drawHp(d);
     if (d.sprite) {
@@ -1049,7 +1085,13 @@ export class DefenderSystem {
     const store = useGameStore.getState();
     const boosted = store.defense.minionFrenzyTimer > 0;
     const crit = boosted && Math.random() < 0.2 ? 2 : 1;
-    return Math.round(d.damage * multiplier * alliedDamageMultiplier(store.invasion.waveNumber) * (boosted ? 3 : 1) * crit);
+    return Math.round(d.damage * multiplier * alliedDamageMultiplier(store.invasion.waveNumber) * (boosted ? 3 : 1) * crit * (1 + this.bannerOf(d)));
+  }
+
+  /** Banner runes: bonus (damage dealt up, damage taken down) while the tenant's General lives. */
+  private bannerOf(d: Defender): number {
+    const banner = teamBonuses(useGameStore.getState()).generalBanner;
+    return banner > 0 && this.generalOf(d.home as TowerId) ? banner : 0;
   }
 
   private kill(d: Defender): void {

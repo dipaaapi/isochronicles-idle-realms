@@ -284,6 +284,7 @@ export class MainScene extends Phaser.Scene {
     this.invasionManager.setDefenderProvider(() => this.defenders.getDefenders());
     this.workerManager.setDefenderSystem(this.defenders);
     this.defenders.setWorkerProvider(() => this.workerManager.getWorkers());
+    this.defenders.setBrawlProvider(() => this.workerManager.getBrawlers());
     this.structures.setDefenderSystem(this.defenders);
     this.towers.setDefenderSystem(this.defenders);
     this.towers.setWorkerProvider(() => this.workerManager.getWorkers());
@@ -319,7 +320,13 @@ export class MainScene extends Phaser.Scene {
         ...this.defenders.getDefenders().filter((d) => !d.dead && d.container.active).map((d) => d.container),
       ],
       () => this.dpr,
-      (x, y) => this.focusOn(x, y)
+      (x, y) => this.focusOn(x, y),
+      () => {
+        const pair = this.workerManager.getBrawlers();
+        if (!pair) return null;
+        const [a, b] = pair;
+        return { a: { x: a.container.x, y: a.container.y, name: a.name }, b: { x: b.container.x, y: b.container.y, name: b.name } };
+      }
     );
     // Rift mist sits above units; it parts under the mouse (island space)
     this.portalDefense.attachMist(this.airFxLayer, () => {

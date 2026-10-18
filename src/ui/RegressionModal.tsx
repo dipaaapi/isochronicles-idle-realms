@@ -227,8 +227,8 @@ export const RegressionModal: React.FC<RegressionModalProps> = ({ onClose }) => 
                 <Award className="w-4 h-4 text-purple-400 shrink-0" />
                 <span>
                   {language === 'TL'
-                    ? 'Mananatili ang antas ng iyong Support Healing Slime at kagamitan sa imbentaryo'
-                    : 'Your Support Healing Slime evolution level and crafted equipment are preserved'}
+                    ? 'Mananatili ang antas ng iyong Support Healing Slime'
+                    : 'Your Support Healing Slime evolution level is preserved'}
                 </span>
               </li>
             </ul>

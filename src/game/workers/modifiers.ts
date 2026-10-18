@@ -26,9 +26,6 @@ const WEATHER_EFFECTS: Record<WeatherType, { speed: number; drain: number }> = {
   HEATWAVE: { speed: 0.9, drain: 1.15 }, // Exhausting: 10% slower, 15% faster drain
 };
 
-const equipStat = (worker: WorkerInstance, stat: 'bonusSpeed' | 'bonusCargo' | 'bonusAttack' | 'staminaDrainReduction',
-  slots: Array<'tool' | 'armor' | 'relic'>) =>
-  slots.reduce((sum, slot) => sum + (worker.equipment?.[slot]?.stats[stat] || 0), 0);
 
 /**
  * Applies this frame's timed buffs (motivation, Slime Morale Buffs, Titan shield) and cargo capacity
@@ -71,8 +68,7 @@ export function computeWorkerFrame(
     }
   }
 
-  worker.maxCargo = config.cargoCapacity + (store.upgrades.golemCapacityLevel - 1) + classCapacityBonus +
-    equipStat(worker, 'bonusCargo', ['tool', 'relic']);
+  worker.maxCargo = config.cargoCapacity + (store.upgrades.golemCapacityLevel - 1) + classCapacityBonus;
 
   // God Tier Blessings
   const blessings = store.activeGodBlessings || { CELESTIAL_HARVEST: 0, AEGIS_WRATH: 0, TITAN_AWAKENING: 0 };
@@ -83,8 +79,9 @@ export function computeWorkerFrame(
   const titanAttackBonus = isTitanBlessingActive ? 2.5 : 1.0;
   const frenzyAttackBonus = store.defense.minionFrenzyTimer > 0 ? 3.0 : 1.0;
   const effectiveAttack = Math.round(
-    ((worker.attackPower || 22) + equipStat(worker, 'bonusAttack', ['tool', 'armor', 'relic'])) *
-      titanAttackBonus * frenzyAttackBonus * alliedDamageMultiplier(store.invasion.waveNumber) * slimeBuffAttackMult * skills.attack
+    (worker.attackPower || 22) *
+      titanAttackBonus * frenzyAttackBonus * alliedDamageMultiplier(store.invasion.waveNumber) * slimeBuffAttackMult * skills.attack *
+      (config.role === 'FIGHTER' ? skills.generalAttack : 1) // Warlord's Command skill (Generals)
   );
 
   // Titan Awakening: Radiant Armor Shield to all non-slime minions
@@ -99,9 +96,7 @@ export function computeWorkerFrame(
 
   // Titan Awakening / Infernal Vigor eliminates stamina drain completely (0 drain)
   const isInfiniteStamina = isTitanBlessingActive || (worker.activeSlimeBuff?.infiniteStamina ?? false);
-  const drainReduction = isInfiniteStamina
-    ? 100
-    : Phaser.Math.Clamp(equipStat(worker, 'staminaDrainReduction', ['armor', 'relic']), 0, 70);
+  const drainReduction = isInfiniteStamina ? 100 : 0;
 
   // Speed multipliers
   let motivationMult = 1;
@@ -133,7 +128,7 @@ export function computeWorkerFrame(
     MOVEMENT.bonusCap,
   );
   const effectiveSpeed =
-    (worker.speed + equipStat(worker, 'bonusSpeed', ['tool', 'armor', 'relic'])) * MOVEMENT.speedScale * speedBonus;
+    worker.speed * MOVEMENT.speedScale * speedBonus;
 
   return {
     store,

@@ -3,6 +3,10 @@ import { create } from 'zustand';
 /** Session-only bridge between the Phaser live camera and the React stream overlay. */
 interface LiveFocusState {
   live: boolean;
+  /** What the split screen shows: a wave fight (LIVE) or a General brawl (never both: brawls only happen between waves). */
+  mode: 'wave' | 'brawl';
+  /** Names of the two brawling Generals (brawl mode). */
+  fighters: [string, string] | null;
   /** 0–1: how heated the fight on screen is (drives reaction rate). */
   intensity: number;
   /** Chess-style tile name of the fight (e.g. "E6"). */
@@ -15,6 +19,8 @@ interface LiveFocusState {
 
 export const useLiveFocus = create<LiveFocusState>((set) => ({
   live: false,
+  mode: 'wave',
+  fighters: null,
   intensity: 0,
   spot: '',
   focusTick: 0,

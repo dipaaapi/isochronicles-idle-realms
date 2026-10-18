@@ -19,8 +19,6 @@ export interface ScoutDrops {
   /** Coin piles scattered on the ground. */
   coinPiles: number[];
   resources: Array<[keyof Resources, number]>;
-  /** Equipment id (craftableItems.json) that drops straight into the inventory. */
-  itemId?: string;
 }
 
 export const SCOUTS = config.scouts as ScoutDef[];
@@ -50,6 +48,5 @@ export function rollScoutDrops(kind: ScoutKind, waveNumber: number, rand: () => 
     const r = d.resources[Math.floor(rand() * d.resources.length)];
     resources.push([r.key as keyof Resources, amount(r, wave, rand)]);
   }
-  const itemId = rand() < d.itemChance ? d.itemPool[Math.floor(rand() * d.itemPool.length)] : undefined;
-  return { coinPiles, resources, itemId };
+  return { coinPiles, resources };
 }

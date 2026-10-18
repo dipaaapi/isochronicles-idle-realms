@@ -55,8 +55,8 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
             </h2>
             <p className="text-xs text-slate-400">
               {isTagalog
-                ? '5 Kategorya ng Kaalaman: Slime, Treant, Muog, Gusali, at Umuupa'
-                : '5 Core Domains: Slime, Treant, Citadel, Establishments, & Tenants'}
+                ? '5 Kategorya ng Kaalaman: Slime, Treant, Muog, Gusali, at Alagad'
+                : '5 Core Domains: Slime, Treant, Citadel, Establishments, & Minions'}
             </p>
           </div>
         </div>
@@ -173,14 +173,14 @@ export const ResearchPanel: React.FC<ResearchPanelProps> = ({ onClose }) => {
             </button>
           )}
 
-          {/* Tenants Category Explanatory Badge */}
+          {/* Minions Category Explanatory Badge */}
           {activeTab === 'TENANTS' && (
             <div className="text-[11px] bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700 text-amber-300 flex items-center gap-1.5">
               <span>🛡️</span>
               <span>
                 {isTagalog
-                  ? 'Bawat Umuupa = 20% Katatagan ng Gusali. Kapag nasira, lalaban sila nang kusa!'
-                  : 'Each Tenant = 20% Tether Defense. When broken, they detach and counter-attack!'}
+                  ? 'Bawat Alagad = 20% Katatagan ng Gusali. Kapag nasira, lalaban sila nang kusa!'
+                  : 'Each Minion = 20% Tether Defense. When broken, they detach and counter-attack!'}
               </span>
             </div>
           )}

@@ -7,14 +7,13 @@ const state = {
   lootBundles: 0,
   // A scout's drop bundle: coins plus supplies in one call (bounties are coins alone)
   addScoutBundle(b) { if (b && b.coins && Object.keys(b).length > 1) this.lootBundles++; },
-  grantEquipmentDrop() { return null; },
   invasion: { isActive: false }, defense: { castleHp: 100 },
   weather: 'CLEAR', autoSettings: {},
   tickInvasionCountdown() {}, setEnemiesRemaining() {},
   takeBattleEffects() { return []; }, roster: [], resourceBuildings: {}, addResources(b) { this.addScoutBundle(b); },
 };
 const exportsObject = {};
-const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts', 'utf8'), {
+const source = ts.transpileModule(fs.readFileSync('src/game/InvasionManager.ts', 'utf8').replace(/import.meta.env.BASE_URL/g, "'/'"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;
 vm.runInNewContext(source, {

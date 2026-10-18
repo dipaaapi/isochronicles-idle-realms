@@ -35,7 +35,9 @@ export class LiveFocusCamera {
     private allies: () => Point[],
     private dpr: () => number,
     /** Flies the main camera to a world point (clicking the stream). */
-    private flyTo: (x: number, y: number) => void
+    private flyTo: (x: number, y: number) => void,
+    /** The two brawling Generals (island-local positions + names), or null. */
+    private brawl: () => { a: Point & { name: string }; b: Point & { name: string } } | null = () => null
   ) {
     this.focusTick = useLiveFocus.getState().focusTick;
     this.cam = scene.cameras.add(0, 0, 1, 1, false, 'live-focus');
@@ -94,6 +96,9 @@ export class LiveFocusCamera {
       if (this.focus && useLiveFocus.getState().live) this.flyTo(this.island.x + this.focus.x, this.island.y + this.focus.y - 20);
     }
     const store = useGameStore.getState();
+    // Brawls only happen between waves, so they take over the same split screen
+    if (!store.invasion.isActive && this.updateBrawl(dt)) return;
+    if (useLiveFocus.getState().mode === 'brawl') useLiveFocus.getState().set({ mode: 'wave', fighters: null });
     if (!store.invasion.isActive || store.defense.castleHp <= 0) {
       if (this.liveTimer > 0 || useLiveFocus.getState().live) {
         this.liveTimer = 0;
@@ -142,6 +147,34 @@ export class LiveFocusCamera {
     this.cam.setZoom(zoom * dpr);
     if (this.focus) this.cam.centerOn(this.island.x + this.focus.x, this.island.y + this.focus.y - 20);
     if (heat >= 0) this.setLive(true, heat > 0 ? heat : 0);
+  }
+
+  /** Shows a running brawl in the split screen; returns false when there is none. */
+  private updateBrawl(dt: number): boolean {
+    const fight = this.brawl();
+    const state = useLiveFocus.getState();
+    if (!fight) {
+      if (state.mode === 'brawl' && state.live) this.setLive(false);
+      return false;
+    }
+    const mid = { x: (fight.a.x + fight.b.x) / 2, y: (fight.a.y + fight.b.y) / 2 };
+    if (!this.focus || state.mode !== 'brawl') this.focus = { ...mid };
+    this.target = mid;
+    const k = 1 - Math.exp(-dt * 4);
+    this.focus.x += (mid.x - this.focus.x) * k;
+    this.focus.y += (mid.y - this.focus.y) * k;
+    this.liveTimer = 0;
+    const dpr = this.dpr();
+    const { width, height, margin, zoom } = CONFIG.frame;
+    this.cam.setViewport(this.scene.scale.width - (width + margin) * dpr, margin * dpr, width * dpr, height * dpr);
+    this.cam.setZoom(zoom * 1.25 * dpr);
+    this.cam.centerOn(this.island.x + this.focus.x, this.island.y + this.focus.y - 20);
+    const fighters: [string, string] = [fight.a.name, fight.b.name];
+    if (state.mode !== 'brawl' || state.fighters?.[0] !== fighters[0] || state.fighters?.[1] !== fighters[1]) {
+      state.set({ mode: 'brawl', fighters });
+    }
+    this.setLive(true, 12);
+    return true;
   }
 
   destroy(): void {

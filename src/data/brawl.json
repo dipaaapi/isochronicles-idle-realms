@@ -1,0 +1,23 @@
+{
+  "_doc": "General brawls (src/state/brawl.ts, game/workers/brawl.ts). Clashes are only counted and brawls only fought between waves; a running brawl takes over the live-stream split screen (BRAWL badge). Two Generals 'clash' when they bump into each other (closer than clashRadiusPx); a clash counts once per contact (they must part by partRadiusPx first) and only at the pair's same spot (within spotRadiusTiles of where their tension started; a clash elsewhere restarts the gauge there). More than clashesToBrawl clashes fill the tension gauge and start a brawl outside waves. The winner adds the loser's base attack and HP (absorb ratios) and gains one + level (max maxLevel); the loser loses its + levels and bonus and is left at knockoutHpRatio HP. Mirror invaders keep the realm fair: while any General has a +, each wave invader may copy one upgraded General's attack and HP (chance + perLevel × its level, at most one mirror per upgraded General each wave; never bosses).",
+  "clashRadiusPx": 16,
+  "partRadiusPx": 30,
+  "spotRadiusTiles": 1.5,
+  "clashesToBrawl": 10,
+  "maxLevel": 10,
+  "absorb": { "attack": 1, "hp": 1 },
+  "knockoutHpRatio": 0.15,
+  "brawl": {
+    "approachSpeed": 1.15,
+    "reachPx": 18,
+    "swingSeconds": 0.75,
+    "damageRatio": 0.6,
+    "maxSeconds": 40,
+    "rallyRadiusPx": 46
+  },
+  "glow": { "color": "#fbbf24", "baseAlpha": 0.18, "alphaPerLevel": 0.025, "radius": 15, "radiusPerLevel": 0.8 },
+  "mirror": { "chance": 0.06, "perLevel": 0.01, "tint": "#c084fc" },
+  "text": {
+    "mirrorName": { "en": "Mirror {name}", "tl": "Salamin na {name}" }
+  }
+}

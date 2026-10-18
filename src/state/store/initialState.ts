@@ -1,4 +1,5 @@
 import { NODE_SPOTS, applyLayoutSeed, newLayoutSeed, type BuildingPositions } from '../buildingLayout';
+import { emptyRuneSlots } from '../runes';
 import { ECONOMY_CONFIG } from '../economy';
 import type { Difficulty } from '../difficulty';
 import type { SkillRanks } from '../skillTree';
@@ -141,7 +142,6 @@ export const createSupportSlime = (slimeEvolutionLevel = 1): UnitRosterItem => (
   hp: 9999,
   maxHp: 9999,
   slimeEvolutionLevel,
-  equipment: {},
 });
 
 // Harvest spots beside the Crystal Spire, Quarry, Grove and Mystic Cave (src/data/buildingLayout.json)
@@ -224,7 +224,6 @@ export const createInitialProgress = () => {
     resourceBuildings: { ...INITIAL_RESOURCE_BUILDINGS },
     defense: { ...INITIAL_DEFENSE },
     invasion: { ...INITIAL_INVASION },
-    inventory: [],
     autoSettings: { ...INITIAL_AUTO_SETTINGS },
     achievements: [],
     isCastleBreachedModalOpen: false,
@@ -250,6 +249,9 @@ export const createInitialProgress = () => {
 
     // Silhouette Discovery: Starting beasts are pre-discovered
     discoveredBeasts: ['DRYAD', 'MINOTAUR'] as UnitClass[],
+    brawlTension: {},
+    runes: [],
+    runeSlots: emptyRuneSlots(),
     discoveredInvaders: [] as InvaderType[],
     promptedUpgrades: {},
     dynamicResourceNodes: createInitialResourceNodes(),
