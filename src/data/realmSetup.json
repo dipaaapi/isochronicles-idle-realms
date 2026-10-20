@@ -1,0 +1,20 @@
+{
+  "_doc": "New-realm setup choices shown under the difficulty (RealmSetupPicker). available=false shows the card as coming soon.",
+  "modes": [
+    {
+      "id": "CLASSIC", "icon": "🏰", "available": true,
+      "name": { "en": "Classic Siege", "tl": "Klasikong Pagkubkob" },
+      "desc": { "en": "Invaders pour in from the four corner rifts to storm your citadel in the centre.", "tl": "Dumadagsa ang mga kalaban mula sa apat na lagusan sa sulok para salakayin ang kuta sa gitna." }
+    },
+    {
+      "id": "DUEL", "icon": "⚔️", "available": false,
+      "name": { "en": "1 vs 1 Duel", "tl": "1 laban 1" },
+      "desc": { "en": "Two factions split by water race for resources in the middle. Defend the Citadel as the demons, or the Research Lab as the humans.", "tl": "Dalawang pangkat na hinati ng tubig ang nag-uunahan sa yaman sa gitna. Ipagtanggol ang Kuta bilang demonyo, o ang Research Lab bilang tao." }
+    }
+  ],
+  "sizes": [
+    { "id": "SMALL", "tiles": 20, "available": false, "name": { "en": "Small", "tl": "Maliit" } },
+    { "id": "MEDIUM", "tiles": 30, "available": true, "name": { "en": "Medium", "tl": "Katamtaman" } },
+    { "id": "LARGE", "tiles": 40, "available": false, "name": { "en": "Large", "tl": "Malaki" } }
+  ]
+}

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { IsometricHelper } from '../IsometricHelper';
 import { WATER_DROP_WORLD } from '../PixelTileArt';
 import { GRID_SIZE, isWaterTile } from '../../state/buildingLayout';
+import { isCoastalTile } from './coastField';
 
 /** Realm (platformPhase 1–4) → biome sheet made in Aseprite (art/water/*.lua, art/water/build.sh). */
 const BIOMES = ['ocean', 'magma', 'frost', 'astral'] as const;
@@ -41,6 +42,8 @@ export class WaterLife {
   private waterTiles: Array<{ x: number; y: number }> = [];
   private biome: Biome;
   private ready = false;
+  /** LOW quality (30 FPS): fish hidden, ripples at half speed. */
+  private lite = false;
   /** Last surface speed / frozen state applied (only re-applied when it changes). */
   private appliedFlow = -1;
   private appliedFrozen = -1;
@@ -112,7 +115,11 @@ export class WaterLife {
     this.appliedFlow = -1;
     this.appliedFrozen = -1;
     const flow = `${surfaceKey(this.biome)}:flow`;
-    for (const t of this.waterTiles) {
+    // The curved coast cuts water into land tiles too: animate under them (the shore layer covers the land part)
+    const surfaceTiles = [...this.waterTiles];
+    for (let y = 0; y < GRID_SIZE; y++) for (let x = 0; x < GRID_SIZE; x++) if (!isWaterTile(x, y) && isCoastalTile(x, y)) surfaceTiles.push({ x, y });
+    surfaceTiles.sort((a, b) => a.x + a.y - (b.x + b.y) || a.x - b.x);
+    for (const t of surfaceTiles) {
       const p = IsometricHelper.gridToScreen(t.x, t.y);
       const s = this.scene.add.sprite(p.x, p.y + WATER_DROP_WORLD, surfaceKey(this.biome)).setScale(HD_SCALE);
       s.play(flow);
@@ -155,6 +162,12 @@ export class WaterLife {
     f.target = this.tilePoint(f.tile);
   }
 
+  setLite(lite: boolean): void {
+    if (lite === this.lite) return;
+    this.lite = lite;
+    this.appliedFlow = -1; // re-apply surface speed and fish visibility
+  }
+
   update(deltaMs: number, phase: number, falls?: { flow: number; frozen: number }): void {
     if (!this.ready) return;
     if (falls) this.matchFalls(falls);
@@ -164,6 +177,7 @@ export class WaterLife {
       this.rebuild();
       return;
     }
+    if (this.lite) return;
     const dt = deltaMs / 1000;
     for (const f of this.fish) {
       const s = f.sprite;
@@ -211,7 +225,7 @@ export class WaterLife {
     this.appliedFlow = flow;
     this.appliedFrozen = frozen;
     for (const s of this.surfaces) {
-      s.anims.timeScale = flow;
+      s.anims.timeScale = this.lite ? flow * 0.5 : flow;
       if (frozen) {
         s.anims.pause();
         s.setTint(0xe0f2fe);
@@ -220,7 +234,7 @@ export class WaterLife {
         s.clearTint();
       }
     }
-    this.fishLayer.setVisible(!frozen);
+    this.fishLayer.setVisible(!frozen && !this.lite);
   }
 
   destroy(): void {

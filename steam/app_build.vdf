@@ -1,6 +1,8 @@
 "AppBuild"
 {
 	"AppID" "480"
+	// Replace 480 / 481 / 482 (Valve Spacewar test IDs) with the real App ID and depot IDs.
+	// "SetLive" is left out on purpose: uploads land on no branch until you set one in Steamworks.
 	"Desc" "IsoChronicle: Idle Realms build"
 	"ContentRoot" "..\release\"
 	"BuildOutput" ".\output\"

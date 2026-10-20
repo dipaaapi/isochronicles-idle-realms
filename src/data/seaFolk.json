@@ -1,0 +1,137 @@
+{
+  "_doc": "Sea Folk third faction (game/SeaFolkManager.ts, state/seaFolk.ts). The war poisons the sea: contamination (0-100) rises with every wave and battle and falls with tribute. Above emergeAt a group rises at the start of a wave or a brawl and fights BOTH the demons and the humans; at bossAt the Leviathan joins (only one). Each kill levels the killer up (+N badge). Tribute pays them off: contamination drops and they spare the demons for truceWaves waves (they still fight the humans). Demons and humans fight back: any unit a Sea Folk creature attacks (or that comes within noticeRadius) turns on it with up to two nearby allies, chasing it up to the leash; melee units can strike a swimmer from the shore within waterReach. The Leviathan also rises at random (boss.randomChance per wave once the sea is restless) and sometimes carries a rune (boss.runeChance). Works in every game mode. waterOnly creatures (the Leviathan) swim only on water tiles and strike the shore from range.",
+  "contamination": { "perWave": 7, "perBrawl": 3, "perFire": 2, "perBattleDeath": 0.35, "perPeacefulDay": -1.5, "emergeAt": 25, "bossAt": 70, "max": 100 },
+  "groups": [
+    { "at": 25, "size": [2, 3] },
+    { "at": 50, "size": [3, 5] },
+    { "at": 75, "size": [5, 7] }
+  ],
+  "mix": { "PIRANHA": 5, "MERMAID": 3, "KAPPA": 2 },
+  "brawlEmergeChance": 0.55,
+  "levelUp": { "attackPerLevel": 0.15, "hpPerLevel": 0.12, "healOnKill": 0.25, "maxLevel": 9 },
+  "fightBack": { "noticeRadius": 80, "allyRadius": 120, "maxPerCreature": 5, "leash": 320, "cooldownMs": 1100, "waterReach": 95 },
+  "boss": { "randomChance": 0.15, "runeChance": 0.5 },
+  "killReward": { "attackShare": 0.12, "hpShare": 0.12, "bossBonus": 2 },
+  "silhouettes": { "count": 6, "speed": 14, "alpha": 0.32 },
+  "tribute": {
+    "base": { "coins": 400, "water": 150, "fish": 120, "wood": 150 },
+    "perContamination": 0.03,
+    "cleanse": 35,
+    "truceWaves": 3
+  },
+  "creatures": {
+    "PIRANHA": {
+      "sprite": "piranha",
+      "boss": false,
+      "hp": 60,
+      "damage": 9,
+      "range": 30,
+      "speed": 95,
+      "attackMs": 650,
+      "skill": { "id": "FRENZY", "cooldownMs": 0, "belowHp": 0.5, "speedUp": 2 },
+      "loot": [
+        { "res": "fish", "min": 8, "max": 18 },
+        { "res": "coins", "min": 6, "max": 14 }
+      ],
+      "name": { "en": "Blood Piranha", "tl": "Piranhang Dugo" },
+      "desc": { "en": "Fast, hopping biters that swarm anything bleeding.", "tl": "Mabibilis at lumulundag na kagat na dinudumog ang anumang dumudugo." },
+      "skillName": { "en": "Blood Frenzy", "tl": "Ngitngit ng Dugo" },
+      "skillDesc": { "en": "Bites twice as fast at targets below half health.", "tl": "Dalawang beses na mas mabilis kumagat sa kalabang wala nang kalahati ang buhay." }
+    },
+    "MERMAID": {
+      "sprite": "mermaid",
+      "boss": false,
+      "hp": 140,
+      "damage": 14,
+      "range": 150,
+      "speed": 46,
+      "attackMs": 1400,
+      "skill": { "id": "TIDE_SONG", "cooldownMs": 9000, "heal": 40, "radius": 120 },
+      "loot": [
+        { "res": "water", "min": 25, "max": 45 },
+        { "res": "abyssalPearl", "min": 1, "max": 3 },
+        { "res": "coins", "min": 15, "max": 30 }
+      ],
+      "name": { "en": "Tide Mermaid", "tl": "Sirena ng Alon" },
+      "desc": { "en": "Trident singers who hurl bolts of seawater and mend their kin.", "tl": "Mang-aawit na may trident na bumabato ng tubig-dagat at nagpapagaling sa kauri." },
+      "skillName": { "en": "Tide Song", "tl": "Awit ng Alon" },
+      "skillDesc": { "en": "Heals every Sea Folk ally nearby.", "tl": "Pinagagaling ang lahat ng kauring malapit." }
+    },
+    "KAPPA": {
+      "sprite": "kappa",
+      "boss": false,
+      "hp": 260,
+      "damage": 20,
+      "range": 34,
+      "speed": 40,
+      "attackMs": 1300,
+      "skill": { "id": "SHELL_GUARD", "cooldownMs": 10000, "durationMs": 3000, "reduction": 0.6 },
+      "loot": [
+        { "res": "stone", "min": 20, "max": 40 },
+        { "res": "minerals", "min": 6, "max": 14 },
+        { "res": "coins", "min": 12, "max": 24 }
+      ],
+      "name": { "en": "River Kappa", "tl": "Kappa ng Ilog" },
+      "desc": { "en": "Shelled river guardians that claw and hide in their shells.", "tl": "Mga bantay ng ilog na may talukab na nangangalmot at nagtatago sa talukab." },
+      "skillName": { "en": "Shell Guard", "tl": "Kublihang Talukab" },
+      "skillDesc": { "en": "Pulls into its shell, taking 60% less damage for 3 seconds.", "tl": "Nagtatago sa talukab at 60% na mas kaunti ang tama sa loob ng 3 segundo." }
+    },
+    "LEVIATHAN": {
+      "sprite": "leviathan",
+      "boss": true,
+      "waterOnly": true,
+      "hp": 1600,
+      "damage": 45,
+      "range": 170,
+      "speed": 24,
+      "attackMs": 2200,
+      "skill": { "id": "TIDAL_WAVE", "cooldownMs": 12000, "damage": 70, "radius": 130 },
+      "loot": [
+        { "res": "abyssalPearl", "min": 8, "max": 14 },
+        { "res": "arcaneEssence", "min": 40, "max": 70 },
+        { "res": "coins", "min": 200, "max": 320 }
+      ],
+      "name": { "en": "Abyssal Leviathan", "tl": "Leviathan ng Kailaliman" },
+      "desc": { "en": "The ancient sea dragon. Only one lives, and it rises only when the sea is near ruin.", "tl": "Ang sinaunang dragon ng dagat. Iisa lang ito, at lumilitaw lang kapag halos wasak na ang dagat." },
+      "skillName": { "en": "Tidal Wave", "tl": "Daluyong" },
+      "skillDesc": { "en": "Crashes a wave around itself, striking every demon and human in reach.", "tl": "Nagpapabagsak ng alon sa paligid, tinatamaan ang bawat demonyo at tao na maaabot." },
+      "skills": [
+        {
+          "id": "TIDAL_WAVE",
+          "cooldownMs": 12000,
+          "damage": 70,
+          "radius": 130,
+          "name": { "en": "Tidal Wave", "tl": "Daluyong" },
+          "desc": { "en": "Crashes a ring of water around itself, striking every demon and human in reach.", "tl": "Nagpapabagsak ng singsing ng tubig sa paligid, tinatamaan ang bawat demonyo at tao na maaabot." }
+        },
+        {
+          "id": "ABYSSAL_ROAR",
+          "cooldownMs": 15000,
+          "radius": 170,
+          "slow": 0.45,
+          "durationMs": 3500,
+          "name": { "en": "Abyssal Roar", "tl": "Atungal ng Kailaliman" },
+          "desc": { "en": "A roar from the deep that slows every foe in a wide radius.", "tl": "Atungal mula sa kalaliman na nagpapabagal sa lahat ng kalaban sa malawak na paligid." }
+        },
+        {
+          "id": "MAELSTROM",
+          "cooldownMs": 18000,
+          "radius": 150,
+          "pull": 60,
+          "damage": 40,
+          "name": { "en": "Maelstrom", "tl": "Ipoipo ng Dagat" },
+          "desc": { "en": "Opens a whirlpool that drags nearby foes toward the shore and batters them.", "tl": "Nagbubukas ng ipoipo na humihila sa mga kalapit na kalaban papunta sa pampang at binubugbog sila." }
+        }
+      ]
+    }
+  },
+  "moods": {
+    "CALM": { "en": "Calm", "tl": "Payapa" },
+    "RESTLESS": { "en": "Restless", "tl": "Balisa" },
+    "ENRAGED": { "en": "Enraged", "tl": "Nagngingitngit" },
+    "TRUCE": { "en": "Truce", "tl": "Kasunduan" }
+  },
+  "bodyguards": { "count": 3, "radius": 110, "share": 0.5, "_doc": "When the Leviathan rises, up to count Sea Folk swear to guard it: they stay near it, hunt whoever attacks it, and take share of every hit it suffers while within radius." },
+  "rank": { "checkSeconds": 3, "_doc": "A minion whose + (from Sea Folk kills) beats its General's + swaps rank with it: the minion is promoted to General and the General is demoted." },
+  "terrain": { "floodEverySeconds": 5, "floodRadius": 2 }
+}

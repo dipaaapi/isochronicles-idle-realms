@@ -39,10 +39,16 @@ export interface WorkerInstance extends NavAgent {
   body: Phaser.GameObjects.Graphics;
   /** 8-direction pixel sprite, attached once its sheet is baked (then `body` stays empty). */
   sprite?: Phaser.GameObjects.Sprite;
+  /** Fighting back against a Sea Folk creature (its own AI is paused meanwhile). */
+  seaEngaged?: boolean;
   /** Emote bubble / gauge anchor height; depends on the rendered body's height. */
   emoteBaseY: number;
   /** Brawl wins (+1 … +10) and the badge beside the status bubble that shows them. */
   brawlLevel?: number;
+  /** True from brawl start through its resolution; pauses loot, healing and normal AI. */
+  isBrawling?: boolean;
+  /** A General defeated in a brawl cannot be resurrected by the Support Slime. */
+  isBrawlDeath?: boolean;
   brawlBadge?: Phaser.GameObjects.Text;
   /** Pulsing aura: the Treant, the Slime and Generals with a brawl +. */
   glowGfx?: Phaser.GameObjects.Graphics;
@@ -117,6 +123,9 @@ export interface WorkerInstance extends NavAgent {
   markedTimer?: number;
   // Dirty-check cache: skip gauge / lantern redraws when nothing changed
   _gaugeHp: number;
+  /** Brawl HP bar: the lagging "chip" (HP lost recently) and the hit-flash timer (ms). */
+  _hpTrail?: number;
+  _hitFlash?: number;
   _gaugeMaxHp: number;
   _gaugeStamina: number;
   _gaugeMaxStamina: number;

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { DEV_TOOLS, useDevMode } from '../state/devMode';
 import { useGameStore } from '../state/useGameStore';
+import { wipeAllSaveData } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
 import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
 import { gameAlert, gameConfirm } from './GameDialog';
@@ -82,7 +83,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     toggleAutoSetting,
     exportSave,
     importSave,
-    resetRealm,
     showFpsDebug,
     toggleFpsDebug,
     showTileCoordinates,
@@ -150,12 +150,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     if (!confirmed) return;
 
     soundFx.playClick();
-    resetRealm();
+    // Total wipeout: erase every save and setting, then start the app from scratch
+    await wipeAllSaveData();
     onClose();
-
-    if (onReturnToTitle) {
-      onReturnToTitle();
-    }
+    window.location.reload();
   };
 
   const tabs = [
@@ -721,8 +719,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     </div>
                     <div className="mt-0.5 text-[10px] text-rose-400/70">
                       {isTL
-                        ? 'Permanenteng buburahin ang lahat ng progress.'
-                        : 'Permanently erase all progress, buildings, and history.'}
+                        ? 'Buburahin ang lahat: progress, save, settings at music library.'
+                        : 'Erase everything: progress, saves, settings and music library.'}
                     </div>
                   </div>
                 </button>

@@ -287,7 +287,71 @@
   animation: title-mist ease-in-out infinite alternate;
 }
 .title-glow { animation: title-glow 6s ease-in-out infinite; }
+
+/* Levitating obsidian crystals: bob, sway, pulsing blood veins, a drip off the tip */
+@keyframes title-crystal-float {
+  0%, 100% { transform: translateY(0) rotate(var(--crystal-tilt)); }
+  50% { transform: translateY(-18px) rotate(calc(var(--crystal-tilt) * -0.6)); }
+}
+@keyframes title-crystal-shadow {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.45; }
+  50% { transform: translateX(-50%) scale(0.7); opacity: 0.2; }
+}
+@keyframes title-vein { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes title-crystal-drip {
+  0%, 55% { transform: translate(-50%, 0) scaleY(0.4); opacity: 0; }
+  62% { transform: translate(-50%, 0) scaleY(1.3); opacity: 1; }
+  100% { transform: translate(-50%, 34vh) scaleY(1.8); opacity: 0; }
+}
+.title-crystal {
+  position: absolute;
+  animation: title-crystal-float ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.55)) drop-shadow(0 0 16px rgba(127, 29, 29, 0.6));
+}
+.title-crystal-vein { animation: title-vein 2.4s ease-in-out infinite; filter: drop-shadow(0 0 2px #ef4444); }
+.title-crystal-drip {
+  position: absolute; left: 50%; bottom: -2px; width: 3px; height: 7px;
+  border-radius: 0 0 3px 3px; background: #b91c1c; box-shadow: 0 0 4px #dc2626;
+  animation: title-crystal-drip 4.5s ease-in infinite;
+}
+.title-crystal-shadow {
+  position: absolute; left: 50%; top: calc(100% + 26px); height: 8px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.8), transparent 70%);
+  animation: title-crystal-shadow ease-in-out infinite;
+}
+
+/* Hide side effects over the centre title band (works at any aspect ratio of the cover art) */
+.title-side-mask {
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 22%, transparent 25%, transparent 75%, #000 78%, #000 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000 22%, transparent 25%, transparent 75%, #000 78%, #000 100%);
+}
+/* Blood pouring from the sky: the stream grows down, drains away, a drop leads it */
+@keyframes title-blood-pour {
+  0% { height: 0; top: 0; opacity: 0; }
+  8% { opacity: 1; }
+  55% { height: var(--blood-reach); top: 0; opacity: 1; }
+  85% { height: 6vh; top: calc(var(--blood-reach) - 6vh); opacity: 0.9; }
+  100% { height: 0; top: var(--blood-reach); opacity: 0; }
+}
+@keyframes title-blood-drop {
+  0% { opacity: 0; }
+  10%, 55% { opacity: 1; }
+  70%, 100% { opacity: 0; }
+}
+.title-blood {
+  position: absolute; top: 0;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(to bottom, rgba(69, 10, 10, 0.2), #7f1d1d 18%, #b91c1c 70%, #dc2626);
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.55);
+  animation: title-blood-pour ease-in-out infinite;
+}
+.title-blood-drop {
+  position: absolute; left: 50%; bottom: -5px; width: 180%; aspect-ratio: 1 / 1.4;
+  transform: translateX(-50%); border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  background: #dc2626; box-shadow: 0 0 6px #ef4444;
+  animation: title-blood-drop ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .title-drift, .title-ember, .title-mist, .title-glow { animation: none; }
-  .title-ember { display: none; }
+  .title-drift, .title-ember, .title-mist, .title-glow, .title-crystal, .title-crystal-vein, .title-crystal-shadow { animation: none; }
+  .title-ember, .title-blood, .title-crystal-drip { display: none; }
 }

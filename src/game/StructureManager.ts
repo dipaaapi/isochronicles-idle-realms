@@ -36,7 +36,8 @@ import { isHacked } from './hackState';
 
 /** Tint of an establishment a Technician has turned. */
 const HACK_TINT = 0xf0abfc;
-import { createStructureSprite, playStructureAnim, structureHeadroom } from './sprites/StructureSprites';
+import { createStructureSprite, hasStructureAnim, playStructureAnim, playStructureSequence, showStructureStage, structureHeadroom } from './sprites/StructureSprites';
+import { hitReaction } from './hitReaction';
 
 export type StructureId = 'CASTLE' | TowerId;
 
@@ -77,6 +78,8 @@ interface StructureView {
   fallback: Phaser.GameObjects.Graphics;
   hpBar: Phaser.GameObjects.Graphics;
   state?: ViewState;
+  /** Below half HP: shows the scorched 'damaged' loop instead of idle. */
+  lowHp?: boolean;
   attacking: boolean;
   smokeTimer: number;
   /** Whether the hacked tint is currently applied. */
@@ -202,7 +205,7 @@ export class StructureManager {
     sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (anim: Phaser.Animations.Animation) => {
       if (anim.key.endsWith('-attack') || anim.key.endsWith('-pulse')) {
         view.attacking = false;
-        if (view.state === 'idle') playStructureAnim(sprite, 'idle');
+        if (view.state === 'idle') playStructureAnim(sprite, this.restingAnim(view));
       }
     });
   }
@@ -261,7 +264,7 @@ export class StructureManager {
       let sumY = 0;
       let n = 0;
       for (let row = 0; row < frame.height * 0.6; row++) {
-        for (let dx = -10; dx <= 10; dx++) {
+        for (let dx = -20; dx <= 20; dx++) {
           const c = this.scene.textures.getPixel(cx + dx, row, key, frame.name);
           if (c && c.alpha > 0 && c.red === 0xef && c.green === 0x44 && c.blue === 0x44) {
             sumX += cx + dx;
@@ -445,12 +448,15 @@ export class StructureManager {
   private flash(view: StructureView): void {
     const sprite = view.sprite;
     if (!sprite) return;
-    sprite.setTint(0xff9a9a);
-    this.scene.time.delayedCall(90, () => {
-      if (!sprite.active) return;
-      if (isHacked(view.id)) sprite.setTint(HACK_TINT);
-      else sprite.clearTint();
+    hitReaction(this.scene, sprite, {
+      knock: 1.5,
+      restoreTint: () => (isHacked(view.id) ? sprite.setTint(HACK_TINT) : sprite.clearTint()),
     });
+  }
+
+  /** Idle look for the current HP: scorched and smouldering below half. */
+  private restingAnim(view: StructureView): string {
+    return view.lowHp && view.sprite && hasStructureAnim(view.sprite, 'damaged') ? 'damaged' : 'idle';
   }
 
   private debris(view: StructureView, count: number): void {
@@ -477,7 +483,7 @@ export class StructureManager {
     const view = this.views.get(id);
     if (!view?.sprite || view.state !== 'idle') return;
     view.attacking = false;
-    playStructureAnim(view.sprite, 'idle', true);
+    playStructureAnim(view.sprite, this.restingAnim(view), true);
   }
 
   /** Plays a building's attack animation (towers call this when they fire). */
@@ -520,14 +526,20 @@ export class StructureManager {
         state = !store.castleBuilt || !b || b.level < 1 ? 'site' : hp <= 0 ? 'ruined' : 'idle';
       }
 
+      const lowHp = state === 'idle' && hp < maxHp * 0.5;
       if (state !== view.state) {
         const finished = view.state === 'site' && state === 'idle';
+        const fell = view.state === 'idle' && state === 'ruined';
         view.state = state;
+        view.lowHp = lowHp;
         view.attacking = false;
         view.container.setAlpha(1);
         view.container.setScale(1);
         view.fallback.setAlpha(state === 'site' ? 0.35 : state === 'ruined' ? 0.6 : 1);
-        if (view.sprite) playStructureAnim(view.sprite, state, true);
+        if (view.sprite) {
+          if (fell) playStructureSequence(view.sprite, 'collapse', 'ruined');
+          else playStructureAnim(view.sprite, state === 'idle' ? this.restingAnim(view) : state, true);
+        }
         if (finished) this.playBuiltFlourish(view);
       }
 
@@ -541,6 +553,10 @@ export class StructureManager {
         continue;
       }
       if (!view.container.visible) view.container.setVisible(true);
+      if (state === 'idle' && lowHp !== view.lowHp) {
+        view.lowHp = lowHp;
+        if (view.sprite && !view.attacking) playStructureAnim(view.sprite, this.restingAnim(view), true);
+      }
 
       // HP bar: shown whenever damaged (the castle's also shows its shield during waves)
       const shield = view.id === 'CASTLE' ? store.defense.shieldHp / Math.max(1, store.defense.shieldMaxHp) : 0;
@@ -740,6 +756,11 @@ export class StructureManager {
    */
   private animateConstructionSite(view: StructureView, status: ConstructionStatus, dt: number): void {
     const building = status.phase === 'building';
+    // The building rises stage by stage from its foundation as the work progresses
+    if (view.sprite) {
+      if (status.progress > 0.03) showStructureStage(view.sprite, 'build', status.progress);
+      else playStructureAnim(view.sprite, 'site');
+    }
     view.container.setAlpha(status.phase === 'waiting' ? 0.55 + Math.sin(this.elapsed * 3) * 0.1 : building ? 1 : 0.8);
     view.container.setScale(1, building ? 1 + Math.sin(this.elapsed * 14) * 0.015 : 1);
 
@@ -895,7 +916,7 @@ export class StructureManager {
       castle.attacking = true;
       playStructureAnim(castle.sprite, 'pulse', true);
       this.scene.time.delayedCall(Math.min(stats.duration, 2.5) * 1000, () => {
-        if (castle.sprite?.active && castle.state === 'idle') playStructureAnim(castle.sprite, 'idle', true);
+        if (castle.sprite?.active && castle.state === 'idle') playStructureAnim(castle.sprite, this.restingAnim(castle), true);
         castle.attacking = false;
       });
     }

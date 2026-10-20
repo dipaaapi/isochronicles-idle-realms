@@ -12,7 +12,8 @@ import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
 import { RiftWorks, type RiftJob } from './riftWorks';
 import { RiftMist } from './riftMist';
-import { createStructureSprite, isStructureReady, playStructureAnim, structureHeadroom } from './sprites/StructureSprites';
+import { STRUCTURE_PIXEL, createStructureSprite, hasStructureAnim, isStructureReady, playStructureAnim, playStructureSequence, structureHeadroom } from './sprites/StructureSprites';
+import { hitReaction } from './hitReaction';
 import {
   PORTAL_DEFENSE, PortalSkillId, RiftEnv, portalSkillName, riftBoltDamage, riftDamageScale, riftEnv,
   riftLashDamage, sentinelBounty, sentinelDamage, sentinelMaxHp, surgeDamage,
@@ -413,7 +414,7 @@ export class PortalDefenseSystem {
     if (!sprite) return;
     s.sprite = sprite;
     // The container is scaled for the vector body; undo that for the sprite
-    sprite.setScale(SPRITE_SCALE / SENTINEL_SCALE);
+    sprite.setScale((SPRITE_SCALE / SENTINEL_SCALE) * (STRUCTURE_PIXEL / 2));
     s.container.addAt(sprite, 1);
     // Lift the HP bar (drawn at y = -53 in container space) just above the crystal
     const top = ((structureHeadroom('sentinel') ?? 110) * SPRITE_SCALE) / SENTINEL_SCALE;
@@ -464,8 +465,7 @@ export class PortalDefenseSystem {
     if (s.portal.wardTimer > 0) damage *= CFG.skills.warpWard.damageTaken;
     s.hp -= damage;
     this.drawHp(s);
-    s.body.setAlpha(0.5);
-    this.scene.time.delayedCall(60, () => s.body.active && s.body.setAlpha(1));
+    if (s.sprite) hitReaction(this.scene, s.sprite, { knock: 1.5 });
     soundFx.playWallBang();
     if (s.hp <= 0) this.topple(s, true);
   }
@@ -493,8 +493,11 @@ export class PortalDefenseSystem {
         });
       }
     }
+    // Crumbles through its collapse frames first, then sinks away
+    const crumble = byMinions && s.sprite && hasStructureAnim(s.sprite, 'collapse');
+    if (crumble) playStructureSequence(s.sprite!, 'collapse', 'destroyed');
     this.scene.tweens.add({
-      targets: s.container, scaleY: 0.05, alpha: 0, duration: byMinions ? 420 : 300, ease: 'Quad.easeIn',
+      targets: s.container, scaleY: 0.05, alpha: 0, delay: crumble ? 900 : 0, duration: byMinions ? 420 : 300, ease: 'Quad.easeIn',
       onComplete: () => s.container.destroy(),
     });
   }

@@ -1,0 +1,32 @@
+{
+  "_note": "Single source for in-game achievements and their Steamworks API names. steam/achievements.md and the icon renderer (scripts/steam-capture.cjs) read this file. Add the same API name in Steamworks → Stats & Achievements before shipping.",
+  "achievements": [
+    { "id": "first_trade", "steam": "ACH_FIRST_TRADE", "icon": "🪙", "color": "#f59e0b",
+      "en": { "title": "Aether Merchant", "desc": "Completed your first resource trade at the merchant outpost." },
+      "tl": { "title": "Mangangalakal ng Aether", "desc": "Natapos ang unang palitan ng yaman sa himpilan ng mangangalakal." } },
+    { "id": "citadel_fortified", "steam": "ACH_CITADEL_FORTIFIED", "icon": "🏰", "color": "#64748b",
+      "en": { "title": "Citadel of Iron", "desc": "Upgraded Castle Fortifications to repel void invaders." },
+      "tl": { "title": "Kutang Bakal", "desc": "Pinatibay ang depensa ng kastilyo laban sa mga mananakop." } },
+    { "id": "first_defense", "steam": "ACH_FIRST_DEFENSE", "icon": "⚔️", "color": "#ef4444",
+      "en": { "title": "Sunder Vanguard", "desc": "Repelled your first invasion wave." },
+      "tl": { "title": "Gumuho ang Unang Hanay", "desc": "Napaatras ang unang alon ng pananakop." } },
+    { "id": "wave_10", "steam": "ACH_WAVE_10", "icon": "🛡️", "color": "#22c55e", "wave": 10,
+      "en": { "title": "Ten Tides Broken", "desc": "Cleared 10 invasion waves." },
+      "tl": { "title": "Sampung Alon", "desc": "Napaatras ang 10 alon ng pananakop." } },
+    { "id": "wave_25", "steam": "ACH_WAVE_25", "icon": "🔥", "color": "#f97316", "wave": 25,
+      "en": { "title": "Ember Throne", "desc": "Cleared 25 invasion waves." },
+      "tl": { "title": "Tronong Baga", "desc": "Napaatras ang 25 alon ng pananakop." } },
+    { "id": "wave_50", "steam": "ACH_WAVE_50", "icon": "❄️", "color": "#38bdf8", "wave": 50,
+      "en": { "title": "Halfway to Ruin", "desc": "Cleared 50 invasion waves." },
+      "tl": { "title": "Kalahati ng Daan", "desc": "Napaatras ang 50 alon ng pananakop." } },
+    { "id": "wave_100", "steam": "ACH_WAVE_100", "icon": "👑", "color": "#a855f7", "wave": 100,
+      "en": { "title": "Demon Lord Ascendant", "desc": "Cleared all 100 invasion waves." },
+      "tl": { "title": "Bumangon ang Panginoong Demonyo", "desc": "Napaatras ang lahat ng 100 alon ng pananakop." } },
+    { "id": "first_brawl", "steam": "ACH_FIRST_BRAWL", "icon": "🥊", "color": "#eab308",
+      "en": { "title": "Pecking Order", "desc": "Two Generals settled a quarrel in a brawl." },
+      "tl": { "title": "Sino ang Mas Malakas", "desc": "Nagsuntukan ang dalawang Heneral para ayusin ang alitan." } },
+    { "id": "first_regression", "steam": "ACH_FIRST_REGRESSION", "icon": "🌀", "color": "#8b5cf6",
+      "en": { "title": "Eternal Regression", "desc": "Conquered the mortal world and regressed with the memories of the Demon Citadel." },
+      "tl": { "title": "Walang Hanggang Pagbabalik", "desc": "Sinakop ang mundo ng mortal at bumalik dala ang alaala ng Kutang Demonyo." } }
+  ]
+}

@@ -10,7 +10,19 @@ The web game ships on Steam as an Electron desktop app. The browser and PWA buil
 | `npm run desktop` | Builds and runs the desktop app locally |
 | `npm run desktop:dev-tools` | Same, with Chromium DevTools (unpackaged runs only) |
 | `npm run dist:steam` | Packages `release/win-unpacked` and `release/linux-unpacked` |
-| `npm run steam:art` | Regenerates the store and library images in `steam/store-assets/` |
+| `npm run steam:art` | Regenerates the store and library images in `steam/store-assets/` (Python 3 + Pillow) |
+| `npm run steam:capture -- art\|shots\|trailer\|all` | Electron: achievement icons and event art; live 1920×1080 gameplay screenshots (`steam/screenshots/`); trailer draft (`steam/trailer/`). Shots and trailer start the dev server and stage a mid-game realm in a throwaway session |
+
+## Steam documents
+
+| File | What it is |
+| --- | --- |
+| [steam/RELEASE_CHECKLIST.md](steam/RELEASE_CHECKLIST.md) | Every step to launch, in order. **Payment, pricing, tax and banking are halted** |
+| [steam/STORE_PAGE.md](steam/STORE_PAGE.md) | Store text (short/long description), tags, system requirements, content survey, asset → slot map |
+| [steam/ACHIEVEMENTS.md](steam/ACHIEVEMENTS.md) | The 9 achievements to enter in Steamworks (source: `src/data/achievements.json`) |
+| [steam/PRIVACY.md](steam/PRIVACY.md) | Privacy policy (publish it at a URL for the store page) |
+| [steam/PRESS_KIT.md](steam/PRESS_KIT.md) | Fact sheet and description for press and creators |
+| [steam/trailer/README.md](steam/trailer/README.md) | How to finish the trailer draft |
 
 ## Before the first upload
 

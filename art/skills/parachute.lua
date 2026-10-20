@@ -1,42 +1,64 @@
--- Animated canopy opening/fluttering above a descending invader.
-local W,H,N=32,40,4
-local out=app.params["out"] or "parachute.aseprite"
-local function rgba(r,g,b,a) return app.pixelColor.rgba(r,g,b,a or 255) end
-local C={shade=rgba(49,35,31),red=rgba(176,53,47),cream=rgba(232,205,157),gold=rgba(219,164,73),
-  rope=rgba(72,59,48),light=rgba(255,231,187),metal=rgba(102,116,120)}
-local spr=Sprite(W,H,ColorMode.RGB); spr.filename=out; spr.layers[1].name="fluttering-canopy-and-lines"
-for _=2,N do spr:newEmptyFrame() end
-local function px(img,x,y,c) if x>=0 and y>=0 and x<W and y<H then img:drawPixel(math.floor(x),math.floor(y),c) end end
-local function line(img,x1,y1,x2,y2,c)
-  local n=math.max(math.abs(x2-x1),math.abs(y2-y1))
-  for i=0,n do local t=n==0 and 0 or i/n; px(img,x1+(x2-x1)*t,y1+(y2-y1)*t,c) end
-end
-for f=1,N do
-  local img=Image(W,H,ColorMode.RGB)
-  local drift=(f==1 or f==4) and -1 or 1
-  local cx=16+drift
-  -- canopy silhouette with scalloped lower hem, red / cream alternating gores
-  for y=4,16 do
-    local half=math.floor((y-3)*1.38)
+-- Paratrooper canopy: deploy (bundle bursts open) -> fall (swaying loop) -> land (canopy collapses).
+local L = dofile("art/skills/lib.lua")
+local rgba, px, line = L.rgba, L.px, L.line
+local out = app.params["out"] or "parachute.aseprite"
+L.new(40,44,out,"canopy-and-lines")
+local C = { shade=rgba(70,30,28), red=rgba(176,53,47), redHi=rgba(214,84,70), cream=rgba(232,205,157), creamHi=rgba(250,232,198),
+  gold=rgba(219,164,73), rope=rgba(72,59,48), light=rgba(255,240,210), metal=rgba(102,116,120), wind=rgba(255,255,255,120) }
+local HX, HY = 20, 36 -- harness point (the trooper hangs just below it)
+
+-- canopy centred at cx, top y0, half-width w, depth d, squash 0..1 (1 = full dome)
+local function canopy(img,cx,y0,w,d,tilt)
+  for row=0,d do
+    local t = row/d
+    local half = math.floor(w*math.sqrt(math.max(0,1-(1-t)^2)) + 0.5)
+    local y = y0 + row + math.floor(tilt*(row/d))
     for x=cx-half,cx+half do
-      local dx=math.abs(x-cx)
-      if dx <= half and (y<15 or dx%3~=1) then
-        local gore=math.floor((x-cx+16)/5)%2
-        px(img,x,y,(gore==0) and C.red or C.cream)
+      local dx = math.abs(x-cx)
+      if row<d or dx%4~=2 then
+        local gore = math.floor((x-cx+40)/5)%2
+        local c = (gore==0) and C.red or C.cream
+        if row<2 then c = (gore==0) and C.redHi or C.creamHi end
+        if x==cx-half or x==cx+half then c = C.shade end
+        px(img,x,y,c)
       end
     end
   end
-  line(img,cx-18,14,cx-14,17,C.shade); line(img,cx+18,14,cx+14,17,C.shade)
-  line(img,cx-15,13,cx-13,16,C.light); line(img,cx+15,13,cx+13,16,C.gold)
-  line(img,cx,4,cx,16,C.light)
-  -- suspension lines converge on a small harness above the troop
-  line(img,cx-15,15,13,28,C.rope); line(img,cx+15,15,19,28,C.rope)
-  line(img,cx-8,15,14,28,C.gold); line(img,cx+8,15,18,28,C.gold)
-  line(img,13,28,19,28,C.metal); px(img,15,27,C.light); px(img,17,27,C.light)
-  -- subtle gust marks make the canopy visibly flutter in the loop
-  if f==2 then px(img,2,10,C.light); px(img,29,8,C.gold) elseif f==4 then px(img,3,8,C.gold); px(img,28,11,C.light) end
-  app.activeSprite.frames[f].duration=115
-  spr:newCel(spr.layers[1],f,img,Point(0,0))
+  return y0 + d
 end
-local tag=spr:newTag(1,N); tag.name="fall"
-spr:saveAs(out)
+local function lines(img,cx,yb,w)
+  line(img,cx-w,yb,HX-2,HY,C.rope); line(img,cx+w,yb,HX+2,HY,C.rope)
+  line(img,cx-w*0.45,yb,HX-1,HY,C.gold); line(img,cx+w*0.45,yb,HX+1,HY,C.gold)
+  line(img,HX-2,HY,HX+2,HY,C.metal); px(img,HX,HY-1,C.light)
+end
+
+L.tag("deploy",4,70,function(img,i)
+  if i==1 then
+    line(img,HX,HY-2,HX,HY-10,C.rope); L.rect(img,HX-2,HY-15,HX+2,HY-10,C.red); px(img,HX-1,HY-14,C.creamHi)
+  elseif i==2 then
+    local yb = canopy(img,HX,HY-22,5,8,0); lines(img,HX,yb,4)
+    px(img,HX-8,HY-18,C.wind); px(img,HX+8,HY-20,C.wind)
+  else
+    local w = (i==3) and 11 or 17; local d = (i==3) and 10 or 12
+    local yb = canopy(img,HX,HY-30,w,d,0); lines(img,HX,yb,w-1)
+    if i==4 then px(img,1,10,C.wind); px(img,38,12,C.wind) end
+  end
+end)
+
+L.tag("fall",6,110,function(img,i)
+  local a = math.sin(i/6*math.pi*2)
+  local cx = HX + math.floor(a*2+0.5)
+  local w = 17 + ((i%3==0) and -1 or 0)
+  local yb = canopy(img,cx,HY-32+((i%2==0) and 1 or 0),w,12,a)
+  lines(img,cx,yb,w-1)
+  if i==2 then px(img,2,8,C.wind); px(img,3,8,C.wind) elseif i==5 then px(img,36,10,C.wind); px(img,37,10,C.wind) end
+end)
+
+L.tag("land",5,80,function(img,i)
+  local w = 17 - i*2; local d = math.max(2, 12 - i*2)
+  local cx = HX + i*2
+  local yb = canopy(img,cx,HY-32+i*6,w,d,i)
+  if i<4 then lines(img,cx,yb,w-1) else line(img,HX,HY,cx-w,yb,C.rope) end
+end)
+
+L.save(out)

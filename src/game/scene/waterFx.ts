@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MIST_TEX, paintMistTextures } from '../mistTextures';
 import { Navigation } from '../Navigation';
 import { ART_PIXEL, WATER_DROP_WORLD } from '../PixelTileArt';
 import { BRIDGE_TILES, GRID_SIZE, isCanalTile, isWaterTile } from '../../state/buildingLayout';
@@ -61,7 +62,21 @@ export class WaterFx {
   private travel = 0;
   private sway = 0;
 
-  constructor(scene: Phaser.Scene, layer: Phaser.GameObjects.Container) {
+  /** Random drifting mist clouds below the falls; how many depends on the FPS tier (setDensity). */
+  private fallClouds: Array<{ img: Phaser.GameObjects.Image; vx: number; vy: number; life: number; max: number; peak: number }> = [];
+  private cloudTimer = 1;
+  private density = 1;
+
+  /** 0.2–1 from the FPS controller: LOW quality keeps only a few clouds. */
+  setDensity(density: number): void {
+    this.density = Math.max(0.2, Math.min(1, density));
+  }
+
+  /** Soft spray clouds (the same mist as the rift fog and sky clouds) at the foot of each rim tile. */
+  private sprays: Array<{ img: Phaser.GameObjects.Image; x: number; y: number; phase: number; ox: number; oy: number; life: number; max: number; wait: number }> = [];
+
+  constructor(private scene: Phaser.Scene, private layer: Phaser.GameObjects.Container) {
+    paintMistTextures(scene);
     this.falls = scene.add.graphics();
     this.bridges = scene.add.graphics();
     layer.add([this.falls, this.bridges]);
@@ -76,6 +91,10 @@ export class WaterFx {
 
   /** Streams spread along one tile's outer edge. */
   private addRim(gx: number, gy: number, alongX: boolean): void {
+    const foot = Navigation.toWorld(gx, gy);
+    const spray = this.scene.add.image(foot.x, foot.y + WATER_DROP_WORLD + FALL, MIST_TEX.puff).setScale(0.55).setAlpha(0);
+    this.layer.add(spray);
+    this.sprays.push({ img: spray, x: foot.x, y: foot.y + WATER_DROP_WORLD + FALL - 6, phase: Math.random() * 6.28, ox: 0, oy: 0, life: 0, max: 1, wait: Math.random() * 6 });
     for (let s = 0; s < STREAMS_PER_TILE; s++) {
       const t = (s + 0.5) / STREAMS_PER_TILE - 0.5;
       const p = Navigation.toWorld(alongX ? gx + t : gx, alongX ? gy : gy + t);
@@ -144,6 +163,58 @@ export class WaterFx {
     const g = this.falls;
     g.clear();
     const t = timeMs / 1000;
+    // Random mist clouds roll out below the falls: more with a stronger flow and on higher FPS tiers
+    this.cloudTimer -= dt;
+    const cap = Math.round(14 * this.density * Math.min(1.6, 0.5 + m.mist * 0.5));
+    if (this.cloudTimer <= 0 && this.sprays.length && this.fallClouds.length < cap && !style.sparkle) {
+      this.cloudTimer = (0.5 + Math.random() * 1.6) / (this.density * Math.max(0.4, m.mist));
+      const at = this.sprays[Math.floor(Math.random() * this.sprays.length)];
+      const big = Math.random() < 0.35;
+      const img = this.scene.add.image(at.x + (Math.random() - 0.5) * 30, at.y + 10 + Math.random() * 40, big ? MIST_TEX.bank : MIST_TEX.puff)
+        .setScale(big ? 0.5 + Math.random() * 0.5 : 0.3 + Math.random() * 0.4).setAlpha(0).setTint(hex(style.mist));
+      this.layer.add(img);
+      const max = 4 + Math.random() * 5;
+      this.fallClouds.push({ img, vx: (Math.random() - 0.5) * 14, vy: style.mistRises ? -6 - Math.random() * 6 : 2 + Math.random() * 4, life: max, max, peak: 0.25 + Math.random() * 0.3 });
+    }
+    for (const c of [...this.fallClouds]) {
+      c.life -= dt;
+      if (c.life <= 0) { c.img.destroy(); this.fallClouds.splice(this.fallClouds.indexOf(c), 1); continue; }
+      const t = 1 - c.life / c.max;
+      c.img.x += (c.vx + this.sway * 0.4) * dt;
+      c.img.y += c.vy * dt;
+      c.img.setAlpha(c.peak * Math.min(1, t * 4, (1 - t) * 3)).setScale(c.img.scaleX * (1 + dt * 0.04), c.img.scaleY * (1 + dt * 0.04));
+    }
+
+    // Spray clouds billow at the bottom; rise like smoke on magma, sparkle-realms keep them thin
+    const mistTint = hex(style.mist);
+    // Each spray puffs up at a random spot near its rim tile, lives a few seconds, fades, rests, then
+    // returns somewhere else — only some are out at once (fewer on lower FPS tiers)
+    for (const sp of this.sprays) {
+      if (sp.wait > 0) {
+        sp.wait -= dt;
+        sp.img.setAlpha(0);
+        if (sp.wait <= 0) {
+          sp.ox = (Math.random() - 0.5) * 34;
+          sp.oy = Math.random() * 46;
+          sp.max = sp.life = 2.5 + Math.random() * 4;
+        }
+        continue;
+      }
+      sp.life -= dt;
+      if (sp.life <= 0) {
+        sp.wait = (1 + Math.random() * 5) / Math.max(0.25, this.density * Math.max(0.4, m.mist));
+        sp.img.setAlpha(0);
+        continue;
+      }
+      const k = 1 - sp.life / sp.max;
+      const env = Math.min(1, k * 4, (1 - k) * 3);
+      const rise = style.mistRises ? -k * 26 : k * 6;
+      sp.img
+        .setTint(mistTint)
+        .setPosition(sp.x + sp.ox + this.sway + Math.sin(t * 0.5 + sp.phase) * 5, sp.y + sp.oy + rise)
+        .setScale((0.35 + k * 0.3) * Math.min(1.6, 0.6 + m.mist * 0.4))
+        .setAlpha(env * Math.min(0.7, (style.sparkle ? 0.18 : 0.42) * m.mist * flowing + 0.05));
+    }
     const dropCount = Math.max(1, Math.min(8, Math.round(DROPS_PER_STREAM * (0.4 + 0.6 * m.flow))));
     const [dropA, dropB] = style.drops.map(hex);
     for (const s of this.streams) {
@@ -260,6 +331,8 @@ export class WaterFx {
 
   destroy(): void {
     this.falls.destroy();
+    this.sprays.forEach((s) => s.img.destroy());
+    this.fallClouds.forEach((c) => c.img.destroy());
     this.bridges.destroy();
   }
 }

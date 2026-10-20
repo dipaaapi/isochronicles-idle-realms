@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { STRUCTURE_MODELS, StructureKey } from './structureModels';
 import { useLoadProgress } from '../loadProgress';
 import type { BakedStrip } from './structureBake.worker';
+import { DETAIL } from './structureStates';
 
 /**
  * Phaser glue for baked building / portal strips. Baked once per page load in
@@ -9,14 +10,20 @@ import type { BakedStrip } from './structureBake.worker';
  * on screen first) and cached here so a remounted game re-uses them.
  */
 
-/** World units per strip pixel — the same chunky pixel size as the island tiles. */
-export const STRUCTURE_PIXEL = 2;
+/** World units per strip pixel: strips are baked DETAIL× finer than the island tiles (2 units per art pixel). */
+export const STRUCTURE_PIXEL = 2 / DETAIL;
 
 const baked = new Map<StructureKey, BakedStrip>();
 const listeners = new Set<(strip: BakedStrip) => void>();
 let workers: Worker[] = [];
 
 const textureKey = (key: StructureKey) => `struct-${key}`;
+
+/** Top-left pixel of frame `c` inside a (grid-wrapped) strip. */
+export function stripFrameOrigin(strip: BakedStrip, c: number): { x: number; y: number } {
+  const perRow = strip.perRow || strip.layout.columns;
+  return { x: (c % perRow) * strip.layout.frameWidth, y: Math.floor(c / perRow) * strip.layout.frameHeight };
+}
 export const structureAnimKey = (key: StructureKey, anim: string) => `struct-${key}-${anim}`;
 
 function install(scene: Phaser.Scene, strip: BakedStrip): void {
@@ -27,7 +34,8 @@ function install(scene: Phaser.Scene, strip: BakedStrip): void {
     texture.context.putImageData(new ImageData(new Uint8ClampedArray(strip.data), strip.width, strip.height), 0, 0);
     texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     for (let c = 0; c < strip.layout.columns; c++) {
-      texture.add(`${c}`, 0, c * strip.layout.frameWidth, 0, strip.layout.frameWidth, strip.layout.frameHeight);
+      const { x, y } = stripFrameOrigin(strip, c);
+      texture.add(`${c}`, 0, x, y, strip.layout.frameWidth, strip.layout.frameHeight);
     }
     texture.refresh();
   }
@@ -123,4 +131,30 @@ export function playStructureAnim(sprite: Phaser.GameObjects.Sprite, anim: strin
 export function structureHeadroom(key: StructureKey): number | null {
   const strip = baked.get(key);
   return strip ? strip.headroom * STRUCTURE_PIXEL : null;
+}
+
+/** Whether this structure's strip has the named state (HD-derived states may be missing on old caches). */
+export function hasStructureAnim(sprite: Phaser.GameObjects.Sprite, anim: string): boolean {
+  const key = sprite.getData('structureKey') as StructureKey;
+  return !!sprite.scene?.anims.exists(structureAnimKey(key, anim));
+}
+
+/** Holds one frame of a state, e.g. the construction stage matching build progress (0–1). */
+export function showStructureStage(sprite: Phaser.GameObjects.Sprite, anim: string, progress: number): boolean {
+  const key = sprite.getData('structureKey') as StructureKey;
+  const slot = baked.get(key)?.layout.animations[anim];
+  if (!slot) return false;
+  const index = Math.min(slot.count - 1, Math.max(0, Math.floor(progress * slot.count)));
+  const frame = `${slot.start + index}`;
+  if (sprite.anims.isPlaying) sprite.anims.stop();
+  if (sprite.frame.name !== frame) sprite.setFrame(frame);
+  return true;
+}
+
+/** Plays `first` once (e.g. collapse), then settles on `then` (e.g. ruined). Falls back to `then`. */
+export function playStructureSequence(sprite: Phaser.GameObjects.Sprite, first: string, then: string): void {
+  if (!hasStructureAnim(sprite, first)) return playStructureAnim(sprite, then, true);
+  playStructureAnim(sprite, first, true);
+  const key = structureAnimKey(sprite.getData('structureKey') as StructureKey, first);
+  sprite.once(`${Phaser.Animations.Events.ANIMATION_COMPLETE_KEY}${key}`, () => sprite.active && playStructureAnim(sprite, then, true));
 }

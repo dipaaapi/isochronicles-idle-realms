@@ -24,6 +24,13 @@ const TARGETS = {
   prismWarden: ['prism-warden', [30, 60, 90], [6, 10, 20], [150, 230, 255]],
   technician: ['technician', [46, 54, 66], [10, 12, 16], [255, 210, 90]],
   v4Launcher: ['mecha-v4-launcher', [44, 56, 50], [8, 12, 10], [255, 120, 80]],
+  mermaid: ['sea-mermaid', [14, 70, 80], [4, 14, 22], [120, 240, 230]],
+  piranha: ['sea-piranha', [70, 24, 30], [14, 6, 8], [255, 110, 110]],
+  kappa: ['sea-kappa', [40, 66, 26], [8, 14, 6], [190, 240, 120]],
+  leviathan: ['sea-leviathan', [14, 50, 80], [4, 8, 20], [170, 140, 255]],
+  arachnid: ['brood-arachnid', [70, 40, 30], [14, 8, 6], [255, 200, 90]],
+  scorpion: ['brood-scorpion', [90, 60, 20], [18, 10, 4], [250, 220, 120]],
+  caterpillar: ['brood-caterpillar', [80, 56, 24], [16, 10, 4], [200, 140, 255]],
 };
 
 async function loadModels() {
@@ -33,6 +40,7 @@ async function loadModels() {
 export * as VS from ${JSON.stringify(path.join(SPRITES, 'VoxelSprite.ts'))};
 export { MINION_MODELS } from ${JSON.stringify(path.join(SPRITES, 'minionModels.ts'))};
 export { ENEMY_MODELS } from ${JSON.stringify(path.join(SPRITES, 'enemyModels.ts'))};
+export { SEA_MODELS } from ${JSON.stringify(path.join(SPRITES, 'seaModels.ts'))};
 `);
   const outfile = path.join(dir, 'bundle.mjs');
   await build({ entryPoints: [entry], bundle: true, format: 'esm', platform: 'node', outfile, logLevel: 'error' });
@@ -106,7 +114,7 @@ const mods = await loadModels();
 const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(TARGETS);
 for (const key of keys) {
   const t = TARGETS[key];
-  const make = mods.MINION_MODELS[key] ?? mods.ENEMY_MODELS[key];
+  const make = mods.MINION_MODELS[key] ?? mods.ENEMY_MODELS[key] ?? mods.SEA_MODELS[key];
   if (!t || !make) { console.error(`Unknown portrait key "${key}"`); process.exitCode = 1; continue; }
   const file = path.join(ROOT, 'public/portraits', `${t[0]}.png`);
   writePng(file, SIZE, SIZE, portrait(mods.VS, make(), t));

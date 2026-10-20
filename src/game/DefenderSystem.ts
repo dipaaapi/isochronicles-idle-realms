@@ -1,5 +1,10 @@
 import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
+import { SEA_FOLK } from '../state/seaFolk';
+import { setPlusBadge } from './plusBadge';
+import { brawlLevelOf } from '../state/brawl';
+import { spawnImpact } from './battleFx';
+import { hitReaction } from './hitReaction';
 import { IsometricHelper } from './IsometricHelper';
 import { Navigation, NavAgent } from './Navigation';
 import { minionMoveMode } from './terrain';
@@ -36,6 +41,12 @@ type GridPoint = { x: number; y: number };
 /** A tenant summoned by an establishment, or a temporary summon ally (skeletons). */
 export interface Defender extends InvaderBlocker, NavAgent {
   armorShield?: number;
+  /** Fighting back against a Sea Folk creature (its own AI is paused meanwhile). */
+  seaEngaged?: boolean;
+  /** + earned by slaying Sea Folk; a minion that beats its General's + takes its rank. */
+  seaLevel?: number;
+  /** Stats before any + (so a rank swap can recompute them). */
+  seaBase?: { hp: number; damage?: number };
   activeSlimeBuff?: import('./workers/types').SlimeMoraleBuffDef;
   id: string;
   home: TowerId | 'SUMMON';
@@ -218,6 +229,52 @@ export class DefenderSystem {
    * and `onPromoted` gets its grid spot so the new General appears there.
    * Returns false when no tenant can be promoted.
    */
+  private rankTimer = 3;
+
+  /**
+   * Promotion by merit: for each establishment, the minion with the most +
+   * (Sea Folk kills) is compared with its General's + (brawls and Sea Folk
+   * kills). If the minion leads, they swap: the minion becomes the General
+   * (the General's roster entry takes the minion's +) and the old General is
+   * demoted to a minion carrying its old +. They trade places on the field.
+   */
+  private swapRanks(): void {
+    const store = useGameStore.getState();
+    if (store.invasion.isActive) return; // never mid-wave
+    for (const home of ['SPIRE', ...BUILDING_IDS] as TowerId[]) {
+      const general = this.generalOf(home);
+      if (!general || general.isBrawling || general.seaEngaged) continue;
+      const unit = store.roster.find((u) => u.id === general.id);
+      if (!unit) continue;
+      const genLevel = brawlLevelOf(unit);
+      const best = this.defenders
+        .filter((d) => !d.dead && d.home === home && d.state !== 'IN_HUMAN_REALM' && !d.seaEngaged)
+        .sort((a, b) => (b.seaLevel ?? 0) - (a.seaLevel ?? 0))[0];
+      if (!best || (best.seaLevel ?? 0) <= genLevel) continue;
+      const minionLevel = best.seaLevel ?? 0;
+      store.setGeneralPlus(general.id, minionLevel);
+      // The demoted General keeps its old + as a minion
+      const share = SEA_FOLK.killReward;
+      best.seaBase ??= { hp: best.maxHp, damage: best.damage };
+      best.seaLevel = genLevel;
+      best.maxHp = Math.round(best.seaBase.hp * (1 + share.hpShare * genLevel));
+      best.hp = Math.min(best.hp, best.maxHp);
+      if (typeof best.seaBase.damage === 'number') best.damage = Math.round(best.seaBase.damage * (1 + share.attackShare * genLevel));
+      setPlusBadge(this.scene, best.container, genLevel);
+      // Trade places with a burst at both spots
+      const gx = general.container.x, gy = general.container.y;
+      general.container.setPosition(best.container.x, best.container.y);
+      best.container.setPosition(gx, gy);
+      spawnImpact(gx, gy - 14, 'burst', 0xfde047, 1.8);
+      spawnImpact(general.container.x, general.container.y - 14, 'burst', 0xfde047, 1.8);
+      soundFx.playFanfare();
+      const lang = store.language === 'TL' ? 'tl' : 'en';
+      const cls = UNIT_CLASSES[general.unitClass];
+      const nm = (cls ? (lang === 'tl' ? cls.name : cls.nameEn) : undefined) ?? String(general.unitClass);
+      logMessage('rankPromoted', { minion: nm, general: nm, level: minionLevel });
+    }
+  }
+
   promoteTenant(home: TowerId, onPromoted: (spot: { x: number; y: number }) => void): boolean {
     const pick = this.defenders
       .filter((d) => !d.dead && d.home === home && d.state !== 'IN_HUMAN_REALM')
@@ -402,10 +459,18 @@ export class DefenderSystem {
       .getInvaders()
       .filter((i) => !i.isDead && !i.isRetreating && (i.emerge ?? 0) <= 0 && i.container.active);
 
+    // ── Rank by +: a minion with more + than its General takes its place ──
+    this.rankTimer -= dt;
+    if (this.rankTimer <= 0) {
+      this.rankTimer = SEA_FOLK.rank.checkSeconds;
+      this.swapRanks();
+    }
+
     // ── 2. Update Defenders & Tenants Behavior ──
     for (const d of [...this.defenders]) {
       if (d.dead || !d.container.active) continue;
       this.syncUnitSprite(d);
+      if (d.seaEngaged) continue; // fighting back against a wild faction (WildFactionManager drives it)
 
       // Temporary Summons decay
       if (d.life !== undefined) {
@@ -1075,8 +1140,7 @@ export class DefenderSystem {
     this.drawHp(d);
     if (d.sprite) {
       const sprite = d.sprite;
-      sprite.setTintFill(0xffffff);
-      this.scene.time.delayedCall(60, () => sprite.active && sprite.clearTint());
+      hitReaction(this.scene, sprite);
     }
     if (d.hp <= 0) this.kill(d);
   }

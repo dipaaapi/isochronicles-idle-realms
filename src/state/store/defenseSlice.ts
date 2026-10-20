@@ -1,3 +1,4 @@
+import { waveAchievements } from '../achievements';
 import { DIFFICULTIES, normalizeDifficulty } from '../difficulty';
 import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
@@ -203,6 +204,9 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
       'Successfully defended Nexus Prime from a Void Incursion.',
       '⚔️'
     );
+    for (const a of waveAchievements(get().invasion.invasionsRepelled)) {
+      get().unlockAchievement(a.id, a.en.title, a.en.desc, a.icon);
+    }
   },
 
   resolveCastleBreach: () => {

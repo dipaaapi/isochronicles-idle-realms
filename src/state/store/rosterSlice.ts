@@ -1,3 +1,4 @@
+import { SEA_FOLK } from '../seaFolk';
 import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
 import {
@@ -9,7 +10,7 @@ import {
   slimeEvolutionKillsRequired,
 } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
-import { addClash, applyBrawlResult, pairKey } from '../brawl';
+import { BRAWL_CONFIG, addClash, applyBrawlResult, baseStatsOf, brawlLevelOf, pairKey } from '../brawl';
 import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { HarvestTask, InvaderType, UnitClass } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
@@ -52,12 +53,46 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
     return next;
   },
 
+  /** A Sea Folk kill: the roster unit that landed it gains +1 (boss kills +bossBonus), same badge as brawls. */
+  awardSeaKill: (unitId: string, boss: boolean): boolean => {
+    const unit = get().roster.find((u) => u.id === unitId);
+    if (!unit) return false;
+    const reward = SEA_FOLK.killReward;
+    const levels = boss ? reward.bossBonus : 1;
+    const base = baseStatsOf(unit);
+    set((prev) => ({
+      roster: prev.roster.map((u) => u.id !== unitId ? u : {
+        ...u,
+        brawlLevel: Math.min(BRAWL_CONFIG.maxLevel, brawlLevelOf(u) + levels),
+        brawlAttack: (u.brawlAttack ?? 0) + Math.max(1, Math.round(base.attack * reward.attackShare * levels)),
+        brawlHp: (u.brawlHp ?? 0) + Math.max(1, Math.round(base.hp * reward.hpShare * levels)),
+      }),
+      lastSavedTimestamp: Date.now(),
+    }));
+    return true;
+  },
+
+  /** Rank swap: a General takes over its promoted minion's + (attack / HP bonus recomputed from it). */
+  setGeneralPlus: (unitId: string, level: number) => {
+    const reward = SEA_FOLK.killReward;
+    set((prev) => ({
+      roster: prev.roster.map((u) => {
+        if (u.id !== unitId) return u;
+        const base = baseStatsOf(u);
+        const lvl = Math.max(0, Math.min(BRAWL_CONFIG.maxLevel, Math.floor(level)));
+        return { ...u, brawlLevel: lvl, brawlAttack: Math.round(base.attack * reward.attackShare * lvl), brawlHp: Math.round(base.hp * reward.hpShare * lvl) };
+      }),
+      lastSavedTimestamp: Date.now(),
+    }));
+  },
+
   resolveBrawl: (winnerId: string, loserId: string) => {
     set((prev) => {
       const brawlTension = { ...prev.brawlTension };
       delete brawlTension[pairKey(winnerId, loserId)];
       return { roster: applyBrawlResult(prev.roster, winnerId, loserId), brawlTension, lastSavedTimestamp: Date.now() };
     });
+    get().unlockAchievement('first_brawl', '', '', '');
   },
 
   discoverEntry: (category: 'beast' | 'invader', id: string) => {

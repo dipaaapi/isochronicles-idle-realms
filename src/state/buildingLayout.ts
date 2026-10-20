@@ -156,15 +156,120 @@ export const distanceToRect = (gx: number, gy: number, rect: TileRect): number =
   return Math.hypot(dx, dy);
 };
 
-/** True for tiles on the platform's land (inside the ocean ring, off the canals). */
-export const isLandTile = (x: number, y: number): boolean =>
-  x >= 1 && y >= 1 && x <= GRID_SIZE - 2 && y <= GRID_SIZE - 2 && !isCanalTile(x, y);
+// ── Seeded coastline ────────────────────────────────────────────────────────
 
-/** Ocean ring (minus the corner rifts) and canal tiles. */
+export type CoastStyle = 'NONE' | 'CALM' | 'BAYS' | 'WILD';
+export const COAST_STYLES = layout.coast.styles as Record<CoastStyle, {
+  maxDepth: number; roughness: number; smoothPasses: number; maxShare: number; icon: string;
+  name: { en: string; tl: string }; desc: { en: string; tl: string };
+}>;
+export const isCoastStyle = (v: unknown): v is CoastStyle => typeof v === 'string' && v in COAST_STYLES;
+let activeCoast: CoastStyle = 'BAYS';
+/** Coast style used by the next applyLayoutSeed (stored per realm as `coastStyle`). */
+export const setCoastStyle = (style: CoastStyle) => { activeCoast = style; };
+export const getCoastStyle = (): CoastStyle => activeCoast;
+/** New realms take their coastline from the seed, so a seed always rebuilds the same island. */
+const SEEDED_COASTS: CoastStyle[] = ['CALM', 'BAYS', 'BAYS', 'WILD'];
+export const coastForSeed = (seed: number): CoastStyle => SEEDED_COASTS[Math.abs(Math.floor(seed)) % SEEDED_COASTS.length];
+
+/** Rim tiles drowned into coves and bays for the current layout seed (carveCoast). */
+const COVE_KEYS = new Set<string>();
+export const isCoveTile = (x: number, y: number): boolean => COVE_KEYS.has(`${x},${y}`);
+
+/**
+ * Bites smooth, random bays into the island's rim so every new realm has its
+ * own curved coastline instead of a square board. Deterministic per seed;
+ * never touches the citadel's surroundings or the rift zones.
+ */
+export function carveCoast(seed: number, style: CoastStyle = activeCoast, shrink = 1): void {
+  COVE_KEYS.clear();
+  const base = { ...layout.coast, ...COAST_STYLES[style] };
+  const cfg = { ...base, maxDepth: Math.round(base.maxDepth * shrink), maxShare: base.maxShare * shrink };
+  if (cfg.maxDepth <= 0) return;
+  const rand = seededRandom((seed ^ 0x5eedc0a5) >>> 0);
+  const keep = [expandRect(CASTLE_FOOTPRINT, cfg.keepCastle), ...PORTAL_SITES.map((p) => expandRect(p.zone, cfg.keepRift))];
+  const kept = (x: number, y: number) => keep.some((r) => rectContainsTile(r, x, y));
+  const last = GRID_SIZE - 1;
+  const sides = Array.from({ length: 4 }, () => ({
+    a: rand() * Math.PI * 2, b: rand() * Math.PI * 2,
+    f1: 0.18 + rand() * 0.2, f2: 0.45 + rand() * 0.35,
+    bias: rand() * 0.5 - 0.15, // some sides stay straighter, others are deeply bitten
+  }));
+  const budget = cfg.maxShare * (last - 1) * (last - 1);
+  // Shrink the bays until they fit the style's land budget
+  for (let scale = 1; scale > 0.2; scale *= 0.85) {
+    COVE_KEYS.clear();
+    sides.forEach((s, side) => {
+      for (let i = 1; i < last; i++) {
+        const n = Math.sin(i * s.f1 + s.a) * 0.65 + Math.sin(i * s.f2 + s.b) * cfg.roughness + s.bias;
+        const depth = Math.max(0, Math.min(cfg.maxDepth, Math.round(n * cfg.maxDepth * scale)));
+        for (let d = 1; d <= depth; d++) {
+          const [x, y] = side === 0 ? [i, d] : side === 1 ? [last - d, i] : side === 2 ? [i, last - d] : [d, i];
+          if (!kept(x, y) && !isCanalTile(x, y)) COVE_KEYS.add(`${x},${y}`);
+        }
+      }
+    });
+    if (COVE_KEYS.size <= budget) break;
+  }
+  // Smooth the shore: drown lonely spits of land poking into the water
+  const wet = (x: number, y: number) => x <= 0 || y <= 0 || x >= last || y >= last || isCanalTile(x, y) || COVE_KEYS.has(`${x},${y}`);
+  for (let pass = 0; pass < cfg.smoothPasses; pass++) {
+    const drown: string[] = [];
+    for (let y = 1; y < last; y++) for (let x = 1; x < last; x++) {
+      if (wet(x, y) || kept(x, y) || isPortalTile(x, y)) continue;
+      const sides = +wet(x + 1, y) + +wet(x - 1, y) + +wet(x, y + 1) + +wet(x, y - 1);
+      if (sides >= 3) drown.push(`${x},${y}`);
+    }
+    drown.forEach((k) => COVE_KEYS.add(k));
+  }
+}
+
+// ── Living terrain (the Leviathan floods, the Ancient Caterpillar digs) ─────
+
+/** Land the sea has claimed for good (store terrainFlooded). */
+const FLOODED_KEYS = new Set<string>();
+/** Dug sand (still land) and shore the Leviathan is eating (still land until it is gone). */
+const SAND_KEYS = new Set<string>();
+const WET_KEYS = new Set<string>();
+/** Raised rock the Caterpillar heaved up (land only flyers cross) and sea it filled with sand (now land). */
+const RAISED_KEYS = new Set<string>();
+const FILLED_KEYS = new Set<string>();
+
+/** Applies the store's terrain edits (MainScene calls it before laying tiles). */
+export function setTerrainEdits(
+  flooded: Iterable<string>, sand: Iterable<string>, flooding: Iterable<string> = [],
+  raised: Iterable<string> = [], filled: Iterable<string> = [],
+): void {
+  FLOODED_KEYS.clear();
+  SAND_KEYS.clear();
+  WET_KEYS.clear();
+  RAISED_KEYS.clear();
+  FILLED_KEYS.clear();
+  for (const k of raised) RAISED_KEYS.add(k);
+  for (const k of filled) FILLED_KEYS.add(k);
+  for (const k of flooded) FLOODED_KEYS.add(k);
+  for (const k of sand) SAND_KEYS.add(k);
+  for (const k of flooding) WET_KEYS.add(k);
+}
+export const isFloodedTile = (x: number, y: number): boolean => FLOODED_KEYS.has(`${x},${y}`);
+export const isSandTile = (x: number, y: number): boolean => SAND_KEYS.has(`${x},${y}`);
+export const isWetTile = (x: number, y: number): boolean => WET_KEYS.has(`${x},${y}`);
+export const isRaisedTile = (x: number, y: number): boolean => RAISED_KEYS.has(`${x},${y}`);
+export const isFilledTile = (x: number, y: number): boolean => FILLED_KEYS.has(`${x},${y}`);
+/** Sea the Caterpillar may fill with sand: coves and flooded shore (never the outer ring, canals or rifts). */
+export const isFillableTile = (x: number, y: number): boolean => isWaterTile(x, y) && (isCoveTile(x, y) || isFloodedTile(x, y));
+
+/** True for tiles on the platform's land (inside the ocean ring, off the canals, coves and flooded shore). */
+export const isLandTile = (x: number, y: number): boolean =>
+  x >= 1 && y >= 1 && x <= GRID_SIZE - 2 && y <= GRID_SIZE - 2 && !isCanalTile(x, y)
+  && (FILLED_KEYS.has(`${x},${y}`) || (!isCoveTile(x, y) && !FLOODED_KEYS.has(`${x},${y}`)));
+
+/** Ocean ring (minus the corner rifts), its coves and canal tiles. */
 export const isWaterTile = (x: number, y: number): boolean => {
   if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return false;
   if (isPortalTile(x, y)) return false;
-  return x === 0 || y === 0 || x === GRID_SIZE - 1 || y === GRID_SIZE - 1 || isCanalTile(x, y);
+  if (FILLED_KEYS.has(`${x},${y}`)) return false;
+  return x === 0 || y === 0 || x === GRID_SIZE - 1 || y === GRID_SIZE - 1 || isCanalTile(x, y) || isCoveTile(x, y) || FLOODED_KEYS.has(`${x},${y}`);
 };
 
 /**
@@ -176,6 +281,12 @@ export const waterRegionOf = (x: number, y: number): CanalDirection | null => {
   if (!isWaterTile(x, y)) return null;
   const canal = CANALS.find((c) => c.tiles.some((t) => t.x === x && t.y === y));
   if (canal) return canal.dir;
+  if (isCoveTile(x, y) || isFloodedTile(x, y)) {
+    // A cove (or flooded shore) belongs to the ocean side it opens onto
+    const last = GRID_SIZE - 1;
+    const d = { NORTH: y, SOUTH: last - y, WEST: x, EAST: last - x };
+    return (Object.keys(d) as Array<keyof typeof d>).reduce((a, b) => (d[b] < d[a] ? b : a));
+  }
   if (y === 0) return 'NORTH';
   if (y === GRID_SIZE - 1) return 'SOUTH';
   return x === 0 ? 'WEST' : 'EAST';
@@ -417,6 +528,22 @@ function tryLayout(
     }
     return list; // ordered castle → work spot
   };
+  // Coves can pinch the shore: every work spot and rift exit must still be walkable
+  // from the citadel ring, or this attempt is re-rolled (only fixed positions kept)
+  const reach = new Set(ring.map((t) => key(t.x, t.y)));
+  const frontier = [...ring];
+  while (frontier.length) {
+    const cur = frontier.pop()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cur.x + dx, ny = cur.y + dy, k = key(nx, ny);
+      if (reach.has(k) || isSolid(nx, ny) || !(isLandTile(nx, ny) || isCanalTile(nx, ny) || isPortalTile(nx, ny))) continue;
+      reach.add(k);
+      frontier.push({ x: nx, y: ny });
+    }
+  }
+  const targets = [SPIRE_WORK_SPOT, ...BUILDING_IDS.map((id) => sites[id].workSpot), ...PORTAL_SITES.map((p) => p.exit)];
+  if (targets.some((t) => !reach.has(key(t.x, t.y)))) return { placed: positions };
+
   // Land only first; bridge a canal only when there is no dry way round
   const computeRoad = (target: GridPoint): GridPoint[] => walkRoad(target, false) ?? walkRoad(target, true) ?? [target];
 
@@ -444,6 +571,9 @@ export function randomSpireSpot(seed: number): GridPoint {
     for (let x = 3; x <= GRID_SIZE - 4 - (w - 1); x++) {
       if (blocked.some((r) => hits(r, x, y))) continue;
       if (CANALS.some((c) => c.tiles.some((t) => hits({ ...t, w: 1, h: 1 }, x, y)))) continue;
+      let onLand = true; // clear of this realm's coves
+      for (let ty = y; ty < y + h && onLand; ty++) for (let tx = x; tx < x + w; tx++) if (!isLandTile(tx, ty)) { onLand = false; break; }
+      if (!onLand) continue;
       candidates.push({ x, y });
     }
   }
@@ -472,6 +602,25 @@ export const getLayoutSeed = () => activeSeed;
  * follows along. The Phaser scene is keyed on the seed and remounts to redraw.
  */
 export function applyLayoutSeed(seed: number, positions: BuildingPositions = {}): void {
+  const requestKey = `${activeCoast}|${JSON.stringify(positions)}`;
+  if (seed === activeSeed && requestKey === activePositions) return;
+  activeSeed = seed;
+  activePositions = requestKey;
+  // The coastline comes first: placement, roads and old-save checks all read isLandTile.
+  // If an unlucky seed's bays leave no room for every site, the bays shrink and it tries again.
+  const shrinks = [1, 0.6, 0.3, 0];
+  for (const shrink of shrinks) {
+    carveCoast(seed, activeCoast, shrink);
+    try {
+      placeLayout(seed, positions);
+      return;
+    } catch (err) {
+      if (shrink === shrinks[shrinks.length - 1]) throw err;
+    }
+  }
+}
+
+function placeLayout(seed: number, positions: BuildingPositions): void {
   // Saves from an older layout (20×20, before canals / rift zones) may have a hand-placed
   // building off the land, over a canal, in a rift zone or against the citadel: let it re-roll
   const overCanal = (id: MovableId, p: GridPoint) => {
@@ -482,10 +631,6 @@ export function applyLayoutSeed(seed: number, positions: BuildingPositions = {})
     return PORTAL_SITES.some((ps) => hits(ps.zone)) || hits(expandRect(CASTLE_FOOTPRINT, 1));
   };
   positions = Object.fromEntries(Object.entries(positions).filter(([id, p]) => p && !overCanal(id as MovableId, p))) as BuildingPositions;
-  const posKey = JSON.stringify(positions);
-  if (seed === activeSeed && posKey === activePositions) return;
-  activeSeed = seed;
-  activePositions = posKey;
   // The spire moves first so establishments are placed (and roads routed) around it
   const spire = positions.SPIRE ?? randomSpireSpot(seed);
   Object.assign(SPIRE_FOOTPRINT, { ...spire, w: layout.spire.footprint.w, h: layout.spire.footprint.h });
@@ -546,3 +691,20 @@ export const NODE_SPOTS = {
   METAL: BUILDING_SITES.MINE.workSpot,
   PORT: BUILDING_SITES.PORT.workSpot,
 } as const;
+
+/**
+ * Tiles the living terrain may never change: the citadel and its ring road,
+ * the spire, every establishment footprint and work spot, roads and bridges,
+ * the rift zones, and a margin around the castle.
+ */
+export function isProtectedTile(x: number, y: number): boolean {
+  if (rectContainsTile(expandRect(CASTLE_FOOTPRINT, 2), x, y)) return true;
+  if (rectContainsTile(expandRect(SPIRE_FOOTPRINT, 1), x, y)) return true;
+  if (PORTAL_SITES.some((p) => rectContainsTile(expandRect(p.zone, 1), x, y))) return true;
+  for (const id of BUILDING_IDS) {
+    const site = BUILDING_SITES[id];
+    if (rectContainsTile(expandRect(site.footprint, 1), x, y)) return true;
+    if (site.workSpot.x === x && site.workSpot.y === y) return true;
+  }
+  return ROAD_TILES.some((t) => t.x === x && t.y === y) || BRIDGE_TILES.some((t) => t.x === x && t.y === y);
+}

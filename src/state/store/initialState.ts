@@ -1,4 +1,4 @@
-import { NODE_SPOTS, applyLayoutSeed, newLayoutSeed, type BuildingPositions } from '../buildingLayout';
+import { NODE_SPOTS, applyLayoutSeed, coastForSeed, getCoastStyle, newLayoutSeed, setCoastStyle, type BuildingPositions, type CoastStyle } from '../buildingLayout';
 import { emptyRuneSlots } from '../runes';
 import { ECONOMY_CONFIG } from '../economy';
 import type { Difficulty } from '../difficulty';
@@ -182,19 +182,22 @@ export const createInitialWorldClock = () => ({
 export const applyRealmLayout = (
   seed: number,
   positions: BuildingPositions,
-  nodes: GameStoreState['dynamicResourceNodes']
+  nodes: GameStoreState['dynamicResourceNodes'],
+  coast?: CoastStyle
 ) => {
+  if (coast) setCoastStyle(coast);
   applyLayoutSeed(seed, positions);
   const fresh = createInitialResourceNodes();
   const dynamicResourceNodes = { ...fresh };
   for (const k of Object.keys(fresh) as (keyof typeof fresh)[]) {
     dynamicResourceNodes[k] = { ...fresh[k], qualityMultiplier: nodes?.[k]?.qualityMultiplier ?? 1.0 };
   }
-  return { layoutSeed: seed, buildingPositions: positions, dynamicResourceNodes };
+  return { layoutSeed: seed, buildingPositions: positions, dynamicResourceNodes, coastStyle: getCoastStyle() };
 };
 
 export const rollLayout = (): number => {
   const seed = newLayoutSeed();
+  setCoastStyle(coastForSeed(seed));
   applyLayoutSeed(seed);
   return seed;
 };
@@ -208,6 +211,7 @@ export const createInitialProgress = () => {
   const layoutSeed = rollLayout();
   const roster = [createSupportSlime()];
   return {
+    coastStyle: getCoastStyle(),
     screen: 'TITLE' as const,
     difficulty: 'NORMAL' as Difficulty,
     skillPoints: 0,
@@ -250,6 +254,15 @@ export const createInitialProgress = () => {
     // Silhouette Discovery: Starting beasts are pre-discovered
     discoveredBeasts: ['DRYAD', 'MINOTAUR'] as UnitClass[],
     brawlTension: {},
+    seaContamination: 0,
+    seaTruceWaves: 0,
+    broodUnrest: 0,
+    broodTruceWaves: 0,
+    terrainFlooded: [] as string[],
+    terrainFlooding: [] as string[],
+    terrainSand: {} as Record<string, number>,
+    terrainRaised: {} as Record<string, number>,
+    terrainFilled: [] as string[],
     runes: [],
     runeSlots: emptyRuneSlots(),
     discoveredInvaders: [] as InvaderType[],

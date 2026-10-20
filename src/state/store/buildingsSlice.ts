@@ -13,7 +13,7 @@ import {
 } from '../defenseStats';
 import { CASTLE_CONSTRUCTION_COST, RESOURCE_BUILDING_CONFIG, SPIRE_CONSTRUCTION_COST } from '../economy';
 import { INITIAL_RESOURCE_BUILDINGS, INITIAL_SPIRE_TOWER, applyRealmLayout } from './initialState';
-import { BUILDING_IDS, BUILDING_SITES, canPlaceEstablishment } from '../buildingLayout';
+import { BUILDING_IDS, BUILDING_SITES, canPlaceEstablishment, type CoastStyle } from '../buildingLayout';
 import type { GameStoreState, ResourceBuildingId, ResourceBuildingsState, SpireTowerState, TowerId } from '../../types/state';
 import type { SliceArgs } from './types';
 import { TENANT_WORK, buildStepCost } from '../tenantWork';
@@ -390,9 +390,15 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       const pinned: typeof state.buildingPositions = {};
       for (const other of BUILDING_IDS) pinned[other] = { x: BUILDING_SITES[other].footprint.x, y: BUILDING_SITES[other].footprint.y };
       const positions = { ...state.buildingPositions, ...pinned, [id]: { x, y } };
-      set({ ...applyRealmLayout(state.layoutSeed, positions, state.dynamicResourceNodes), lastSavedTimestamp: Date.now() });
+      set({ ...applyRealmLayout(state.layoutSeed, positions, state.dynamicResourceNodes, state.coastStyle), lastSavedTimestamp: Date.now() });
       soundFx.playFanfare();
       return true;
+    },
+
+    chooseRealmMap: (seed: number, coast: CoastStyle) => {
+      const state = get();
+      if (state.castleBuilt) return; // only before the realm is founded
+      set({ ...applyRealmLayout(seed, {}, state.dynamicResourceNodes, coast), lastSavedTimestamp: Date.now() });
     },
 
     closeEstablishmentModal: () => {

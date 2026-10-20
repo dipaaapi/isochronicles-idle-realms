@@ -61,6 +61,8 @@ export interface VoxelModel {
   animations: Record<CoreAnimation, Pose[]> & Partial<Record<StateAnimation, Pose[]>>;
   /** Sprite pixels per voxel (default 1). */
   pixelsPerVoxel?: number;
+  /** Sub-voxel refinement (refineGeometry): model units are this many grid cells. */
+  detail?: number;
 }
 
 /** A model's shape without its animation table (structures carry their own named animations). */
@@ -437,7 +439,7 @@ function renderView(
           const ni = i + di, nj = j + dj;
           if (ni < 0 || nj < 0 || ni >= fw || nj >= fh) continue;
           const nk = nj * fw + ni;
-          if (colors[nk] >= 0 && depths[nk] < depths[k] - 2.5) {
+          if (colors[nk] >= 0 && depths[nk] < depths[k] - 2.5 * (model.detail ?? 1)) {
             color = shadeColor(color, 0.72);
             break;
           }
@@ -500,10 +502,19 @@ export interface StripLayout extends FrameLayout {
  * Renders every frame of every named animation from one direction into a
  * single-row strip (used for buildings and portals, which never turn).
  */
+/** Per-frame tweaks for derived structure states (construction stages, damage, collapse). */
+export interface FrameOp {
+  /** Keep only voxels below this fraction of the model height (rising build, collapse). */
+  clipZ?: number;
+  /** 0–1: soot patches, cracks and embers painted over the frame (damaged / burning). */
+  scorch?: number;
+}
+
 export function renderStrip(
   model: VoxelGeometry,
   animations: Record<string, Pose[]>,
-  direction: number = STRUCTURE_DIRECTION
+  direction: number = STRUCTURE_DIRECTION,
+  frameOps: Record<string, Array<FrameOp | undefined>> = {}
 ): { layout: StripLayout; width: number; height: number; data: Uint8ClampedArray } {
   const frame = frameBounds(model, [direction]);
   const table: StripLayout['animations'] = {};
@@ -518,7 +529,12 @@ export function renderStrip(
   const data = new Uint8ClampedArray(width * height * 4);
   for (const [name, poses] of Object.entries(animations)) {
     poses.forEach((pose, f) => {
-      renderView(model, voxelize(model, pose), direction, frame, { data, width }, (table[name].start + f) * frame.frameWidth, 0);
+      const op = frameOps[name]?.[f];
+      const grid = voxelize(model, pose);
+      if (op?.clipZ !== undefined && op.clipZ < 1) clipGrid(model, grid, op.clipZ);
+      const ox = (table[name].start + f) * frame.frameWidth;
+      renderView(model, grid, direction, frame, { data, width }, ox, 0);
+      if (op?.scorch) scorchFrame({ data, width }, ox, frame.frameWidth, frame.frameHeight, op.scorch, f);
     });
   }
   return { layout, width, height, data };
@@ -543,4 +559,107 @@ export function recolorModel<T extends VoxelGeometry>(model: T, tint: number, gl
     materials: model.materials.map((m) => ({ ...m, color: m.emissive ? glow : mixColor(m.color, tint, amount) })),
     pixelsPerVoxel: (model.pixelsPerVoxel ?? 1) * scale,
   };
+}
+
+// ── Structure states: HD refinement, pose tweening, build clip, scorch ──────
+
+const scaleVec = (v: Vec3, k: number): Vec3 => [v[0] * k, v[1] * k, v[2] * k];
+
+/**
+ * The same model on a k× finer voxel grid: every shape, pivot and the bounds
+ * scale by k while pixelsPerVoxel stays, so the sprite comes out k× larger with
+ * k× the detail (curves, roofs and trims stop looking blocky). Draw it at 1/k scale.
+ */
+export function refineGeometry<T extends VoxelGeometry>(model: T, k: number): T {
+  if (k === 1) return model;
+  const shape = (s: Shape): Shape =>
+    s.kind === 'box' ? { ...s, min: scaleVec(s.min, k), max: scaleVec(s.max, k) }
+    : s.kind === 'ellipsoid' ? { ...s, center: scaleVec(s.center, k), radii: scaleVec(s.radii, k) }
+    : { ...s, center: scaleVec(s.center, k), radius: s.radius * k, height: s.height * k };
+  return {
+    ...model,
+    size: [Math.ceil(model.size[0] * k), Math.ceil(model.size[1] * k), Math.ceil(model.size[2] * k)],
+    foot: scaleVec(model.foot, k),
+    parts: model.parts.map((p) => ({ ...p, pivot: scaleVec(p.pivot, k), shapes: p.shapes.map(shape) })),
+    detail: (model.detail ?? 1) * k,
+  };
+}
+
+/** Pose offsets are in model units, so they scale with refineGeometry too. */
+export function refinePose(pose: Pose, k: number): Pose {
+  if (k === 1) return pose;
+  const out: Pose = {};
+  for (const [name, p] of Object.entries(pose)) out[name] = p.offset ? { ...p, offset: scaleVec(p.offset, k) } : p;
+  return out;
+}
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** In-between pose (rotations, offsets and scales blended; visibility from the nearer key). */
+export function blendPose(a: Pose, b: Pose, t: number): Pose {
+  const out: Pose = {};
+  for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const pa = a[name] ?? {}, pb = b[name] ?? {};
+    const v3 = (x: Vec3 | undefined, y: Vec3 | undefined, d: number): Vec3 | undefined =>
+      x || y ? [lerp(x?.[0] ?? d, y?.[0] ?? d, t), lerp(x?.[1] ?? d, y?.[1] ?? d, t), lerp(x?.[2] ?? d, y?.[2] ?? d, t)] : undefined;
+    out[name] = {
+      pitch: lerp(pa.pitch ?? 0, pb.pitch ?? 0, t),
+      roll: lerp(pa.roll ?? 0, pb.roll ?? 0, t),
+      yaw: lerp(pa.yaw ?? 0, pb.yaw ?? 0, t),
+      offset: v3(pa.offset, pb.offset, 0),
+      scale: v3(pa.scale, pb.scale, 1),
+      hidden: t < 0.5 ? pa.hidden : pb.hidden,
+    };
+  }
+  return out;
+}
+
+/** Inserts `steps` blended frames between every key (wrapping when the animation loops). */
+export function tweenPoses(poses: Pose[], steps: number, loop: boolean): Pose[] {
+  if (poses.length < 2 || steps < 1) return poses;
+  const out: Pose[] = [];
+  const last = loop ? poses.length : poses.length - 1;
+  for (let i = 0; i < last; i++) {
+    const a = poses[i], b = poses[(i + 1) % poses.length];
+    out.push(a);
+    for (let s = 1; s <= steps; s++) out.push(blendPose(a, b, s / (steps + 1)));
+  }
+  if (!loop) out.push(poses[poses.length - 1]);
+  return out;
+}
+
+function clipGrid(model: VoxelGeometry, grid: Uint8Array, fraction: number): void {
+  const [W, D, H] = model.size;
+  // Clip against the model's actual top, not the empty headroom of its bounds
+  let top = 0;
+  for (let i = grid.length - 1; i >= 0; i--) if (grid[i]) { top = Math.floor(i / (W * D)) + 1; break; }
+  const cut = Math.max(1, Math.round(top * fraction));
+  grid.fill(0, Math.min(H, cut) * W * D);
+}
+
+const hash2 = (x: number, y: number, s: number) => {
+  let h = (x * 374761393 + y * 668265263 + s * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+};
+
+/** Paints soot blotches, dark cracks and a few glowing embers over a rendered frame. */
+function scorchFrame(out: { data: Uint8ClampedArray; width: number }, ox: number, fw: number, fh: number, amount: number, seed: number): void {
+  const d = out.data;
+  for (let j = 0; j < fh; j++) {
+    for (let i = 0; i < fw; i++) {
+      const idx = (j * out.width + ox + i) * 4;
+      if (d[idx + 3] === 0) continue;
+      // Low-frequency soot patches (stable between frames), cracks as thin diagonal noise lines
+      const patch = hash2(i >> 3, j >> 3, 7) * 0.6 + hash2(i >> 2, j >> 2, 11) * 0.4;
+      let k = 1;
+      if (patch < amount * 0.75) k = 0.45 + patch * 0.4;
+      if (hash2((i + j) >> 1, (i - j) >> 3, 3) < amount * 0.07) k = 0.25;
+      if (k < 1) { d[idx] *= k; d[idx + 1] *= k; d[idx + 2] *= k; }
+      // Embers flicker between frames
+      if (patch < amount * 0.5 && hash2(i, j, 101 + seed) < amount * 0.025) {
+        d[idx] = 255; d[idx + 1] = 120 + hash2(i, j, seed) * 100; d[idx + 2] = 40;
+      }
+    }
+  }
 }

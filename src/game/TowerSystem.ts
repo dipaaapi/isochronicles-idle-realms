@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { hitReaction } from './hitReaction';
 import { IsometricHelper } from './IsometricHelper';
 import { Navigation, NavAgent } from './Navigation';
 import type { ActiveInvader, InvaderBlocker, InvasionManager } from './InvasionManager';
@@ -711,8 +712,7 @@ export class TowerSystem {
     this.drawSaplingHp(s);
     if (s.sprite) {
       const sprite = s.sprite;
-      sprite.setTintFill(0xffffff);
-      this.scene.time.delayedCall(60, () => sprite.active && sprite.clearTint());
+      hitReaction(this.scene, sprite);
     }
     if (s.hp <= 0) this.killSapling(s, true);
   }

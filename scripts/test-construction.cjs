@@ -17,7 +17,7 @@ function load(file) {
       if (name === 'phaser') return { default: { Math: { Clamp: (n, min, max) => Math.max(min, Math.min(max, n)) } } };
       if (name === 'zustand/middleware') return { persist: (fn) => fn, createJSONStorage() {} };
       if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
-      if (name.includes('storageAdapter')) return {};
+      if (name.includes('storageAdapter')) return { createThrottledStorage: () => undefined, SAVE_KEY: 'test' };
       if (name.includes('activityLog')) return new Proxy({}, { get: (_, fn) => (fn === 'resourceName' ? (k) => ({ en: k, tl: k }) : () => undefined) });
       if (name.includes('CharacterSprites')) return new Proxy({}, {
         get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),
@@ -158,8 +158,8 @@ console.log('Custom purchase quantity checks passed.');
 
 const preferences = new Set(['language', 'isAudioMuted', 'isGoreEnabled', 'showWallpaper', 'targetFps', 'showFpsDebug', 'showTileCoordinates', 'measuredFps', 'musicLibrary', 'musicIndex', 'musicAutoPlay', 'musicLoop']);
 const initial = store.getInitialState();
-// Every reset rolls a fresh random layout, so its seed (and the node spots it moves) differ by design
-const rerolled = new Set(['lastSavedTimestamp', 'layoutSeed', 'dynamicResourceNodes']);
+// Every reset rolls a fresh random layout and coastline, so its seed, coast style (and the node spots it moves) differ by design
+const rerolled = new Set(['lastSavedTimestamp', 'layoutSeed', 'coastStyle', 'dynamicResourceNodes']);
 const progressionKeys = Object.keys(initial).filter(key =>
   typeof initial[key] !== 'function' && !preferences.has(key) && !rerolled.has(key));
 const dirtyProgress = Object.fromEntries(progressionKeys.map(key => {
@@ -470,6 +470,16 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
     layoutsSeen.add(JSON.stringify(layout.BUILDING_SITES));
   }
   assert.ok(layoutsSeen.size > 250, 'establishment placement varies between realms');
+  // Every coastline style keeps the same guarantees (land footprints, reachable spots)
+  for (const style of ['NONE', 'CALM', 'WILD']) {
+    layout.setCoastStyle(style);
+    for (let seed = 1; seed <= 120; seed++) checkLayout(seed);
+  }
+  layout.setCoastStyle('BAYS');
+  layout.applyLayoutSeed(1);
+  const coves = [];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (layout.isCoveTile(x, y)) coves.push(`${x},${y}`);
+  assert.ok(coves.length > 10, 'Winding Bays carves coves into the rim');
   layout.applyLayoutSeed(7);
   const first = JSON.stringify(layout.BUILDING_SITES);
   layout.applyLayoutSeed(8);
@@ -668,6 +678,67 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   }
   assert.ok(scouts.SCOUTS.some((s) => s.kind === 'MECHA') && scouts.SCOUTS.some((s) => s.kind === 'HUMAN'));
   console.log('Scout drop checks passed.');
+
+  // Sea Folk: contamination, mood, group size and a tribute truce
+  {
+    const sea = load('src/state/seaFolk.ts');
+    assert.equal(sea.seaMood(0, 0), 'CALM');
+    assert.equal(sea.seaMood(sea.SEA_CONTAMINATION.emergeAt, 0), 'RESTLESS');
+    assert.equal(sea.seaMood(sea.SEA_CONTAMINATION.bossAt, 0), 'ENRAGED');
+    assert.equal(sea.seaMood(90, 2), 'TRUCE', 'a truce overrides the mood');
+    assert.equal(sea.seaGroupSize(10), 0, 'a calm sea sends nobody');
+    assert.ok(sea.seaGroupSize(80) >= 5, 'a foul sea sends a big group');
+    store.setState({ seaContamination: 60, seaTruceWaves: 0, resources: { ...state().resources, coins: 1e6, water: 1e6, fish: 1e6, wood: 1e6 } });
+    assert.equal(state().offerSeaTribute(), true);
+    assert.equal(state().seaContamination, 60 - sea.SEA_FOLK.tribute.cleanse, 'tribute cleanses the sea');
+    assert.equal(state().seaTruceWaves, sea.SEA_FOLK.tribute.truceWaves);
+    state().spendSeaTruceWave();
+    assert.equal(state().seaTruceWaves, sea.SEA_FOLK.tribute.truceWaves - 1);
+    state().stirSea(500);
+    assert.equal(state().seaContamination, sea.SEA_CONTAMINATION.max, 'contamination is capped');
+    store.setState({ seaContamination: 0, seaTruceWaves: 0 });
+    console.log('Sea Folk checks passed.');
+  }
+
+  // Living terrain: dug sand settles, eaten shore floods for good, protected tiles never change
+  {
+    const lay = load('src/state/buildingLayout.ts');
+    store.setState({ terrainFlooded: [], terrainFlooding: [], terrainSand: {}, day: 10 });
+    state().digSand(['5,5']);
+    assert.equal(state().terrainSand['5,5'], 10, 'dug sand remembers the day');
+    store.setState({ day: 10 + 60 });
+    state().settleSand();
+    assert.equal(state().terrainSand['5,5'], undefined, 'old sand settles back into land');
+    state().markFlooding(['6,1', '6,1']);
+    assert.equal(JSON.stringify(state().terrainFlooding), '["6,1"]', 'flooding tiles are unique');
+    state().floodPending();
+    assert.equal(JSON.stringify(state().terrainFlooded), '["6,1"]');
+    assert.equal(state().terrainFlooding.length, 0);
+    lay.setTerrainEdits(['6,1'], [], []);
+    assert.equal(lay.isLandTile(6, 1), false, 'flooded shore is no longer land');
+    assert.equal(lay.isWaterTile(6, 1), true, 'flooded shore is water');
+    assert.ok(lay.waterRegionOf(6, 1), 'flooded shore belongs to an ocean side');
+    const g = lay.CASTLE_GATE;
+    assert.equal(lay.isProtectedTile(g.x, g.y), true, 'the castle surroundings are protected');
+    lay.setTerrainEdits([], [], []);
+    store.setState({ terrainFlooded: [], terrainFlooding: [], terrainSand: {} });
+    // The Caterpillar heaves the ground: sea -> sand (land), sand -> land, land -> raised rock gone next day
+    store.setState({ day: 20, terrainSand: { '9,9': 3 }, terrainRaised: {}, terrainFilled: [], terrainFlooded: ['6,1'] });
+    state().applyCarve({ filled: ['6,1'], toSand: [], toLand: ['9,9'], raised: ['10,10'] });
+    assert.equal(state().terrainSand['9,9'], undefined, 'sand becomes land');
+    assert.equal(state().terrainSand['6,1'], 20, 'filled sea becomes sand');
+    assert.equal(state().terrainFlooded.includes('6,1'), false, 'filled shore is no longer flooded');
+    assert.equal(state().terrainRaised['10,10'], 20, 'land becomes raised rock');
+    lay.setTerrainEdits([], [], [], ['10,10'], ['6,1']);
+    assert.equal(lay.isRaisedTile(10, 10), true);
+    assert.equal(lay.isLandTile(6, 1), true, 'filled sea is land');
+    store.setState({ day: 21 });
+    state().liftRaised();
+    assert.equal(Object.keys(state().terrainRaised).length, 0, 'raised rock settles back the next day');
+    lay.setTerrainEdits([], [], [], [], []);
+    store.setState({ terrainFlooded: [], terrainFlooding: [], terrainSand: {}, terrainRaised: {}, terrainFilled: [] });
+    console.log('Terrain checks passed.');
+  }
 }
 
 // Tenants build: the General summons them at its unbuilt plot, and their work drains the castle step by step

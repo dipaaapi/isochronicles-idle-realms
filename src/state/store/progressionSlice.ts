@@ -1,3 +1,4 @@
+import { getCoastStyle } from '../buildingLayout';
 import { soundFx } from '../../game/audio/soundFx';
 import { ECONOMY_CONFIG, techUpgradeCost } from '../economy';
 import { canAfford, subtractCost } from '../resources';
@@ -15,6 +16,7 @@ import {
   createSupportSlime,
   rollLayout,
 } from './initialState';
+import { achievementDef, unlockSteamAchievement } from '../achievements';
 import type { Achievement, GameStoreState, RegressionRecord, UpgradesState } from '../../types/state';
 import type { SliceArgs } from './types';
 
@@ -62,8 +64,16 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
 
   unlockAchievement: (id: string, title: string, description: string, icon: string) => {
     if (get().achievements.some((a) => a.id === id)) return;
-    const achievement: Achievement = { id, title, description, icon, unlockedAt: Date.now() };
+    const def = achievementDef(id);
+    const achievement: Achievement = {
+      id,
+      title: def?.en.title ?? title,
+      description: def?.en.desc ?? description,
+      icon: def?.icon ?? icon,
+      unlockedAt: Date.now(),
+    };
     set((prev) => ({ achievements: [...prev.achievements, achievement], lastSavedTimestamp: Date.now() }));
+    unlockSteamAchievement(id);
   },
 
   // ── Regression ────────────────────────────────────────────────────────────
@@ -102,10 +112,12 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
 
       // A new realm rises with a fresh random establishment layout
       const layoutSeed = rollLayout();
+      const coastStyle = getCoastStyle();
 
       return {
         ...createInitialWorldClock(),
         layoutSeed,
+        coastStyle,
         buildingPositions: {},
         munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0 },
         platformPhase: 1,

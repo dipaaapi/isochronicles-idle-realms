@@ -1,5 +1,7 @@
 import { markShadow } from './graphicsFx';
 import Phaser from 'phaser';
+import { hitReaction } from './hitReaction';
+import { initBattleFx, projectileFor, queueBattleFxSheets, shootProjectile, spawnSmoke } from './battleFx';
 import {
   GridPoint,
   InvaderType,
@@ -131,18 +133,16 @@ export class InvasionManager {
     const base = import.meta.env.BASE_URL;
     this.scene.load.aseprite('battle-poison-smoke', `${base}skills/poison-smoke.png`, `${base}skills/poison-smoke.json`);
     this.scene.load.aseprite('battle-bone-cage', `${base}skills/bone-cage.png`, `${base}skills/bone-cage.json`);
-    this.scene.load.aseprite('battle-transport', `${base}skills/troop-transport.png`, `${base}skills/troop-transport.json`);
-    this.scene.load.aseprite('battle-parachute', `${base}skills/parachute.png`, `${base}skills/parachute.json`);
+    queueBattleFxSheets(this.scene, base);
     this.scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
-      for (const key of ['battle-poison-smoke', 'battle-bone-cage', 'battle-transport', 'battle-parachute']) {
+      for (const key of ['battle-poison-smoke', 'battle-bone-cage']) {
         if (this.scene.textures.exists(key)) this.scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
       }
       this.createBattleAnim('battle-poison-smoke:poof', 'battle-poison-smoke', 'poof-', 0, 11, 9, -1);
       this.createBattleAnim('battle-bone-cage:rise', 'battle-bone-cage', 'rise-', 0, 2, 8, 0);
       this.createBattleAnim('battle-bone-cage:hold', 'battle-bone-cage', 'hold-', 0, 2, 6, -1);
       this.createBattleAnim('battle-bone-cage:sink', 'battle-bone-cage', 'sink-', 0, 7, 8, 0);
-      this.createBattleAnim('battle-transport:fly', 'battle-transport', 'fly-', 0, 5, 12, -1);
-      this.createBattleAnim('battle-parachute:fall', 'battle-parachute', 'fall-', 0, 3, 7, -1);
+      initBattleFx(this.scene, this.parentContainer ?? null);
       this.battleFxReady = true;
       for (const effect of this.pendingBattleFx.splice(0)) this.playBattleEffect(effect);
     });
@@ -346,7 +346,16 @@ export class InvasionManager {
   private sendAircraft(wave: number): void {
     if (!this.scene.textures.exists('battle-transport')) return;
     const plane = this.scene.add.sprite(-820, 215, 'battle-transport');
-    plane.setScale(2.5).setDepth(100000).play('battle-transport:fly');
+    // Some transports limp in already hit by the citadel's flak: burning engine and a heavy smoke trail
+    const damaged = Math.random() < 0.3;
+    plane.setScale(2.5).setDepth(100000).play(damaged ? 'battle-transport:damaged' : 'battle-transport:fly');
+    const trail = this.scene.time.addEvent({
+      delay: damaged ? 70 : 160,
+      loop: true,
+      callback: () => {
+        if (plane.active) spawnSmoke(plane.x - 46, plane.y + (damaged ? 22 : 6), damaged ? 1.5 : 0.8, -14);
+      },
+    });
     this.parentContainer?.add(plane);
     this.activeAircraft.add(plane);
 
@@ -361,6 +370,11 @@ export class InvasionManager {
     const forceTl = `${groups.filter((g) => g.category === 'HUMAN').length} tao / ${groups.filter((g) => g.category === 'MECHA').length} mecha`;
     logMessage('aircraftDrop', { count: dropCount, force: { en: force, tl: forceTl }, wave });
 
+    // Ramp opens over the drop zone and closes after the last jumper
+    if (!damaged) {
+      this.scene.time.delayedCall(duration * 0.22, () => plane.active && plane.play('battle-transport:drop'));
+      this.scene.time.delayedCall(duration * 0.8, () => plane.active && plane.play('battle-transport:fly'));
+    }
     groups.forEach((group, i) => {
       const fraction = 0.24 + (0.52 * (i + 1)) / (groups.length + 1);
       this.scene.time.delayedCall(duration * fraction, () => {
@@ -376,6 +390,7 @@ export class InvasionManager {
       duration,
       ease: 'Linear',
       onComplete: () => {
+        trail.remove();
         this.activeAircraft.delete(plane);
         plane.destroy();
       },
@@ -400,15 +415,21 @@ export class InvasionManager {
 
   private attachParachute(invader: ActiveInvader): void {
     if (!this.scene.textures.exists('battle-parachute')) return;
-    const parachute = this.scene.add.sprite(0, -65, 'battle-parachute').setScale(1.6).play('battle-parachute:fall');
+    // deploy -> swaying fall -> canopy collapses on touchdown
+    const parachute = this.scene.add.sprite(0, -70, 'battle-parachute').setScale(1.5).play('battle-parachute:deploy');
+    parachute.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => parachute.active && parachute.play('battle-parachute:fall'));
     invader.container.add(parachute);
     invader.dropTimer = WAVE_BALANCE.airlift.descentMs / 1000;
     this.scene.tweens.add({
       targets: parachute,
-      y: -18,
+      y: -22,
       duration: WAVE_BALANCE.airlift.descentMs,
       ease: 'Sine.easeIn',
-      onComplete: () => parachute.destroy(),
+      onComplete: () => {
+        if (!parachute.active) return;
+        parachute.play('battle-parachute:land');
+        parachute.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => parachute.destroy());
+      },
     });
   }
 
@@ -421,7 +442,7 @@ export class InvasionManager {
     const store = useGameStore.getState();
     const foes = this.invaders.filter((i) => !i.isDead && !i.isRetreating && i.container.active);
     if (effect === 'MASS_REGEN') {
-      for (const w of this.workerProvider?.() ?? []) if (w.hp > 0) w.hp = w.maxHp;
+      for (const w of this.workerProvider?.() ?? []) if (w.hp > 0 && !w.isBrawling) w.hp = w.maxHp;
       for (const d of this.defenderProvider?.() ?? []) if (!d.dead) d.hp = d.maxHp;
       soundFx.playHeal();
       return;
@@ -1400,8 +1421,7 @@ export class InvasionManager {
     // Hit flash on the target itself
     if (crit && target.sprite) {
       const sprite = target.sprite;
-      sprite.setTintFill(0xffffff);
-      this.scene.time.delayedCall(70, () => sprite.active && sprite.clearTint());
+      hitReaction(this.scene, sprite);
     }
   }
 
@@ -1514,8 +1534,7 @@ export class InvasionManager {
     // Visual electric flash
     if (invader.sprite) {
       const sprite = invader.sprite;
-      sprite.setTintFill(0xffffff);
-      this.scene.time.delayedCall(90, () => sprite.active && sprite.clearTint());
+      hitReaction(this.scene, sprite);
     }
     this.scene.tweens.add({
       targets: invader.sprite ?? invader.bodyGfx,
@@ -1544,10 +1563,7 @@ export class InvasionManager {
     this.renderHpBar(invader.hpBarGfx, invader.hp, invader.maxHp, invader.defence);
     if (invader.sprite) {
       const sprite = invader.sprite;
-      sprite.setTintFill(0xffffff);
-      this.scene.time.delayedCall(80, () => {
-        if (sprite.active) sprite.clearTint();
-      });
+      hitReaction(this.scene, sprite);
     }
 
     if (popupText) {
@@ -1809,7 +1825,7 @@ export class InvasionManager {
     const workers = this.workerProvider ? this.workerProvider() : [];
     // Active defenders: only workers that have actively rallied to COMBAT
     const availableDefenders = workers.filter(
-      (w) => w.status === 'COMBAT' && w.hp >= 35 && w.unitClass !== 'AQUA_SLIME' && w.unitClass !== 'MERMAN'
+      (w) => w.status === 'COMBAT' && !w.isBrawling && w.hp >= 35 && w.unitClass !== 'AQUA_SLIME' && w.unitClass !== 'MERMAN'
     );
     const currentWeather = useGameStore.getState().weather;
 
@@ -1833,6 +1849,7 @@ export class InvasionManager {
         if ((invader[key] ?? 0) > 0) invader[key] = Math.max(0, (invader[key] ?? 0) - deltaSec);
       }
       if ((invader.frozenTimer ?? 0) > 0) continue; // Frozen or rooted solid: no moving, no attacking
+      if (invader.seaEngaged) continue; // fighting back against a wild faction (WildFactionManager drives it)
       const slow = (invader.slowTimer ?? 0) > 0 ? invader.slowFactor ?? 1 : 1;
 
       // When castle is crushed (HP = 0) or invader is in retreat mode, they march off the platform with their loot
@@ -1985,14 +2002,21 @@ export class InvasionManager {
     }
   }
 
+  /** Sea Folk strike on a minion (same armor, shield and death handling as an invader's). */
+  public hurtWorkerFromSea(worker: WorkerInstance, damage: number): void {
+    if (worker.isBrawling || worker.hp <= 0 || !worker.container?.active) return;
+    this.hitWorker(null, worker, damage);
+  }
+
   /** Rift / Rift Sentinel strike on a minion (same armor, shield and death handling, no invader source). */
   public hurtWorkerFromRift(worker: WorkerInstance, damage: number): void {
-    if (worker.hp <= 0 || !worker.container?.active) return;
+    if (worker.isBrawling || worker.hp <= 0 || !worker.container?.active) return;
     this.hitWorker(null, worker, damage);
   }
 
   /** Invader strike on a defending minion (armor, shields, gore, death / retreat). */
   private hitWorker(invader: ActiveInvader | null, closestDefender: WorkerInstance, baseDmg: number): void {
+    if (closestDefender.isBrawling) return;
     const invaderConfig = invader ? INVADER_CONFIGS[invader.type] : null;
     // Seismic Taunt halves damage; Target Lock adds 20%
     const weatherDmg = Math.round(baseDmg *
@@ -2025,8 +2049,12 @@ export class InvasionManager {
 
     // Visual projectile / slash from Invader
     if (invader && invaderConfig && invaderConfig.attackRange > 60) {
-      this.spawnDeathBurst(invader.container.x, invader.container.y - 15, invaderConfig.color, true);
-      this.spawnDeathBurst(defenderX, defenderY - 15, invaderConfig.color, true);
+      shootProjectile(
+        { x: invader.container.x, y: invader.container.y - 18 },
+        { x: defenderX, y: defenderY - 15 },
+        projectileFor(invader.type, invaderConfig.category === 'HUMAN'),
+        { tint: invaderConfig.color }
+      );
       soundFx.playLaser();
     } else if (invader) {
       this.meleeSound(invader);

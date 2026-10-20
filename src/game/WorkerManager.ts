@@ -26,7 +26,7 @@ import { updateGeneralConstruction } from './workers/generalConstruction';
 import { updateGeneralLooting } from './workers/generalLooting';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { promotingClasses } from './promotions';
-import { rallyForInvasion, updateCombat, updateHealer } from './workers/combat';
+import { rallyForInvasion, updateCombat, updateHealer, castChampionSkill } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
 import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import MOVEMENT from '../data/minionMovement.json';
@@ -58,10 +58,18 @@ export class WorkerManager implements WorkerContext {
 
   private fires?: import('./FireSystem').FireSystem;
   private readonly brawls = new BrawlDirector(this);
+  private readonly activityCommandListener = (event: Event): void => {
+    const detail = (event as CustomEvent<{ command?: string; respond?: (success: boolean) => void }>).detail;
+    if (detail?.command === 'brawl') detail.respond?.(this.startRandomBrawl());
+  };
 
   /** The two Generals brawling right now (their minions gather round), or null. */
   public getBrawlers(): [WorkerInstance, WorkerInstance] | null {
     return this.brawls.brawlers();
+  }
+
+  public startRandomBrawl(): boolean {
+    return this.brawls.command(this.workers.filter((worker) => this.isFieldGeneral(worker)));
   }
 
   public setFireSystem(fires: import('./FireSystem').FireSystem): void {
@@ -85,6 +93,7 @@ export class WorkerManager implements WorkerContext {
   }
 
   public collectGroundLoot(item: GroundLootItem, collectorName?: string): void {
+    if (this.workers.some((worker) => worker.isBrawling && worker.name === collectorName)) return;
     this.groundLoot?.collectLoot(item, collectorName);
   }
 
@@ -98,6 +107,7 @@ export class WorkerManager implements WorkerContext {
     this.pathfinder = pathfinder;
     this.nexusGridPos = nexusGridPos;
     this.parentContainer = parentContainer;
+    window.addEventListener('isochronicle:activity-command', this.activityCommandListener);
     // A promotion cut short by a scene restart must not block that General for good
     promotingClasses.clear();
   }
@@ -452,6 +462,10 @@ export class WorkerManager implements WorkerContext {
 
   private renderDualGauges(worker: WorkerInstance): void {
     worker.gaugeGfx.clear();
+    if (worker.isBrawling) {
+      this.renderBrawlGauge(worker);
+      return;
+    }
     const barW = 18;
     const x = -barW / 2;
 
@@ -472,6 +486,32 @@ export class WorkerManager implements WorkerContext {
     const stamColor = stamPct > 0.3 ? 0x38bdf8 : 0xf59e0b;
     worker.gaugeGfx.fillStyle(stamColor, 0.95);
     worker.gaugeGfx.fillRect(x, -21.5, barW * stamPct, 2);
+  }
+
+  /** Bigger brawl HP bar: the lost slice lingers in pale yellow, then drains, so every hit reads clearly. */
+  private renderBrawlGauge(worker: WorkerInstance): void {
+    const g = worker.gaugeGfx;
+    const barW = 34;
+    const x = -barW / 2;
+    const hpPct = Phaser.Math.Clamp(worker.hp / worker.maxHp, 0, 1);
+    const trailPct = Phaser.Math.Clamp((worker._hpTrail ?? worker.hp) / worker.maxHp, hpPct, 1);
+    const flash = (worker._hitFlash ?? 0) > 0;
+    g.fillStyle(flash ? 0xffffff : 0x020617, flash ? 0.9 : 0.75);
+    g.fillRoundedRect(x - 1.5, -29, barW + 3, 6, 1.5);
+    g.fillStyle(0x450a0a, 0.95);
+    g.fillRect(x, -27.5, barW, 3);
+    g.fillStyle(0xfef3c7, 0.95);
+    g.fillRect(x, -27.5, barW * trailPct, 3);
+    const hpColor = hpPct > 0.5 ? 0x22c55e : hpPct > 0.25 ? 0xf59e0b : 0xef4444;
+    g.fillStyle(hpColor, 1);
+    g.fillRect(x, -27.5, barW * hpPct, 3);
+    // Quarter ticks so the size of each hit is easy to judge
+    g.fillStyle(0x020617, 0.6);
+    for (let i = 1; i < 4; i++) g.fillRect(x + (barW * i) / 4, -27.5, 0.6, 3);
+    if (worker.armorShield > 0) {
+      g.fillStyle(0x38bdf8, 0.95);
+      g.fillRect(x, -23, barW * Phaser.Math.Clamp(worker.armorShield / worker.maxHp, 0, 1), 1.5);
+    }
   }
 
   /** Redraws the legacy vector body — skipped once the pixel sprite has taken over. */
@@ -588,7 +628,18 @@ export class WorkerManager implements WorkerContext {
 
   /** Turns a minion toward a target and plays its attack / cast. */
   public playMinionAttack(worker: WorkerInstance, targetX: number, targetY: number): void {
-    if (!worker.sprite) return;
+    if (!worker.sprite) {
+      this.scene.tweens.add({
+        targets: worker.body,
+        y: worker.body.y - 4,
+        scaleX: 0.82,
+        scaleY: 1.16,
+        duration: 100,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+      });
+      return;
+    }
     faceCharacterSprite(worker.sprite, targetX - worker.container.x, targetY - worker.container.y, false);
     playCharacterAttack(worker.sprite);
   }
@@ -636,16 +687,16 @@ export class WorkerManager implements WorkerContext {
     this.brawls.update(this.workers.filter((w) => this.isFieldGeneral(w)), delta / 1000);
 
     for (const worker of [...this.workers]) {
+      if (worker.isBrawling) continue; // The duel owns movement, combat, healing and loot state
       if (worker.hp <= 0) {
         // A Support Slime may revive the fallen; otherwise it is permadeath
-        if (!tryResurrect(this, worker)) this.killWorker(worker);
+        if (worker.isBrawlDeath || !tryResurrect(this, worker)) this.killWorker(worker);
         continue;
       }
 
       worker.timeSinceLastTap += delta;
       const frame = computeWorkerFrame(worker, store, treantLevel, delta, aliveInvaders);
       this.updateOverhead(worker, frame.config, time, delta, ambientDarkness);
-      if (this.brawls.isBrawling(worker)) continue; // the BrawlDirector moves and swings for it
 
       // Skill status effects: stuns skip the frame, Temporal Stasis slows, surges speed up
       for (const key of ['stunTimer', 'slowTimer', 'armorBuffTimer', 'markedTimer'] as const) {
@@ -656,6 +707,7 @@ export class WorkerManager implements WorkerContext {
         worker.overrideEmoteTimer = 300;
         continue;
       }
+      if (worker.seaEngaged) continue; // fighting back against a wild faction (WildFactionManager drives it)
       // A torch just landed on their establishment: the Treant and the General panic
       if (this.fires?.panic(worker, frame.deltaSec, (x, y, step) => this.moveToward(worker, x, y, step, frame.deltaSec))) continue;
       if ((worker.slowTimer ?? 0) > 0) frame.effectiveSpeed *= worker.slowFactor ?? 1;
@@ -853,7 +905,19 @@ export class WorkerManager implements WorkerContext {
     const needsGauges = worker.status === 'COMBAT' || worker.hp < worker.maxHp || worker.stamina < worker.maxStamina * 0.85;
     worker.gaugeGfx.setVisible(needsGauges);
 
-    if (needsGauges) {
+    if (worker.isBrawling) {
+      // The brawl bar animates every frame: flash on a hit, then the chip drains toward the real HP
+      if (worker._hpTrail === undefined || worker._hpTrail < worker.hp) worker._hpTrail = worker.hp;
+      if (worker._gaugeHp >= 0 && worker.hp < worker._gaugeHp) worker._hitFlash = 120;
+      worker._hitFlash = Math.max(0, (worker._hitFlash ?? 0) - delta);
+      if (worker._hitFlash === 0 && worker._hpTrail > worker.hp) {
+        worker._hpTrail = Math.max(worker.hp, worker._hpTrail - worker.maxHp * 0.5 * (delta / 1000));
+      }
+      worker._gaugeHp = worker.hp;
+      worker._gaugeMaxHp = -1;
+      this.renderDualGauges(worker);
+    } else if (needsGauges) {
+      worker._hpTrail = undefined;
       const hpFloor = Math.floor(worker.hp);
       const stFloor = Math.floor(worker.stamina);
       if (
@@ -871,6 +935,16 @@ export class WorkerManager implements WorkerContext {
     }
 
     this.updateWorkerLantern(worker, config, ambientDarkness);
+
+    // Brawlers show only their HP bar: no status bubble, + badge or cargo icon
+    if (worker.isBrawling) {
+      worker.overrideEmote = null;
+      worker.overrideEmoteTimer = 0;
+      worker.emoteBubble.setVisible(false);
+      worker.brawlBadge?.setVisible(false);
+      worker.cargoIcon.setVisible(false);
+      return;
+    }
 
     // Emote bubble only shown during active reaction/emote timers
     if (worker.overrideEmoteTimer > 0) {
@@ -1104,6 +1178,39 @@ export class WorkerManager implements WorkerContext {
     return jobs;
   }
 
+  /** Player cast from the HUD (camera following this General): fires the skill if it is ready. */
+  public manualCast(workerId: string, slot: 'skill1' | 'skill2' | 'ultimate'): boolean {
+    const worker = this.workers.find((w) => w.id === workerId && w.hp > 0 && w.container.active);
+    if (!worker) return false;
+    const left = slot === 'skill1' ? worker.skill1Cooldown : slot === 'skill2' ? worker.skill2Cooldown : worker.ultimateCooldown;
+    if ((left ?? 0) > 0) return false;
+    const store = useGameStore.getState();
+    const treantLevel = this.workers.find((w) => w.unitClass === 'TREANT')?.treantEvolutionLevel ?? 1;
+    const alive = this.invasionManager ? this.invasionManager.getInvaders().filter((i) => !i.isDead && !i.isRetreating) : [];
+    const frame = computeWorkerFrame(worker, store, treantLevel, 0, alive);
+    if (!frame.config.skills) return false;
+    castChampionSkill(this, worker, frame, slot);
+    return true;
+  }
+
+  /** Skill cooldowns (seconds left / total) of a General, for the HUD. */
+  public skillCooldowns(workerId: string): Record<'skill1' | 'skill2' | 'ultimate', { left: number; total: number }> | null {
+    const worker = this.workers.find((w) => w.id === workerId);
+    const skills = worker ? UNIT_CLASSES[worker.unitClass]?.skills : undefined;
+    if (!worker || !skills) return null;
+    const left = (v: number | undefined) => Math.max(0, v ?? 0);
+    return {
+      skill1: { left: left(worker.skill1Cooldown), total: skills.skill1.cooldownSeconds },
+      skill2: { left: left(worker.skill2Cooldown), total: skills.skill2.cooldownSeconds },
+      ultimate: { left: left(worker.ultimateCooldown), total: skills.ultimate.cooldownSeconds },
+    };
+  }
+
+  /** True while two Generals are brawling (the Sea Folk may rise to join it). */
+  public isBrawlActive(): boolean {
+    return !!this.brawls.brawlers();
+  }
+
   public getWorkers(): WorkerInstance[] {
     return this.workers;
   }
@@ -1199,6 +1306,7 @@ export class WorkerManager implements WorkerContext {
   }
 
   public destroy(): void {
+    window.removeEventListener('isochronicle:activity-command', this.activityCommandListener);
     for (const worker of this.workers) {
       worker.container.destroy();
     }

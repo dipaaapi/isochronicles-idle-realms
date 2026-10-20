@@ -60,7 +60,7 @@ export function computeWorkerFrame(
     if (b.speedMultiplier) slimeBuffSpeedMult = b.speedMultiplier;
     if (b.attackMultiplier) slimeBuffAttackMult = b.attackMultiplier;
     if (b.cargoBonus) classCapacityBonus += b.cargoBonus;
-    if (b.regenPerSec && worker.hp < worker.maxHp) {
+    if (!worker.isBrawling && b.regenPerSec && worker.hp < worker.maxHp) {
       worker.hp = Math.min(worker.maxHp, worker.hp + b.regenPerSec * deltaSec);
     }
     if (worker.activeSlimeBuff.duration <= 0) {

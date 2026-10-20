@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DifficultyFrame } from './DifficultyFrame';
+import { RealmMapPicker } from './RealmMapPicker';
 import { soundFx } from '../game/audio/soundFx';
 import { ArrowRight, ChevronRight, FastForward, Maximize, Minimize } from 'lucide-react';
 import { useGameStore } from '../state/useGameStore';
@@ -281,6 +282,9 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
             </div>
           </fieldset>
         )}
+
+        {/* Island map — coastline style and seed, before anything is built */}
+        {isFinished && <RealmMapPicker isTL={isTL} />}
 
         {/* Footer */}
         <div className="flex flex-wrap justify-between gap-3 items-center pt-3 border-t border-red-900/60">

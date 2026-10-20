@@ -3,6 +3,7 @@ import type { InvaderType, UnitClass } from '../../types/game';
 import { ANIMATION_ORDER, AnimationName, DIRECTION_COUNT, directionFromVector } from './VoxelSprite';
 import { ENEMY_MODELS, INVADER_SPRITE } from './enemyModels';
 import { MINION_MODELS, UNIT_SPRITE } from './minionModels';
+import { SEA_MODELS, type SeaSpriteKey } from './seaModels';
 import type { BakedSheet } from './spriteBake.worker';
 import { useLoadProgress } from '../loadProgress';
 import MOVEMENT from '../../data/minionMovement.json';
@@ -73,7 +74,7 @@ function installSheet(scene: Phaser.Scene, sheet: BakedSheet): void {
 export function prepareCharacterSprites(scene: Phaser.Scene): void {
   for (const sheet of bakedSheets.values()) installSheet(scene, sheet);
   const progress = useLoadProgress.getState();
-  progress.setTotal('characters', Object.keys(MINION_MODELS).length + Object.keys(ENEMY_MODELS).length);
+  progress.setTotal('characters', Object.keys(MINION_MODELS).length + Object.keys(ENEMY_MODELS).length + Object.keys(SEA_MODELS).length);
   progress.setDone('characters', bakedSheets.size);
 
   const onSheet = (sheet: BakedSheet) => {
@@ -97,7 +98,7 @@ const sheetCache = localforage.createInstance({ name: 'IsoChronicle_IdleRealms',
 const CACHE_VERSION = 1;
 
 function fingerprint(key: string): string {
-  const make = MINION_MODELS[key as keyof typeof MINION_MODELS] ?? ENEMY_MODELS[key as keyof typeof ENEMY_MODELS];
+  const make = MINION_MODELS[key as keyof typeof MINION_MODELS] ?? ENEMY_MODELS[key as keyof typeof ENEMY_MODELS] ?? SEA_MODELS[key as SeaSpriteKey];
   const text = `${CACHE_VERSION}|${JSON.stringify(make())}`;
   let h = 0x811c9dc5; // FNV-1a
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
@@ -112,7 +113,7 @@ const publish = (sheet: BakedSheet) => {
 
 async function loadCachedThenBake(): Promise<void> {
   const prints = new Map<string, string>();
-  for (const key of [...Object.keys(MINION_MODELS), ...Object.keys(ENEMY_MODELS)]) {
+  for (const key of [...Object.keys(MINION_MODELS), ...Object.keys(ENEMY_MODELS), ...Object.keys(SEA_MODELS)]) {
     if (bakedSheets.has(key)) continue;
     const print = fingerprint(key);
     prints.set(key, print);
@@ -125,7 +126,7 @@ async function loadCachedThenBake(): Promise<void> {
   }
 
   // Spread the bake over the spare cores (2–4 workers), minions dealt out first so they appear first
-  const missing = [...Object.keys(MINION_MODELS), ...Object.keys(ENEMY_MODELS)].filter((k) => !bakedSheets.has(k));
+  const missing = [...Object.keys(MINION_MODELS), ...Object.keys(ENEMY_MODELS), ...Object.keys(SEA_MODELS)].filter((k) => !bakedSheets.has(k));
   const count = Math.max(2, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
   const batches: string[][] = Array.from({ length: count }, () => []);
   missing.forEach((key, i) => batches[i % count].push(key));
@@ -170,6 +171,15 @@ export function createEnemySprite(scene: Phaser.Scene, type: InvaderType): Phase
 /** Sprite for a minion class, or null while its sheet is still baking. */
 export function createMinionSprite(scene: Phaser.Scene, unitClass: UnitClass): Phaser.GameObjects.Sprite | null {
   return createSprite(scene, UNIT_SPRITE[unitClass]);
+}
+
+/** Sea Folk creature sprite (mermaid, piranha, kappa, leviathan), or null while baking. */
+export function createSeaSprite(scene: Phaser.Scene, key: SeaSpriteKey): Phaser.GameObjects.Sprite | null {
+  return createSprite(scene, key);
+}
+
+export function seaSpriteHeadroom(key: SeaSpriteKey): number | null {
+  return bakedSheets.get(key)?.headroom ?? null;
 }
 
 /** Mini sapling summoned by the Sapling Grove, or null while its sheet is still baking. */

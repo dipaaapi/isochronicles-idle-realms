@@ -268,3 +268,8 @@ export function nearestName(
 
 /** UI strings for the tray. */
 export const activityUi = catalog.ui;
+
+// Dev server only (compiled out of every build): lets test scripts read the log
+if (typeof __DEV_TOOLS__ !== 'undefined' && __DEV_TOOLS__ && typeof window !== 'undefined') {
+  (window as unknown as { __isoLog?: typeof useActivityLog }).__isoLog = useActivityLog;
+}

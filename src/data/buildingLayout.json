@@ -153,5 +153,72 @@
         "y": 27
       }
     }
-  ]
+  ],
+  "coast": {
+    "_doc": "Seeded coastline: each layout carves coves and bays into the island rim in the chosen style. maxDepth = tiles a bay may bite inland, roughness = 0..1 small-scale wobble, smoothPasses = passes that drown land tiles with 3+ water sides. keepCastle / keepRift = land always kept around the citadel and each rift zone. NONE is used by saves from before coastlines (their buildings never move). maxShare = most of the land a style may drown (bays shrink until they fit, so all thirteen sites still have room).",
+    "keepCastle": 3,
+    "keepRift": 3,
+    "styles": {
+      "NONE": {
+        "maxDepth": 0,
+        "roughness": 0,
+        "smoothPasses": 0,
+        "icon": "⬜",
+        "name": {
+          "en": "Classic Square",
+          "tl": "Klasikong Parisukat"
+        },
+        "desc": {
+          "en": "The old straight-edged platform.",
+          "tl": "Ang lumang tuwid na plataporma."
+        },
+        "maxShare": 0
+      },
+      "CALM": {
+        "maxDepth": 2,
+        "roughness": 0.25,
+        "smoothPasses": 1,
+        "icon": "🏝️",
+        "name": {
+          "en": "Calm Shores",
+          "tl": "Payapang Baybayin"
+        },
+        "desc": {
+          "en": "Gentle curves, the most land to build on.",
+          "tl": "Banayad na kurba, pinakamaraming lupang mapagtatayuan."
+        },
+        "maxShare": 0.04
+      },
+      "BAYS": {
+        "maxDepth": 4,
+        "roughness": 0.4,
+        "smoothPasses": 1,
+        "icon": "🌊",
+        "name": {
+          "en": "Winding Bays",
+          "tl": "Paliko-likong Look"
+        },
+        "desc": {
+          "en": "Deep bays and headlands on every side.",
+          "tl": "Malalalim na look at tangway sa bawat gilid."
+        },
+        "maxShare": 0.07
+      },
+      "WILD": {
+        "maxDepth": 6,
+        "roughness": 0.65,
+        "smoothPasses": 2,
+        "icon": "🌀",
+        "name": {
+          "en": "Shattered Coast",
+          "tl": "Basag na Baybayin"
+        },
+        "desc": {
+          "en": "Ragged, deeply bitten coast; less room, more water for fishers.",
+          "tl": "Gutay-gutay at malalim na baybayin; mas maliit na lupa, mas maraming tubig para sa mangingisda."
+        },
+        "maxShare": 0.1
+      }
+    }
+  }
 }

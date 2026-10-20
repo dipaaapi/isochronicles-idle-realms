@@ -12,13 +12,15 @@ export const WALK_WATER = 1;
 export const WALK_SOLID = 2;
 /** Road over a canal: land units walk across, water units swim under. */
 export const WALK_BRIDGE = 3;
+/** Raised terrain carved by the Ancient Caterpillar: only flyers (the 'any' movers) cross it. */
+export const WALK_CLIFF = 4;
 
 /** Which tiles a unit may stand on: land (+bridges), water (+bridges) or anything (flyers, amphibians). */
 export type MoveMode = 'land' | 'water' | 'any';
 export const TILES_FOR: Record<MoveMode, number[]> = {
   land: [WALK_LAND, WALK_BRIDGE],
   water: [WALK_WATER, WALK_BRIDGE],
-  any: [WALK_LAND, WALK_WATER, WALK_BRIDGE],
+  any: [WALK_LAND, WALK_WATER, WALK_BRIDGE, WALK_CLIFF],
 };
 
 export interface SolidArea {

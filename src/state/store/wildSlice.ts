@@ -1,0 +1,105 @@
+import { soundFx } from '../../game/audio/soundFx';
+import { logMessage } from '../activityLog';
+import { WILD_FACTIONS, clampMeter, wildTributeCost } from '../wildFactions';
+import type { SliceArgs } from './types';
+
+const BROOD = WILD_FACTIONS.BROOD;
+const uniq = (keys: string[]) => [...new Set(keys)];
+
+/**
+ * Sand Brood meter / truce / tribute, and the living terrain: land the sea has
+ * claimed (flooded), land the Leviathan is eating (flooding, becomes sea when
+ * it dies or leaves) and sand the Ancient Caterpillar dug (settles back into
+ * land after sandDays days). Tile keys are "x,y".
+ */
+export const createWildSlice = (...[set, get]: SliceArgs) => ({
+  stirBrood: (amount: number) => {
+    if (!amount) return;
+    set((prev) => ({ broodUnrest: clampMeter(BROOD, prev.broodUnrest + amount) }));
+  },
+
+  offerBroodTribute: (): boolean => {
+    const state = get();
+    if (!state.spendResources(wildTributeCost(BROOD, state.broodUnrest))) return false;
+    set({
+      broodUnrest: clampMeter(BROOD, state.broodUnrest - BROOD.tribute.cleanse),
+      broodTruceWaves: BROOD.tribute.truceWaves,
+      lastSavedTimestamp: Date.now(),
+    });
+    soundFx.playFanfare();
+    logMessage('broodTribute', { waves: BROOD.tribute.truceWaves });
+    return true;
+  },
+
+  spendBroodTruceWave: () => {
+    set((prev) => ({ broodTruceWaves: Math.max(0, prev.broodTruceWaves - 1) }));
+  },
+
+  /** The Caterpillar dug these land tiles into sand (today's day stamp). */
+  digSand: (keys: string[]) => {
+    if (!keys.length) return;
+    set((prev) => {
+      const terrainSand = { ...prev.terrainSand };
+      for (const k of keys) if (!prev.terrainFlooded.includes(k)) terrainSand[k] = prev.day;
+      return { terrainSand };
+    });
+  },
+
+  /** The Leviathan is eating these shore tiles; they turn to sea once it is gone. */
+  markFlooding: (keys: string[]) => {
+    if (!keys.length) return;
+    set((prev) => ({ terrainFlooding: uniq([...prev.terrainFlooding, ...keys.filter((k) => !prev.terrainFlooded.includes(k))]) }));
+  },
+
+  /** The Leviathan died or left: every tile it was eating becomes ocean for good. */
+  floodPending: () => {
+    set((prev) => {
+      if (!prev.terrainFlooding.length) return prev;
+      const terrainSand = { ...prev.terrainSand };
+      for (const k of prev.terrainFlooding) delete terrainSand[k];
+      return { terrainFlooded: uniq([...prev.terrainFlooded, ...prev.terrainFlooding]), terrainFlooding: [], terrainSand, lastSavedTimestamp: Date.now() };
+    });
+  },
+
+  /**
+   * The Ancient Caterpillar surfaced and heaved the ground around it:
+   * sea it filled becomes sand (land), sand becomes plain land, land becomes
+   * raised rock (only flyers cross it until the next day).
+   */
+  applyCarve: (carve: { filled: string[]; toSand: string[]; toLand: string[]; raised: string[] }) => {
+    set((prev) => {
+      const terrainSand = { ...prev.terrainSand };
+      const terrainRaised = { ...prev.terrainRaised };
+      for (const k of carve.toLand) delete terrainSand[k];
+      for (const k of [...carve.filled, ...carve.toSand]) terrainSand[k] = prev.day;
+      for (const k of carve.raised) terrainRaised[k] = prev.day;
+      const filled = new Set(carve.filled);
+      return {
+        terrainSand,
+        terrainRaised,
+        terrainFilled: uniq([...prev.terrainFilled, ...carve.filled]),
+        terrainFlooded: prev.terrainFlooded.filter((k) => !filled.has(k)),
+        lastSavedTimestamp: Date.now(),
+      };
+    });
+  },
+
+  /** A new day: raised rock settles back into plain land. */
+  liftRaised: () => {
+    set((prev) => {
+      const entries = Object.entries(prev.terrainRaised);
+      const kept = entries.filter(([, day]) => day >= prev.day);
+      return kept.length === entries.length ? prev : { terrainRaised: Object.fromEntries(kept) };
+    });
+  },
+
+  /** Dug sand older than sandDays settles back into flat land. */
+  settleSand: () => {
+    const days = BROOD.terrain?.sandDays ?? 6;
+    set((prev) => {
+      const entries = Object.entries(prev.terrainSand);
+      const kept = entries.filter(([, dug]) => prev.day - dug < days && prev.day >= dug);
+      return kept.length === entries.length ? prev : { terrainSand: Object.fromEntries(kept) };
+    });
+  },
+});

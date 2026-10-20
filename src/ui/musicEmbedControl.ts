@@ -15,6 +15,9 @@ import type { MusicSource } from '../state/externalMusic';
 const YT_ORIGIN = 'https://www.youtube-nocookie.com';
 const YT_ENDED = 0;
 const YT_PLAYING = 1;
+const YT_PAUSED = 2;
+const YT_UNSTARTED = -1;
+const YT_CUED = 5;
 
 export interface EmbedControl {
   /** Attach to the iframe's `ref`. */
@@ -48,6 +51,9 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
   const readyFor = useRef('');
   const pendingPlay = useRef(false);
   const ended = useRef(false);
+  /** The player should be playing (set by play, cleared by pause): keeps auto-play going in a background tab. */
+  const wantPlay = useRef(false);
+  const lastNudge = useRef(0);
   const playlistPos = useRef<{ index: number; length: number } | null>(null);
   const sourceKey = keyOf(source);
 
@@ -89,8 +95,10 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
     playlistPos.current = null;
     const src = sourceRef.current;
     if (src && iframeRef.current && readyFor.current !== '' && src.provider === 'YOUTUBE') {
-      if (src.kind === 'playlist') ytCommand('cuePlaylist', [{ list: src.id, listType: 'playlist', index: 0 }]);
-      else ytCommand('cueVideoById', [{ videoId: src.id }]);
+      // load* starts playback by itself (cue* would wait for a play command the background tab may not deliver)
+      const keepPlaying = wantPlay.current || pendingPlay.current;
+      if (src.kind === 'playlist') ytCommand(keepPlaying ? 'loadPlaylist' : 'cuePlaylist', [{ list: src.id, listType: 'playlist', index: 0 }]);
+      else ytCommand(keepPlaying ? 'loadVideoById' : 'cueVideoById', [{ videoId: src.id }]);
       readyFor.current = '';
       markReady();
       return;
@@ -126,6 +134,14 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
         }
         if (state === null) return;
         setPlaying(state === YT_PLAYING);
+        // Play/pause pressed inside the YouTube frame counts too (a pause while the tab is hidden does not)
+        if (state === YT_PLAYING) wantPlay.current = true;
+        else if (state === YT_PAUSED && !document.hidden) wantPlay.current = false;
+        // Unfocused tab: a new video can sit cued/unstarted; nudge it once a second until it plays
+        if ((state === YT_CUED || state === YT_UNSTARTED) && wantPlay.current && Date.now() - lastNudge.current > 1000) {
+          lastNudge.current = Date.now();
+          ytCommand('playVideo');
+        }
         if (state === YT_ENDED && !ended.current) {
           // Inside a YouTube playlist only the last video ends the entry
           const pos = playlistPos.current;
@@ -138,7 +154,7 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
     };
     window.addEventListener('message', handle);
     return () => window.removeEventListener('message', handle);
-  }, [iframe, markReady]);
+  }, [iframe, markReady, ytCommand]);
 
   const ref = useCallback((el: HTMLIFrameElement | null) => {
     // A new iframe (reopened / switched entry) has to report ready again
@@ -159,18 +175,21 @@ export const useEmbedControl = (source: MusicSource | null, onEnded: () => void)
   }, [post]);
 
   const play = useCallback(() => {
+    wantPlay.current = true;
     if (readyFor.current === keyOf(sourceRef.current)) sendPlay();
     else pendingPlay.current = true;
   }, [sendPlay]);
 
   const pause = useCallback(() => {
     pendingPlay.current = false;
+    wantPlay.current = false;
     if (isYouTube()) ytCommand('pauseVideo');
     else post({ command: 'pause' });
   }, [post, ytCommand]);
 
   const restart = useCallback(() => {
     ended.current = false;
+    wantPlay.current = true;
     if (isYouTube()) {
       if (sourceRef.current?.kind === 'playlist') ytCommand('playVideoAt', [0]);
       else {

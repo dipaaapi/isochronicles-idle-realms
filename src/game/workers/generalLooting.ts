@@ -24,6 +24,7 @@ export function updateGeneralLooting(
   deltaSec: number,
   effectiveSpeed: number
 ): boolean {
+  if (worker.isBrawling) return true;
   // Water Generals can't walk onto land drops: leave them to the land Generals
   if (!loot || minionMoveMode(worker.unitClass) === 'water') return false;
   const carried = (worker.carriedLoot ?? []).filter((id, i) => loot.carry(id, worker.container.x, worker.container.y, i));

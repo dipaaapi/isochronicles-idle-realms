@@ -1,0 +1,270 @@
+{ "frames": [
+   {
+    "filename": "ignite-0",
+    "frame": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "ignite-1",
+    "frame": { "x": 32, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "ignite-2",
+    "frame": { "x": 64, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "ignite-3",
+    "frame": { "x": 96, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "burn-0",
+    "frame": { "x": 128, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "burn-1",
+    "frame": { "x": 160, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "burn-2",
+    "frame": { "x": 192, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "burn-3",
+    "frame": { "x": 224, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "burn-4",
+    "frame": { "x": 256, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "burn-5",
+    "frame": { "x": 288, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "blaze-0",
+    "frame": { "x": 320, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "blaze-1",
+    "frame": { "x": 352, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "blaze-2",
+    "frame": { "x": 384, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "blaze-3",
+    "frame": { "x": 416, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "blaze-4",
+    "frame": { "x": 448, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "blaze-5",
+    "frame": { "x": 480, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoulder-0",
+    "frame": { "x": 512, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoulder-1",
+    "frame": { "x": 544, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoulder-2",
+    "frame": { "x": 576, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoulder-3",
+    "frame": { "x": 608, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-0",
+    "frame": { "x": 640, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-1",
+    "frame": { "x": 672, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-2",
+    "frame": { "x": 704, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-3",
+    "frame": { "x": 736, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-4",
+    "frame": { "x": 768, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-5",
+    "frame": { "x": 800, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-6",
+    "frame": { "x": 832, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   },
+   {
+    "filename": "smoke-7",
+    "frame": { "x": 864, "y": 0, "w": 32, "h": 40 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 40 },
+    "sourceSize": { "w": 32, "h": 40 },
+    "duration": 65535
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.18.6-x64",
+  "image": "fire.png",
+  "format": "RGBA8888",
+  "size": { "w": 896, "h": 40 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "ignite", "from": 0, "to": 3, "direction": "forward", "color": "#000000ff" },
+   { "name": "burn", "from": 4, "to": 9, "direction": "forward", "color": "#000000ff" },
+   { "name": "blaze", "from": 10, "to": 15, "direction": "forward", "color": "#000000ff" },
+   { "name": "smoulder", "from": 16, "to": 19, "direction": "forward", "color": "#000000ff" },
+   { "name": "smoke", "from": 20, "to": 27, "direction": "forward", "color": "#000000ff" }
+  ]
+ }
+}

@@ -1,3 +1,4 @@
+import { syncSteamAchievements } from './achievements';
 import { loadMusicPrefs, saveMusicPrefs } from './externalMusic';
 import { recommendedFps } from './deviceProfile';
 import { create } from 'zustand';
@@ -12,6 +13,8 @@ import { createPersistenceSlice, persistOptions } from './store/persistence';
 import { createProgressionSlice } from './store/progressionSlice';
 import { createRosterSlice } from './store/rosterSlice';
 import { createRunesSlice } from './store/runesSlice';
+import { createSeaSlice } from './store/seaSlice';
+import { createWildSlice } from './store/wildSlice';
 import { TARGET_FPS_STORAGE_KEY, createWorldSlice } from './store/worldSlice';
 import type { StoreGet, StoreSet } from './store/types';
 
@@ -49,6 +52,8 @@ const createGameStore = (set: StoreSet, get: StoreGet): GameStoreState => ({
   ...createEconomySlice(set, get),
   ...createRosterSlice(set, get),
   ...createRunesSlice(set, get),
+  ...createSeaSlice(set, get),
+  ...createWildSlice(set, get),
   ...createBuildingsSlice(set, get),
   ...createDefenseSlice(set, get),
   ...createProgressionSlice(set, get),
@@ -63,3 +68,11 @@ useGameStore.subscribe((s, prev) => {
       s.musicAutoPlay === prev.musicAutoPlay && s.musicLoop === prev.musicLoop) return;
   saveMusicPrefs({ musicLibrary: s.musicLibrary, musicIndex: s.musicIndex, musicAutoPlay: s.musicAutoPlay, musicLoop: s.musicLoop });
 });
+
+// Steam build: re-send achievements already in the save (Steam ignores ones it has)
+useGameStore.persist?.onFinishHydration((s) => syncSteamAchievements(s.achievements.map((a) => a.id)));
+
+// Dev server only (compiled out of every build): lets scripts/steam-capture.cjs stage store screenshots
+if (typeof __DEV_TOOLS__ !== 'undefined' && __DEV_TOOLS__ && typeof window !== 'undefined') {
+  (window as unknown as { __isoStore?: typeof useGameStore }).__isoStore = useGameStore;
+}

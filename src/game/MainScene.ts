@@ -6,8 +6,20 @@ import { TileInfo, TileType } from '../types/game';
 import { TimeOfDayPhase, WeatherType } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { ProceduralRenderer, getTileColors } from './ProceduralRenderer';
+import { WildFactionManager } from './WildFactionManager';
+import { useFocusGeneral } from '../state/focusGeneral';
+import { spawnSmoke } from './battleFx';
+import { WILD_FACTIONS } from '../state/wildFactions';
+import type { WorkerInstance } from './workers/types';
+import { UNIT_CLASSES } from '../types/game';
+import { coastDistance, isCoastalTile, makeCoastField, makeSetField, type CoastField } from './scene/coastField';
 import {
   paintTile,
+  paintCoast,
+  isTopPixel,
+  COAST_LAND,
+  COAST_BANK,
+  type PixelBuffer,
   ART_PIXEL,
   TILE_ART_W,
   TILE_ART_H,
@@ -29,7 +41,7 @@ import { useLoadProgress } from './loadProgress';
 import { WorldEffects } from './WorldEffects';
 import { DefenderSystem } from './DefenderSystem';
 import { SkillSystem } from './skills/SkillSystem';
-import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_WATER } from './Navigation';
+import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_CLIFF, WALK_WATER } from './Navigation';
 import { StructureManager } from './StructureManager';
 import { PortalManager } from './PortalManager';
 import { ForceFieldSystem } from './ForceFieldSystem';
@@ -53,6 +65,14 @@ import {
   isPortalTile,
   isRiftTowerTile,
   isCanalTile,
+  isWaterTile,
+  isProtectedTile,
+  isLandTile,
+  isSandTile,
+  isRaisedTile,
+  isFillableTile,
+  isWetTile,
+  setTerrainEdits,
   ROADS_BY_BUILDING,
   SPIRE_FOOTPRINT,
   TileRect,
@@ -97,6 +117,11 @@ export class MainScene extends Phaser.Scene {
   private invasionManager!: InvasionManager;
   private groundLoot!: GroundLootManager;
   private fpsController!: FPSController;
+  /** Frame counter / summed delta for the FPS-calibrated ambient layers. */
+  private _ambientFrame = 0;
+  private _ambientDelta = 0;
+  private _ambientTier: 'LOW' | 'MEDIUM' | 'HIGH' = 'HIGH';
+  private _ambientTierHold = 0;
   private graphicsFx!: GraphicsFx;
   private pavedStructures: Set<string> = new Set();
 
@@ -123,6 +148,10 @@ export class MainScene extends Phaser.Scene {
   private waterFx?: WaterFx;
   private waterLife?: WaterLife;
   private defenders!: DefenderSystem;
+  /** The ancient wild factions: the Sea Folk (water) and the Sand Brood (land). */
+  private wild: WildFactionManager[] = [];
+  private terrainUnsub?: () => void;
+  private terrainTimer?: Phaser.Time.TimerEvent;
   private skills!: SkillSystem;
   private bloomGfx?: Phaser.GameObjects.Graphics;
   private lastBloomKey: string = '';
@@ -308,6 +337,13 @@ export class MainScene extends Phaser.Scene {
     this.castleAlarm = new CastleAlarm(this, this.airFxLayer, this.structures, raiders);
     this.fires = new FireSystem(this, this.airFxLayer, this.structures, this.invasionManager, (x, y) => this.nav.allows(x, y, 'land'));
     this.defenders.setFireSystem(this.fires);
+    // Sea Folk: silhouettes swim under the curved shore, risen creatures stand with the units
+    const underwater = this.add.container(0, 0);
+    this.groundFxLayer.addAt(underwater, 1);
+    // Burrow mounds of the Sand Brood move over the ground (above the shore, under the units)
+    const burrows = this.add.container(0, 0);
+    this.groundFxLayer.add(burrows);
+    this.createWildFactions(underwater, burrows);
     this.workerManager.setFireSystem(this.fires);
     this.structures.setForceFields(this.forceFields);
     this.portals.setForceFields(this.forceFields);
@@ -320,7 +356,7 @@ export class MainScene extends Phaser.Scene {
         ...this.defenders.getDefenders().filter((d) => !d.dead && d.container.active).map((d) => d.container),
       ],
       () => this.dpr,
-      (x, y) => this.focusOn(x, y),
+      (target) => this.glideTo(target, Math.max(this.userZoom, 1.4), 750),
       () => {
         const pair = this.workerManager.getBrawlers();
         if (!pair) return null;
@@ -472,6 +508,10 @@ export class MainScene extends Phaser.Scene {
   }
 
   private generateIslandData(): void {
+    // Living terrain first: flooded shore is water, dug sand / eaten shore stays land
+    const t = useGameStore.getState();
+    setTerrainEdits(t.terrainFlooded, Object.keys(t.terrainSand), t.terrainFlooding, Object.keys(t.terrainRaised), t.terrainFilled);
+    this.buildTerrainFields();
     const matrix: TileInfo[][] = [];
     const store = useGameStore.getState();
 
@@ -511,7 +551,7 @@ export class MainScene extends Phaser.Scene {
           type = 'SPAWN_BLOCK'; // the 2×2 rift dais
         } else if (isRiftTowerTile(x, y)) {
           type = 'ANCIENT_STONE'; // Rift Sentinel plinths
-        } else if (x === 0 || y === 0 || x === this.mapWidth - 1 || y === this.mapHeight - 1 || isCanalTile(x, y)) {
+        } else if (isWaterTile(x, y)) { // ocean ring, canals and this realm's coves
           type = 'OCEAN_BLOCK';
           walkable = false;
         } else if (rectContainsTile(CASTLE_FOOTPRINT, x, y)) {
@@ -549,6 +589,7 @@ export class MainScene extends Phaser.Scene {
     // Waterfalls off the front rims + bridges over the canals
     this.waterFx = new WaterFx(this, this.groundFxLayer);
     this.waterLife = new WaterLife(this, this.groundFxLayer, useGameStore.getState().platformPhase || 1);
+    this.createShoreLayer();
 
     // Ocean swell, foam and crests are painted into the tiles (PixelTileArt paintWater)
 
@@ -604,10 +645,16 @@ export class MainScene extends Phaser.Scene {
     if (!atlas) return;
     atlas.setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.tileAtlas = atlas;
+    const shoreKey = MainScene.SHORE_ATLAS_KEY;
+    if (this.textures.exists(shoreKey)) this.textures.remove(shoreKey);
+    this.shoreAtlas = this.textures.createCanvas(shoreKey, atlas.width, atlas.height) ?? undefined;
+    this.shoreAtlas?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.coastField = makeCoastField(useGameStore.getState().layoutSeed);
 
     for (let y = 0; y < this.mapHeight; y++) {
       for (let x = 0; x < this.mapWidth; x++) {
         atlas.add(`${x},${y}`, 0, x * TILE_ART_W, y * TILE_ART_H, TILE_ART_W, TILE_ART_H);
+        this.shoreAtlas?.add(`${x},${y}`, 0, x * TILE_ART_W, y * TILE_ART_H, TILE_ART_W, TILE_ART_H);
       }
     }
     this.renderPlatformTiles();
@@ -642,47 +689,40 @@ export class MainScene extends Phaser.Scene {
     return { px: land(x + 1, y), nx: land(x - 1, y), py: land(x, y + 1), ny: land(x, y - 1) };
   }
 
-  /** Repaints every tile into the atlas (on creation and whenever the realm phase changes). */
-  private renderPlatformTiles(): void {
-    const atlas = this.tileAtlas;
-    if (!atlas) return;
-    const imageData = atlas.context.createImageData(atlas.width, atlas.height);
-    const buffer = { data: imageData.data, width: atlas.width };
+  /** Curved living-terrain fields (sand / soaked shore / raised rock), rebuilt when the terrain changes. */
+  private terrainFields?: { sand: CoastField; wet: CoastField; raised: CoastField };
 
-    for (let y = 0; y < this.mapHeight; y++) {
-      for (let x = 0; x < this.mapWidth; x++) {
-        const tile = this.tiles[y][x];
-        const colors = getTileColors(tile.type, (x + y) % 2 === 0, this.currentPlatformPhase);
-        if (!colors) continue;
-        paintTile(buffer, x * TILE_ART_W, y * TILE_ART_H, {
-          type: tile.type,
-          colors,
-          gridX: x,
-          gridY: y,
-          cliffLeft: y === this.mapHeight - 1,
-          cliffRight: x === this.mapWidth - 1,
-          platformPhase: this.currentPlatformPhase,
-          difficulty: this.currentDifficulty,
-          shore: this.shoreOf(x, y),
-        });
-      }
-    }
-
-    atlas.context.putImageData(imageData, 0, 0);
-    atlas.refresh();
+  private buildTerrainFields(): void {
+    const seed = useGameStore.getState().layoutSeed;
+    this.terrainFields = {
+      sand: makeSetField(isSandTile, seed),
+      wet: makeSetField(isWetTile, seed + 7),
+      raised: makeSetField(isRaisedTile, seed + 13, 0.2),
+    };
   }
 
-  /** Repaints a single tile frame in the atlas canvas dynamically without refreshing the page or scene. */
-  public repaintSingleTile(x: number, y: number): void {
-    const atlas = this.tileAtlas;
-    if (!atlas) return;
-    const tile = this.tiles[y]?.[x];
-    if (!tile) return;
-    const colors = getTileColors(tile.type, (x + y) % 2 === 0, this.currentPlatformPhase);
+  /** The curved coastline field for this layout (rebuilt with the scene). */
+  private coastField?: CoastField;
+  private shoreAtlas?: Phaser.Textures.CanvasTexture;
+  private shoreLayer?: Phaser.GameObjects.Container;
+  private static readonly SHORE_ATLAS_KEY = 'iso-shore-tiles';
+
+  /** Tiles drawn again over the animated water: the coast passes through them or right next to them. */
+  private inShoreSet(x: number, y: number): boolean {
+    return isCoastalTile(x, y) || (!isWaterTile(x, y) && coastDistance(x, y, 2) <= 2);
+  }
+
+  /**
+   * Paints one tile (and, near the coast, its curved shoreline) into `buffer`.
+   * When `shore` is given, the pixels that must sit above the animated water
+   * (land, beach, bank) are copied into it.
+   */
+  private paintTileInto(buffer: PixelBuffer, ox: number, oy: number, x: number, y: number, shore?: PixelBuffer, sx = ox, sy = oy): void {
+    const tile = this.tiles[y][x];
+    // Grass takes one colour (its shading varies smoothly in PixelTileArt); others keep the checker
+    const colors = getTileColors(tile.type, tile.type !== 'AETHER_GRASS' && (x + y) % 2 === 0, this.currentPlatformPhase);
     if (!colors) return;
-    const imgData = atlas.context.createImageData(TILE_ART_W, TILE_ART_H);
-    const buffer = { data: imgData.data, width: TILE_ART_W };
-    paintTile(buffer, 0, 0, {
+    const spec = {
       type: tile.type,
       colors,
       gridX: x,
@@ -692,9 +732,223 @@ export class MainScene extends Phaser.Scene {
       platformPhase: this.currentPlatformPhase,
       difficulty: this.currentDifficulty,
       shore: this.shoreOf(x, y),
-    });
-    atlas.context.putImageData(imgData, x * TILE_ART_W, y * TILE_ART_H);
+      seed: useGameStore.getState().layoutSeed,
+      terrain: this.terrainFields,
+    };
+    paintTile(buffer, ox, oy, spec);
+    this.coastField ??= makeCoastField(useGameStore.getState().layoutSeed);
+    let mask: Uint8Array | null = null;
+    if (isCoastalTile(x, y) && tile.type !== 'SPAWN_BLOCK') {
+      const water = getTileColors('OCEAN_BLOCK', (x + y) % 2 === 0, this.currentPlatformPhase)!;
+      const grass = getTileColors('AETHER_GRASS', false, this.currentPlatformPhase)!;
+      mask = paintCoast(buffer, ox, oy, spec, this.coastField, { water, grass });
+    }
+    if (!shore || !this.inShoreSet(x, y)) return;
+    for (let j = 0; j < TILE_ART_H; j++) {
+      for (let i = 0; i < TILE_ART_W; i++) {
+        const keep = mask ? mask[j * TILE_ART_W + i] === COAST_LAND || mask[j * TILE_ART_W + i] === COAST_BANK : tile.type !== 'OCEAN_BLOCK' && isTopPixel(i, j);
+        const src = ((oy + j) * buffer.width + ox + i) * 4;
+        const dst = ((sy + j) * shore.width + sx + i) * 4;
+        const alpha = keep ? buffer.data[src + 3] : 0;
+        shore.data[dst] = buffer.data[src];
+        shore.data[dst + 1] = buffer.data[src + 1];
+        shore.data[dst + 2] = buffer.data[src + 2];
+        shore.data[dst + 3] = alpha;
+      }
+    }
+  }
+
+  /** Repaints every tile into the atlas (on creation and whenever the realm phase changes). */
+  private renderPlatformTiles(): void {
+    const atlas = this.tileAtlas;
+    if (!atlas) return;
+    const imageData = atlas.context.createImageData(atlas.width, atlas.height);
+    const buffer = { data: imageData.data, width: atlas.width };
+    const shoreData = this.shoreAtlas ? this.shoreAtlas.context.createImageData(atlas.width, atlas.height) : null;
+    const shore = shoreData ? { data: shoreData.data, width: atlas.width } : undefined;
+
+    for (let y = 0; y < this.mapHeight; y++) {
+      for (let x = 0; x < this.mapWidth; x++) this.paintTileInto(buffer, x * TILE_ART_W, y * TILE_ART_H, x, y, shore);
+    }
+
+    atlas.context.putImageData(imageData, 0, 0);
     atlas.refresh();
+    if (this.shoreAtlas && shoreData) {
+      this.shoreAtlas.context.putImageData(shoreData, 0, 0);
+      this.shoreAtlas.refresh();
+    }
+  }
+
+  /** Repaints a single tile frame in the atlas canvas dynamically without refreshing the page or scene. */
+  public repaintSingleTile(x: number, y: number, upload = true): void {
+    const atlas = this.tileAtlas;
+    if (!atlas?.context || !this.tiles[y]?.[x]) return;
+    const imgData = atlas.context.createImageData(TILE_ART_W, TILE_ART_H);
+    const buffer = { data: imgData.data, width: TILE_ART_W };
+    const shoreData = this.shoreAtlas ? this.shoreAtlas.context.createImageData(TILE_ART_W, TILE_ART_H) : null;
+    const shore = shoreData ? { data: shoreData.data, width: TILE_ART_W } : undefined;
+    this.paintTileInto(buffer, 0, 0, x, y, shore, 0, 0);
+    atlas.context.putImageData(imgData, x * TILE_ART_W, y * TILE_ART_H);
+    if (upload) atlas.refresh();
+    if (this.shoreAtlas && shoreData && this.inShoreSet(x, y)) {
+      this.shoreAtlas.context.putImageData(shoreData, x * TILE_ART_W, y * TILE_ART_H);
+      if (upload) this.shoreAtlas.refresh();
+    }
+  }
+
+  /**
+   * The Sea Folk and the Sand Brood, rivals of each other and of everyone else.
+   * Their bosses carve the land: the Leviathan eats the shore it fights on
+   * (wet sand that becomes sea when it is gone), the Ancient Caterpillar churns
+   * the land it burrows under into sand that later settles back.
+   */
+  private createWildFactions(underwater: Phaser.GameObjects.Container, burrows: Phaser.GameObjects.Container): void {
+    const store = () => useGameStore.getState();
+    const lang = () => (store().language === 'TL' ? 'tl' : 'en');
+    void lang;
+    const sea = WILD_FACTIONS.SEA;
+    const brood = WILD_FACTIONS.BROOD;
+    let floodClock = 0;
+    const key = (t: { x: number; y: number }) => `${t.x},${t.y}`;
+    const carvable = (x: number, y: number) => isLandTile(x, y) && !isProtectedTile(x, y);
+    const seaFolk = new WildFactionManager({
+      id: 'SEA', data: sea, habitat: 'water',
+      meter: () => store().seaContamination, truce: () => store().seaTruceWaves,
+      stir: (n) => store().stirSea(n), spendTruce: () => store().spendSeaTruceWave(),
+      color: 0x22d3ee, bossColor: 0xa78bfa, silhouetteTint: 0x031a2e,
+      logs: { emerge: 'seaEmerge', boss: 'seaBoss', retreat: 'seaRetreat', level: 'seaLevel', slain: 'seaSlain', skill: 'seaSkill', restless: 'seaRestless', bodyguards: 'seaBodyguards' },
+      // The Leviathan eats the shore around it, a tile at a time
+      onBossTick: (tile, dt) => {
+        floodClock -= dt;
+        if (floodClock > 0) return;
+        floodClock = sea.terrain?.floodEverySeconds ?? 5;
+        const r = sea.terrain?.floodRadius ?? 2;
+        const pending = new Set(store().terrainFlooding);
+        const options: string[] = [];
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          const x = tile.x + dx, y = tile.y + dy;
+          if (!carvable(x, y) || pending.has(`${x},${y}`)) continue;
+          if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ax, ay]) => isWaterTile(x + ax, y + ay))) options.push(`${x},${y}`);
+        }
+        if (options.length) store().markFlooding([options[Math.floor(Math.random() * options.length)]]);
+      },
+      onBossGone: () => {
+        const count = store().terrainFlooding.length;
+        if (!count) return;
+        store().floodPending();
+        logMessage('terrainFlooded', { count });
+      },
+    }, this, underwater, this.entityLayer, this.invasionManager, this.workerManager, this.defenders, this.groundLoot);
+    const sandBrood = new WildFactionManager({
+      id: 'BROOD', data: brood, habitat: 'land',
+      meter: () => store().broodUnrest, truce: () => store().broodTruceWaves,
+      stir: (n) => store().stirBrood(n), spendTruce: () => store().spendBroodTruceWave(),
+      color: 0xd6a35c, bossColor: 0xc084fc, silhouetteTint: 0x5b3a1a,
+      logs: { emerge: 'broodEmerge', boss: 'broodBoss', retreat: 'broodRetreat', level: 'broodLevel', slain: 'broodSlain', skill: 'broodSkill', restless: 'broodRestless', bodyguards: 'broodBodyguards' },
+      // Where the Caterpillar surfaces it heaves a rounded patch of ground:
+      // sea -> sand, sand -> land, land -> raised rock (only flyers cross it until the next day)
+      onCarve: (tile, radius) => this.carveAround(tile, radius),
+      onDayChange: () => { store().settleSand(); store().liftRaised(); },
+    }, this, burrows, this.entityLayer, this.invasionManager, this.workerManager, this.defenders, this.groundLoot);
+    this.wild = [seaFolk, sandBrood];
+    // Stop listening to the store as soon as this scene goes away (a new realm remounts the scene)
+    const stop = () => { this.terrainUnsub?.(); this.terrainUnsub = undefined; this.terrainTimer?.remove(); };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, stop);
+    this.events.once(Phaser.Scenes.Events.DESTROY, stop);
+    for (const w of this.wild) w.setRivals(this.wild);
+
+    // Repaint the land as it changes: sand / wet shore per tile, flooding re-lays the island
+    this.terrainUnsub = useGameStore.subscribe((now, prev) => {
+      if (!this.tileAtlas?.context || !this.sys.isActive()) return; // a scene that is shutting down
+      // Sea <-> land changes re-lay the whole island; everything else repaints only the tiles around it
+      if (now.terrainFlooded !== prev.terrainFlooded || now.terrainFilled !== prev.terrainFilled) {
+        this.terrainTimer?.remove();
+        this.terrainTimer = this.time.delayedCall(400, () => this.refreshTerrain());
+        return;
+      }
+      if (now.terrainSand === prev.terrainSand && now.terrainFlooding === prev.terrainFlooding && now.terrainRaised === prev.terrainRaised) return;
+      setTerrainEdits(now.terrainFlooded, Object.keys(now.terrainSand), now.terrainFlooding, Object.keys(now.terrainRaised), now.terrainFilled);
+      this.buildTerrainFields();
+      const changed = new Set<string>();
+      for (const k of new Set([...Object.keys(now.terrainSand), ...Object.keys(prev.terrainSand)])) if ((now.terrainSand[k] === undefined) !== (prev.terrainSand[k] === undefined)) changed.add(k);
+      for (const k of new Set([...now.terrainFlooding, ...prev.terrainFlooding])) if (now.terrainFlooding.includes(k) !== prev.terrainFlooding.includes(k)) changed.add(k);
+      const raisedChanged = now.terrainRaised !== prev.terrainRaised;
+      for (const k of new Set([...Object.keys(now.terrainRaised), ...Object.keys(prev.terrainRaised)])) if ((now.terrainRaised[k] === undefined) !== (prev.terrainRaised[k] === undefined)) changed.add(k);
+      // Raised rock blocks walkers: update the walk grid (cheap) without re-laying tiles
+      if (raisedChanged) this.nav.setBaseGrid(this.buildWalkGrid());
+      // The patches are curved and spill into neighbours: repaint the ring around every change
+      const ring = new Set<string>();
+      for (const k of changed) {
+        const [cx, cy] = k.split(',').map(Number);
+        for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 2; dx++) ring.add(`${cx + dx},${cy + dy}`);
+      }
+      for (const k of ring) {
+        const [x, y] = k.split(',').map(Number);
+        if (x < 0 || y < 0 || x >= this.mapWidth || y >= this.mapHeight) continue;
+        this.repaintSingleTile(x, y, false); // one texture upload after the batch
+        if (!changed.has(k)) continue;
+        if (isLandTile(x, y)) spawnSmoke(IsometricHelper.gridToScreen(x, y).x, IsometricHelper.gridToScreen(x, y).y - 4, 0.8, 0);
+      }
+      this.tileAtlas?.refresh();
+      this.shoreAtlas?.refresh();
+    });
+  }
+
+  /**
+   * The Ancient Caterpillar surfaced: every unprotected tile in a wobbly circle
+   * around it changes one step — fillable sea to sand, sand to land, land to
+   * raised rock. Roads, buildings, the citadel and the rifts are never touched.
+   */
+  private carveAround(center: { x: number; y: number }, radius: number): void {
+    const s = useGameStore.getState();
+    const carve = { filled: [] as string[], toSand: [] as string[], toLand: [] as string[], raised: [] as string[] };
+    const seed = Math.random() * 10;
+    const r = Math.ceil(radius);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = center.x + dx, y = center.y + dy;
+      const a = Math.atan2(dy, dx);
+      const edge = radius * (0.75 + 0.25 * Math.sin(a * 3 + seed) + 0.12 * Math.sin(a * 5 - seed * 2));
+      if (Math.hypot(dx, dy) > edge || isProtectedTile(x, y) || isPortalTile(x, y)) continue;
+      const k = `${x},${y}`;
+      if (isFillableTile(x, y)) carve.filled.push(k);
+      else if (!isLandTile(x, y) || s.terrainRaised[k] !== undefined || s.terrainFlooding.includes(k)) continue;
+      else if (s.terrainSand[k] !== undefined) carve.toLand.push(k);
+      else carve.raised.push(k);
+    }
+    if (carve.filled.length + carve.toLand.length + carve.raised.length === 0) return;
+    s.applyCarve(carve);
+    this.cameras.main.shake(350, 0.004);
+    logMessage('terrainHeaved', { raised: carve.raised.length, filled: carve.filled.length });
+  }
+
+  /** The sea claimed shore: re-lay tiles, walkways, water surface, curved shore and the factions' terrain. */
+  private refreshTerrain(): void {
+    if (!this.tileAtlas?.context || !this.sys.isActive()) return;
+    this.generateIslandData();
+    this.renderPlatformTiles();
+    this.nav.setBaseGrid(this.buildWalkGrid());
+    this.waterLife?.rebuild();
+    this.createShoreLayer();
+    for (const w of this.wild) w.refreshTiles();
+  }
+
+  /** Coastal tiles drawn again above the animated water, so the curved shore stays on top of it. */
+  private createShoreLayer(): void {
+    if (!this.groundFxLayer || !this.shoreAtlas) return;
+    if (this.shoreLayer) this.shoreLayer.removeAll(true); // rebuilt in place after the terrain changes
+    else {
+      this.shoreLayer = this.add.container(0, 0);
+      this.groundFxLayer.addAt(this.shoreLayer, 1); // just above the water surface (index 0)
+    }
+    const order: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < this.mapHeight; y++) for (let x = 0; x < this.mapWidth; x++) if (this.inShoreSet(x, y)) order.push({ x, y });
+    order.sort((a, b) => a.x + a.y - (b.x + b.y) || a.x - b.x);
+    for (const { x, y } of order) {
+      const p = IsometricHelper.gridToScreen(x, y);
+      const img = this.add.image(p.x + TILE_FRAME_OFFSET_X, p.y + TILE_FRAME_OFFSET_Y, MainScene.SHORE_ATLAS_KEY, `${x},${y}`);
+      img.setOrigin(0, 0).setScale(ART_PIXEL);
+      this.shoreLayer!.add(img);
+    }
   }
 
   /**
@@ -855,7 +1109,7 @@ export class MainScene extends Phaser.Scene {
     for (let y = 0; y < this.mapHeight; y++) {
       const row: number[] = [];
       for (let x = 0; x < this.mapWidth; x++) {
-        row.push(this.tiles[y][x].type !== 'OCEAN_BLOCK' ? WALK_LAND : isBridgeTile(x, y) ? WALK_BRIDGE : WALK_WATER);
+        row.push(this.tiles[y][x].type !== 'OCEAN_BLOCK' ? (isRaisedTile(x, y) ? WALK_CLIFF : WALK_LAND) : isBridgeTile(x, y) ? WALK_BRIDGE : WALK_WATER);
       }
       walkableGrid.push(row);
     }
@@ -884,7 +1138,7 @@ export class MainScene extends Phaser.Scene {
     for (let y = 0; y < this.mapHeight; y++) {
       const row: number[] = [];
       for (let x = 0; x < this.mapWidth; x++) {
-        row.push(this.tiles[y][x].type !== 'OCEAN_BLOCK' ? WALK_LAND : isBridgeTile(x, y) ? WALK_BRIDGE : WALK_WATER);
+        row.push(this.tiles[y][x].type !== 'OCEAN_BLOCK' ? (isRaisedTile(x, y) ? WALK_CLIFF : WALK_LAND) : isBridgeTile(x, y) ? WALK_BRIDGE : WALK_WATER);
       }
       walkableGrid.push(row);
     }
@@ -970,26 +1224,139 @@ export class MainScene extends Phaser.Scene {
     );
   }
 
-  /** Zooms in a little and glides the main camera onto a world point (clamped to the island). */
-  private focusOn(x: number, y: number): void {
+  /** Index into the power ranking of the General the camera last jumped to. */
+  private generalFocusIndex = -1;
+
+  /**
+   * Generals on the field, strongest first. Overall power = attack (base +
+   * brawl gains) weighted ×3 plus max HP, so brawl winners climb the list.
+   */
+  private generalsByPower(): WorkerInstance[] {
+    return this.workerManager
+      .getWorkers()
+      .filter((w) => !!UNIT_CLASSES[w.unitClass]?.requiredBuilding && w.hp > 0 && w.container.active && w.container.visible)
+      .sort((a, b) => (b.attackPower * 3 + b.maxHp) - (a.attackPower * 3 + a.maxHp));
+  }
+
+  /** → next (weaker) General, ← previous (stronger); wraps around the list. */
+  private cycleGeneralFocus(step: 1 | -1): void {
+    const ranked = this.generalsByPower();
+    if (!ranked.length) return;
+    this.generalFocusIndex = (((this.generalFocusIndex + step) % ranked.length) + ranked.length) % ranked.length;
+    const g = ranked[this.generalFocusIndex];
+    this.followGeneral = undefined;
+    this.glideTo(() => ({ x: this.islandContainer.x + g.container.x, y: this.islandContainer.y + g.container.y }), Math.max(this.userZoom, 1.6));
+    // Once there, keep following it (until a drag, Esc, or it falls)
+    this.glideTween?.once(Phaser.Tweens.Events.TWEEN_COMPLETE, () => this.setFollow(g));
+  }
+
+  /** The General the camera keeps centred (← / →); drag or Esc lets go. */
+  private followGeneral?: WorkerInstance;
+  private focusPublishTimer = 0;
+
+  private setFollow(g: WorkerInstance | undefined): void {
+    this.followGeneral = g;
+    useFocusGeneral.getState().setFocus(g?.id ?? null, g ? String(g.unitClass) : null);
+    this.focusPublishTimer = 0;
+  }
+
+  /** Eases the camera after the followed General each frame and publishes its skill cooldowns to the HUD. */
+  private updateFollow(delta: number): void {
+    const g = this.followGeneral;
+    if (!g) return;
+    if (g.hp <= 0 || !g.container.active || !g.container.visible) { this.setFollow(undefined); return; }
+    if (!this.glideTween?.isPlaying()) {
+      const cam = this.cameras.main;
+      const cx = cam.scrollX + cam.width / 2, cy = cam.scrollY + cam.height / 2;
+      const k = Math.min(1, delta / 180); // gentle catch-up, no jitter
+      cam.centerOn(cx + (this.islandContainer.x + g.container.x - cx) * k, cy + (this.islandContainer.y + g.container.y - cy) * k);
+      this.clampCamera();
+    }
+    this.focusPublishTimer -= delta;
+    if (this.focusPublishTimer <= 0) {
+      this.focusPublishTimer = 200;
+      useFocusGeneral.getState().setCooldowns(this.workerManager.skillCooldowns(g.id));
+    }
+  }
+
+  // ── Off-screen culling ─────────────────────────────────────────────────────
+  private cullTimer = 0;
+
+  /**
+   * Units, structures and tiles outside the main camera's view (plus a margin)
+   * skip the main camera's render via cameraFilter — their logic keeps running
+   * and their own visibility is untouched, and the live-stream / brawl split
+   * camera still draws them.
+   */
+  private cullOffscreen(delta: number): void {
+    this.cullTimer -= delta;
+    if (this.cullTimer > 0) return;
+    this.cullTimer = 150;
     const cam = this.cameras.main;
-    this.userZoom = Math.max(this.userZoom, 1.4);
-    this.applyZoom();
+    const view = cam.worldView;
+    const ox = this.islandContainer.x, oy = this.islandContainer.y;
+    const m = 160;
+    const left = view.x - ox - m, right = view.right - ox + m, top = view.y - oy - m, bottom = view.bottom - oy + m * 1.5;
+    const bit = cam.id;
+    const apply = (o: Phaser.GameObjects.GameObject & { x: number; y: number; cameraFilter: number }, pad = 0) => {
+      const inside = o.x >= left - pad && o.x <= right + pad && o.y >= top - pad && o.y <= bottom + pad;
+      o.cameraFilter = inside ? o.cameraFilter & ~bit : o.cameraFilter | bit;
+    };
+    for (const o of this.entityLayer?.list ?? []) apply(o as never);
+    for (const img of this.tileImages) apply(img as never, 80);
+    for (const img of this.shoreLayer?.list ?? []) apply(img as never, 80);
+  }
+
+  private glideTween?: Phaser.Tweens.Tween;
+
+  /**
+   * Eased camera glide (Sine in-out): pans to a target that may keep moving
+   * (re-read every frame) while easing the zoom to `zoom`. A new glide
+   * replaces one still running, so quick key presses chain smoothly.
+   */
+  private glideTo(target: () => { x: number; y: number }, zoom = this.userZoom, duration = 700): void {
+    const cam = this.cameras.main;
+    this.glideTween?.stop();
     const fromX = cam.scrollX + cam.width / 2;
     const fromY = cam.scrollY + cam.height / 2;
-    this.tweens.addCounter({
+    const fromZoom = this.userZoom;
+    this.glideTween = this.tweens.addCounter({
       from: 0,
       to: 1,
-      duration: 650,
+      duration,
       ease: 'Sine.easeInOut',
       onUpdate: (tween) => {
         const t = tween.getValue() ?? 1;
-        cam.centerOn(fromX + (x - fromX) * t, fromY + (y - fromY) * t);
+        const to = target();
+        this.userZoom = fromZoom + (zoom - fromZoom) * t;
+        this.applyZoom();
+        cam.centerOn(fromX + (to.x - fromX) * t, fromY + (to.y - fromY) * t);
         this.clampCamera();
       },
     });
     soundFx.playClick();
   }
+
+  /** Eased zoom about the current view centre (↑ / ↓). */
+  private easeZoom(delta: number): void {
+    const cam = this.cameras.main;
+    const cx = cam.scrollX + cam.width / 2;
+    const cy = cam.scrollY + cam.height / 2;
+    this.glideTween?.stop();
+    const fromZoom = this.userZoom;
+    const toZoom = fromZoom + delta;
+    this.glideTween = this.tweens.addCounter({
+      from: 0, to: 1, duration: 260, ease: 'Sine.easeInOut',
+      onUpdate: (tween) => {
+        this.userZoom = fromZoom + (toZoom - fromZoom) * (tween.getValue() ?? 1);
+        this.applyZoom();
+        cam.centerOn(cx, cy);
+        this.clampCamera();
+      },
+    });
+  }
+
+
 
   private setupCamera(): void {
     const bounds = this.getIslandBounds();
@@ -1001,7 +1368,28 @@ export class MainScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
 
     this.input.mouse?.disableContextMenu();
-    this.input.keyboard?.on('keydown-ESC', () => this.cancelMove());
+    this.input.keyboard?.on('keydown-ESC', () => { this.cancelMove(); this.setFollow(undefined); });
+    // The HUD's General skill panel (button or F / G / H) asks for a cast
+    const unsubCast = useFocusGeneral.subscribe((now, prev) => {
+      if (now.castTick === prev.castTick || !now.castSlot || !this.followGeneral || !this.sys.isActive()) return;
+      if (!this.workerManager.manualCast(this.followGeneral.id, now.castSlot)) soundFx.playClick();
+      useFocusGeneral.getState().setCooldowns(this.workerManager.skillCooldowns(this.followGeneral.id));
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { unsubCast(); useFocusGeneral.getState().setFocus(null, null); });
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => unsubCast());
+    // Arrow keys: ←/→ cycle the camera through the Generals by overall power, ↑/↓ zoom
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const el = event.target as HTMLElement | null;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.cycleGeneralFocus(event.key === 'ArrowRight' ? 1 : -1);
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.easeZoom(event.key === 'ArrowUp' ? 0.2 : -0.2);
+      }
+    });
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.moving) {
@@ -1058,6 +1446,7 @@ export class MainScene extends Phaser.Scene {
         this.holdTimer = undefined;
       }
       if (this.isDragging) {
+        if (this.followGeneral && Math.hypot(pointer.x - this.dragStartX, pointer.y - this.dragStartY) > 12) this.setFollow(undefined);
         const dx = (pointer.x - this.dragStartX) / this.cameras.main.zoom;
         const dy = (pointer.y - this.dragStartY) / this.cameras.main.zoom;
         this.cameras.main.scrollX = this.cameraStartX - dx;
@@ -1187,8 +1576,35 @@ export class MainScene extends Phaser.Scene {
     }
     const effectiveDelta = delta * gameSpeed;
 
-    this.worldEffects?.update(
-      effectiveDelta,
+    // FPS calibration: on slower machines the ambient layers (sky, clouds, rain/snow,
+    // grass/water reactions, ocean surface, fish) update every 2nd/3rd frame with the
+    // summed delta, and weather particles thin out. Gameplay is never throttled.
+    // The FPS setting caps the tier (30 FPS → LOW, ≤45 → MEDIUM); a slow machine can lower it further
+    const rank = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
+    const settingTier = this._cachedTargetFps <= 30 ? 'LOW' : this._cachedTargetFps <= 45 ? 'MEDIUM' : 'HIGH';
+    const fpsTier = this.fpsController.getQualityTier();
+    const wantedTier = rank[fpsTier] < rank[settingTier] ? fpsTier : settingTier;
+    // A new setting applies at once; a measured drop must hold 2 s so throttling doesn't flip it back and forth
+    if (wantedTier !== this._ambientTier) {
+      this._ambientTierHold += delta;
+      if (wantedTier === settingTier || this._ambientTierHold >= 2000) {
+        this._ambientTier = wantedTier;
+        this._ambientTierHold = 0;
+      }
+    } else this._ambientTierHold = 0;
+    const tier = this._ambientTier;
+    const stride = tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 2 : 3;
+    this._ambientFrame = (this._ambientFrame + 1) % stride;
+    this._ambientDelta += effectiveDelta;
+    const ambientTick = this._ambientFrame === 0;
+    const ambientDelta = this._ambientDelta;
+    if (ambientTick) this._ambientDelta = 0;
+    this.worldEffects?.setDensity(tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 0.6 : 0.3);
+    this.waterFx?.setDensity(tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 0.55 : 0.25);
+    this.waterLife?.setLite(tier === 'LOW');
+
+    if (ambientTick) this.worldEffects?.update(
+      ambientDelta,
       store.weather,
       this.cycleTimer / DAY_NIGHT_CYCLE_DURATION_MS,
       Math.max(0, this._lastDarknessWritten)
@@ -1209,8 +1625,10 @@ export class MainScene extends Phaser.Scene {
       this.cancelMove();
       logMessage('moveLockedWave');
     }
-    this.waterFx?.update(time, store.platformPhase || 1);
-    this.waterLife?.update(effectiveDelta, store.platformPhase || 1, this.waterFx?.surfaceState(store.platformPhase || 1));
+    if (ambientTick) {
+      this.waterFx?.update(time, store.platformPhase || 1);
+      this.waterLife?.update(ambientDelta, store.platformPhase || 1, this.waterFx?.surfaceState(store.platformPhase || 1));
+    }
 
     const ambientDarkness = this.updateDayNightCycle(effectiveDelta);
 
@@ -1267,6 +1685,9 @@ export class MainScene extends Phaser.Scene {
     this.towers.update(effectiveDelta);
     this.portalDefense.update(effectiveDelta);
     this.defenders.update(effectiveDelta);
+    for (const w of this.wild) w.update(effectiveDelta);
+    this.updateFollow(delta);
+    this.cullOffscreen(delta);
     this.skills.update(effectiveDelta);
     this.groundLoot?.update(effectiveDelta / 1000);
     this._sortTimer += delta;
@@ -1300,7 +1721,7 @@ export class MainScene extends Phaser.Scene {
             store.restoreBuildingHp('SPIRE', 25 * seconds);
           }
           for (const ally of this.workerManager.getWorkers()) {
-            if (ally.hp > 0) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.02 * seconds);
+            if (ally.hp > 0 && !ally.isBrawling) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.02 * seconds);
           }
           for (const ally of this.defenders.getDefenders()) {
             if (!ally.dead) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.02 * seconds);
@@ -1365,6 +1786,9 @@ export class MainScene extends Phaser.Scene {
     this.liveFocus?.destroy();
     this.castleAlarm?.destroy();
     this.fires?.destroy();
+    for (const w of this.wild) w.destroy();
+    this.terrainUnsub?.();
+    this.terrainTimer?.remove();
     this.portals?.destroy();
     this.structures?.destroy();
     this.worldEffects?.destroy();

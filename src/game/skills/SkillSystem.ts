@@ -88,7 +88,7 @@ export class SkillSystem {
     const invaders = this.invasion
       .getInvaders()
       .filter((i) => !i.isDead && !i.isRetreating && (i.emerge ?? 0) <= 0 && i.container.active);
-    const workers = this.workers.getWorkers().filter((w) => w.hp > 0 && w.container?.active);
+    const workers = this.workers.getWorkers().filter((w) => w.hp > 0 && w.container?.active && !w.isBrawling);
 
     auras.cyberCommand = invaders.some((i) => i.type === 'MECHA_VALKYRIE');
     const { castleHp, castleMaxHp } = store.defense;

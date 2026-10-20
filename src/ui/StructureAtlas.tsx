@@ -3,7 +3,7 @@ import { RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { DEFENSE_TEXT } from '../state/defenseStats';
 import { BUILDING_SITES, CASTLE_FOOTPRINT, SPIRE_FOOTPRINT } from '../state/buildingLayout';
 import { FALLBACK_COLORS } from '../game/StructureManager';
-import { STRUCTURE_PIXEL, subscribeStructureStrips } from '../game/sprites/StructureSprites';
+import { STRUCTURE_PIXEL, stripFrameOrigin, subscribeStructureStrips } from '../game/sprites/StructureSprites';
 import type { BakedStrip } from '../game/sprites/structureBake.worker';
 import { STRUCTURE_ART, type StructureKey } from '../game/sprites/structureModels';
 import type { ResourceBuildingId } from '../types/state';
@@ -18,9 +18,9 @@ import TEXT from '../i18n/structureAtlas.json';
  */
 
 type Localized = { en: string; tl: string };
-type PreviewState = 'build' | 'idle' | 'attack' | 'hit' | 'destroyed';
+type PreviewState = 'build' | 'idle' | 'attack' | 'hit' | 'damaged' | 'destroyed';
 
-const STATES: PreviewState[] = ['build', 'idle', 'attack', 'hit', 'destroyed'];
+const STATES: PreviewState[] = ['build', 'idle', 'attack', 'hit', 'damaged', 'destroyed'];
 
 interface Entry {
   key: StructureKey;
@@ -61,9 +61,9 @@ const artUrl = (key: StructureKey) => `${import.meta.env.BASE_URL}structures/${S
 
 /** Which strip animation each preview state plays. */
 const animFor = (key: StructureKey, state: PreviewState): string => {
-  if (key === 'portal') return { build: 'dormant', idle: 'idle', attack: 'spawn', hit: 'idle', destroyed: 'destroyed' }[state];
-  if (key === 'sentinel') return { build: 'idle', idle: 'idle', attack: 'attack', hit: 'idle', destroyed: 'destroyed' }[state];
-  return { build: 'site', idle: 'idle', attack: key === 'castle' ? 'pulse' : 'attack', hit: 'idle', destroyed: 'ruined' }[state];
+  if (key === 'portal') return { build: 'dormant', idle: 'idle', attack: 'spawn', hit: 'idle', damaged: 'damaged', destroyed: 'destroyed' }[state];
+  if (key === 'sentinel') return { build: 'build', idle: 'idle', attack: 'attack', hit: 'idle', damaged: 'damaged', destroyed: 'destroyed' }[state];
+  return { build: 'build', idle: 'idle', attack: key === 'castle' ? 'pulse' : 'attack', hit: 'idle', damaged: 'damaged', destroyed: 'ruined' }[state];
 };
 
 // ── Strip images ──────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ class Sim {
     }
   }
 
-  /** PortalManager.damage: white flash; the killing blow shakes and scatters blue/gold shards. */
+  /** PortalManager.damage: soft red knock; the killing blow shakes and scatters blue/gold shards. */
   portalHit(final: boolean): void {
     this.tintLeft = 0.06;
     this.tintWhite = true;
@@ -266,7 +266,7 @@ class Sim {
       if (!this.wrecked && cycle >= 1.5) {
         this.wrecked = true;
         this.hp = 0;
-        this.setAnim(base);
+        this.setAnim(strip.layout.animations.collapse ? 'collapse' : base);
         if (this.isPortal) this.portalHit(true);
         else this.hit(6, 18);
       } else if (!this.wrecked && this.timer <= 0) {
@@ -283,12 +283,15 @@ class Sim {
 
   frameIndex(strip: BakedStrip): number {
     const a = strip.layout.animations[this.anim] ?? strip.layout.animations.idle ?? { start: 0, count: 1 };
-    const n = Math.floor(this.animTime * (strip.rates[this.anim] ?? 4));
-    return a.start + (strip.loops.includes(this.anim) ? n % a.count : Math.min(n, a.count - 1));
+    // Construction stages cycle in the preview (the game picks the stage from build progress)
+    const rate = this.anim === 'build' ? 2 : strip.rates[this.anim] ?? 4;
+    const n = Math.floor(this.animTime * rate);
+    return a.start + (strip.loops.includes(this.anim) || this.anim === 'build' ? n % a.count : Math.min(n, a.count - 1));
   }
 
   /** HP shown like the game: only while damaged. */
   get barPct(): number | null {
+    if (this.state === 'damaged') return 0.35;
     if (this.state !== 'hit' && this.state !== 'destroyed') return null;
     // A destroyed portal drops its bar; a wrecked building keeps an empty one
     return this.isPortal && this.wrecked ? null : this.hp;
@@ -336,14 +339,15 @@ function drawSim(ctx: CanvasRenderingContext2D, sim: Sim, strip: BakedStrip, ima
   const scaleY = isSite ? 1 + Math.sin(sim.time * 14) * 0.015 : 1;
 
   const frame = sim.frameIndex(strip);
-  const src = sim.tintLeft > 0 ? (sim.tintWhite ? images.white : images.tinted) : images.plain;
+  const src = sim.tintLeft > 0 ? images.tinted : images.plain;
   // Dormant portals sit at 75% alpha
   ctx.globalAlpha = sim.isPortal && sim.anim === 'dormant' ? 0.75 : 1;
   const px = STRUCTURE_PIXEL * u;
   ctx.imageSmoothingEnabled = false;
+  const at = stripFrameOrigin(strip, frame);
   ctx.drawImage(
     src,
-    frame * L.frameWidth, 0, L.frameWidth, L.frameHeight,
+    at.x, at.y, L.frameWidth, L.frameHeight,
     cx + (sx - L.anchorX * STRUCTURE_PIXEL) * u,
     cy + (sy - L.anchorY * STRUCTURE_PIXEL * scaleY) * u,
     L.frameWidth * px,
@@ -426,9 +430,10 @@ const Thumb: React.FC<{ strip?: BakedStrip }> = ({ strip }) => {
     const L = strip.layout;
     const { start } = L.animations.idle ?? { start: 0 };
     const scale = Math.min((size - 4) / L.frameWidth, (size - 4) / L.frameHeight);
+    const at = stripFrameOrigin(strip, start);
     ctx.drawImage(
       stripImages(strip).plain,
-      start * L.frameWidth, 0, L.frameWidth, L.frameHeight,
+      at.x, at.y, L.frameWidth, L.frameHeight,
       (size - L.frameWidth * scale) / 2, (size - L.frameHeight * scale) / 2, L.frameWidth * scale, L.frameHeight * scale
     );
   }, [strip]);

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { MIST_TEX, paintMistTextures } from './mistTextures';
+import { NightSky } from './scene/nightSky';
 import { TileInfo } from '../types/game';
 import { WeatherType } from '../types/state';
 import { IsometricHelper, TILE_WIDTH, TILE_HEIGHT } from './IsometricHelper';
@@ -26,7 +28,7 @@ interface FishBiome {
  *  - tiles react to anyone walking on them (grass sways, water wakes travel
  *    with the walker, stone kicks up dust); fish leap out of the water,
  *  - weather in world space: slanted rain with splashes, swaying snow that
- *    settles, heat shimmer; pixel clouds drift over the island,
+ *    settles, heat shimmer; mist clouds (the rift-fog layers, lit by the sun or moon) drift over the island,
  *  - thunderstorms: bolts, double strikes, sheet lightning, screen shake.
  *
  * Layers: `skyLayer` sits behind the tiles (so the island occludes the sun and
@@ -39,7 +41,6 @@ const HALF_W = TILE_WIDTH / 2;
 const HALF_H = TILE_HEIGHT / 2;
 
 const GRASS_TYPES = new Set(['AETHER_GRASS', 'ANCIENT_GROVE']);
-const CLOUD_VARIANTS = 3;
 const WIND = { x: 9, y: 4.5 }; // world px / s, along the iso X axis
 
 // Day cycle windows (progress 0 = midnight, 0.5 = noon)
@@ -48,7 +49,15 @@ const MOON_RISE = 0.72;
 const ARC_SPAN = 0.56;
 
 interface ActorTrack { x: number; y: number; cooldown: number }
-interface Cloud { body: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; speed: number }
+/** A sky cloud built from the rift-fog layers: a bank under billowing puffs. */
+interface Cloud {
+  body: Phaser.GameObjects.Container;
+  parts: Array<{ img: Phaser.GameObjects.Image; hx: number; hy: number; scale: number; phase: number }>;
+  shadow: Phaser.GameObjects.Image;
+  speed: number;
+  width: number;
+  phase: number;
+}
 interface Drop { x: number; y: number; vx: number; vy: number; groundY: number; onWater: boolean; onIsland: boolean }
 interface Flake { x: number; y: number; groundY: number; speed: number; phase: number; size: number; onIsland: boolean }
 interface Mark { x: number; y: number; age: number; life: number; kind: 'ring' | 'bounce' | 'snow' | 'haze' }
@@ -58,6 +67,8 @@ export class WorldEffects {
   private readonly waterTiles: TileInfo[];
   private readonly landTiles: TileInfo[];
   private clouds: Cloud[] = [];
+  private cloudTintTimer = 0;
+  private cloudsLit = false;
   private fishTimer = Phaser.Math.Between(2500, 6000);
   private lightningTimer = Phaser.Math.Between(4000, 9000);
   private cloudWeather: WeatherType | null = null;
@@ -70,14 +81,16 @@ export class WorldEffects {
   private flakes: Flake[] = [];
   private marks: Mark[] = [];
   private spawnAccum = 0;
+  /** 0–1 particle/cloud density from the FPS controller (1 = full detail). */
+  private density = 1;
   private readonly weatherAir: Phaser.GameObjects.Graphics;
   private readonly weatherGround: Phaser.GameObjects.Graphics;
 
   // Sky
   private readonly sun: Phaser.GameObjects.Container;
   private readonly moon: Phaser.GameObjects.Container;
-  private readonly stars: Phaser.GameObjects.Graphics;
-  private readonly starField: Array<{ x: number; y: number; phase: number; big: boolean }>;
+  private readonly nightSky: NightSky;
+  private lastSkyMs = 0;
   private readonly arc: { cx: number; horizonY: number; radiusX: number; height: number };
   private elapsed = 0;
 
@@ -93,8 +106,6 @@ export class WorldEffects {
     const flat = tiles.flat();
     this.waterTiles = flat.filter((t) => t.type === 'OCEAN_BLOCK');
     this.landTiles = flat.filter((t) => t.walkable && t.type !== 'SPAWN_BLOCK');
-    this.createCloudTextures();
-    this.createCelestialTextures();
 
     this.weatherGround = scene.add.graphics();
     groundLayer.add(this.weatherGround);
@@ -115,16 +126,18 @@ export class WorldEffects {
       height: leftTip.y + HALF_H - (top - 60),
     };
 
-    this.stars = scene.add.graphics();
-    this.starField = Array.from({ length: 34 }, () => ({
-      x: Phaser.Math.Between(bounds.left - 60, bounds.right + 60),
-      y: Phaser.Math.Between(bounds.top - 160, this.arc.horizonY - 20),
-      phase: Math.random() * Math.PI * 2,
-      big: Math.random() < 0.2,
-    }));
-    this.sun = this.createCelestial('pixel-sun', 0xfde68a, 34);
-    this.moon = this.createCelestial('pixel-moon', 0xc7d2fe, 24);
-    skyLayer.add([this.stars, this.sun, this.moon]);
+    paintMistTextures(scene);
+    // Night sky first (behind the sun and moon), spread wide above the island
+    const skyTop = bounds.top - 520;
+    this.nightSky = new NightSky(scene, skyLayer, new Phaser.Geom.Rectangle(bounds.left - 320, skyTop, bounds.width + 640, this.arc.horizonY - skyTop));
+    // Soft painted discs, in the same airbrushed style as the clouds
+    this.sun = this.createCelestial(MIST_TEX.sunDisc, 0.82, MIST_TEX.sunHalo, 0.9, MIST_TEX.sunRays);
+    this.moon = this.createCelestial(MIST_TEX.moonDisc, 0.75, MIST_TEX.moonHalo, 0.75);
+    skyLayer.add([this.sun, this.moon]);
+  }
+
+  setDensity(density: number): void {
+    this.density = Phaser.Math.Clamp(density, 0.2, 1);
   }
 
   update(delta: number, weather: WeatherType, dayProgress: number, darkness: number): void {
@@ -139,11 +152,13 @@ export class WorldEffects {
       }
     }
 
-    this.updateSky(dayProgress, darkness);
-    this.updateActors(delta);
+    // LOW quality (density < 0.5): no grass/water footstep reactions or leaping fish
+    const lite = this.density < 0.5;
+    this.updateSky(dayProgress, darkness, lite);
+    if (!lite) this.updateActors(delta);
 
     this.fishTimer -= delta;
-    if (this.fishTimer <= 0) {
+    if (this.fishTimer <= 0 && !lite) {
       this.fishTimer = Phaser.Math.Between(2500, 7500);
       this.leapFish();
     }
@@ -164,6 +179,8 @@ export class WorldEffects {
   }
 
   destroy(): void {
+    this.skyGfx?.destroy();
+    this.nightSky.destroy();
     this.actors.clear();
     this.clouds = [];
     this.drops = [];
@@ -223,44 +240,25 @@ export class WorldEffects {
     tex.refresh();
   }
 
-  private createCelestialTextures(): void {
-    // Sun: banded disc with eight stubby rays
-    this.paintTexture('pixel-sun', 26, (x, y) => {
-      const dx = x + 0.5 - 13;
-      const dy = y + 0.5 - 13;
-      const d = Math.hypot(dx, dy);
-      if (d <= 7.2) {
-        if (dx + dy < -5) return 0xfffbeb;                  // hot highlight
-        return d > 6 ? 0xf59e0b : d > 4.5 ? 0xfbbf24 : 0xfde047;
-      }
-      const angle = Math.atan2(dy, dx);
-      const onRay = Math.abs(Math.sin(angle * 4)) < 0.2;
-      if (onRay && d > 8.5 && d < (Math.round(angle * 4 / Math.PI) % 2 === 0 ? 12.5 : 11)) return 0xfbbf24;
-      return null;
-    });
-    // Moon: pale disc, craters and a soft terminator on one side
-    this.paintTexture('pixel-moon', 20, (x, y) => {
-      const dx = x + 0.5 - 10;
-      const dy = y + 0.5 - 10;
-      const d = Math.hypot(dx, dy);
-      if (d > 7.2) return null;
-      const craters: Array<[number, number, number]> = [[-2, -2, 1.8], [2.5, 1.5, 1.3], [-1, 3.5, 1], [3, -3, 0.9]];
-      if (craters.some(([cx, cy, r]) => Math.hypot(dx - cx, dy - cy) <= r)) return 0xa5b4c8;
-      if (dx > 3.5) return 0xb8c2d6;
-      return d > 6 ? 0xcbd5e1 : 0xe8edf5;
-    });
-  }
-
-  private createCelestial(key: string, glowColor: number, glowRadius: number): Phaser.GameObjects.Container {
-    const glow = this.scene.add.graphics();
-    glow.fillStyle(glowColor, 0.08);
-    glow.fillCircle(0, 0, glowRadius * 1.6);
-    glow.fillStyle(glowColor, 0.14);
-    glow.fillCircle(0, 0, glowRadius);
-    const body = this.scene.add.image(0, 0, key).setScale(P);
-    const container = this.scene.add.container(0, 0, [glow, body]);
+  /**
+   * Sky body: soft halo (same mist style as the clouds) behind the pixel disc,
+   * plus slowly turning rays for the sun. Children: [halo, body, rays?].
+   */
+  private createCelestial(key: string, bodyScale: number, halo: string, haloScale: number, rays?: string): Phaser.GameObjects.Container {
+    const glow = this.scene.add.image(0, 0, halo).setScale(haloScale).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.8);
+    const body = this.scene.add.image(0, 0, key).setScale(bodyScale).setData('disc', true);
+    const children: Phaser.GameObjects.GameObject[] = [glow, body];
+    if (rays) children.push(this.scene.add.image(0, 0, rays).setScale(0.75).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45));
+    const container = this.scene.add.container(0, 0, children);
+    if (rays) container.bringToTop(body);
     container.setVisible(false);
     return container;
+  }
+
+  /** Point on the sky arc for t (also off-arc, for aiming the moon's lit side at a hidden sun). */
+  private arcPoint(t: number): { x: number; y: number } {
+    const theta = t * Math.PI;
+    return { x: this.arc.cx - this.arc.radiusX * Math.cos(theta), y: this.arc.horizonY - this.arc.height * Math.sin(theta) };
   }
 
   /** Places a body on the arc: t = 0 rising at the left edge, 1 setting at the right. */
@@ -277,36 +275,115 @@ export class WorldEffects {
     // Fade as it dips toward the platform's edge (the tiles in front hide the rest)
     const lift = Math.sin(Math.max(0, Math.min(Math.PI, theta)));
     body.setAlpha(Phaser.Math.Clamp((lift + 0.05) / 0.25, 0, 1));
-    const image = body.list[1] as Phaser.GameObjects.Image;
+    const image = body.list.find((o) => (o as Phaser.GameObjects.Image).getData?.('disc')) as Phaser.GameObjects.Image;
     if (horizonTint !== null && lift < 0.35) image.setTint(horizonTint);
     else image.clearTint();
   }
 
-  private updateSky(progress: number, darkness: number): void {
+  /**
+   * Sky behind the island when the wallpaper is off: a vertical gradient that
+   * follows the sun and moon — deep night, warm dawn, blue day, orange-violet
+   * dusk — greyed by rain and paled by snow. Drawn fixed to the camera.
+   */
+  private skyGfx?: Phaser.GameObjects.Graphics;
+  private lastSkyKey = '';
+
+  private static readonly SKY_KEYS: Array<[number, number, number]> = [
+    // progress, top colour, horizon colour (0 = midnight, 0.5 = noon)
+    [0.0, 0x03050f, 0x0b1029],
+    [0.18, 0x070b22, 0x1e1b4b],
+    [0.24, 0x3b2a6b, 0xf59e0b],
+    [0.3, 0x3b82f6, 0xfcd9a8],
+    [0.4, 0x2563eb, 0x93c5fd],
+    [0.5, 0x1d4ed8, 0xbfdbfe],
+    [0.62, 0x2563eb, 0x93c5fd],
+    [0.7, 0x4338ca, 0xfdba74],
+    [0.76, 0x3b0764, 0xea580c],
+    [0.82, 0x0f0a2e, 0x312e81],
+    [1.0, 0x03050f, 0x0b1029],
+  ];
+
+  private skyColors(progress: number): [number, number] {
+    const keys = WorldEffects.SKY_KEYS;
+    const p = ((progress % 1) + 1) % 1;
+    let i = 0;
+    while (i < keys.length - 2 && keys[i + 1][0] <= p) i++;
+    const [p0, t0, h0] = keys[i];
+    const [p1, t1, h1] = keys[i + 1];
+    const k = Phaser.Math.Clamp((p - p0) / Math.max(1e-6, p1 - p0), 0, 1);
+    const lerpC = (a: number, b: number, t: number) => {
+      const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.ValueToColor(a), Phaser.Display.Color.ValueToColor(b), 1000, Math.round(t * 1000));
+      return Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+    };
+    let top = lerpC(t0, t1, k), horizon = lerpC(h0, h1, k);
+    if (this.weather === 'RAIN') { top = lerpC(top, this.stormy ? 0x1f2937 : 0x374151, 0.65); horizon = lerpC(horizon, 0x4b5563, 0.6); }
+    else if (this.weather === 'SNOW') { top = lerpC(top, 0x94a3b8, 0.35); horizon = lerpC(horizon, 0xe2e8f0, 0.4); }
+    return [top, horizon];
+  }
+
+  private drawSkyBackdrop(progress: number): void {
+    const show = !useGameStore.getState().showWallpaper;
+    if (!show) {
+      this.skyGfx?.setVisible(false);
+      return;
+    }
+    const cam = this.scene.cameras.main;
+    if (!this.skyGfx) {
+      this.skyGfx = this.scene.add.graphics().setScrollFactor(0).setDepth(-1e9);
+      this.scene.children.sendToBack(this.skyGfx);
+    }
+    const [top, horizon] = this.skyColors(progress);
+    const key = `${top}|${horizon}|${cam.width}|${cam.height}|${cam.zoom.toFixed(3)}`;
+    this.skyGfx.setVisible(true);
+    if (key === this.lastSkyKey) return;
+    this.lastSkyKey = key;
+    // Scroll-factor-0 objects still scale with zoom around the centre, so oversize the rect
+    const w = cam.width / cam.zoom, h = cam.height / cam.zoom;
+    const x = cam.width / 2 - w, y = cam.height / 2 - h;
+    this.skyGfx.clear();
+    this.skyGfx.fillGradientStyle(top, top, horizon, horizon, 1);
+    this.skyGfx.fillRect(x, y, w * 2, h * 2);
+  }
+
+  private updateSky(progress: number, darkness: number, lite = false): void {
+    this.drawSkyBackdrop(progress);
     const sunT = (progress - SUN_RISE) / ARC_SPAN;
     const moonT = (((progress - MOON_RISE) % 1) + 1) % 1 / ARC_SPAN;
     this.placeOnArc(this.sun, sunT, 0xfb923c);
     this.placeOnArc(this.moon, moonT, null);
+
+    // Sun and moon answer each other: the halo breathes, the rays turn, and the
+    // moon's lit side always faces where the sun is (even below the horizon)
+    const t = this.elapsed / 1000;
+    const byTex = (c: Phaser.GameObjects.Container, key: string) => (c.list as Phaser.GameObjects.Image[]).find((o) => o.texture?.key === key);
+    const sunHalo = byTex(this.sun, MIST_TEX.sunHalo)!;
+    const sunRays = byTex(this.sun, MIST_TEX.sunRays);
+    const lowSun = Phaser.Math.Clamp(Math.sin(Math.max(0, Math.min(Math.PI, sunT * Math.PI))) / 0.4, 0, 1);
+    sunHalo.setScale(0.9 + Math.sin(t * 0.8) * 0.05).setTint(lowSun < 1 ? 0xfdba74 : 0xffffff);
+    sunRays?.setRotation(t * 0.06).setAlpha(0.3 + 0.15 * Math.sin(t * 1.3));
+    const moonHalo = byTex(this.moon, MIST_TEX.moonHalo)!;
+    const moonBody = byTex(this.moon, MIST_TEX.moonDisc)!;
+    moonHalo.setScale(0.75 + Math.sin(t * 0.6 + 1.5) * 0.04);
+    const sunAt = this.arcPoint(sunT);
+    moonBody.setFlipX(sunAt.x > this.moon.x); // texture is lit on its left
+    // Twilight: when both are up, the moon picks up a faint warm rim from the sun
+    moonHalo.setTint(this.sun.visible && this.moon.visible ? 0xfde2c4 : 0xffffff);
+    this.skyWarmth = this.sun.visible ? 1 - lowSun : 0;
+    this.moonlight = this.moon.visible ? this.moon.alpha : 0;
 
     // Clouds dim the sky bodies
     const overcast = this.weather === 'RAIN' ? 0.35 : this.weather === 'SNOW' ? 0.6 : 1;
     this.sun.setAlpha(this.sun.alpha * overcast);
     this.moon.setAlpha(this.moon.alpha * overcast);
 
-    this.stars.clear();
-    const starAlpha = Phaser.Math.Clamp((darkness - 0.3) / 0.5, 0, 1) * (this.weather === 'RAIN' ? 0.25 : 1);
-    if (starAlpha <= 0) return;
-    for (const star of this.starField) {
-      const twinkle = 0.55 + 0.45 * Math.sin(this.elapsed / 700 + star.phase);
-      this.stars.fillStyle(star.big ? 0xfef9c3 : 0xe0e7ff, starAlpha * twinkle);
-      this.pixelRect(this.stars, star.x, star.y, 1, 1);
-      if (star.big && twinkle > 0.8) {
-        this.pixelRect(this.stars, star.x - P, star.y, 1, 1);
-        this.pixelRect(this.stars, star.x + P, star.y, 1, 1);
-        this.pixelRect(this.stars, star.x, star.y - P, 1, 1);
-        this.pixelRect(this.stars, star.x, star.y + P, 1, 1);
-      }
-    }
+    // Stars, constellations, the milky band, shooting stars and comets
+    const now = this.elapsed;
+    const dt = this.lastSkyMs ? Math.min(0.2, (now - this.lastSkyMs) / 1000) : 0;
+    this.lastSkyMs = now;
+    const night = Phaser.Math.Clamp((darkness - 0.3) / 0.5, 0, 1);
+    const dimmed = this.weather === 'RAIN' ? (this.stormy ? 0.9 : 0.75) : this.weather === 'SNOW' ? 0.4 : 0;
+    if (!lite || Math.floor(now / 100) % 2 === 0) this.nightSky.update(dt, now, night, dimmed);
   }
 
   // ── Tile reactions ─────────────────────────────────────────────────────────
@@ -585,7 +662,7 @@ export class WorldEffects {
   private updateWeather(delta: number, weather: WeatherType): void {
     const dt = delta / 1000;
     const rate = weather === 'RAIN' ? (this.stormy ? 110 : 55) : weather === 'SNOW' ? 22 : weather === 'HEATWAVE' ? 6 : 0;
-    this.spawnAccum += rate * dt;
+    this.spawnAccum += rate * this.density * dt;
     while (this.spawnAccum >= 1) {
       this.spawnAccum -= 1;
       if (weather === 'RAIN') this.spawnDrop();
@@ -718,60 +795,42 @@ export class WorldEffects {
 
   // ── Clouds ─────────────────────────────────────────────────────────────────
 
-  /** Paints beautiful organic chunky pixel-art cloud textures (lit tops, shaded bellies) without any boundary clipping. */
-  private createCloudTextures(): void {
-    for (let v = 0; v < CLOUD_VARIANTS; v++) {
-      const key = `pixel-cloud-${v}`;
-      if (this.scene.textures.exists(key)) continue;
-      const w = 68, h = 28;
-      const tex = this.scene.textures.createCanvas(key, w, h);
-      if (!tex) continue;
-      const img = tex.context.createImageData(w, h);
-      const count = 5 + v;
-      const puffs = Array.from({ length: count }, (_, i) => {
-        const spanT = i / (count - 1);
-        const r = 6 + Math.abs(Math.sin(i * 3.7 + v * 1.5)) * 3.5;
-        const x = 12 + spanT * (w - 24) + Math.sin(i * 4.3 + v) * 2;
-        const y = 14 - Math.sin(spanT * Math.PI) * 3 + Math.cos(i * 2.1 + v) * 1.5;
-        return { x, y, r };
-      });
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          let best = Infinity;
-          let top = 0;
-          for (const p of puffs) {
-            const d = Math.hypot((x - p.x) / p.r, ((y - p.y) * 1.35) / p.r);
-            if (d < best) {
-              best = d;
-              top = (y - p.y) / p.r;
-            }
-          }
-          if (best > 1) continue;
-          const shade = top < -0.3 ? 255 : top < 0.3 ? 230 : 195;
-          const i = (y * w + x) * 4;
-          img.data[i] = shade;
-          img.data[i + 1] = shade;
-          img.data[i + 2] = Math.min(255, shade + 12);
-          img.data[i + 3] = 255;
-        }
-      }
-      tex.context.putImageData(img, 0, 0);
-      tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
-      tex.refresh();
-    }
-  }
+  /** 0–1: how much the low sun warms the clouds (dawn / dusk). */
+  private skyWarmth = 0;
+  /** 0–1: moon brightness, cooling the clouds at night. */
+  private moonlight = 0;
 
+  /** Clouds take the weather and the light of the sky: gold at dawn/dusk, silver-violet under the moon. */
   private cloudTint(): number {
     if (this.weather === 'RAIN') return this.stormy ? 0x4b5563 : 0x6b7280;
-    return this.weather === 'SNOW' ? 0xe2e8f0 : 0xffffff;
+    let tint = this.weather === 'SNOW' ? 0xe2e8f0 : 0xffffff;
+    const mix = (to: number, k: number) => {
+      const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.ValueToColor(tint), Phaser.Display.Color.ValueToColor(to), 100, Math.round(k * 100));
+      tint = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+    };
+    if (this.skyWarmth > 0) mix(0xfdba74, this.skyWarmth * 0.6);
+    if (this.moonlight > 0) mix(0xa5b4fc, this.moonlight * 0.45);
+    return tint;
+  }
+
+  private tintCloud(cloud: Cloud, tint: number): void {
+    for (const p of cloud.parts) p.img.setTint(tint);
   }
 
   private updateClouds(delta: number, weather: WeatherType): void {
-    const wanted = weather === 'RAIN' ? (this.stormy ? 9 : 7) : weather === 'SNOW' ? 5 : 3;
+    const wanted = Math.max(2, Math.round((weather === 'RAIN' ? (this.stormy ? 9 : 7) : weather === 'SNOW' ? 5 : 3) * this.density));
 
     if (weather !== this.cloudWeather) {
       this.cloudWeather = weather;
-      for (const cloud of this.clouds) cloud.body.setTint(this.cloudTint()).setAlpha(weather === 'RAIN' ? 0.75 : 0.55);
+      for (const cloud of this.clouds) cloud.body.setAlpha(weather === 'RAIN' ? 0.95 : 0.8);
+    }
+    // Sky light changes slowly; re-tint a few times a second
+    this.cloudTintTimer -= delta;
+    if (this.cloudTintTimer <= 0 && !this.cloudsLit) {
+      this.cloudTintTimer = 400;
+      const tint = this.cloudTint();
+      for (const cloud of this.clouds) this.tintCloud(cloud, tint);
     }
     // The first batch is scattered over the island; later arrivals drift in from upwind
     const initial = this.clouds.length === 0;
@@ -784,25 +843,42 @@ export class WorldEffects {
 
     const dt = delta / 1000;
     const gust = this.stormy ? 2.2 : 1;
+    const t = this.elapsed / 1000;
     for (const cloud of this.clouds) {
       cloud.body.x += WIND.x * cloud.speed * gust * dt;
       cloud.body.y += WIND.y * cloud.speed * gust * dt;
+      // Same motion as the rift fog: each lobe drifts and breathes around its home
+      for (const p of cloud.parts) {
+        p.img.setPosition(p.hx + Math.sin(t * 0.4 + p.phase) * 5, p.hy + Math.cos(t * 0.3 + p.phase) * 2);
+        p.img.setScale(p.scale * (1 + Math.sin(t * 0.7 + p.phase * 2) * 0.05));
+      }
       cloud.shadow.setPosition(cloud.body.x + 26, cloud.body.y + 70);
-      if (cloud.body.x - cloud.body.displayWidth / 2 > this.bounds.right || cloud.body.y > this.bounds.bottom) {
+      if (cloud.body.x - cloud.width / 2 > this.bounds.right || cloud.body.y > this.bounds.bottom) {
         this.placeCloudUpwind(cloud);
       }
     }
   }
 
   private spawnCloud(anywhere: boolean): void {
-    const key = `pixel-cloud-${Phaser.Math.Between(0, CLOUD_VARIANTS - 1)}`;
-    const scale = P * Phaser.Math.FloatBetween(1, 1.6);
-    const body = this.scene.add.image(0, 0, key).setScale(scale).setAlpha(this.weather === 'RAIN' ? 0.75 : 0.55);
-    body.setTint(this.cloudTint());
-    const shadow = this.scene.add.image(0, 0, key).setScale(scale).setTintFill(0x000000).setAlpha(0.1);
+    const size = Phaser.Math.FloatBetween(0.8, 1.3) * (this.weather === 'RAIN' ? 1.25 : 1);
+    const parts: Cloud['parts'] = [];
+    const add = (tex: string, hx: number, hy: number, scale: number) => {
+      const img = this.scene.add.image(hx, hy, tex).setScale(scale);
+      parts.push({ img, hx, hy, scale, phase: Math.random() * 6.28 });
+    };
+    // Bank underneath, 3–5 billowing puffs on top
+    add(MIST_TEX.bank, 0, 14 * size, 1.1 * size);
+    const puffs = Phaser.Math.Between(3, 5);
+    for (let i = 0; i < puffs; i++) {
+      const u = puffs === 1 ? 0 : i / (puffs - 1) - 0.5;
+      add(MIST_TEX.puff, u * 110 * size, -Math.cos(u * Math.PI) * 14 * size + Phaser.Math.Between(-4, 4), Phaser.Math.FloatBetween(0.55, 0.8) * size);
+    }
+    const body = this.scene.add.container(0, 0, parts.map((p) => p.img)).setAlpha(this.weather === 'RAIN' ? 0.95 : 0.8);
+    const shadow = this.scene.add.image(0, 0, MIST_TEX.bank).setScale(1.4 * size, 1.1 * size).setTintFill(0x000000).setAlpha(0.08);
     this.airLayer.add(body);
     this.groundLayer.add(shadow);
-    const cloud: Cloud = { body, shadow, speed: Phaser.Math.FloatBetween(0.7, 1.4) };
+    const cloud: Cloud = { body, parts, shadow, speed: Phaser.Math.FloatBetween(0.7, 1.4), width: 200 * size, phase: Math.random() * 6.28 };
+    this.tintCloud(cloud, this.cloudTint());
     if (anywhere) {
       body.setPosition(
         Phaser.Math.Between(this.bounds.left, this.bounds.right),
@@ -825,9 +901,11 @@ export class WorldEffects {
 
   /** Clouds briefly light up from within. */
   private lightClouds(duration: number): void {
-    for (const cloud of this.clouds) cloud.body.setTint(0xe0e7ff);
+    this.cloudsLit = true;
+    for (const cloud of this.clouds) this.tintCloud(cloud, 0xe0e7ff);
     this.scene.time.delayedCall(duration, () => {
-      for (const cloud of this.clouds) if (cloud.body.active) cloud.body.setTint(this.cloudTint());
+      this.cloudsLit = false;
+      for (const cloud of this.clouds) if (cloud.body.active) this.tintCloud(cloud, this.cloudTint());
     });
   }
 

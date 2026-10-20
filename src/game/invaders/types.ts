@@ -28,6 +28,8 @@ export interface ActiveInvader extends NavAgent {
   bodyGfx: Phaser.GameObjects.Graphics;
   /** 8-direction pixel-art sprite; absent when the sheet was still baking at spawn (bodyGfx is drawn instead). */
   sprite?: Phaser.GameObjects.Sprite;
+  /** Fighting back against a Sea Folk creature (its own AI is paused meanwhile). */
+  seaEngaged?: boolean;
   hpBarGfx: Phaser.GameObjects.Graphics;
   gridX: number;
   gridY: number;

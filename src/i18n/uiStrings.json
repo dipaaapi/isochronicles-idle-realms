@@ -168,8 +168,8 @@
     "tl": "Sige"
   },
   "resetRealmConfirm": {
-    "en": "This will permanently erase your entire Realm progress, including buildings, minions, resources, upgrades, achievements, days, waves, and regression history. This cannot be undone. Continue?",
-    "tl": "Ire-reset ang buong Realm at mabubura ang lahat ng progress, buildings, minions, resources, upgrades, achievements, days, waves, at regression history. Hindi na ito maibabalik. Ituloy?"
+    "en": "This will permanently erase EVERYTHING: your whole Realm (buildings, minions, resources, upgrades, runes, achievements, days, waves, regression history), every save, and all settings and your music library. The game restarts from the title screen. This cannot be undone. Continue?",
+    "tl": "Buburahin nang tuluyan ang LAHAT: ang buong Realm (buildings, minions, resources, upgrades, runes, achievements, days, waves, regression history), bawat save, at lahat ng settings at music library. Magsisimula ulit ang laro mula sa title screen. Hindi na ito maibabalik. Ituloy?"
   },
   "importSuccess": {
     "en": "Realm successfully restored!",
@@ -787,6 +787,10 @@
     "en": "Pause",
     "tl": "I-pause"
   },
+  "musicPlayerAutoLabel": {
+    "en": "AUTO",
+    "tl": "AUTO"
+  },
   "musicPlayerAutoPlay": {
     "en": "Auto-play: starts on its own and moves to the next saved link",
     "tl": "Auto-play: kusang tumutugtog at lumilipat sa susunod na naka-save na link"
@@ -926,5 +930,81 @@
   "brawlTitle": {
     "en": "{a} vs {b}",
     "tl": "{a} laban kay {b}"
+  },
+  "introMode": {
+    "en": "Choose a game mode",
+    "tl": "Pumili ng game mode"
+  },
+  "introSize": {
+    "en": "Map size",
+    "tl": "Laki ng mapa"
+  },
+  "introSoon": {
+    "en": "Coming soon",
+    "tl": "Malapit na"
+  },
+  "introTiles": {
+    "en": "{n}×{n} tiles",
+    "tl": "{n}×{n} na tile"
+  },
+  "introMapPreview": {
+    "en": "Every new realm rolls its own curved coastline.",
+    "tl": "Bawat bagong kaharian ay may sariling kurbadong baybayin."
+  },
+  "introMapReroll": {
+    "en": "Random map",
+    "tl": "Random na mapa"
+  },
+  "introMapSeed": {
+    "en": "Seed",
+    "tl": "Binhi"
+  },
+  "introMapApply": {
+    "en": "Use seed",
+    "tl": "Gamitin"
+  },
+  "introMapLocked": {
+    "en": "This realm is already founded; its map stays.",
+    "tl": "Naitayo na ang kahariang ito; mananatili ang mapa nito."
+  },
+  "seaTitle": {
+    "en": "Sea Folk",
+    "tl": "Sea Folk"
+  },
+  "seaContamination": {
+    "en": "Sea poison",
+    "tl": "Lason sa dagat"
+  },
+  "seaTribute": {
+    "en": "Offer tribute (truce)",
+    "tl": "Mag-alay (kasunduan)"
+  },
+  "seaHint": {
+    "en": "Waves, brawls, fires and deaths poison the sea. Past the first mark the Sea Folk rise to fight demons and humans alike; past the second the Leviathan joins. A tribute cleanses the water and keeps them off your demons for a few waves.",
+    "tl": "Nilalason ng mga alon, away, sunog at kamatayan ang dagat. Lampas sa unang marka, umaahon ang Sea Folk para labanan ang demonyo at tao; lampas sa ikalawa, sumasali ang Leviathan. Nililinis ng alay ang tubig at hindi nila gagalawin ang iyong mga demonyo sa ilang alon."
+  },
+  "broodTitle": {
+    "en": "Sand Brood",
+    "tl": "Sand Brood"
+  },
+  "broodUnrest": {
+    "en": "Ground unrest",
+    "tl": "Ligalig ng lupa"
+  },
+  "broodTribute": {
+    "en": "Offer tribute (truce)",
+    "tl": "Mag-alay (kasunduan)"
+  },
+  "broodHint": {
+    "en": "Waves, brawls and fires shake the ground. Past the first mark Arachnids and Scorpions burst out to fight everyone, Sea Folk included; past the second the Ancient Caterpillar joins. It burrows under the land between battles, churning grass into sand that settles back after a few days. A tribute calms it and keeps the brood off your demons for a few waves.",
+    "tl": "Niyayanig ng mga alon, away at sunog ang lupa. Lampas sa unang marka, lumalabas ang mga Gagamba at Alakdan para labanan ang lahat, kasama ang Sea Folk; lampas sa ikalawa, sumasali ang Sinaunang Higad. Humuhukay ito sa ilalim ng lupa sa pagitan ng labanan, ginagawang buhangin ang damo na bumabalik sa lupa makalipas ang ilang araw. Pinapakalma ito ng alay at hindi gagalawin ng brood ang iyong mga demonyo sa ilang alon."
+  },
+  "focusSkills": {
+    "en": "Followed General",
+    "tl": "Sinusundang Heneral"
+  },
+  "focusSkillsHint": {
+    "en": "F / G / H cast. ← / → next General, drag or Esc to stop following.",
+    "tl": "F / G / H para gumamit. ← / → susunod na Heneral, i-drag o Esc para tumigil sa pagsunod."
   }
 }

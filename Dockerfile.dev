@@ -13,7 +13,12 @@ COPY . .
 
 EXPOSE 5173
 
-# Ensure hot module reloading works across container boundary
+# Ensure hot module reloading works across container boundary (bind mounts on Windows/macOS don't emit fs events)
 ENV CHOKIDAR_USEPOLLING=true
+ENV CHOKIDAR_INTERVAL=300
 
+# Reinstall on start if package.json changed, so updates show up without rebuilding the image
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

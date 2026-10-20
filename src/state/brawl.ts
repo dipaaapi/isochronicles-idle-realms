@@ -4,8 +4,8 @@ import type { UnitRosterItem } from '../types/state';
 
 /**
  * General brawls: rival Generals who keep bumping into each other at the same spot
- * build tension; past the limit they brawl and the winner absorbs the loser's base
- * stats (+1 … +10). Numbers live in src/data/brawl.json.
+ * build tension; past the limit they brawl to the death and the winner absorbs 10%
+ * of the loser's current stats (+1 … +10 wins). Numbers live in src/data/brawl.json.
  */
 
 export const BRAWL_CONFIG = config;
@@ -24,7 +24,7 @@ export const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : 
 export const brawlLevelOf = (unit?: Pick<UnitRosterItem, 'brawlLevel'>): number =>
   Math.max(0, Math.min(config.maxLevel, Math.floor(unit?.brawlLevel ?? 0)));
 
-/** Base stats of a General (what a winner absorbs: never the loser's own brawl bonus). */
+/** Unupgraded stats of a General. */
 export const baseStatsOf = (unit: Pick<UnitRosterItem, 'unitClass' | 'maxHp'>) => {
   const cfg = UNIT_CLASSES[unit.unitClass];
   return { attack: cfg?.baseAttack ?? 20, hp: unit.maxHp || cfg?.baseHp || 100 };
@@ -44,16 +44,19 @@ export const addClash = (prev: BrawlTension | undefined, x: number, y: number): 
 
 export const tensionFull = (t?: BrawlTension): boolean => !!t && t.count > config.clashesToBrawl;
 
-/** Roster after a brawl: the winner absorbs the loser's base stats; the loser drops to +0. */
+/** Roster after a brawl: winner gains 10% of the loser's current stats, up to 10 wins. */
 export const applyBrawlResult = (roster: UnitRosterItem[], winnerId: string, loserId: string): UnitRosterItem[] => {
   const loser = roster.find((u) => u.id === loserId);
-  if (!loser || !roster.some((u) => u.id === winnerId)) return roster;
-  const gain = baseStatsOf(loser);
+  const winner = roster.find((u) => u.id === winnerId);
+  if (!loser || !winner) return roster;
+  const gain = generalStatsOf(loser);
   return roster.map((u) => {
     if (u.id === winnerId) {
+      const level = brawlLevelOf(u);
+      if (level >= config.maxLevel) return u;
       return {
         ...u,
-        brawlLevel: Math.min(config.maxLevel, brawlLevelOf(u) + 1),
+        brawlLevel: level + 1,
         brawlAttack: (u.brawlAttack ?? 0) + Math.round(gain.attack * config.absorb.attack),
         brawlHp: (u.brawlHp ?? 0) + Math.round(gain.hp * config.absorb.hp),
       };

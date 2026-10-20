@@ -26,7 +26,7 @@ const SUMMON_ORDER: UnitClass[] = ['TREANT', ...FIGHTER_CLASSES];
  * Returns true when `fallen` was brought back.
  */
 export function tryResurrect(ctx: WorkerContext, fallen: WorkerInstance): boolean {
-  if (fallen.unitClass === 'AQUA_SLIME') return false;
+  if (fallen.unitClass === 'AQUA_SLIME' || fallen.isBrawling) return false;
   const slime = ctx.getWorkers()
     .filter((ally) => ally.unitClass === 'AQUA_SLIME')
     .sort((first, second) => first.resurrectionCooldown - second.resurrectionCooldown)
@@ -247,7 +247,7 @@ export function pulseMoraleBoost(ctx: WorkerContext, slime: WorkerInstance, delt
   const isTl = useGameStore.getState().language === 'TL';
 
   // 1. Gather all potential recipients: Generals/Fighters, Ancient Treant, and Establishment Tenants
-  const workers = ctx.getWorkers().filter((w) => w.id !== slime.id && w.hp > 0);
+  const workers = ctx.getWorkers().filter((w) => w.id !== slime.id && w.hp > 0 && !w.isBrawling);
   const defenders = ctx.getDefenders ? ctx.getDefenders().filter((d) => !d.dead && d.container?.active) : [];
 
   interface BoostTarget {
@@ -334,7 +334,7 @@ export function updateSupportSlime(ctx: WorkerContext, slime: WorkerInstance, fr
   slime.cargo = 0;
   slime.cargoIcon.setVisible(false);
 
-  const allies = ctx.getWorkers().filter((ally) => ally.id !== slime.id && ally.unitClass !== 'AQUA_SLIME' && ally.hp > 0);
+  const allies = ctx.getWorkers().filter((ally) => ally.id !== slime.id && ally.unitClass !== 'AQUA_SLIME' && ally.hp > 0 && !ally.isBrawling);
 
   // Most urgent ally (all allies score >= 0, so the first always wins over "none")
   let target: WorkerInstance | null = null;

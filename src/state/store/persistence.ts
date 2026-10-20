@@ -1,11 +1,35 @@
-import { createJSONStorage, type PersistOptions } from 'zustand/middleware';
+import type { PersistOptions } from 'zustand/middleware';
+import { isCoastStyle } from '../buildingLayout';
 import { normalizeDifficulty } from '../difficulty';
 import { beaconLevelOf } from '../defenseStats';
 import { normalizeSkillProgress } from '../skillTree';
 import { brawlLevelOf } from '../brawl';
 import { normalizeRunes } from '../runes';
+import { clampContamination } from '../seaFolk';
+import { WILD_FACTIONS, clampMeter } from '../wildFactions';
+
+const KEY_RE = /^\d{1,3},\d{1,3}$/;
+/** Brood meter / truce and the living terrain from a save (tile keys validated). */
+const normalizeTerrain = (data: { broodUnrest?: unknown; broodTruceWaves?: unknown; terrainFlooded?: unknown; terrainFlooding?: unknown; terrainSand?: unknown; terrainRaised?: unknown; terrainFilled?: unknown }) => {
+  const keys = (v: unknown) => (Array.isArray(v) ? v.filter((k): k is string => typeof k === 'string' && KEY_RE.test(k)) : []);
+  const days = (v: unknown) => {
+    const out: Record<string, number> = {};
+    if (v && typeof v === 'object') for (const [k, d] of Object.entries(v as Record<string, unknown>)) if (KEY_RE.test(k) && Number.isFinite(d)) out[k] = Number(d);
+    return out;
+  };
+  const sand = days(data.terrainSand);
+  return {
+    broodUnrest: clampMeter(WILD_FACTIONS.BROOD, Number(data.broodUnrest ?? 0)),
+    broodTruceWaves: Math.max(0, Math.floor(Number(data.broodTruceWaves ?? 0)) || 0),
+    terrainFlooded: keys(data.terrainFlooded),
+    terrainFlooding: keys(data.terrainFlooding),
+    terrainSand: sand,
+    terrainRaised: days(data.terrainRaised),
+    terrainFilled: keys(data.terrainFilled),
+  };
+};
 import { RESOURCE_KEYS } from '../resources';
-import { localForageStorage } from '../storageAdapter';
+import { SAVE_KEY, createThrottledStorage } from '../storageAdapter';
 import { clampMusicIndex, hasStoredMusicPrefs, normalizeMusicLibrary } from '../externalMusic';
 import { getPhaseFromWave } from './defenseSlice';
 import { normalizeResourceBuildings, normalizeSpireTower } from './buildingsSlice';
@@ -91,15 +115,17 @@ const withPermanentSlime = (rawRoster: UnitRosterItem[]): UnitRosterItem[] => {
  * seed and keep the one already rolled. Node positions follow the layout;
  * Ent enrichment levels are kept.
  */
-const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNodes'], positions?: unknown) => {
+const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNodes'], positions?: unknown, coast?: unknown) => {
   if (typeof seed !== 'number' || !Number.isFinite(seed) || seed <= 0) return {};
+  // Saves from before coastlines keep their square rim, so no building ends up in the sea
+  const style = isCoastStyle(coast) ? coast : 'NONE';
   const clean: GameStoreState['buildingPositions'] = {};
   if (positions && typeof positions === 'object') {
     for (const [id, pos] of Object.entries(positions as Record<string, { x?: unknown; y?: unknown }>)) {
       if (Number.isInteger(pos?.x) && Number.isInteger(pos?.y)) clean[id as ResourceBuildingId] = { x: pos.x as number, y: pos.y as number };
     }
   }
-  return applyRealmLayout(seed, clean, nodes);
+  return applyRealmLayout(seed, clean, nodes, style);
 };
 
 
@@ -138,6 +164,7 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       regressionCount: state.regressionCount,
       regressionHistory: state.regressionHistory,
       layoutSeed: state.layoutSeed,
+      coastStyle: state.coastStyle,
       buildingPositions: state.buildingPositions,
       munitions: state.munitions,
       platformPhase: state.platformPhase,
@@ -173,6 +200,15 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       brawlTension: state.brawlTension,
       runes: state.runes,
       runeSlots: state.runeSlots,
+      seaContamination: state.seaContamination,
+      seaTruceWaves: state.seaTruceWaves,
+      broodUnrest: state.broodUnrest,
+      broodTruceWaves: state.broodTruceWaves,
+      terrainFlooded: state.terrainFlooded,
+      terrainFlooding: state.terrainFlooding,
+      terrainSand: state.terrainSand,
+      terrainRaised: state.terrainRaised,
+      terrainFilled: state.terrainFilled,
       discoveredInvaders: state.discoveredInvaders,
       promptedUpgrades: state.promptedUpgrades,
       targetFps: state.targetFps,
@@ -228,10 +264,13 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         discoveredBeasts: migrateDiscovered<UnitClass>(data.discoveredBeasts, UNIT_CLASSES, ['DRYAD', 'MINOTAUR']),
         brawlTension: normalizeTension(data.brawlTension),
         ...normalizeRunes(data.runes, data.runeSlots),
+        seaContamination: clampContamination(data.seaContamination ?? 0),
+        seaTruceWaves: Math.max(0, Math.floor(data.seaTruceWaves ?? 0)),
+        ...normalizeTerrain(data),
         discoveredInvaders: migrateDiscovered<InvaderType>(data.discoveredInvaders, INVADER_CONFIGS, []),
         lastSavedTimestamp: Date.now(),
         screen: data.hasCompletedIntro ? 'GAME' : 'TITLE',
-        ...restoreLayout(data.layoutSeed, get().dynamicResourceNodes, data.buildingPositions),
+        ...restoreLayout(data.layoutSeed, get().dynamicResourceNodes, data.buildingPositions, data.coastStyle),
       });
       return true;
     } catch (err) {
@@ -271,6 +310,15 @@ const partialize = (state: GameStoreState) => ({
   brawlTension: state.brawlTension,
   runes: state.runes,
   runeSlots: state.runeSlots,
+  seaContamination: state.seaContamination,
+  seaTruceWaves: state.seaTruceWaves,
+  broodUnrest: state.broodUnrest,
+  broodTruceWaves: state.broodTruceWaves,
+  terrainFlooded: state.terrainFlooded,
+  terrainFlooding: state.terrainFlooding,
+  terrainSand: state.terrainSand,
+  terrainRaised: state.terrainRaised,
+  terrainFilled: state.terrainFilled,
   discoveredInvaders: state.discoveredInvaders,
   day: state.day,
   year: state.year,
@@ -280,6 +328,7 @@ const partialize = (state: GameStoreState) => ({
   regressionCount: state.regressionCount,
   regressionHistory: state.regressionHistory,
   layoutSeed: state.layoutSeed,
+  coastStyle: state.coastStyle,
   buildingPositions: state.buildingPositions,
   munitions: state.munitions,
   lastSavedTimestamp: state.lastSavedTimestamp,
@@ -313,6 +362,9 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     discoveredBeasts: migrateDiscovered<UnitClass>(persisted.discoveredBeasts, UNIT_CLASSES, currentState.discoveredBeasts),
     brawlTension: normalizeTension(persisted.brawlTension),
     ...normalizeRunes(persisted.runes, persisted.runeSlots),
+    seaContamination: clampContamination(persisted.seaContamination ?? 0),
+    seaTruceWaves: Math.max(0, Math.floor(persisted.seaTruceWaves ?? 0)),
+    ...normalizeTerrain(persisted),
     discoveredInvaders: migrateDiscovered<InvaderType>(persisted.discoveredInvaders, INVADER_CONFIGS, currentState.discoveredInvaders),
     castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
     munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0, ...(persisted.munitions ?? {}) },
@@ -328,13 +380,13 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
       : currentState.defense,
     showTileCoordinates: persisted.showTileCoordinates ?? true,
     layoutSeed: currentState.layoutSeed,
-    ...restoreLayout(persisted.layoutSeed, currentState.dynamicResourceNodes, persisted.buildingPositions),
+    ...restoreLayout(persisted.layoutSeed, currentState.dynamicResourceNodes, persisted.buildingPositions, persisted.coastStyle),
   };
 };
 
 export const persistOptions: PersistOptions<GameStoreState, PersistedState> = {
-  name: 'isochronicle-realm-state',
-  storage: createJSONStorage(() => localForageStorage),
+  name: SAVE_KEY,
+  storage: createThrottledStorage<PersistedState>(),
   merge,
   partialize,
 };

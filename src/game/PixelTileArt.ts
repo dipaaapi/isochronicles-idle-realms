@@ -50,7 +50,18 @@ export interface TileArtSpec {
   difficulty?: Difficulty;
   /** Water only: which grid neighbours are land (+x, -x, +y, -y), for shallows and shore foam. */
   shore?: { px: boolean; nx: boolean; py: boolean; ny: boolean };
+  /** Layout seed: places the random curved sand patches on the grass. */
+  seed?: number;
+  /**
+   * Living terrain as curved fields over the island (>= 0.5 inside): sand the
+   * Caterpillar churned, shore the Leviathan is soaking, and raised rock.
+   */
+  terrain?: { sand?: (u: number, v: number) => number; wet?: (u: number, v: number) => number; raised?: (u: number, v: number) => number };
 }
+
+const SAND = 0xe9d8a6;
+const WET_SAND = 0xb8a47a;
+const BANK = [0xc9b07a, 0xa88f5e, 0x8a7448, 0x6e5b38];
 
 type Phase = 1 | 2 | 3 | 4;
 const hex = (v: string) => Number(v);
@@ -99,6 +110,9 @@ const CLIFF_ROCK: Record<1 | 2 | 3 | 4, number> = {
 // ── Geometry ─────────────────────────────────────────────────────────────────
 
 /** Is art pixel (px, py) inside the top diamond (py relative to diamond top)? */
+/** True for pixels on a tile frame's top (diamond) face. */
+export const isTopPixel = (px: number, py: number): boolean => inTop(px, py);
+
 const inTop = (px: number, py: number): boolean => {
   if (py < 0 || py >= TOP_H) return false;
   const dx = Math.abs(px + 0.5 - HALF_W);
@@ -259,6 +273,17 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
       const d = diamondDist(px, py);
       switch (type) {
         case 'AETHER_GRASS': {
+          // Living terrain (curved patches, not whole tiles)
+          if (spec.terrain) {
+            const t = paintLivingTerrain(gx, gy, px, py, spec.terrain, c);
+            if (t !== null) { c = t; break; }
+          }
+          // Meadow tone drifts in broad, soft swathes that ignore tile borders
+          {
+            const { u, v } = frameUV(gx, gy, px, py);
+            const sway = Math.sin(u * 0.41 + v * 0.23) * 0.5 + Math.sin(u * 0.17 - v * 0.37 + 1.7) * 0.5;
+            c = shade(c, 1 + sway * 0.07);
+          }
           const blade = hash(gx, gy, px, py + 200);
           if (blade > 0.955) c = mix(c, colors.strokeColor, 0.7);
           else if (blade < 0.05) c = shade(c, 0.78);
@@ -266,6 +291,10 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
           if (py > 0 && hash(gx, gy, px, py + 300) > 0.985 && inTop(px, py - 1)) {
             put(px, py - 1 + yOff, shade(colors.strokeColor, 1.1));
           }
+          // Random sandy clearings with soft, curving edges (seeded per realm)
+          const patch = sandPatch(gx, gy, px, py, spec.seed ?? 0);
+          if (patch > 0.8) { c = hash(gx, gy, px, py + 1300) > 0.85 ? WET_SAND : SAND; break; }
+          if (patch > 0.76) c = mix(c, SAND, 0.5);
           const bloom = hash(gx, gy, px, py + 400);
           if (platformPhase === 1 && bloom > 0.994) c = n > 0.5 ? 0xf472b6 : 0xfde047;
           else if (bloom < theme.blossom) c = REALM_BLOSSOM[platformPhase][n > 0.5 ? 0 : 1];
@@ -329,10 +358,172 @@ export function paintTile(buf: PixelBuffer, ox: number, oy: number, spec: TileAr
       }
       const upperEdge = !inTop(px, py - 1) || (!inTop(px - 1, py) && py < HALF_H) || (!inTop(px + 1, py) && py < HALF_H);
       const lowerEdge = !inTop(px, py + 1) || (!inTop(px - 1, py) && py >= HALF_H) || (!inTop(px + 1, py) && py >= HALF_H);
-      if (upperEdge) c = px < HALF_W ? shade(c, 1.22) : shade(c, 1.1);
-      else if (lowerEdge) c = shade(c, 0.8);
+      // Grass blends tile to tile (no bevel lines, so the meadow doesn't read as a grid of diamonds)
+      if (type !== 'AETHER_GRASS') {
+        if (upperEdge) c = px < HALF_W ? shade(c, 1.22) : shade(c, 1.1);
+        else if (lowerEdge) c = shade(c, 0.8);
+      }
 
       put(px, py + yOff, c);
     }
   }
+}
+
+// ── Coastline (global shore field) ───────────────────────────────────────────
+
+/** Island coordinates (grid units, tile centres on integers) of a frame pixel; may lie outside the tile. */
+function frameUV(gx: number, gy: number, px: number, oy: number): { u: number; v: number; lx: number; ly: number } {
+  const sx = (px + 0.5 - HALF_W) / HALF_W;
+  const sy = (oy + 0.5) / HALF_H;
+  const lx = (sx + sy) / 2;
+  const ly = (sy - sx) / 2;
+  return { u: gx - 0.5 + lx, v: gy - 0.5 + ly, lx, ly };
+}
+
+/** Smooth, seeded sand-patch value (0..1) — clearings above ~0.56. */
+function sandPatch(gx: number, gy: number, px: number, py: number, seed: number): number {
+  const { u, v } = frameUV(gx, gy, px, py);
+  const s = (seed % 1013) * 0.61;
+  const blob = Math.sin(u * 0.53 + s) * Math.sin(v * 0.47 + s * 1.3) * 0.6 + Math.sin(u * 1.37 - v * 1.11 + s * 2.1) * 0.25 + Math.sin(u * 3.1 + v * 2.7) * 0.08;
+  return (blob + 1) / 2;
+}
+
+/** Pixel classes in a coastal frame: what the shore layer copies over the animated water. */
+export const COAST_NONE = 0, COAST_LAND = 1, COAST_BANK = 2, COAST_WATER = 3;
+
+/**
+ * Re-paints a tile the coastline passes through, following the global field
+ * instead of the tile's diamond: land pixels (beach sand toward the water),
+ * a short sandy bank where land drops to the water line, and water below.
+ * `field(u, v) >= 0.5` is land. Returns the per-pixel class mask.
+ */
+export function paintCoast(
+  buf: PixelBuffer, ox: number, oy: number, spec: TileArtSpec,
+  field: (u: number, v: number) => number,
+  palettes: { water: TilePalette; grass: TilePalette }
+): Uint8Array {
+  const { gridX: gx, gridY: gy } = spec;
+  const mask = new Uint8Array(TILE_ART_W * TILE_ART_H);
+  const isWaterTile = spec.type === 'OCEAN_BLOCK';
+  const own = (spec.type === 'AETHER_GRASS');
+  const put = (px: number, py: number, color: number) => {
+    const i = ((oy + py) * buf.width + (ox + px)) * 4;
+    buf.data[i] = (color >> 16) & 0xff;
+    buf.data[i + 1] = (color >> 8) & 0xff;
+    buf.data[i + 2] = color & 0xff;
+    buf.data[i + 3] = 255;
+  };
+  const clear = (px: number, py: number) => { buf.data[((oy + py) * buf.width + (ox + px)) * 4 + 3] = 0; };
+  const landAt = (px: number, row: number) => {
+    if (!inTop(px, row)) return -1;
+    const { u, v } = frameUV(gx, gy, px, row);
+    return field(u, v);
+  };
+  for (let px = 0; px < TILE_ART_W; px++) {
+    const bottom = TOP_BOTTOM_ROW[px];
+    for (let row = 0; row <= bottom + WATER_ART_DROP; row++) {
+      const f = landAt(px, row);
+      if (f >= 0.5) {
+        // Land: keep a land tile's own art inland, beach toward the water
+        let c: number;
+        const n = hash(gx, gy, px, row + 1400);
+        if (!isWaterTile && !own && f >= 0.62) { mask[row * TILE_ART_W + px] = COAST_LAND; continue; }
+        if (f < 0.535) c = n > 0.5 ? mix(FOAM, SHALLOW, 0.15) : WET_SAND;
+        else if (f < 0.6) c = mix(WET_SAND, SAND, 0.5);
+        else if (f < 0.7) c = n > 0.9 ? shade(SAND, 0.92) : SAND;
+        else if (f < 0.76) c = mix(SAND, palettes.grass.topColor, 0.55);
+        else if (isWaterTile) {
+          c = palettes.grass.topColor;
+          if (n < 0.12) c = shade(c, 0.9); else if (n > 0.92) c = shade(c, 1.08);
+          if (hash(gx, gy, px, row + 1500) > 0.955) c = mix(c, palettes.grass.strokeColor, 0.7);
+        } else { mask[row * TILE_ART_W + px] = COAST_LAND; continue; } // grass tile's own pixel
+        put(px, row, c);
+        mask[row * TILE_ART_W + px] = COAST_LAND;
+        continue;
+      }
+      // Bank: land just above drops to the water line
+      let bank = -1;
+      for (let k = 1; k <= WATER_ART_DROP; k++) if (landAt(px, row - k) >= 0.5) { bank = k; break; }
+      if (bank > 0) {
+        put(px, row, shade(BANK[bank - 1], hash(gx, gy, px, row + 1600) > 0.8 ? 0.9 : 1));
+        mask[row * TILE_ART_W + px] = COAST_BANK;
+        continue;
+      }
+      // Water surface seen here comes from the top-face point WATER_ART_DROP rows up
+      const src = row - WATER_ART_DROP;
+      if (src >= 0 && inTop(px, src)) {
+        const fs = landAt(px, src);
+        let c = paintWater(palettes.water.topColor, palettes.water, gx, gy, px, src, undefined);
+        if (fs > 0.4) c = mix(c, FOAM, 0.65); // surf along the curve
+        else if (fs > 0.32 && hash(gx, gy, px, src + 1700) > 0.5) c = mix(c, FOAM, 0.4);
+        put(px, row, c);
+        mask[row * TILE_ART_W + px] = COAST_WATER;
+      } else if (inTop(px, row) && !isWaterTile) {
+        clear(px, row); // let the tile behind show, exactly like a water tile's top rows
+      }
+    }
+    // A land tile's side face below a watery bottom edge would draw a straight bank: drop it
+    if (!isWaterTile && landAt(px, bottom) < 0.5) {
+      for (let row = bottom + WATER_ART_DROP + 1; row < TILE_ART_H; row++) clear(px, row);
+    }
+  }
+  return mask;
+}
+
+// ── Living terrain: raised rock, soaked shore, churned sand ─────────────────
+
+const ROCK_TOP = 0xc9a26b;
+const ROCK_RIM = 0xe7cc98;
+const CLIFF = [0x8a6440, 0x7a5636, 0x6b4a2e, 0x5d3f27, 0x4f3520, 0x432c1a];
+const CLIFF_ROWS = CLIFF.length;
+
+/**
+ * One pixel of the living terrain, or null where the grass stays. Raised rock
+ * gets a lit rim and strata on top and a cliff face falling CLIFF_ROWS pixels
+ * below its lower edge (painted into whatever tile lies there), so the plateau
+ * reads as standing above the land.
+ */
+function paintLivingTerrain(gx: number, gy: number, px: number, py: number, T: NonNullable<TileArtSpec['terrain']>, base: number): number | null {
+  const { u, v } = frameUV(gx, gy, px, py);
+  const raised = T.raised;
+  if (raised) {
+    const f = raised(u, v);
+    if (f >= 0.5) {
+      let c = f < 0.6 ? ROCK_RIM : ROCK_TOP;
+      const strata = Math.sin(v * 9 + u * 2 + Math.sin(u * 3) * 0.8);
+      if (f >= 0.6 && strata > 0.82) c = shade(c, 0.88);
+      if (hash(gx, gy, px, py + 2100) > 0.965) c = shade(c, 0.8);
+      else if (hash(gx, gy, px, py + 2200) > 0.985) c = mix(c, 0x6b8f3a, 0.6); // a tuft clinging on top
+      return c;
+    }
+    for (let k = 1; k <= CLIFF_ROWS; k++) {
+      const up = frameUV(gx, gy, px, py - k);
+      if (raised(up.u, up.v) >= 0.5) {
+        let c = CLIFF[k - 1];
+        if ((px + Math.floor(py / 2)) % 4 === 0) c = shade(c, 0.86); // vertical cracks
+        return c;
+      }
+    }
+    // Cast shadow on the ground just below the cliff
+    for (let k = CLIFF_ROWS + 1; k <= CLIFF_ROWS + 4; k++) {
+      const up = frameUV(gx, gy, px, py - k);
+      if (raised(up.u, up.v) >= 0.5) return shade(base, 0.72 + (k - CLIFF_ROWS) * 0.05);
+    }
+  }
+  const wet = T.wet?.(u, v) ?? 0;
+  if (wet >= 0.5) {
+    let c = mix(WET_SAND, SHALLOW, 0.18 + 0.12 * Math.sin(u * 3 + v * 2));
+    if (hash(gx, gy, px, py + 1900) > 0.985) c = mix(c, FOAM, 0.7);
+    return c;
+  }
+  const sand = T.sand?.(u, v) ?? 0;
+  if (sand >= 0.5) {
+    const ripple = Math.sin(u * 7.3 + v * 3.1 + Math.sin(v * 2.3) * 1.6);
+    let c = sand < 0.56 ? mix(SAND, 0x5f8f3e, 0.35) : SAND; // grass fringe at the edge
+    if (ripple > 0.7) c = shade(c, 1.08);
+    else if (ripple < -0.75) c = shade(c, 0.86);
+    if (hash(gx, gy, px, py + 1800) > 0.97) c = shade(c, 0.75);
+    return c;
+  }
+  return null;
 }

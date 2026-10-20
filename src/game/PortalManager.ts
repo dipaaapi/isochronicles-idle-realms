@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { hitReaction } from './hitReaction';
 import { IsometricHelper } from './IsometricHelper';
 import { PORTAL_SCALE, PORTAL_SITES, PortalSite, rectCenter } from '../state/buildingLayout';
 import { riftHpScale } from '../state/portalDefense';
@@ -8,7 +9,7 @@ import type { PortalPattern } from '../state/waveTactics';
 import { useGameStore } from '../state/useGameStore';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
-import { createStructureSprite, playStructureAnim, structureHeadroom } from './sprites/StructureSprites';
+import { createStructureSprite, playStructureAnim, playStructureSequence, structureHeadroom } from './sprites/StructureSprites';
 
 export type PortalMode = 'dormant' | 'open' | 'destroyed';
 
@@ -124,7 +125,10 @@ export class PortalManager {
 
   private applyMode(p: PortalState): void {
     this.drawFallback(p);
-    if (p.sprite) playStructureAnim(p.sprite, p.mode === 'open' ? 'idle' : p.mode, true);
+    if (p.sprite) {
+      if (p.mode === 'destroyed' && p.sprite.anims.currentAnim?.key.endsWith('-idle')) playStructureSequence(p.sprite, 'collapse', 'destroyed');
+      else playStructureAnim(p.sprite, p.mode === 'open' ? 'idle' : p.mode, true);
+    }
     p.container.setAlpha(p.mode === 'dormant' ? 0.75 : 1);
     p.lastHpKey = '';
   }
@@ -309,8 +313,7 @@ export class PortalManager {
     p.hp = Math.max(0, p.hp - amount);
     if (p.sprite) {
       const sprite = p.sprite;
-      sprite.setTintFill(0xffffff);
-      this.scene.time.delayedCall(60, () => sprite.active && sprite.clearTint());
+      hitReaction(this.scene, sprite);
     }
     if (p.hp > 0) return false;
 

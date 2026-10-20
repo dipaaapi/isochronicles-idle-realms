@@ -1,0 +1,6 @@
+{
+  "_doc": "Emoji per resource for compact UI cost rows (fallback 📦).",
+  "aetherShards": "💎", "wood": "🌲", "stone": "🪨", "arcaneEssence": "✨", "fish": "🐟", "water": "💧",
+  "metal": "🔩", "charcoal": "⬛", "coal": "🪨", "minerals": "🔷", "obsidianShard": "🌋", "soulFragments": "💀",
+  "abyssalPearl": "🦪", "scrapMetal": "⚙️", "coins": "🪙"
+}

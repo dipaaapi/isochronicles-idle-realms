@@ -12,7 +12,8 @@
     "desktop": "npm run build:steam && electron .",
     "desktop:dev-tools": "npm run build:steam && electron . --dev-tools",
     "dist:steam": "npm run build:steam && electron-builder --win --linux --dir",
-    "steam:art": "python scripts/steam-art.py"
+    "steam:art": "python scripts/steam-art.py",
+    "steam:capture": "node scripts/run-electron.cjs scripts/steam-capture.cjs"
   },
   "dependencies": {
     "easystarjs": "^0.4.4",

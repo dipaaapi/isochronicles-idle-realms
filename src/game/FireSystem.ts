@@ -12,6 +12,9 @@ import type { TowerId } from '../types/state';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
 import CFG from '../data/fireConfig.json';
+import { SEA_CONTAMINATION } from '../state/seaFolk';
+import { WILD_FACTIONS } from '../state/wildFactions';
+import { battleFxReady, spawnSmoke, type FireStage } from './battleFx';
 
 const rand = ([lo, hi]: number[]): number => lo + Math.random() * (hi - lo);
 
@@ -56,16 +59,68 @@ export class FireSystem {
   private crews = new Map<Defender, Crew>();
   private scurry = new WeakMap<WorkerInstance, { x: number; y: number; t: number }>();
   private gfx: Phaser.GameObjects.Graphics;
+  /** Animated flame sprites per burning establishment (stage follows the fire level). */
+  private flames = new Map<TowerId, { sprites: Phaser.GameObjects.Sprite[]; stage: FireStage | '' }>();
 
   constructor(
-    scene: Phaser.Scene,
-    layer: Phaser.GameObjects.Container,
+    private scene: Phaser.Scene,
+    private layer: Phaser.GameObjects.Container,
     private structures: StructureManager,
     private invasion: InvasionManager,
     private walkable: (x: number, y: number) => boolean
   ) {
     this.gfx = scene.add.graphics();
     layer.add(this.gfx);
+  }
+
+  private stageOf(level: number): FireStage {
+    return level >= 70 ? 'blaze' : 'burn';
+  }
+
+  /** Keeps one cluster of flame sprites per fire; doused fires smoulder a while, collapses vanish. */
+  private syncFlames(): void {
+    if (!battleFxReady()) return;
+    for (const [id, entry] of this.flames) {
+      if (this.fires.has(id)) continue;
+      this.flames.delete(id);
+      const gone = this.collapsed.delete(id);
+      for (const s of entry.sprites) {
+        if (!s.active) continue;
+        if (gone) { s.destroy(); continue; }
+        s.play('battle-fire:smoulder');
+        this.scene.tweens.add({ targets: s, alpha: 0, delay: 2600, duration: 1400, onComplete: () => s.destroy() });
+      }
+    }
+    for (const fire of this.fires.values()) {
+      const t = this.targetOf(fire.id);
+      if (!t) continue;
+      let entry = this.flames.get(fire.id);
+      if (!entry) {
+        const half = (Math.max(t.rect.w, t.rect.h) * TILE_WIDTH) / 2;
+        const count = Math.max(2, Math.min(4, Math.round(half / 22)));
+        const sprites: Phaser.GameObjects.Sprite[] = [];
+        for (let i = 0; i < count; i++) {
+          const seed = i * 12.9898 + fire.id.length;
+          const s = this.scene.add.sprite(t.x + Math.sin(seed) * half * 0.55, t.y + Math.cos(seed * 1.7) * half * 0.22 - 4, 'battle-fire');
+          s.setOrigin(0.5, 0.95).setScale(1.3 + (i % 2) * 0.25).setFlipX(i % 2 === 1);
+          s.play('battle-fire:ignite');
+          this.layer.add(s);
+          sprites.push(s);
+        }
+        entry = { sprites, stage: '' };
+        this.flames.set(fire.id, entry);
+      }
+      const stage = this.stageOf(fire.level);
+      const igniting = entry.sprites[0]?.anims.currentAnim?.key === 'battle-fire:ignite' && entry.sprites[0].anims.isPlaying;
+      if (stage !== entry.stage && !igniting) {
+        entry.stage = stage;
+        entry.sprites.forEach((s, i) => s.play({ key: `battle-fire:${stage}`, startFrame: i % 3 }));
+      }
+      if (Math.random() < 0.04 + fire.level / 2500) {
+        const s = entry.sprites[Math.floor(Math.random() * entry.sprites.length)];
+        if (s) spawnSmoke(s.x, s.y - 40 * s.scaleY, 1 + fire.level / 120, 6);
+      }
+    }
   }
 
   isBurning(id: TowerId): boolean {
@@ -106,6 +161,8 @@ export class FireSystem {
     } else {
       this.fires.set(id, { id, level: CFG.torch.ignite, panic: CFG.panicSeconds, shore: this.shoreNear(target) });
       logMessage('fireStarted', { building: name });
+      useGameStore.getState().stirSea(SEA_CONTAMINATION.perFire); // ash and runoff foul the sea
+      useGameStore.getState().stirBrood(WILD_FACTIONS.BROOD.contamination.perFire); // and shake the ground
     }
     soundFx.playExplosion();
   }
@@ -224,8 +281,11 @@ export class FireSystem {
     logMessage('fireOut', { building: this.structures.displayName(fire.id) });
   }
 
+  private collapsed = new Set<TowerId>();
+
   private collapse(fire: Fire): void {
     this.fires.delete(fire.id);
+    this.collapsed.add(fire.id);
     const store = useGameStore.getState();
     const b = towerBuildingOf(store, fire.id);
     store.damageBuilding(fire.id, buildingMaxHp(towerLevelOf(b)) * 10);
@@ -317,11 +377,13 @@ export class FireSystem {
     }
 
     // Flames, smoke and the fire gauge on each burning establishment
+    this.syncFlames();
+    const sprited = battleFxReady();
     for (const fire of this.fires.values()) {
       const t = this.targetOf(fire.id);
       if (!t) continue;
       const half = (Math.max(t.rect.w, t.rect.h) * TILE_WIDTH) / 2;
-      const flames = 3 + Math.round(fire.level / 12);
+      const flames = sprited ? 0 : 3 + Math.round(fire.level / 12);
       for (let i = 0; i < flames; i++) {
         const seed = i * 12.9898 + fire.id.length;
         const ox = Math.sin(seed) * half * 0.6;
@@ -377,6 +439,8 @@ export class FireSystem {
   }
 
   destroy(): void {
+    for (const entry of this.flames.values()) entry.sprites.forEach((s) => s.destroy());
+    this.flames.clear();
     this.gfx.destroy();
     this.fires.clear();
     this.crews.clear();

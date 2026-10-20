@@ -267,6 +267,23 @@ export interface GameStoreState {
   // Platform & Regression Progression
   /** Seed for this realm's random establishment placement (src/state/buildingLayout.ts). */
   layoutSeed: number;
+  /** Sea Folk: how poisoned the sea is (0–100, src/data/seaFolk.json). */
+  seaContamination: number;
+  /** Waves left in a tribute truce (the Sea Folk spare the demons). */
+  seaTruceWaves: number;
+  /** Sand Brood: ground unrest (0–100, src/data/sandBrood.json). */
+  broodUnrest: number;
+  broodTruceWaves: number;
+  /** Living terrain: land claimed by the sea, land the Leviathan is eating, and dug sand (key "x,y" → day dug). */
+  terrainFlooded: string[];
+  terrainFlooding: string[];
+  terrainSand: Record<string, number>;
+  /** Raised rock heaved up by the Caterpillar (key → day); only flyers cross it, gone the next day. */
+  terrainRaised: Record<string, number>;
+  /** Sea the Caterpillar filled with sand (now land). */
+  terrainFilled: string[];
+  /** Coastline style carved into this realm's rim (buildingLayout.json coast.styles; NONE for old saves). */
+  coastStyle: import('../state/buildingLayout').CoastStyle;
   /** Player-relocated establishments (top-left tile), layered over the seeded layout. */
   buildingPositions: Partial<Record<ResourceBuildingId | 'SPIRE', { x: number; y: number }>>;
   /** Tower ammunition research (levels 0–5): AP kinetic, incendiary napalm, cryo-frost shards, tesla chain, void flak. */
@@ -358,7 +375,7 @@ export interface GameStoreState {
   discoverEntry: (category: 'beast' | 'invader', id: string) => void;
   /** Two Generals bumped into each other at grid (x, y): fills their tension gauge and returns it. */
   recordClash: (aId: string, bId: string, x: number, y: number) => import('../state/brawl').BrawlTension;
-  /** Ends a brawl: the winner absorbs the loser's base stats (+1), their tension resets. */
+  /** Ends a brawl: the winner absorbs 10% of the loser's current stats (up to +10 wins); tension resets. */
   resolveBrawl: (winnerId: string, loserId: string) => void;
   addResources: (delta: Partial<Resources>) => void;
   spendResources: (cost: Partial<Resources>) => boolean;
@@ -482,6 +499,22 @@ export interface GameStoreState {
   openEstablishmentModal: (id: 'CASTLE' | TowerId) => void;
   /** Moves an establishment so its top-left tile is (x, y). Refused mid-wave or on a blocked spot. */
   relocateEstablishment: (id: ResourceBuildingId | 'SPIRE', x: number, y: number) => boolean;
+  stirSea: (amount: number) => void;
+  awardSeaKill: (unitId: string, boss: boolean) => boolean;
+  stirBrood: (amount: number) => void;
+  offerBroodTribute: () => boolean;
+  spendBroodTruceWave: () => void;
+  digSand: (keys: string[]) => void;
+  markFlooding: (keys: string[]) => void;
+  floodPending: () => void;
+  settleSand: () => void;
+  applyCarve: (carve: { filled: string[]; toSand: string[]; toLand: string[]; raised: string[] }) => void;
+  liftRaised: () => void;
+  setGeneralPlus: (unitId: string, level: number) => void;
+  offerSeaTribute: () => boolean;
+  spendSeaTruceWave: () => void;
+  /** New-realm map picker: switch to a seed and coast style before anything is built. */
+  chooseRealmMap: (seed: number, coast: import('../state/buildingLayout').CoastStyle) => void;
   closeEstablishmentModal: () => void;
   toggleBuildingAutoBuy: (buildingId: TowerId) => void;
   autoBuyMaterialsForUpgrade: (buildingId: TowerId) => void;

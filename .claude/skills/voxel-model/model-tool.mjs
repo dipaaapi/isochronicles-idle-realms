@@ -13,6 +13,7 @@
  *   --dirs 0,2,4,6        directions for characters (default: 0,2,4,6; structures ignore it)
  *   --scale 3             nearest-neighbour upscale (default 3)
  *   --blockout            flat colour per body part, no detail (check the motion first, then the detail)
+ *   --hd                  structures: render exactly what the game bakes (2x detail, tweened loops, build/damaged/collapse)
  *   --ref                 put the reference art next to the render (needs python3 + Pillow)
  *   --out <file.png>      output path (default: <scratch>/<key>-<anim>.png)
  *
@@ -35,6 +36,7 @@ const FILES = {
   minion: 'minionModels.ts',
   enemy: 'enemyModels.ts',
   structure: 'structureModels.ts',
+  sea: 'seaModels.ts',
 };
 
 // Reference art for models whose file name isn't the kebab-case of the key
@@ -52,7 +54,9 @@ async function loadModules() {
 export * as VS from ${JSON.stringify(path.join(SPRITES, 'VoxelSprite.ts'))};
 export { MINION_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.minion))};
 export { ENEMY_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.enemy))};
+export { SEA_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.sea))};
 export { STRUCTURE_MODELS, STRUCTURE_ART } from ${JSON.stringify(path.join(SPRITES, FILES.structure))};
+export { expandStructure } from ${JSON.stringify(path.join(SPRITES, 'structureStates.ts'))};
 `);
   const outfile = path.join(SCRATCH, 'models.bundle.mjs');
   await build({ entryPoints: [entry], bundle: true, format: 'esm', platform: 'node', outfile, logLevel: 'error' });
@@ -62,6 +66,7 @@ export { STRUCTURE_MODELS, STRUCTURE_ART } from ${JSON.stringify(path.join(SPRIT
 function findModel(mods, key) {
   if (mods.MINION_MODELS[key]) return { kind: 'minion', make: mods.MINION_MODELS[key] };
   if (mods.ENEMY_MODELS[key]) return { kind: 'enemy', make: mods.ENEMY_MODELS[key] };
+  if (mods.SEA_MODELS?.[key]) return { kind: 'sea', make: mods.SEA_MODELS[key] };
   if (mods.STRUCTURE_MODELS[key]) return { kind: 'structure', make: mods.STRUCTURE_MODELS[key] };
   const all = [...Object.keys(mods.MINION_MODELS), ...Object.keys(mods.ENEMY_MODELS), ...Object.keys(mods.STRUCTURE_MODELS)];
   fail(`Unknown model "${key}". Known: ${all.join(', ')}`);
@@ -170,9 +175,11 @@ async function render(key, opts) {
   let sheet;
 
   if (kind === 'structure') {
-    sheet = mods.VS.renderStrip(model, model.animations);
-    const names = opts.anim === 'all' ? Object.keys(model.animations)
-      : [opts.anim && model.animations[opts.anim] ? opts.anim : Object.keys(model.animations)[0]];
+    // --hd: exactly what the game bakes (finer voxels, tweened loops, build / damaged / collapse)
+    const x = opts.hd ? mods.expandStructure(model) : { model, animations: model.animations, ops: {} };
+    sheet = mods.VS.renderStrip(x.model, x.animations, undefined, x.ops);
+    const names = opts.anim === 'all' ? Object.keys(x.animations)
+      : [opts.anim && x.animations[opts.anim] ? opts.anim : Object.keys(x.animations)[0]];
     for (const name of names) {
       const { start, count } = sheet.layout.animations[name];
       for (const f of parseList(opts.frames, [...Array(count).keys()])) if (f < count) cells.push({ col: start + f, row: 0 });
@@ -262,7 +269,7 @@ for (let i = 0; i < rest.length; i++) {
   const a = rest[i];
   if (!a.startsWith('--')) continue;
   const name = a.slice(2);
-  if (name === 'ref' || name === 'blockout') opts[name] = true;
+  if (name === 'ref' || name === 'blockout' || name === 'hd') opts[name] = true;
   else opts[name] = rest[++i];
 }
 

@@ -1,50 +1,68 @@
--- Animated pixel-art troop transport passing overhead during invasion waves.
-local W, H, N = 48, 32, 6
+-- Armoured troop transport crossing the island during waves.
+-- fly: cruising with prop spin + nav lights; drop: rear ramp open with jump light;
+-- damaged: engine on fire, trailing smoke, sputtering prop.
+local L = dofile("art/skills/lib.lua")
+local rgba, px, line, rect, disc = L.rgba, L.px, L.line, L.rect, L.disc
 local out = app.params["out"] or "troop-transport.aseprite"
-local function rgba(r,g,b,a) return app.pixelColor.rgba(r,g,b,a or 255) end
+L.new(56,36,out,"armoured-transport")
 local C = {
   shadow=rgba(8,14,20), body=rgba(56,68,69), light=rgba(105,119,109), hi=rgba(170,178,153),
   dark=rgba(30,39,42), glass=rgba(75,145,166), glassHi=rgba(161,221,224), red=rgba(233,72,65),
-  gold=rgba(236,178,70), exhaust=rgba(222,157,82,175),
+  green=rgba(80,220,110), gold=rgba(236,178,70), exhaust=rgba(222,157,82,175), soot=rgba(24,20,22),
+  fire={ rgba(200,30,30), rgba(251,140,50), rgba(255,236,140) },
+  sm={ rgba(50,46,50,200), rgba(80,76,80,160), rgba(120,116,118,110), rgba(160,156,156,60) },
 }
-local spr = Sprite(W,H,ColorMode.RGB); spr.filename=out; spr.layers[1].name="armoured-transport"
-for _=2,N do spr:newEmptyFrame() end
-local function px(img,x,y,c) if x>=0 and y>=0 and x<W and y<H then img:drawPixel(math.floor(x),math.floor(y),c) end end
-local function line(img,x1,y1,x2,y2,c)
-  local n=math.max(math.abs(x2-x1),math.abs(y2-y1))
-  for i=0,n do local t=n==0 and 0 or i/n; px(img,x1+(x2-x1)*t,y1+(y2-y1)*t,c) end
+local OX, OY = 4, 2
+
+local function plane(img,f,opts)
+  local function P(x,y,c) px(img,x+OX,y+OY,c) end
+  local function Ln(a,b,c2,d,c) line(img,a+OX,b+OY,c2+OX,d+OY,c) end
+  local function R(a,b,c2,d,c) rect(img,a+OX,b+OY,c2+OX,d+OY,c) end
+  -- exhaust glow
+  R(2,15,8,17,C.dark); P(2,16,(f%3==0) and C.gold or C.exhaust)
+  -- tail and wings
+  Ln(10,15,14,9,C.dark); Ln(13,15,16,10,C.light); Ln(10,15,16,15,C.hi)
+  Ln(16,16,24,26,C.dark); Ln(19,15,26,24,C.light); Ln(24,26,39,18,C.dark)
+  Ln(19,14,34,17,C.hi); Ln(34,17,41,17,C.light)
+  Ln(15,15,11,8,C.dark); Ln(16,14,13,8,C.light); Ln(11,8,18,10,C.hi)
+  -- fuselage and nose
+  R(9,14,37,17,C.shadow); R(10,14,36,16,C.body); Ln(12,14,34,14,C.light)
+  Ln(11,17,36,17,C.dark); Ln(12,13,32,13,C.hi)
+  Ln(36,14,42,15,C.hi); Ln(42,15,45,17,C.body); Ln(45,17,42,19,C.dark)
+  R(13,12,17,13,C.dark); R(14,12,16,12,C.glass); P(14,12,C.glassHi)
+  R(21,13,32,14,C.dark); R(23,13,30,13,C.light)
+  -- nav lights: red port tail, green wingtip, blinking
+  if f%2==0 then P(9,13,C.red) end
+  if f%3~=0 then P(26,24,C.green) end
+  P(35,13,C.gold)
+  if opts.drop then
+    Ln(8,16,3,23,C.dark); Ln(7,17,2,23,C.hi)
+    P(6,14,(f%2==0) and C.green or C.red)
+    -- jumper silhouette leaving the ramp
+    local jy = 20 + (f%3)*2
+    P(3,jy,C.dark); P(3,jy+1,C.dark); P(2,jy+1,C.dark); P(4,jy+1,C.dark)
+  else
+    Ln(8,16,6,18,C.dark)
+  end
+  if opts.damaged then
+    -- soot scorching on the wing root and a burning engine
+    P(22,18,C.soot); P(23,19,C.soot); P(25,20,C.soot); P(20,16,C.soot)
+    local fx, fy = 27+OX, 21+OY
+    L.flame(img,fx,fy,4,4+(f%3),-3,C.fire)
+    for k=1,4 do
+      local t = k + (f%2)*0.5
+      disc(img,fx-4-t*3.5,fy-2-t*1.2,1+k*0.6,C.sm[math.min(4,k)])
+    end
+  end
+  -- propeller (sputters when damaged)
+  local stall = opts.damaged and f%3==0
+  if stall then Ln(44,14,46,19,C.dark)
+  elseif f%2==0 then Ln(45,12,45,21,C.hi); Ln(43,16,47,16,C.light)
+  else Ln(43,14,47,19,C.hi); Ln(44,19,47,14,C.light) end
+  P(18,14,C.gold); P(33,15,C.hi); P(27,15,C.dark)
 end
-local function rect(img,x1,y1,x2,y2,c)
-  for y=y1,y2 do for x=x1,x2 do px(img,x,y,c) end end
-end
-for f=1,N do
-  local img=Image(W,H,ColorMode.RGB)
-  local prop=(f%2==0) and 8 or 9
-  -- exhaust and rear warning light flicker frame-to-frame
-  rect(img,2,15,8,17,C.dark); px(img,2,16,(f%3==0) and C.gold or C.exhaust)
-  -- raised tail, wing and armoured fuselage
-  line(img,10,15,14,9,C.dark); line(img,13,15,16,10,C.light); line(img,10,15,16,15,C.hi)
-  -- wide wing and tailplane, shaded to read as a low-angle aerial view
-  line(img,16,16,24,26,C.dark); line(img,19,15,26,24,C.light); line(img,24,26,39,18,C.dark)
-  line(img,19,14,34,17,C.hi); line(img,34,17,41,17,C.light)
-  line(img,15,15,11,8,C.dark); line(img,16,14,13,8,C.light); line(img,11,8,18,10,C.hi)
-  -- cargo plane body and nose, with cockpit glazing
-  rect(img,9,14,37,17,C.shadow); rect(img,10,14,36,16,C.body); line(img,12,14,34,14,C.light)
-  line(img,11,17,36,17,C.dark); line(img,12,13,32,13,C.hi)
-  line(img,36,14,42,15,C.hi); line(img,42,15,45,17,C.body); line(img,45,17,42,19,C.dark)
-  rect(img,13,12,17,13,C.dark); rect(img,14,12,16,12,C.glass); px(img,14,12,C.glassHi)
-  rect(img,21,13,32,14,C.dark); rect(img,23,13,30,13,C.light)
-  -- opened rear ramp and tiny paratrooper silhouettes in the lit bay
-  line(img,8,16,5,21,C.dark); line(img,7,17,4,21,C.hi); px(img,6,14,C.gold)
-  px(img,9,13,C.red); px(img,35,13,C.gold)
-  for y=14,16 do px(img,19,y,C.hi) end
-  -- rotating propeller at the nose, alternately cross-shaped and vertical
-  if f%2==0 then line(img,45,12,45,21,C.hi); line(img,43,16,47,16,C.light)
-  else line(img,43,14,47,19,C.hi); line(img,44,19,47,14,C.light) end
-  -- low cockpit highlight and panel rivets
-  px(img,18,14,C.gold); px(img,33,15,C.hi); px(img,27,15,C.dark)
-  app.activeSprite.frames[f].duration=100
-  spr:newCel(spr.layers[1],f,img,Point(0,0))
-end
-local tag=spr:newTag(1,N); tag.name="fly"
-spr:saveAs(out)
+
+L.tag("fly",6,90,function(img,i) plane(img,i,{}) end)
+L.tag("drop",6,90,function(img,i) plane(img,i,{drop=true}) end)
+L.tag("damaged",6,80,function(img,i) plane(img,i,{damaged=true}) end)
+L.save(out)

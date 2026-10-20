@@ -1,0 +1,119 @@
+{
+  "_doc": "Sand Brood fourth faction (game/WildFactionManager.ts, same schema as seaFolk.json). The Ancient Caterpillar, a Deity's pet, rules the ground beneath the island; battles shaking the earth raise 'contamination' (here: unrest). Above emergeAt a brood of Arachnids and Scorpions bursts out of the ground when a wave or brawl starts and fights demons, humans AND the Sea Folk; at bossAt (or at random, also in brawls: boss.inBrawls) the Caterpillar itself surfaces. Where it surfaces it heaves the ground in a rounded patch (terrain.carveRadius tiles): sea becomes sand, sand becomes land, land becomes raised rock that only flyers cross and that settles back into land the next day; sand settles back into land after terrain.sandDays days. Tribute calms it like the Sea Folk.",
+  "contamination": { "perWave": 6, "perBrawl": 3, "perFire": 1, "perBattleDeath": 0.3, "perPeacefulDay": -1.5, "emergeAt": 25, "bossAt": 70, "max": 100 },
+  "groups": [
+    { "at": 25, "size": [2, 3] },
+    { "at": 50, "size": [3, 5] },
+    { "at": 75, "size": [4, 6] }
+  ],
+  "mix": { "ARACHNID": 5, "SCORPION": 4 },
+  "brawlEmergeChance": 0.45,
+  "levelUp": { "attackPerLevel": 0.15, "hpPerLevel": 0.12, "healOnKill": 0.25, "maxLevel": 9 },
+  "fightBack": { "noticeRadius": 80, "allyRadius": 120, "maxPerCreature": 5, "leash": 320, "cooldownMs": 1100, "waterReach": 0 },
+  "boss": { "randomChance": 0.12, "runeChance": 0.5, "inBrawls": true },
+  "killReward": { "attackShare": 0.12, "hpShare": 0.12, "bossBonus": 2 },
+  "silhouettes": { "count": 4, "speed": 16, "alpha": 0.42 },
+  "bodyguards": { "count": 3, "radius": 110, "share": 0.5 },
+  "tribute": {
+    "base": { "coins": 380, "stone": 180, "wood": 160, "minerals": 60 },
+    "perContamination": 0.03,
+    "cleanse": 35,
+    "truceWaves": 3
+  },
+  "terrain": { "sandDays": 6, "carveRadius": 2.6 },
+  "creatures": {
+    "ARACHNID": {
+      "sprite": "arachnid",
+      "boss": false,
+      "hp": 90,
+      "damage": 11,
+      "range": 120,
+      "speed": 70,
+      "attackMs": 1200,
+      "skill": { "id": "WEB_SPIT", "cooldownMs": 7000, "slow": 0.5, "durationMs": 3000 },
+      "loot": [
+        { "res": "minerals", "min": 5, "max": 12 },
+        { "res": "soulFragments", "min": 1, "max": 3 },
+        { "res": "coins", "min": 10, "max": 20 }
+      ],
+      "name": { "en": "Dune Arachnid", "tl": "Gagamba ng Buhangin" },
+      "desc": { "en": "Eight-legged hunters that spit sticky silk from a distance.", "tl": "Walong-paang mangangaso na dumudura ng malagkit na sapot mula sa malayo." },
+      "skillName": { "en": "Web Spit", "tl": "Dura ng Sapot" },
+      "skillDesc": { "en": "Slows its target with a glob of silk.", "tl": "Pinababagal ang kalaban gamit ang buo ng sapot." }
+    },
+    "SCORPION": {
+      "sprite": "scorpion",
+      "boss": false,
+      "hp": 170,
+      "damage": 17,
+      "range": 34,
+      "speed": 58,
+      "attackMs": 1000,
+      "skill": { "id": "POISON_STING", "cooldownMs": 6000, "multiplier": 2.2 },
+      "loot": [
+        { "res": "stone", "min": 15, "max": 30 },
+        { "res": "obsidianShard", "min": 1, "max": 3 },
+        { "res": "coins", "min": 12, "max": 24 }
+      ],
+      "name": { "en": "Sand Scorpion", "tl": "Alakdan ng Buhangin" },
+      "desc": { "en": "Armoured pincers and a venom tail; it digs out right under its prey.", "tl": "Nakabaluting sipit at buntot na may lason; humuhukay ito mismo sa ilalim ng biktima." },
+      "skillName": { "en": "Poison Sting", "tl": "Turok ng Lason" },
+      "skillDesc": { "en": "Its next strike lands with venom for more than double damage.", "tl": "Ang susunod na tama ay may lason at higit doble ang pinsala." }
+    },
+    "ANCIENT_CATERPILLAR": {
+      "sprite": "caterpillar",
+      "boss": true,
+      "landOnly": true,
+      "hp": 1800,
+      "damage": 42,
+      "range": 60,
+      "speed": 30,
+      "attackMs": 1900,
+      "skill": { "id": "NONE", "cooldownMs": 0 },
+      "skills": [
+        {
+          "id": "BURROW_ERUPT",
+          "cooldownMs": 13000,
+          "radius": 220,
+          "damage": 75,
+          "blast": 90,
+          "name": { "en": "Burrow Eruption", "tl": "Pagsabog mula sa Hukay" },
+          "desc": { "en": "Dives into the ground and bursts out under the farthest foe, throwing everyone near into the air.", "tl": "Sumisisid sa lupa at sumasabog sa ilalim ng pinakamalayong kalaban, tinatamaan ang lahat ng malapit." }
+        },
+        {
+          "id": "SILK_SNARE",
+          "cooldownMs": 16000,
+          "radius": 160,
+          "slow": 0.35,
+          "durationMs": 4000,
+          "name": { "en": "Silk Snare", "tl": "Bitag na Seda" },
+          "desc": { "en": "Sprays a wide net of silk that snares every foe in reach.", "tl": "Nagbubuga ng malawak na lambat ng seda na bumibitag sa lahat ng kalaban na maaabot." }
+        },
+        {
+          "id": "SAND_VORTEX",
+          "cooldownMs": 18000,
+          "radius": 150,
+          "pull": 60,
+          "damage": 40,
+          "name": { "en": "Sand Vortex", "tl": "Ipoipo ng Buhangin" },
+          "desc": { "en": "Churns the ground into a sinking vortex that drags foes in and turns the land to sand.", "tl": "Ginagawang lumulubog na ipoipo ang lupa na humihila sa mga kalaban at ginagawang buhangin ang lupa." }
+        }
+      ],
+      "loot": [
+        { "res": "obsidianShard", "min": 8, "max": 14 },
+        { "res": "minerals", "min": 40, "max": 70 },
+        { "res": "coins", "min": 200, "max": 320 }
+      ],
+      "name": { "en": "Ancient Caterpillar", "tl": "Sinaunang Higad" },
+      "desc": { "en": "A Deity's ancient pet that rules the ground below. It carves the land as it burrows.", "tl": "Sinaunang alaga ng isang Diyos na naghahari sa ilalim ng lupa. Inuukit nito ang lupa habang humuhukay." },
+      "skillName": { "en": "Burrow", "tl": "Paghukay" },
+      "skillDesc": { "en": "Three skills: Burrow Eruption, Silk Snare and Sand Vortex.", "tl": "Tatlong kakayahan: Pagsabog mula sa Hukay, Bitag na Seda at Ipoipo ng Buhangin." }
+    }
+  },
+  "moods": {
+    "CALM": { "en": "Dormant", "tl": "Tulog" },
+    "RESTLESS": { "en": "Stirring", "tl": "Gumagalaw" },
+    "ENRAGED": { "en": "Raging", "tl": "Nagngingitngit" },
+    "TRUCE": { "en": "Truce", "tl": "Kasunduan" }
+  }
+}

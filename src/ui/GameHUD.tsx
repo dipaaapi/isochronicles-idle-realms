@@ -51,6 +51,8 @@ import { HoverTooltip } from './HoverTooltip';
 import { useTranslation } from '../i18n/translations';
 import { useExternalMusic } from '../state/externalMusic';
 import { MusicPlayer } from './MusicPlayer';
+import { SeaFolkPanel } from './SeaFolkPanel';
+import { GeneralSkillPanel } from './GeneralSkillPanel';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
@@ -534,6 +536,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           />
 
 
+          {/* Followed General (← / →): its skills, castable with F / G / H */}
+          <GeneralSkillPanel isTL={isTL} />
+
           {/* SECTION C: NAVIGATION TABS */}
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900 p-1 border border-slate-800">
             <button
@@ -791,6 +796,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 </div>
               )}
 
+              <SeaFolkPanel isTL={isTL} faction="SEA" />
+              <SeaFolkPanel isTL={isTL} faction="BROOD" />
               <AutoEnhancePrompt onOpenCitadel={onOpenCitadel} embedded />
             </div>
           )}

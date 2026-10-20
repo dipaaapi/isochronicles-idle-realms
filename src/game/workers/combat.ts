@@ -1,3 +1,4 @@
+import { projectileFor, shootProjectile } from '../battleFx';
 import { soundFx } from '../audio/soundFx';
 import { playCharacterSkill } from '../sprites/CharacterSprites';
 import { auras } from '../skills/combatMods';
@@ -78,13 +79,14 @@ export function updateHealer(ctx: WorkerContext, worker: WorkerInstance, frame: 
   let target: WorkerInstance | null = null;
   let lowestHpRatio = 1.0;
   for (const ally of ctx.getWorkers()) {
+    if (ally.isBrawling) continue;
     const ratio = ally.hp / ally.maxHp;
     if (ratio < lowestHpRatio) {
       lowestHpRatio = ratio;
       target = ally;
     }
   }
-  if (!target && worker.hp < worker.maxHp) target = worker;
+  if (!target && !worker.isBrawling && worker.hp < worker.maxHp) target = worker;
 
   if (!target) {
     // No one to heal, fall back to normal FSM (IDLE or harvest if forced)
@@ -160,18 +162,17 @@ function nearestInvader(worker: WorkerInstance, invaders: ActiveInvader[]) {
   };
 }
 
-/** Champion active combat: casts 2 Buff/Enhancement Skills and 1 Unique AOE Ultimate. */
-function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
-  const { config, deltaSec, effectiveAttack } = frame;
+/**
+ * One champion skill, cast now (by the combat AI or by the player from the
+ * HUD while the camera follows this General). Sets its cooldown.
+ */
+export function castChampionSkill(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame, slot: 'skill1' | 'skill2' | 'ultimate'): void {
+  const { config, effectiveAttack } = frame;
   const skills = config.skills;
   if (!skills) return;
-
   const wx = worker.container.x;
   const wy = worker.container.y;
-
-  // 1. Unique AOE Ultimate Attack
-  worker.ultimateCooldown = (worker.ultimateCooldown ?? (skills.ultimate.cooldownSeconds * 0.4)) - deltaSec;
-  if (worker.ultimateCooldown <= 0) {
+  if (slot === 'ultimate') {
     worker.ultimateCooldown = skills.ultimate.cooldownSeconds;
     const ult = skills.ultimate;
 
@@ -193,10 +194,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     }
     return;
   }
-
-  // 2. Skill 1: Buff Self & Tenants
-  worker.skill1Cooldown = (worker.skill1Cooldown ?? (skills.skill1.cooldownSeconds * 0.5)) - deltaSec;
-  if (worker.skill1Cooldown <= 0) {
+  if (slot === 'skill1') {
     worker.skill1Cooldown = skills.skill1.cooldownSeconds;
     const sk1 = skills.skill1;
     worker.armorShield = (worker.armorShield || 0) + 80;
@@ -206,10 +204,7 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     if (worker.sprite) playCharacterSkill(worker.sprite);
     return;
   }
-
-  // 3. Skill 2: Enhancement / Protection
-  worker.skill2Cooldown = (worker.skill2Cooldown ?? (skills.skill2.cooldownSeconds * 0.75)) - deltaSec;
-  if (worker.skill2Cooldown <= 0) {
+  {
     worker.skill2Cooldown = skills.skill2.cooldownSeconds;
     const sk2 = skills.skill2;
     worker.hp = Math.min(worker.maxHp, worker.hp + 140);
@@ -218,6 +213,19 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
     soundFx.playClick();
     if (worker.sprite) playCharacterSkill(worker.sprite);
   }
+}
+
+/** Champion active combat: casts 2 Buff/Enhancement Skills and 1 Unique AOE Ultimate when ready. */
+function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
+  const skills = frame.config.skills;
+  if (!skills) return;
+  const dt = frame.deltaSec;
+  worker.ultimateCooldown = (worker.ultimateCooldown ?? (skills.ultimate.cooldownSeconds * 0.4)) - dt;
+  if (worker.ultimateCooldown <= 0) return castChampionSkill(ctx, worker, frame, 'ultimate');
+  worker.skill1Cooldown = (worker.skill1Cooldown ?? (skills.skill1.cooldownSeconds * 0.5)) - dt;
+  if (worker.skill1Cooldown <= 0) return castChampionSkill(ctx, worker, frame, 'skill1');
+  worker.skill2Cooldown = (worker.skill2Cooldown ?? (skills.skill2.cooldownSeconds * 0.75)) - dt;
+  if (worker.skill2Cooldown <= 0) castChampionSkill(ctx, worker, frame, 'skill2');
 }
 
 /** COMBAT state: hunt the nearest invader, cast champion skills, or storm the nearest portal when none are close. */
@@ -331,7 +339,12 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   if (config.attackRange > 60) {
     soundFx.playLaser(); // Use hover sound for magic/ranged attack
     ctx.spawnHarvestBurst(workerX, workerY - 10, config.lanternColor, 3);
-    ctx.spawnHarvestBurst(targetX, targetY - 10, config.lanternColor, 6);
+    shootProjectile(
+      { x: workerX, y: workerY - 16 },
+      { x: targetX, y: targetY - 10 },
+      projectileFor(String(worker.unitClass ?? ''), true),
+      { tint: config.lanternColor }
+    );
     return;
   }
 

@@ -35,7 +35,8 @@ export class LiveFocusCamera {
     private allies: () => Point[],
     private dpr: () => number,
     /** Flies the main camera to a world point (clicking the stream). */
-    private flyTo: (x: number, y: number) => void,
+    /** Eased glide to a point that is re-read every frame (the action keeps moving). */
+    private flyTo: (target: () => { x: number; y: number }) => void,
     /** The two brawling Generals (island-local positions + names), or null. */
     private brawl: () => { a: Point & { name: string }; b: Point & { name: string } } | null = () => null
   ) {
@@ -93,11 +94,14 @@ export class LiveFocusCamera {
     const tick = useLiveFocus.getState().focusTick;
     if (tick !== this.focusTick) {
       this.focusTick = tick;
-      if (this.focus && useLiveFocus.getState().live) this.flyTo(this.island.x + this.focus.x, this.island.y + this.focus.y - 20);
+      if (this.focus && useLiveFocus.getState().live) {
+        const f = this.focus;
+        this.flyTo(() => ({ x: this.island.x + (this.focus ?? f).x, y: this.island.y + (this.focus ?? f).y - 20 }));
+      }
     }
     const store = useGameStore.getState();
-    // Brawls only happen between waves, so they take over the same split screen
-    if (!store.invasion.isActive && this.updateBrawl(dt)) return;
+    // A brawl already in progress keeps the split screen even when a wave begins.
+    if (this.updateBrawl(dt)) return;
     if (useLiveFocus.getState().mode === 'brawl') useLiveFocus.getState().set({ mode: 'wave', fighters: null });
     if (!store.invasion.isActive || store.defense.castleHp <= 0) {
       if (this.liveTimer > 0 || useLiveFocus.getState().live) {
@@ -167,7 +171,12 @@ export class LiveFocusCamera {
     const dpr = this.dpr();
     const { width, height, margin, zoom } = CONFIG.frame;
     this.cam.setViewport(this.scene.scale.width - (width + margin) * dpr, margin * dpr, width * dpr, height * dpr);
-    this.cam.setZoom(zoom * 1.25 * dpr);
+    // A commanded brawl can pair Generals from opposite sides of the island.
+    // Fit both into the PiP, then zoom back in naturally as they close the gap.
+    const gapX = Math.abs(fight.a.x - fight.b.x) + 64;
+    const gapY = Math.abs(fight.a.y - fight.b.y) + 64;
+    const fitZoom = Math.min(zoom * 1.25, (width - 32) / gapX, (height - 32) / gapY);
+    this.cam.setZoom(Math.max(0.25, fitZoom) * dpr);
     this.cam.centerOn(this.island.x + this.focus.x, this.island.y + this.focus.y - 20);
     const fighters: [string, string] = [fight.a.name, fight.b.name];
     if (state.mode !== 'brawl' || state.fighters?.[0] !== fighters[0] || state.fighters?.[1] !== fighters[1]) {

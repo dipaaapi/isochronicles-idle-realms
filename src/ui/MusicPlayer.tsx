@@ -278,6 +278,25 @@ export const MusicPlayerHost: React.FC = () => {
           </div>
         )}
         <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              soundFx.playClick();
+              const next = !autoPlay;
+              setAutoPlay(next);
+              // Turning it on starts playback right away, so it keeps going in a background tab
+              if (next && online) control.play();
+            }}
+            className={`flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold ${
+              autoPlay ? 'bg-emerald-500/25 text-emerald-200 ring-1 ring-emerald-400/50' : 'text-slate-500 hover:bg-slate-800 hover:text-white'
+            }`}
+            title={t('musicPlayerAutoPlay')}
+            aria-label={t('musicPlayerAutoPlay')}
+            aria-pressed={autoPlay}
+          >
+            <ListEnd className="h-3 w-3" />
+            {t('musicPlayerAutoLabel')}
+          </button>
           {online && (
             <button
               type="button"
@@ -368,19 +387,6 @@ export const MusicPlayerHost: React.FC = () => {
           <div className="flex items-center justify-between gap-1 border-t border-slate-800 px-2 py-1">
             <button type="button" disabled={!hasMany} onClick={() => pick(index - 1)} className={iconButton} title={t('musicPlayerPrev')} aria-label={t('musicPlayerPrev')}>
               <SkipBack className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                soundFx.playClick();
-                setAutoPlay(!autoPlay);
-              }}
-              className={toggleButton(autoPlay)}
-              title={t('musicPlayerAutoPlay')}
-              aria-label={t('musicPlayerAutoPlay')}
-              aria-pressed={autoPlay}
-            >
-              <ListEnd className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
