@@ -2,21 +2,24 @@
   "presets": {
     "30": {
       "label": { "en": "Performance", "tl": "Pang-bilis" },
-      "hint": { "en": "Older or low-power devices, phones on battery.", "tl": "Lumang device o mahinang baterya ng telepono." },
+      "hint": { "en": "Lowest visual quality for older or low-power devices and phones on battery.", "tl": "Pinakamababang kalidad ng biswal para sa luma o mahinang device at teleponong nagtitipid ng baterya." },
       "shadows": false,
-      "glow": false
+      "glow": false,
+      "render": { "resolutionScale": 1, "ambientStride": 4, "worldDensity": 0.2, "waterDensity": 0.2, "sortIntervalMs": 100 }
     },
     "60": {
       "label": { "en": "Balanced", "tl": "Balanse" },
       "hint": { "en": "Most laptops and modern phones.", "tl": "Karamihan ng laptop at bagong telepono." },
       "shadows": true,
-      "glow": false
+      "glow": false,
+      "render": { "resolutionScale": 1.5, "ambientStride": 2, "worldDensity": 0.6, "waterDensity": 0.55, "sortIntervalMs": 50 }
     },
     "90": {
       "label": { "en": "Quality", "tl": "Kalidad" },
       "hint": { "en": "Desktops and strong laptops with a dedicated GPU.", "tl": "Desktop at malalakas na laptop na may hiwalay na GPU." },
       "shadows": true,
-      "glow": true
+      "glow": true,
+      "render": { "resolutionScale": 2, "ambientStride": 1, "worldDensity": 1, "waterDensity": 1, "sortIntervalMs": 33 }
     }
   },
   "brightness": { "min": 0.7, "max": 1.3, "step": 0.05, "default": 1 }

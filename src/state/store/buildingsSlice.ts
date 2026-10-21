@@ -17,27 +17,43 @@ import { BUILDING_IDS, BUILDING_SITES, canPlaceEstablishment, type CoastStyle } 
 import type { GameStoreState, ResourceBuildingId, ResourceBuildingsState, SpireTowerState, TowerId } from '../../types/state';
 import type { SliceArgs } from './types';
 import { TENANT_WORK, buildStepCost } from '../tenantWork';
+import { isPlainRecord } from '../saveValidation';
 
 /** Fills in fields older saves lack (the Mystic Cave, tower levels, structure HP). */
-export const normalizeResourceBuildings = (raw?: Partial<ResourceBuildingsState>): ResourceBuildingsState => {
+export const normalizeResourceBuildings = (raw?: unknown): ResourceBuildingsState => {
   const result = { ...INITIAL_RESOURCE_BUILDINGS };
+  const source = isPlainRecord(raw) ? raw : {};
   for (const id of Object.keys(INITIAL_RESOURCE_BUILDINGS) as ResourceBuildingId[]) {
-    const saved = raw?.[id];
-    if (!saved || !(saved.level >= 1)) {
-      result[id] = { ...INITIAL_RESOURCE_BUILDINGS[id], ...(saved ?? {}) };
+    const saved = isPlainRecord(source[id]) ? source[id] : null;
+    const level = saved && typeof saved.level === 'number' && Number.isFinite(saved.level)
+      ? Math.max(0, Math.min(100, Math.floor(saved.level)))
+      : 0;
+    const unlockedOutputs = saved && Array.isArray(saved.unlockedOutputs)
+      ? saved.unlockedOutputs.filter((value): value is string => typeof value === 'string').slice(0, 32)
+      : [];
+    const buildStep = saved && typeof saved.buildStep === 'number' && Number.isFinite(saved.buildStep)
+      ? Math.max(0, Math.min(100, Math.floor(saved.buildStep)))
+      : undefined;
+    if (level < 1) {
+      result[id] = { level: 0, unlockedOutputs, ...(buildStep === undefined ? {} : { buildStep }) };
       continue;
     }
-    const towerLevel = Math.max(1, Math.min(DEFENSE_CONFIG.towerMaxLevel, Math.floor(saved.towerLevel ?? 1)));
-    result[id] = { ...saved, towerLevel, hp: buildingHpOf({ ...saved, towerLevel }) };
+    const towerLevel = Math.max(1, Math.min(DEFENSE_CONFIG.towerMaxLevel, Math.floor(Number(saved?.towerLevel) || 1)));
+    const sturdy = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(Number(saved?.sturdy) || 0)));
+    const savedHp = saved && typeof saved.hp === 'number' && Number.isFinite(saved.hp) ? saved.hp : undefined;
+    const candidate = { level, unlockedOutputs, towerLevel, sturdy, ...(savedHp === undefined ? {} : { hp: savedHp }) };
+    result[id] = { ...candidate, hp: buildingHpOf(candidate) };
   }
   return result;
 };
 
 /** Fills in the spire tower for saves from before it could fight. */
-export const normalizeSpireTower = (raw?: Partial<SpireTowerState>): SpireTowerState => {
-  const towerLevel = Math.max(1, Math.min(DEFENSE_CONFIG.towerMaxLevel, Math.floor(raw?.towerLevel ?? 1)));
+export const normalizeSpireTower = (raw?: unknown): SpireTowerState => {
+  const source = isPlainRecord(raw) ? raw : {};
+  const towerLevel = Math.max(1, Math.min(DEFENSE_CONFIG.towerMaxLevel, Math.floor(Number(source.towerLevel) || 1)));
   const max = buildingMaxHp(towerLevel);
-  return { towerLevel, hp: Math.max(0, Math.min(max, Math.round(raw?.hp ?? max))) };
+  const hp = typeof source.hp === 'number' && Number.isFinite(source.hp) ? source.hp : max;
+  return { towerLevel, hp: Math.max(0, Math.min(max, Math.round(hp))) };
 };
 
 /** Wrecked establishments get back a share of their HP when a wave ends. */

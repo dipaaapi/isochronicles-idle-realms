@@ -1,6 +1,7 @@
 {
   "scripts/test-construction.cjs": "Logic test: runs the Treant construction / General summoning routine in a Node VM (Phaser, audio, storage stubbed); asserts General ↔ establishment pairing",
   "scripts/test-invasions.cjs": "Logic test: invasion waves, targeting and breach handling in a Node VM with stubs",
+  "scripts/test-save-import.cjs": "Security regression test: bounds and sanitizes untrusted save files before import or hydration",
   "src/App.tsx": "Screen coordinator (TITLE → STORY → GAME) and owner of every modal's open/close state",
   "src/main.tsx": "React entry point; mounts App",
   "src/index.css": "Tailwind/DaisyUI imports and global CSS",
@@ -90,6 +91,7 @@
   "src/state/resources.ts": "RESOURCE_KEYS, canAfford, subtractCost, addResourceDelta, lootResources",
   "src/state/skillTree.ts": "Typed skill tree: ranks, points, team stat bonuses",
   "src/state/storageAdapter.ts": "LocalForage (IndexedDB) storage for the persisted store",
+  "src/state/saveValidation.ts": "Dependency-free boundary limits and structural sanitization for manual and persisted saves",
   "src/state/tenantCounts.ts": "Live tenant counts per establishment published by DefenderSystem (not persisted)",
   "src/state/useGameStore.ts": "The persistent Zustand store composed from slices in store/",
   "src/state/store/buildingsSlice.ts": "Establishments: build, upgrade, move, repair, wreck/restore, normalization of old saves",

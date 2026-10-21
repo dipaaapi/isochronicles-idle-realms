@@ -15,6 +15,22 @@ export interface GraphicsSettings {
   brightness: number;
 }
 
+export interface RenderProfile {
+  resolutionScale: number;
+  ambientStride: number;
+  worldDensity: number;
+  waterDensity: number;
+  sortIntervalMs: number;
+}
+
+interface GraphicsPreset {
+  label: { en: string; tl: string };
+  hint: { en: string; tl: string };
+  shadows: boolean;
+  glow: boolean;
+  render: RenderProfile;
+}
+
 interface GraphicsStore extends GraphicsSettings {
   set: (patch: Partial<GraphicsSettings>) => void;
   applyPreset: (fps: FpsPreset) => void;
@@ -23,9 +39,10 @@ interface GraphicsStore extends GraphicsSettings {
 const STORAGE_KEY = 'isochronicle_graphics';
 export const GRAPHICS_PRESETS = PRESETS.presets as Record<
   `${FpsPreset}`,
-  { label: { en: string; tl: string }; hint: { en: string; tl: string }; shadows: boolean; glow: boolean }
+  GraphicsPreset
 >;
 export const BRIGHTNESS_RANGE = PRESETS.brightness;
+export const renderProfile = (fps: FpsPreset): RenderProfile => GRAPHICS_PRESETS[`${fps}`].render;
 
 const clampBrightness = (v: number) => Math.min(BRIGHTNESS_RANGE.max, Math.max(BRIGHTNESS_RANGE.min, v));
 

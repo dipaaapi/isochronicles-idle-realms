@@ -22,3 +22,9 @@ export const battleTargets: {
   /** Two Generals are brawling. */
   brawl?: () => boolean;
 } = { wild: {} };
+
+/** Brawls may start only while the realm has no hostile battle underway. */
+export const hasNonBrawlBattle = (waveActive: boolean): boolean =>
+  waveActive ||
+  !!battleTargets.kirovInvasion?.() ||
+  Object.values(battleTargets.wild).some((targets) => targets().length > 0);

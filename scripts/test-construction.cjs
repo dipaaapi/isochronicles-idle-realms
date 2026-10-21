@@ -886,3 +886,34 @@ console.log('Endless waves, permadeath, skill tree, combat and save checks passe
   assert.equal(bad.runeSlots.GENERALS[0], 'y');
   console.log('Rune checks passed.');
 }
+
+// Save boundary: manual import and persisted hydration share the same limits and normalization.
+{
+  const { persistOptions } = load('src/state/store/persistence.ts');
+  const hostile = JSON.parse(state().exportSave());
+  hostile.resources.wood = 'not-a-number';
+  hostile.roster = Array.from({ length: 1000 }, (_, i) => ({
+    id: `hostile-${i}`,
+    name: 'x'.repeat(500),
+    unitClass: i % 2 ? 'DRYAD' : 'UNKNOWN',
+    assignedTask: 'NOPE',
+    hp: 1e300,
+  }));
+  hostile.terrainFlooded = ['0,0', '0,0', '-1,0', '99,99'];
+  hostile.buildingPositions = { WOOD: { x: -1, y: 999 }, UNKNOWN: { x: 1, y: 1 } };
+  hostile.__proto__ = { polluted: true };
+
+  const hydrated = persistOptions.merge(hostile, state());
+  assert.equal(state().importSave(JSON.stringify(hostile)), true);
+  assert.equal(state().resources.wood, 0);
+  assert.equal(hydrated.resources.wood, state().resources.wood, 'hydration and manual import sanitize resources identically');
+  assert.equal(hydrated.roster.length, state().roster.length, 'hydration and manual import share roster limits');
+  assert.ok(state().roster.length <= 65, 'the bounded input cannot spawn hundreds of units');
+  assert.deepEqual([...state().terrainFlooded], ['0,0'], 'terrain is deduplicated and grid-bounded');
+  assert.equal({}.polluted, undefined);
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  assert.equal(state().importSave('{"resources":[]}'), false, 'malformed required resources are rejected');
+  console.error = originalConsoleError;
+  console.log('Save import and hydration hardening checks passed.');
+}

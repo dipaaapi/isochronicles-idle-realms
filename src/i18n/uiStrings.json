@@ -1028,8 +1028,8 @@
     "tl": "Rambulan"
   },
   "genBrawlHint": {
-    "en": "Tick exactly two Generals at full rage (red bar) to make them brawl. The winner absorbs the loser's power.",
-    "tl": "Pumili ng eksaktong dalawang Heneral na puno ang galit (pulang bar) para magrambulan. Makukuha ng nanalo ang lakas ng natalo."
+    "en": "Immediately starts a brawl between two random living Generals when no other battle is active. The winner absorbs the loser's power.",
+    "tl": "Agad na magsisimula ng rambulan ang dalawang random na buhay na Heneral kapag walang ibang laban. Makukuha ng nanalo ang lakas ng natalo."
   },
   "genBrawlPickTwo": {
     "en": "Tick exactly two Generals.",
@@ -1040,8 +1040,8 @@
     "tl": "May rambulan na."
   },
   "genBrawlWave": {
-    "en": "No brawls during a wave.",
-    "tl": "Bawal ang rambulan habang may alon."
+    "en": "A brawl can start only when no other battle is active.",
+    "tl": "Makapagsisimula lamang ang rambulan kapag walang ibang aktibong laban."
   },
   "genBrawlMissing": {
     "en": "Both Generals must be alive on the field.",

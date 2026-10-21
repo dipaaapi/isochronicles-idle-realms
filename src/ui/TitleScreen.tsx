@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../state/useGameStore';
+import { isSaveFileSizeAllowed } from '../state/saveValidation';
 import { hasSavedRealm } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
 import { gameAlert } from './GameDialog';
@@ -96,6 +97,12 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!isSaveFileSizeAllowed(file)) {
+      void gameAlert(t('titleUploadFailed'));
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
@@ -109,7 +116,9 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         }
       }
     };
+    reader.onerror = () => void gameAlert(t('titleUploadFailed'));
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (

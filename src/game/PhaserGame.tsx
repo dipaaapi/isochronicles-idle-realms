@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useGraphicsSettings } from '../state/graphicsSettings';
+import { renderProfile, useGraphicsSettings, type FpsPreset } from '../state/graphicsSettings';
 import Phaser from 'phaser';
 import { MainScene } from './MainScene';
 import { useGameStore } from '../state/useGameStore';
@@ -23,8 +23,10 @@ export const PhaserGame: React.FC = () => {
     // High-DPI: the canvas backing store is devicePixelRatio× the CSS size and
     // Scale zoom (1/dpr) shrinks it back, so pixels map 1:1 to the physical screen.
     // Capped at 2: pixel art gains nothing from 3× backing stores, which cost 2.25× the fill rate of 2×
-    const readDpr = () =>
-      useGameStore.getState().targetFps <= 30 ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    const readDpr = () => {
+      const fps = useGameStore.getState().targetFps as FpsPreset;
+      return Math.min(window.devicePixelRatio || 1, renderProfile(fps).resolutionScale);
+    };
     let dpr = readDpr();
     const cssWidth = () => Math.max(1, Math.round(container.clientWidth));
     const cssHeight = () => Math.max(1, Math.round(container.clientHeight));

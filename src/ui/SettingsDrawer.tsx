@@ -7,6 +7,7 @@ import { customCursorEnabled, setCustomCursorEnabled } from './GameCursor';
 import { BiomePicker } from './BiomePicker';
 import { DEV_TOOLS, useDevMode } from '../state/devMode';
 import { useGameStore } from '../state/useGameStore';
+import { isSaveFileSizeAllowed } from '../state/saveValidation';
 import { wipeAllSaveData } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
 import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
@@ -74,6 +75,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentTab, setCurrentTab] = useState<'GAME' | 'SAVE' | 'CREDITS'>('GAME');
+  const [cursorOn, setCursorOn] = useState(customCursorEnabled);
   const devEnabled = useDevMode((s) => s.enabled);
 
   const {
@@ -108,7 +110,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   if (!isOpen) return null;
 
   const isTL = language === 'TL';
-  const [cursorOn, setCursorOn] = useState(customCursorEnabled);
   const tr = (key: TranslationKey) => translate(key, language);
 
   const handleExport = () => {
@@ -135,6 +136,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
     if (!file) return;
 
+    if (!isSaveFileSizeAllowed(file)) {
+      void gameAlert(tr('importFailed'));
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = (event) => {
@@ -152,6 +159,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         void gameAlert(tr('importFailed'));
       }
     };
+
+    reader.onerror = () => void gameAlert(tr('importFailed'));
 
     reader.readAsText(file);
 

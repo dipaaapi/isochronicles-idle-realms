@@ -11,6 +11,7 @@ import { IsometricHelper } from '../IsometricHelper';
 import { GRID_SIZE } from '../../state/buildingLayout';
 import { UNIT_CLASSES } from '../../types/game';
 import type { WorkerContext, WorkerInstance } from './types';
+import { hasNonBrawlBattle } from '../battleTargets';
 
 const CFG = BRAWL_CONFIG;
 const skillName = (skill: { name: string; nameTl?: string }): string =>
@@ -49,7 +50,7 @@ export class BrawlDirector {
 
   /** Starts a player-requested brawl between two random living field Generals. */
   command(generals: WorkerInstance[]): boolean {
-    if (this.brawl || useGameStore.getState().invasion.isActive) return false;
+    if (this.brawl || hasNonBrawlBattle(useGameStore.getState().invasion.isActive)) return false;
     const eligible = generals.filter((g) => g.hp > 0 && g.container.active && g.container.visible);
     if (eligible.length < 2) return false;
     const aIndex = Math.floor(Math.random() * eligible.length);
@@ -65,7 +66,7 @@ export class BrawlDirector {
    */
   commandPair(a: WorkerInstance | undefined, b: WorkerInstance | undefined): 'ok' | 'busy' | 'wave' | 'missing' | 'rage' {
     if (this.brawl) return 'busy';
-    if (useGameStore.getState().invasion.isActive) return 'wave';
+    if (hasNonBrawlBattle(useGameStore.getState().invasion.isActive)) return 'wave';
     const up = (g?: WorkerInstance): g is WorkerInstance => !!g && g.hp > 0 && g.container.active && g.container.visible;
     if (!up(a) || !up(b) || a === b) return 'missing';
     if ((a.rage ?? 0) < RAGE.brawlCost || (b.rage ?? 0) < RAGE.brawlCost) return 'rage';

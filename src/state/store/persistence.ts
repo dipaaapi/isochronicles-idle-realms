@@ -1,7 +1,7 @@
 import { isGeneralOrder } from '../generalOrders';
 import { isFallenRunSync } from '../legacy';
 import type { PersistOptions } from 'zustand/middleware';
-import { isCoastStyle } from '../buildingLayout';
+import { BUILDING_IDS, GRID_SIZE, isCoastStyle } from '../buildingLayout';
 import { normalizeDifficulty } from '../difficulty';
 import { beaconLevelOf } from '../defenseStats';
 import { normalizeSkillProgress } from '../skillTree';
@@ -9,14 +9,54 @@ import { brawlLevelOf } from '../brawl';
 import { normalizeRunes } from '../runes';
 import { clampContamination } from '../seaFolk';
 import { WILD_FACTIONS, clampMeter } from '../wildFactions';
+import { sanitizeSavePayload, isPlainRecord } from '../saveValidation';
+import { TASK_CONFIG } from '../../data/tasks';
+import { achievementDef } from '../achievements';
+import { WAVE_TACTICS } from '../waveTactics';
 
-const KEY_RE = /^\d{1,3},\d{1,3}$/;
+const KEY_RE = /^\d{1,2},\d{1,2}$/;
+const MAX_SAFE_VALUE = Number.MAX_SAFE_INTEGER;
+const MAX_ROSTER_LENGTH = 128;
+const MAX_TERRAIN_TILES = GRID_SIZE * GRID_SIZE;
+
+const finite = (value: unknown, fallback = 0, min = 0, max = MAX_SAFE_VALUE): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+
+const integer = (value: unknown, fallback = 0, min = 0, max = MAX_SAFE_VALUE): number =>
+  Math.floor(finite(value, fallback, min, max));
+
+const text = (value: unknown, fallback: string, maxLength: number): string =>
+  typeof value === 'string' ? value.slice(0, maxLength) : fallback;
+
+const validTileKey = (key: string): boolean => {
+  if (!KEY_RE.test(key)) return false;
+  const [x, y] = key.split(',').map(Number);
+  return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+};
+
+/** Copies only keys present in a trusted defaults object and enforces their primitive types. */
+const sanitizeShape = <T extends Record<string, unknown>>(defaults: T, raw: unknown): T => {
+  if (!isPlainRecord(raw)) return { ...defaults };
+  const result: Record<string, unknown> = {};
+  for (const [key, fallback] of Object.entries(defaults)) {
+    const value = raw[key];
+    if (typeof fallback === 'boolean') result[key] = typeof value === 'boolean' ? value : fallback;
+    else if (typeof fallback === 'number') result[key] = finite(value, fallback);
+    else if (typeof fallback === 'string') result[key] = typeof value === 'string' ? value.slice(0, 128) : fallback;
+    else result[key] = fallback;
+  }
+  return result as T;
+};
 /** Brood meter / truce and the living terrain from a save (tile keys validated). */
 const normalizeTerrain = (data: { broodUnrest?: unknown; broodTruceWaves?: unknown; terrainFlooded?: unknown; terrainFlooding?: unknown; terrainSand?: unknown; terrainRaised?: unknown; terrainFilled?: unknown }) => {
-  const keys = (v: unknown) => (Array.isArray(v) ? v.filter((k): k is string => typeof k === 'string' && KEY_RE.test(k)) : []);
+  const keys = (v: unknown) => (Array.isArray(v)
+    ? Array.from(new Set(v.filter((k): k is string => typeof k === 'string' && validTileKey(k)))).slice(0, MAX_TERRAIN_TILES)
+    : []);
   const days = (v: unknown) => {
     const out: Record<string, number> = {};
-    if (v && typeof v === 'object') for (const [k, d] of Object.entries(v as Record<string, unknown>)) if (KEY_RE.test(k) && Number.isFinite(d)) out[k] = Number(d);
+    if (isPlainRecord(v)) for (const [k, d] of Object.entries(v).slice(0, MAX_TERRAIN_TILES)) {
+      if (validTileKey(k) && typeof d === 'number' && Number.isFinite(d)) out[k] = integer(d, 1, 1, 365);
+    }
     return out;
   };
   const sand = days(data.terrainSand);
@@ -62,10 +102,41 @@ const RENAMED_BEASTS: Record<string, UnitClass> = { WAYFARER: 'LAVA_GARGOYLE', C
 const migrateBeast = (id: string): string => RENAMED_BEASTS[id] ?? id;
 
 /** Old saves: renamed beasts get their new class; unknown classes and roster tenants are dropped. */
-const migrateRoster = (roster: UnitRosterItem[]): UnitRosterItem[] =>
-  roster
-    .map((unit) => ({ ...unit, unitClass: migrateBeast(unit.unitClass) as UnitClass }))
-    .filter((unit) => unit.unitClass in UNIT_CLASSES)
+const migrateRoster = (rawRoster: unknown): UnitRosterItem[] => {
+  if (!Array.isArray(rawRoster)) return [];
+  const seen = new Set<string>();
+  return rawRoster
+    .slice(0, MAX_ROSTER_LENGTH)
+    .filter(isPlainRecord)
+    .map((raw): UnitRosterItem | null => {
+      const unitClass = migrateBeast(typeof raw.unitClass === 'string' ? raw.unitClass : '') as UnitClass;
+      if (!(unitClass in UNIT_CLASSES)) return null;
+      const id = text(raw.id, '', 96);
+      if (!id || seen.has(id)) return null;
+      seen.add(id);
+      const assignedTask = typeof raw.assignedTask === 'string' && raw.assignedTask in TASK_CONFIG
+        ? raw.assignedTask as UnitRosterItem['assignedTask']
+        : UNIT_CLASSES[unitClass].preferredTask;
+      const unit: UnitRosterItem = {
+        id,
+        name: text(raw.name, UNIT_CLASSES[unitClass].nameEn ?? UNIT_CLASSES[unitClass].name ?? unitClass, 64),
+        unitClass,
+        assignedTask,
+        hp: integer(raw.hp, 100, 0),
+        maxHp: integer(raw.maxHp, 100, 1),
+      };
+      if (typeof raw.parentBuildingId === 'string' && BUILDING_IDS.includes(raw.parentBuildingId as ResourceBuildingId)) {
+        unit.parentBuildingId = raw.parentBuildingId as ResourceBuildingId;
+      }
+      if (unitClass === 'AQUA_SLIME') unit.slimeEvolutionLevel = integer(raw.slimeEvolutionLevel, 1, 1, 5);
+      if (unitClass === 'TREANT') unit.treantEvolutionLevel = integer(raw.treantEvolutionLevel, 1, 1, 5);
+      unit.brawlLevel = integer(raw.brawlLevel, 0, 0, 10);
+      unit.brawlAttack = integer(raw.brawlAttack, 0);
+      unit.brawlHp = integer(raw.brawlHp, 0);
+      if (isGeneralOrder(raw.order)) unit.order = raw.order;
+      return unit;
+    })
+    .filter((unit): unit is UnitRosterItem => unit !== null)
     // Tenants now live only in the world (DefenderSystem spawns five per establishment), never in the roster
     .filter((unit) => !unit.parentBuildingId && !unit.id.startsWith('tenant_'))
     // Gear was replaced by brawls: drop old equipment and the HP its armour added
@@ -84,6 +155,7 @@ const migrateRoster = (roster: UnitRosterItem[]): UnitRosterItem[] =>
       brawlHp: Math.max(0, Math.round(Number(unit.brawlHp) || 0)),
       order: isGeneralOrder(unit.order) ? unit.order : undefined,
     }));
+};
 
 /** Brawl tension from a save: only well-formed { count, x, y } entries. */
 const normalizeTension = (raw: unknown): GameStoreState['brawlTension'] => {
@@ -104,7 +176,7 @@ const migrateDiscovered = <K extends string>(list: unknown, known: Record<K, unk
     : fallback;
 
 /** Keeps exactly one permanent Support Slime (last in the roster), preserving its evolution. */
-const withPermanentSlime = (rawRoster: UnitRosterItem[]): UnitRosterItem[] => {
+const withPermanentSlime = (rawRoster: unknown): UnitRosterItem[] => {
   const roster = migrateRoster(rawRoster);
   const slime = roster.find((unit) => unit.unitClass === 'AQUA_SLIME');
   return [
@@ -123,9 +195,15 @@ const restoreLayout = (seed: unknown, nodes: GameStoreState['dynamicResourceNode
   // Saves from before coastlines keep their square rim, so no building ends up in the sea
   const style = isCoastStyle(coast) ? coast : 'NONE';
   const clean: GameStoreState['buildingPositions'] = {};
-  if (positions && typeof positions === 'object') {
-    for (const [id, pos] of Object.entries(positions as Record<string, { x?: unknown; y?: unknown }>)) {
-      if (Number.isInteger(pos?.x) && Number.isInteger(pos?.y)) clean[id as ResourceBuildingId] = { x: pos.x as number, y: pos.y as number };
+  if (isPlainRecord(positions)) {
+    const allowed = new Set<string>([...BUILDING_IDS, 'SPIRE']);
+    for (const [id, pos] of Object.entries(positions)) {
+      if (!allowed.has(id) || !isPlainRecord(pos)) continue;
+      if (Number.isInteger(pos.x) && Number.isInteger(pos.y)
+        && Number(pos.x) >= 0 && Number(pos.x) < GRID_SIZE
+        && Number(pos.y) >= 0 && Number(pos.y) < GRID_SIZE) {
+        clean[id as ResourceBuildingId] = { x: Number(pos.x), y: Number(pos.y) };
+      }
     }
   }
   return applyRealmLayout(seed, clean, nodes, style);
@@ -152,8 +230,69 @@ const normalizeEstablishmentSkillCooldowns = (raw?: unknown): GameStoreState['es
   return base;
 };
 
-const toResources = (raw: Record<string, unknown>): Resources =>
-  Object.fromEntries(RESOURCE_KEYS.map((key) => [key, Number(raw[key]) || 0])) as unknown as Resources;
+const toResources = (raw: unknown): Resources => {
+  const source = isPlainRecord(raw) ? raw : {};
+  return Object.fromEntries(RESOURCE_KEYS.map((key) => [key, finite(source[key])])) as unknown as Resources;
+};
+
+const normalizeAchievements = (raw: unknown): GameStoreState['achievements'] => {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  return raw.slice(0, 128).filter(isPlainRecord).flatMap((entry) => {
+    const id = text(entry.id, '', 96);
+    const definition = achievementDef(id);
+    if (!definition || seen.has(id)) return [];
+    seen.add(id);
+    return [{
+      id,
+      title: definition.en.title,
+      description: definition.en.desc,
+      icon: definition.icon,
+      unlockedAt: integer(entry.unlockedAt, Date.now()),
+    }];
+  });
+};
+
+const normalizeAutoBuySummon = (raw: unknown): GameStoreState['autoBuySummon'] => {
+  const result: GameStoreState['autoBuySummon'] = {};
+  if (!isPlainRecord(raw)) return result;
+  for (const unitClass of Object.keys(UNIT_CLASSES) as UnitClass[]) {
+    if (typeof raw[unitClass] === 'boolean') result[unitClass] = raw[unitClass];
+  }
+  return result;
+};
+
+const normalizeInvasion = (raw: unknown): GameStoreState['invasion'] => {
+  const result = sanitizeShape(INITIAL_INVASION as unknown as Record<string, unknown>, raw) as unknown as GameStoreState['invasion'];
+  if (isPlainRecord(raw) && typeof raw.tactic === 'string' && WAVE_TACTICS.some((tactic) => tactic.id === raw.tactic)) {
+    result.tactic = raw.tactic;
+  }
+  result.waveNumber = integer(result.waveNumber, 1, 1, 100);
+  result.enemiesRemaining = integer(result.enemiesRemaining);
+  result.totalEnemiesInWave = integer(result.totalEnemiesInWave);
+  return result;
+};
+
+const normalizeDefense = (raw: unknown): GameStoreState['defense'] => {
+  const result = sanitizeShape(INITIAL_DEFENSE as unknown as Record<string, unknown>, raw) as unknown as GameStoreState['defense'];
+  // beaconLevelOf also understands the legacy turretLevel key.
+  result.beaconLevel = beaconLevelOf(isPlainRecord(raw) ? raw : result);
+  return result;
+};
+
+const normalizeMunitions = (raw: unknown): GameStoreState['munitions'] => sanitizeShape({
+  armorPiercing: 0,
+  incendiary: 0,
+  cryoFrost: 0,
+  teslaChain: 0,
+  voidFlak: 0,
+}, raw) as GameStoreState['munitions'];
+
+const isSeason = (value: unknown): value is GameStoreState['season'] =>
+  value === 'SPRING' || value === 'SUMMER' || value === 'AUTUMN' || value === 'WINTER';
+
+const isTimeOfDay = (value: unknown): value is GameStoreState['timeOfDay'] =>
+  value === 'DAWN' || value === 'DAY' || value === 'DUSK' || value === 'NIGHT';
 
 /** JSON save file export / import from the Settings drawer. */
 export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
@@ -224,62 +363,61 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
 
   importSave: (jsonString: string): boolean => {
     try {
-      const data = JSON.parse(jsonString);
+      const data = sanitizeSavePayload(JSON.parse(jsonString), true);
+      if (!data) throw new Error('Invalid save payload');
       // Permadeath: a save of a run that already fell can't be brought back
-      if (isFallenRunSync(data.runId)) return false;
-      if (!data.resources) throw new Error('Invalid save payload');
+      if (isFallenRunSync(typeof data.runId === 'string' ? data.runId : '')) return false;
 
-      const roster = withPermanentSlime(Array.isArray(data.roster) ? data.roster : []);
+      const roster = withPermanentSlime(data.roster);
+      const defense = normalizeDefense(data.defense);
+      const invasion = normalizeInvasion(data.invasion);
+      const hasCompletedIntro = data.hasCompletedIntro === true;
 
       set({
-        realmName: data.realmName || 'Aether Haven',
+        realmName: text(data.realmName, 'Aether Haven', 64),
         difficulty: normalizeDifficulty(data.difficulty),
         ...normalizeSkillProgress(data),
-        lordName: typeof data.lordName === 'string' ? data.lordName.slice(0, 32) : 'Demon Lord',
-        runId: typeof data.runId === 'string' ? data.runId : '',
-        runStartedAt: Number(data.runStartedAt) || Date.now(),
-        playSeconds: Math.max(0, Number(data.playSeconds) || 0),
+        lordName: text(data.lordName, 'Demon Lord', 32),
+        runId: text(data.runId, '', 128),
+        runStartedAt: integer(data.runStartedAt, Date.now()),
+        playSeconds: integer(data.playSeconds),
         realmChoice: validRealm(data.realmChoice),
-        platformPhase: validRealm(data.realmChoice) ?? validRealm(data.platformPhase) ?? getPhaseFromWave(data.invasion?.waveNumber ?? 1),
-        year: data.year || 1,
-        season: data.season || 'SPRING',
-        hasCompletedIntro: !!data.hasCompletedIntro,
+        platformPhase: validRealm(data.realmChoice) ?? validRealm(data.platformPhase) ?? getPhaseFromWave(invasion.waveNumber),
+        year: integer(data.year, 1, 1),
+        season: isSeason(data.season) ? data.season : 'SPRING',
+        hasCompletedIntro,
         resources: toResources(data.resources),
-        castleBuilt: data.castleBuilt ?? false,
+        castleBuilt: data.castleBuilt === true,
         // Saves from before the spire needed building keep it standing once the citadel is up
-        munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0, ...(data.munitions || {}) },
-        spireBuilt: data.spireBuilt ?? (data.castleBuilt ?? false),
+        munitions: normalizeMunitions(data.munitions),
+        spireBuilt: typeof data.spireBuilt === 'boolean' ? data.spireBuilt : data.castleBuilt === true,
         spireTower: normalizeSpireTower(data.spireTower),
         resourceBuildings: normalizeResourceBuildings(data.resourceBuildings),
         roster,
         workerCount: roster.length,
-        autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(data.autoBuyBuildingMaterials || {}) },
-        autoBuySummon: data.autoBuySummon || {},
-        upgrades: { ...INITIAL_UPGRADES, ...(data.upgrades || {}) },
-        language: data.language || 'EN',
-        defense: {
-          ...INITIAL_DEFENSE,
-          ...(data.defense || {}),
-          beaconLevel: beaconLevelOf(data.defense || {}),
-        },
-        invasion: { ...INITIAL_INVASION, ...(data.invasion || {}) },
-        achievements: data.achievements || [],
-        autoSettings: { ...INITIAL_AUTO_SETTINGS, ...(data.autoSettings || {}) },
-        timeOfDay: data.timeOfDay || 'DAY',
-        day: data.day || 1,
-        ambientDarkness: data.ambientDarkness || 0,
-        isAudioMuted: data.isAudioMuted || false,
-        isGoreEnabled: data.isGoreEnabled || false,
+        autoBuyBuildingMaterials: sanitizeShape(INITIAL_AUTO_BUY_BUILDING as unknown as Record<string, unknown>, data.autoBuyBuildingMaterials) as GameStoreState['autoBuyBuildingMaterials'],
+        autoBuySummon: normalizeAutoBuySummon(data.autoBuySummon),
+        upgrades: sanitizeShape(INITIAL_UPGRADES as unknown as Record<string, unknown>, data.upgrades) as unknown as GameStoreState['upgrades'],
+        language: data.language === 'TL' ? 'TL' : 'EN',
+        defense,
+        invasion,
+        achievements: normalizeAchievements(data.achievements),
+        autoSettings: sanitizeShape(INITIAL_AUTO_SETTINGS as unknown as Record<string, unknown>, data.autoSettings) as unknown as GameStoreState['autoSettings'],
+        timeOfDay: isTimeOfDay(data.timeOfDay) ? data.timeOfDay : 'DAY',
+        day: integer(data.day, 1, 1, 365),
+        ambientDarkness: finite(data.ambientDarkness, 0, 0, 1),
+        isAudioMuted: data.isAudioMuted === true,
+        isGoreEnabled: data.isGoreEnabled === true,
         showWallpaper: data.showWallpaper !== false,
         discoveredBeasts: migrateDiscovered<UnitClass>(data.discoveredBeasts, UNIT_CLASSES, ['DRYAD', 'MINOTAUR']),
         brawlTension: normalizeTension(data.brawlTension),
         ...normalizeRunes(data.runes, data.runeSlots),
-        seaContamination: clampContamination(data.seaContamination ?? 0),
-        seaTruceWaves: Math.max(0, Math.floor(data.seaTruceWaves ?? 0)),
+        seaContamination: clampContamination(finite(data.seaContamination)),
+        seaTruceWaves: integer(data.seaTruceWaves),
         ...normalizeTerrain(data),
         discoveredInvaders: migrateDiscovered<InvaderType>(data.discoveredInvaders, INVADER_CONFIGS, []),
         lastSavedTimestamp: Date.now(),
-        screen: data.hasCompletedIntro ? 'GAME' : 'TITLE',
+        screen: hasCompletedIntro ? 'GAME' : 'TITLE',
         ...restoreLayout(data.layoutSeed, get().dynamicResourceNodes, data.buildingPositions, data.coastStyle),
       });
       return true;
@@ -348,21 +486,32 @@ const partialize = (state: GameStoreState) => ({
 
 /** Upgrades older saves to the current shape when they are rehydrated. */
 const merge = (persistedState: unknown, currentState: GameStoreState): GameStoreState => {
+  const clean = sanitizeSavePayload(persistedState) ?? {};
   // Saves from before the single-Ent redesign may still carry caretaker links
   // Music now saves apart from the game (externalMusic.ts); an old save's library is adopted once
   const {
     entAssignments: _legacyCaretakers,
     musicLibrary: legacyLibrary, musicIndex: legacyIndex, musicAutoPlay: legacyAutoPlay, musicLoop: legacyLoop,
     ...persisted
-  } = (persistedState ?? {}) as Partial<GameStoreState> & { entAssignments?: unknown };
+  } = clean as Partial<GameStoreState> & { entAssignments?: unknown };
   const roster = withPermanentSlime(persisted.roster ?? currentState.roster);
 
   const adoptMusic = !hasStoredMusicPrefs() && Array.isArray(legacyLibrary);
   const musicLibrary = adoptMusic ? normalizeMusicLibrary(legacyLibrary) : currentState.musicLibrary;
+  const defense = persisted.defense ? normalizeDefense(persisted.defense) : currentState.defense;
+  const castleBuilt = typeof persisted.castleBuilt === 'boolean' ? persisted.castleBuilt : defense.castleHp > 0;
 
   return {
     ...currentState,
     ...persisted,
+    hasCompletedIntro: typeof persisted.hasCompletedIntro === 'boolean' ? persisted.hasCompletedIntro : currentState.hasCompletedIntro,
+    realmName: text(persisted.realmName, currentState.realmName, 64),
+    lordName: text(persisted.lordName, currentState.lordName, 32),
+    runId: text(persisted.runId, currentState.runId, 128),
+    runStartedAt: integer(persisted.runStartedAt, currentState.runStartedAt),
+    playSeconds: integer(persisted.playSeconds, currentState.playSeconds),
+    resources: toResources(persisted.resources ?? currentState.resources),
+    upgrades: sanitizeShape(INITIAL_UPGRADES as unknown as Record<string, unknown>, persisted.upgrades) as unknown as GameStoreState['upgrades'],
     musicLibrary,
     musicIndex: adoptMusic ? clampMusicIndex(legacyIndex, musicLibrary) : currentState.musicIndex,
     musicAutoPlay: adoptMusic && typeof legacyAutoPlay === 'boolean' ? legacyAutoPlay : currentState.musicAutoPlay,
@@ -378,19 +527,28 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     seaTruceWaves: Math.max(0, Math.floor(persisted.seaTruceWaves ?? 0)),
     ...normalizeTerrain(persisted),
     discoveredInvaders: migrateDiscovered<InvaderType>(persisted.discoveredInvaders, INVADER_CONFIGS, currentState.discoveredInvaders),
-    castleBuilt: persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0),
-    munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0, ...(persisted.munitions ?? {}) },
+    castleBuilt,
+    munitions: normalizeMunitions(persisted.munitions),
     pendingBattleEffects: [],
-    spireBuilt: persisted.spireBuilt ?? (persisted.castleBuilt ?? ((persisted.defense?.castleHp ?? 0) > 0)),
+    spireBuilt: typeof persisted.spireBuilt === 'boolean' ? persisted.spireBuilt : castleBuilt,
     spireTower: normalizeSpireTower(persisted.spireTower),
     resourceBuildings: normalizeResourceBuildings(persisted.resourceBuildings),
     establishmentSkillCooldowns: normalizeEstablishmentSkillCooldowns(persisted.establishmentSkillCooldowns),
-    autoBuyBuildingMaterials: { ...INITIAL_AUTO_BUY_BUILDING, ...(persisted.autoBuyBuildingMaterials ?? {}) },
-    autoBuySummon: persisted.autoBuySummon ?? {},
-    defense: persisted.defense
-      ? { ...INITIAL_DEFENSE, ...persisted.defense, beaconLevel: beaconLevelOf(persisted.defense) }
-      : currentState.defense,
-    showTileCoordinates: persisted.showTileCoordinates ?? true,
+    autoBuyBuildingMaterials: sanitizeShape(INITIAL_AUTO_BUY_BUILDING as unknown as Record<string, unknown>, persisted.autoBuyBuildingMaterials) as GameStoreState['autoBuyBuildingMaterials'],
+    autoBuySummon: normalizeAutoBuySummon(persisted.autoBuySummon),
+    defense,
+    invasion: persisted.invasion ? normalizeInvasion(persisted.invasion) : currentState.invasion,
+    achievements: normalizeAchievements(persisted.achievements),
+    autoSettings: sanitizeShape(INITIAL_AUTO_SETTINGS as unknown as Record<string, unknown>, persisted.autoSettings) as unknown as GameStoreState['autoSettings'],
+    day: integer(persisted.day, currentState.day, 1, 365),
+    year: integer(persisted.year, currentState.year, 1),
+    season: isSeason(persisted.season) ? persisted.season : currentState.season,
+    platformPhase: validRealm(persisted.platformPhase) ?? currentState.platformPhase,
+    realmChoice: validRealm(persisted.realmChoice),
+    lastSavedTimestamp: integer(persisted.lastSavedTimestamp, currentState.lastSavedTimestamp),
+    isGoreEnabled: typeof persisted.isGoreEnabled === 'boolean' ? persisted.isGoreEnabled : currentState.isGoreEnabled,
+    showWallpaper: typeof persisted.showWallpaper === 'boolean' ? persisted.showWallpaper : currentState.showWallpaper,
+    showTileCoordinates: typeof persisted.showTileCoordinates === 'boolean' ? persisted.showTileCoordinates : true,
     layoutSeed: currentState.layoutSeed,
     ...restoreLayout(persisted.layoutSeed, currentState.dynamicResourceNodes, persisted.buildingPositions, persisted.coastStyle),
   };

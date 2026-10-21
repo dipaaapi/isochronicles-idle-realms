@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node scripts/test-construction.cjs && node scripts/test-invasions.cjs && node scripts/test-music-links.cjs",
+    "test": "node scripts/test-construction.cjs && node scripts/test-invasions.cjs && node scripts/test-music-links.cjs && node scripts/test-save-import.cjs",
     "build:steam": "tsc && vite build --mode steam",
     "desktop": "npm run build:steam && electron .",
     "desktop:dev-tools": "npm run build:steam && electron . --dev-tools",

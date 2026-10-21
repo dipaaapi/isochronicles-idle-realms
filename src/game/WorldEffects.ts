@@ -137,7 +137,7 @@ export class WorldEffects {
   }
 
   setDensity(density: number): void {
-    this.density = Phaser.Math.Clamp(density, 0.2, 1);
+    this.density = Phaser.Math.Clamp(density, 0.1, 1);
   }
 
   update(delta: number, weather: WeatherType, dayProgress: number, darkness: number): void {

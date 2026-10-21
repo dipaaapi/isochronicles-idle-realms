@@ -8,6 +8,7 @@ import { logMessage } from '../state/activityLog';
 import { soundFx } from '../game/audio/soundFx';
 import KIROV from '../data/kirov.json';
 import LOCOMOTION from '../data/locomotion.json';
+import { battleTargets, hasNonBrawlBattle } from '../game/battleTargets';
 
 interface Gauge { id: string; hp: number; maxHp: number; rage: number; brawling: boolean }
 type Priority = (typeof GENERAL_ORDERS.priorities)[number];
@@ -38,7 +39,7 @@ function PixelBar({ value, color, glow }: { value: number; color: string; glow?:
 /**
  * Sidebar Generals command panel: pick Generals (tap, or quick picks: all, full
  * rage, anti-air, + power), give them a battle priority, order a brawl between
- * two at full rage, or spend + power on their establishments (Fortify).
+ * an automatic brawl between two living Generals, or spend + power on their establishments (Fortify).
  * Rules in src/data/generalOrders.json.
  */
 export function GeneralsPanel() {
@@ -77,8 +78,8 @@ export function GeneralsPanel() {
   const selOrders = new Set(sel.map((u) => u.order ?? 'AUTO'));
   const sharedOrder = selOrders.size === 1 ? [...selOrders][0] : null;
   const fortifyHp = sel.reduce((n, u) => n + sturdyFromBonus(u.brawlAttack ?? 0, u.brawlHp ?? 0), 0);
-  const readyCount = sel.filter((u) => (gauges[u.id]?.rage ?? 0) >= RAGE.brawlCost).length;
-  const canBrawl = sel.length === 2 && readyCount === 2;
+  const otherBattleActive = hasNonBrawlBattle(useGameStore.getState().invasion.isActive);
+  const canBrawl = generals.filter((u) => (gauges[u.id]?.hp ?? 0) > 0).length >= 2 && !otherBattleActive;
 
   const pick = (ids: string[]) => { soundFx.playClick(); setPicked(ids); };
   const toggle = (id: string) => pick(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
@@ -93,10 +94,10 @@ export function GeneralsPanel() {
   };
 
   const brawl = () => {
-    if (sel.length !== 2) return setNote({ text: t('genBrawlPickTwo') });
-    const result = askScene<string>('orderedBrawl', { a: sel[0].id, b: sel[1].id });
-    const reasons: Record<string, string> = { busy: t('genBrawlBusy'), wave: t('genBrawlWave'), missing: t('genBrawlMissing'), rage: t('genBrawlRage') };
-    if (result === 'ok') { setPicked([]); setNote(null); } else setNote({ text: reasons[result ?? 'missing'] ?? t('genBrawlMissing') });
+    if (otherBattleActive) return setNote({ text: t('genBrawlWave') });
+    const started = askScene<boolean>('brawl');
+    if (started) { setPicked([]); setNote(null); }
+    else setNote({ text: battleTargets.brawl?.() ? t('genBrawlBusy') : t('genBrawlMissing') });
   };
 
   const fortify = () => {
@@ -207,7 +208,7 @@ export function GeneralsPanel() {
       <div className="grid grid-cols-2 gap-1">
         <button onClick={brawl} title={t('genBrawlHint')}
           className={`pixel-btn px-1 py-1.5 text-[10px] font-bold cursor-pointer ${canBrawl ? 'bg-rose-600 text-white animate-pulse' : 'bg-rose-950 text-rose-300/70'}`}>
-          🥊 {t('genBrawl')} <span className="font-mono">{readyCount}/2💢</span>
+          🥊 {t('genBrawl')}
         </button>
         <button onClick={fortify} title={t('genFortifyHint')}
           className={`pixel-btn px-1 py-1.5 text-[10px] font-bold cursor-pointer ${fortifyHp > 0 ? 'bg-amber-500 text-slate-950' : 'bg-amber-950 text-amber-300/70'}`}>

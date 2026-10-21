@@ -34,6 +34,7 @@ import { WorkerManager } from './WorkerManager';
 import { InvasionManager } from './InvasionManager';
 import { GroundLootManager } from './GroundLootManager';
 import { FPSController } from './FPSController';
+import { renderProfile, type FpsPreset } from '../state/graphicsSettings';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from './audio/soundFx';
 import { pickPavementFxStyle, spawnPavementBurst, spawnPavementTileFx } from './scene/pavementFx';
@@ -201,9 +202,8 @@ export class MainScene extends Phaser.Scene {
   // Throttle roster sync (avoid JSON.stringify every frame)
   private _rosterSyncTimer: number = 0;
   private static readonly ROSTER_SYNC_INTERVAL_MS = 250;
-  // Depth sorting the whole entity layer is O(n log n) per call; ~30 Hz is indistinguishable at 60–90 FPS
+  // Depth sorting the whole entity layer is O(n log n); graphics presets tune its cadence.
   private _sortTimer: number = 0;
-  private static readonly SORT_INTERVAL_MS = 33;
 
   // Cached targetFps from store (avoid per-frame getState())
   private _cachedTargetFps: number = 60;
@@ -1677,14 +1677,18 @@ export class MainScene extends Phaser.Scene {
       }
     } else this._ambientTierHold = 0;
     const tier = this._ambientTier;
-    const stride = tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 2 : 3;
+    const profile = renderProfile(this._cachedTargetFps as FpsPreset);
+    const adaptiveStride = tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 2 : 4;
+    const stride = Math.max(profile.ambientStride, adaptiveStride);
     this._ambientFrame = (this._ambientFrame + 1) % stride;
     this._ambientDelta += effectiveDelta;
     const ambientTick = this._ambientFrame === 0;
     const ambientDelta = this._ambientDelta;
     if (ambientTick) this._ambientDelta = 0;
-    this.worldEffects?.setDensity(tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 0.6 : 0.3);
-    this.waterFx?.setDensity(tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 0.55 : 0.25);
+    const adaptiveWorldDensity = tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 0.6 : 0.2;
+    const adaptiveWaterDensity = tier === 'HIGH' ? 1 : tier === 'MEDIUM' ? 0.55 : 0.2;
+    this.worldEffects?.setDensity(Math.min(profile.worldDensity, adaptiveWorldDensity));
+    this.waterFx?.setDensity(Math.min(profile.waterDensity, adaptiveWaterDensity));
     this.waterLife?.setLite(tier === 'LOW');
 
     if (ambientTick) this.worldEffects?.update(
@@ -1776,7 +1780,7 @@ export class MainScene extends Phaser.Scene {
     this.skills.update(effectiveDelta);
     this.groundLoot?.update(effectiveDelta / 1000);
     this._sortTimer += delta;
-    if (this._sortTimer >= MainScene.SORT_INTERVAL_MS) {
+    if (this._sortTimer >= profile.sortIntervalMs) {
       this._sortTimer = 0;
       this.sortEntities();
     }
