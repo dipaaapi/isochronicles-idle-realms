@@ -87,10 +87,6 @@
     "en": "Bestiary",
     "tl": "Talaan ng mga Nilalang"
   },
-  "regression": {
-    "en": "Regression / Rebirth",
-    "tl": "Regresyon / Muling Pagkabuhay"
-  },
   "faq": {
     "en": "FAQ / Help",
     "tl": "Mga Madalas Itanong"
@@ -168,8 +164,8 @@
     "tl": "Sige"
   },
   "resetRealmConfirm": {
-    "en": "This will permanently erase EVERYTHING: your whole Realm (buildings, minions, resources, upgrades, runes, achievements, days, waves, regression history), every save, and all settings and your music library. The game restarts from the title screen. This cannot be undone. Continue?",
-    "tl": "Buburahin nang tuluyan ang LAHAT: ang buong Realm (buildings, minions, resources, upgrades, runes, achievements, days, waves, regression history), bawat save, at lahat ng settings at music library. Magsisimula ulit ang laro mula sa title screen. Hindi na ito maibabalik. Ituloy?"
+    "en": "This will permanently erase EVERYTHING: your whole Realm (buildings, minions, resources, upgrades, runes, achievements, days, waves), every save, and all settings and your music library. The game restarts from the title screen. This cannot be undone. Continue?",
+    "tl": "Buburahin nang tuluyan ang LAHAT: ang buong Realm (buildings, minions, resources, upgrades, runes, achievements, days, waves), bawat save, at lahat ng settings at music library. Magsisimula ulit ang laro mula sa title screen. Hindi na ito maibabalik. Ituloy?"
   },
   "importSuccess": {
     "en": "Realm successfully restored!",
@@ -1006,5 +1002,289 @@
   "focusSkillsHint": {
     "en": "F / G / H cast. ← / → next General, drag or Esc to stop following.",
     "tl": "F / G / H para gumamit. ← / → susunod na Heneral, i-drag o Esc para tumigil sa pagsunod."
+  },
+  "genTabGenerals": {
+    "en": "Generals",
+    "tl": "Mga Heneral"
+  },
+  "genTabMusic": {
+    "en": "Music",
+    "tl": "Musika"
+  },
+  "genNone": {
+    "en": "No Generals on the field yet. Each establishment's General appears once it stands.",
+    "tl": "Wala pang Heneral sa larangan. Lilitaw ang Heneral ng bawat establisyemento kapag nakatayo na ito."
+  },
+  "genSelected": {
+    "en": "{n} selected",
+    "tl": "{n} napili"
+  },
+  "genPickFirst": {
+    "en": "Tick one or more Generals first.",
+    "tl": "Pumili muna ng isa o higit pang Heneral."
+  },
+  "genBrawl": {
+    "en": "Brawl",
+    "tl": "Rambulan"
+  },
+  "genBrawlHint": {
+    "en": "Tick exactly two Generals at full rage (red bar) to make them brawl. The winner absorbs the loser's power.",
+    "tl": "Pumili ng eksaktong dalawang Heneral na puno ang galit (pulang bar) para magrambulan. Makukuha ng nanalo ang lakas ng natalo."
+  },
+  "genBrawlPickTwo": {
+    "en": "Tick exactly two Generals.",
+    "tl": "Pumili ng eksaktong dalawang Heneral."
+  },
+  "genBrawlBusy": {
+    "en": "A brawl is already on.",
+    "tl": "May rambulan na."
+  },
+  "genBrawlWave": {
+    "en": "No brawls during a wave.",
+    "tl": "Bawal ang rambulan habang may alon."
+  },
+  "genBrawlMissing": {
+    "en": "Both Generals must be alive on the field.",
+    "tl": "Kailangang buhay sa larangan ang dalawang Heneral."
+  },
+  "genBrawlRage": {
+    "en": "Both need full rage. Rage fills when they fight, take hits and clash.",
+    "tl": "Kailangang puno ang galit ng dalawa. Napupuno ito kapag lumalaban, natatamaan at nagbabanggaan."
+  },
+  "genFortify": {
+    "en": "Fortify",
+    "tl": "Patibayin"
+  },
+  "genFortifyHint": {
+    "en": "Spend the ticked Generals' + power: it becomes extra max HP for their own establishment, and their + resets.",
+    "tl": "Gastusin ang + na lakas ng mga napiling Heneral: magiging dagdag na max HP ito ng sarili nilang establisyemento, at babalik sa wala ang kanilang +."
+  },
+  "genFortifyNone": {
+    "en": "No + power to spend (or the establishment isn't built yet).",
+    "tl": "Walang + na lakas na magagastos (o hindi pa tapos ang establisyemento)."
+  },
+  "hubTabLab": {
+    "en": "Laboratory",
+    "tl": "Laboratoryo"
+  },
+  "labResearch": {
+    "en": "Research",
+    "tl": "Pananaliksik"
+  },
+  "labFortifications": {
+    "en": "Fortifications",
+    "tl": "Tanggulan"
+  },
+  "genTapHint": {
+    "en": "Tap portraits to pick Generals, or use a quick pick above.",
+    "tl": "I-tap ang mga larawan para pumili ng Heneral, o gamitin ang mabilisang pagpili sa itaas."
+  },
+  "genMore": {
+    "en": "+{n} more",
+    "tl": "+{n} pa"
+  },
+  "genOrdersTitle": {
+    "en": "Battle priority",
+    "tl": "Prayoridad sa laban"
+  },
+  "genActionsTitle": {
+    "en": "Commands",
+    "tl": "Mga utos"
+  },
+  "genReadyHint": {
+    "en": "Full rage",
+    "tl": "Puno ang galit"
+  },
+  "genAirHint": {
+    "en": "Flyers & long-range: can hit the Kirov",
+    "tl": "Lumilipad at malayuan: tatama sa Kirov"
+  },
+  "genPlusHint": {
+    "en": "Has + power to spend",
+    "tl": "May + na lakas na magagastos"
+  },
+  "genNoneShort": {
+    "en": "No Generals yet",
+    "tl": "Wala pang Heneral"
+  },
+  "hudLab": {
+    "en": "Lab",
+    "tl": "Lab"
+  },
+  "legacyTitle": {
+    "en": "Hall of Legacy",
+    "tl": "Bulwagan ng Pamana"
+  },
+  "legacyEmpty": {
+    "en": "No fallen Demon Lords yet. When a castle falls, its run is engraved here.",
+    "tl": "Wala pang nasawing Demon Lord. Kapag bumagsak ang kuta, iuukit dito ang takbo nito."
+  },
+  "legacyLord": {
+    "en": "Demon Lord",
+    "tl": "Demon Lord"
+  },
+  "legacyWaves": {
+    "en": "Waves",
+    "tl": "Alon"
+  },
+  "legacyDays": {
+    "en": "Days",
+    "tl": "Araw"
+  },
+  "legacyTime": {
+    "en": "Time",
+    "tl": "Oras"
+  },
+  "legacyMode": {
+    "en": "Mode",
+    "tl": "Moda"
+  },
+  "legacyDate": {
+    "en": "Fell",
+    "tl": "Bumagsak"
+  },
+  "legacyCurrentRun": {
+    "en": "Current run",
+    "tl": "Kasalukuyang takbo"
+  },
+  "legacyPermadeathHint": {
+    "en": "Permadeath ({difficulty}): if the castle falls the run ends for good and is engraved here. Waves never end; the game saves itself after every wave.",
+    "tl": "Permadeath ({difficulty}): kapag bumagsak ang kuta, tapos na ang takbo at iuukit ito rito. Walang katapusan ang mga alon; kusang nase-save ang laro pagkatapos ng bawat alon."
+  },
+  "gameOverTitle": {
+    "en": "THE CASTLE HAS FALLEN",
+    "tl": "BUMAGSAK ANG KUTA"
+  },
+  "gameOverBody": {
+    "en": "{lord}'s reign is over. The realm and its save are gone; your legacy is engraved in the Hall.",
+    "tl": "Tapos na ang paghahari ni {lord}. Wala na ang kaharian at ang save nito; nakaukit na ang iyong pamana sa Bulwagan."
+  },
+  "gameOverFellOn": {
+    "en": "Fell on wave",
+    "tl": "Bumagsak sa alon"
+  },
+  "gameOverTitleScreen": {
+    "en": "Title screen",
+    "tl": "Pangunahing screen"
+  },
+  "gameOverNewRealm": {
+    "en": "Rise again (new realm)",
+    "tl": "Bumangon muli (bagong kaharian)"
+  },
+  "introLordName": {
+    "en": "Your Demon Lord name (shown in the Hall of Legacy)",
+    "tl": "Pangalan ng iyong Demon Lord (makikita sa Bulwagan ng Pamana)"
+  },
+  "introBiome": {
+    "en": "Biome",
+    "tl": "Biome"
+  },
+  "settingsBiome": {
+    "en": "Biome",
+    "tl": "Biome"
+  },
+  "settingsBiomeHint": {
+    "en": "The island's realm: its look, water life and music. Waves keep their strength in every biome.",
+    "tl": "Ang kaharian ng isla: itsura, buhay sa tubig at musika. Pareho ang lakas ng mga alon sa bawat biome."
+  },
+  "titleLeaderboard": {
+    "en": "Leaderboard",
+    "tl": "Leaderboard"
+  },
+  "titleUploadSave": {
+    "en": "Upload save",
+    "tl": "Mag-upload ng save"
+  },
+  "titleNoSaveHint": {
+    "en": "No saved realm on this device. Start a new realm or upload a save file.",
+    "tl": "Walang naka-save na kaharian sa device na ito. Magsimula ng bago o mag-upload ng save file."
+  },
+  "titleUploadFailed": {
+    "en": "Could not load that save file. It may be damaged, not an IsoChronicle save, or from a run that has already fallen.",
+    "tl": "Hindi ma-load ang save file. Maaaring sira ito, hindi save ng IsoChronicle, o galing sa takbong bumagsak na."
+  },
+  "profileName": {
+    "en": "Name or username",
+    "tl": "Pangalan o username"
+  },
+  "profileNamePlaceholder": {
+    "en": "Leave blank to stay anonymous",
+    "tl": "Iwanang blangko para hindi kilala"
+  },
+  "profileOptional": {
+    "en": "Everything here is optional.",
+    "tl": "Opsyonal ang lahat dito."
+  },
+  "profileUpload": {
+    "en": "Upload",
+    "tl": "Upload"
+  },
+  "profileUploadHint": {
+    "en": "Pick a picture (PNG, JPG, WebP or GIF, up to 8 MB). It is cropped to a square.",
+    "tl": "Pumili ng larawan (PNG, JPG, WebP o GIF, hanggang 8 MB). Gagawin itong parisukat."
+  },
+  "profileIcon": {
+    "en": "Icon",
+    "tl": "Icon"
+  },
+  "profileGeneral": {
+    "en": "General",
+    "tl": "Heneral"
+  },
+  "profileNone": {
+    "en": "None",
+    "tl": "Wala"
+  },
+  "profileImageError": {
+    "en": "That picture could not be used. Try a PNG, JPG, WebP or GIF under 8 MB.",
+    "tl": "Hindi magamit ang larawang iyon. Subukan ang PNG, JPG, WebP o GIF na mas mababa sa 8 MB."
+  },
+  "profileCancel": {
+    "en": "Close",
+    "tl": "Isara"
+  },
+  "profileSave": {
+    "en": "Save profile",
+    "tl": "I-save ang profile"
+  },
+  "profileEdit": {
+    "en": "Edit profile",
+    "tl": "I-edit ang profile"
+  },
+  "profileAnonymous": {
+    "en": "Nameless Demon Lord",
+    "tl": "Demon Lord na Walang Pangalan"
+  },
+  "profileCardHint": {
+    "en": "Your name and picture appear beside every run you lose in the Hall of Legacy.",
+    "tl": "Lalabas ang pangalan at larawan mo sa tabi ng bawat takbong natalo ka sa Bulwagan ng Pamana."
+  },
+  "legacyLocalNote": {
+    "en": "The Hall of Legacy is kept on this device for now. A Steam leaderboard will come with the Steam release.",
+    "tl": "Sa device na ito muna nakatago ang Bulwagan ng Pamana. Darating ang Steam leaderboard kasabay ng Steam release."
+  },
+  "settingsCursor": {
+    "en": "Demon Lord's cursor",
+    "tl": "Cursor ng Demon Lord"
+  },
+  "settingsCursorHint": {
+    "en": "Animated pixel cursor: ember claw, aether glow on buttons, sky-laser reticle over the map in battle.",
+    "tl": "Gumagalaw na pixel cursor: kuko na may baga, liwanag ng aether sa mga button, reticle ng sky-laser sa mapa habang may laban."
+  },
+  "settingsDifficulty": {
+    "en": "Difficulty",
+    "tl": "Hirap"
+  },
+  "settingsDifficultyHint": {
+    "en": "Changing the difficulty of a running realm costs resources (more to make it easier). The price grows with the wave.",
+    "tl": "May bayad ang pagpalit ng hirap ng tumatakbong kaharian (mas mahal kapag pinadali). Tumataas ang presyo kasabay ng alon."
+  },
+  "settingsDifficultyCurrent": {
+    "en": "Current",
+    "tl": "Kasalukuyan"
+  },
+  "settingsDifficultyCantAfford": {
+    "en": "Not enough resources.",
+    "tl": "Kulang ang yaman."
   }
 }

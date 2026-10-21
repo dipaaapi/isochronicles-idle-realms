@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { RAGE } from '../../state/generalOrders';
+import { addRage } from './generalOrders';
 import { useGameStore } from '../../state/useGameStore';
 import { BRAWL_CONFIG, tensionFull } from '../../state/brawl';
 import { logMessage } from '../../state/activityLog';
@@ -57,6 +59,22 @@ export class BrawlDirector {
     return true;
   }
 
+  /**
+   * Generals panel: brawl between two chosen Generals, both at full rage (spent).
+   * Returns why it could not start, or 'ok'.
+   */
+  commandPair(a: WorkerInstance | undefined, b: WorkerInstance | undefined): 'ok' | 'busy' | 'wave' | 'missing' | 'rage' {
+    if (this.brawl) return 'busy';
+    if (useGameStore.getState().invasion.isActive) return 'wave';
+    const up = (g?: WorkerInstance): g is WorkerInstance => !!g && g.hp > 0 && g.container.active && g.container.visible;
+    if (!up(a) || !up(b) || a === b) return 'missing';
+    if ((a.rage ?? 0) < RAGE.brawlCost || (b.rage ?? 0) < RAGE.brawlCost) return 'rage';
+    addRage(a, -RAGE.brawlCost);
+    addRage(b, -RAGE.brawlCost);
+    this.start(a, b);
+    return 'ok';
+  }
+
   update(generals: WorkerInstance[], deltaSec: number): void {
     const store = useGameStore.getState();
     const battle = store.invasion.isActive;
@@ -96,6 +114,8 @@ export class BrawlDirector {
         a.overrideEmoteTimer = 900;
         b.overrideEmote = '💢';
         b.overrideEmoteTimer = 900;
+        addRage(a, RAGE.perClash);
+        addRage(b, RAGE.perClash);
         const names = { a: a.name, b: b.name };
         if (tension.count === Math.ceil(CFG.clashesToBrawl * 0.7)) {
           logMessage('brawlTension', { ...names, count: tension.count, max: CFG.clashesToBrawl });

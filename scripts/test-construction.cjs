@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+let savesNow = 0;
+let runEnded = false;
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -17,7 +19,14 @@ function load(file) {
       if (name === 'phaser') return { default: { Math: { Clamp: (n, min, max) => Math.max(min, Math.min(max, n)) } } };
       if (name === 'zustand/middleware') return { persist: (fn) => fn, createJSONStorage() {} };
       if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
-      if (name.includes('storageAdapter')) return { createThrottledStorage: () => undefined, SAVE_KEY: 'test' };
+      if (name.includes('storageAdapter')) {
+        const kv = new Map();
+        return {
+          createThrottledStorage: () => undefined, SAVE_KEY: 'test',
+          saveNow: async () => { savesNow++; }, endRunSave: async () => { runEnded = true; }, resumeRealmSaves: () => { runEnded = false; },
+          localForageStorage: { getItem: async (k) => kv.get(k) ?? null, setItem: async (k, v) => { kv.set(k, v); }, removeItem: async (k) => { kv.delete(k); } },
+        };
+      }
       if (name.includes('activityLog')) return new Proxy({}, { get: (_, fn) => (fn === 'resourceName' ? (k) => ({ en: k, tl: k }) : () => undefined) });
       if (name.includes('CharacterSprites')) return new Proxy({}, {
         get: (_, fn) => (/^create|Headroom$/.test(String(fn)) ? () => null : () => {}),
@@ -197,11 +206,22 @@ assert.equal(state().importSave(saved), true);
 assert.equal(state().triggerEstablishmentSkill('WOOD', 0), true, 'establishment skills trigger in-browser (no require)');
 assert.ok(state().establishmentSkillCooldowns.WOOD.skill1 > 0);
 store.setState({ roster: state().roster.map(u => u.unitClass === 'AQUA_SLIME' ? { ...u, slimeEvolutionLevel: 3 } : u) });
-const rosterBefore = state().roster.length;
+// Permadeath: a fallen castle ends the run (Hall of Legacy) and leaves an unsaved, ruined realm
+state().beginRun('Test Lord');
+const fallenRun = state().runId;
+store.setState({ invasion: { ...state().invasion, waveNumber: 42, invasionsRepelled: 41 } });
 state().resolveCastleBreach();
-assert.equal(state().roster.length, rosterBefore, 'breach keeps the roster');
-assert.equal(state().roster.find(u => u.unitClass === 'AQUA_SLIME').slimeEvolutionLevel, 3, 'breach keeps the Support Slime evolution');
-assert.equal(state().lootedResources.metal, 5000, 'breach loot report covers every resource');
+assert.ok(runEnded, 'game over deletes the realm save');
+assert.equal(state().gameOverRun.runId, fallenRun, 'the fallen run is shown on the Game Over screen');
+assert.equal(state().gameOverRun.lord, 'Test Lord');
+assert.equal(state().gameOverRun.wavesCleared, 41);
+assert.equal(state().castleBuilt, false, 'the realm is gone');
+assert.equal(state().invasion.waveNumber, 1);
+assert.equal(state().roster.length, 1, 'only the Slime remains');
+state().beginRun('Next Lord');
+assert.ok(!runEnded, 'a new run saves again');
+assert.notEqual(state().runId, fallenRun, 'a new run gets a new id');
+assert.equal(state().gameOverRun, null);
 state().resetRealm();
 // A new realm's Slime must not spend the castle supplies on evolutions (soft-lock)
 {
@@ -243,30 +263,27 @@ console.log('Difficulty combat, export and reset checks passed.');
 
 const { teamBonuses, normalizeSkillProgress, earnedSkillPoints } = load('src/state/skillTree.ts');
 const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-9, `${msg ?? ''} expected ${b}, got ${a}`);
-store.setState({ day: 87, year: 3, platformPhase: 4, skillRanks: { MINION_MIGHT: 1 }, invasion: { ...initial.invasion, waveNumber: 100, isActive: true } });
-state().performRegression();
-assert.equal(state().day, 1);
-assert.equal(state().year, 1);
-assert.equal(state().platformPhase, 1);
-assert.equal(state().invasion.waveNumber, 1);
-assert.equal(state().invasion.isActive, false);
-assert.equal(state().skillPoints, 0, 'regression no longer grants skill points');
-assert.deepEqual({ ...state().skillRanks }, {}, 'skills are refunded on regression');
-assert.equal(state().castleBuilt, false);
-assert.equal(state().defense.castleHp, 0);
-assert.equal(state().defense.castleMaxHp, 600);
-assert.equal(state().regressionHistory[0].dayReached, 87);
-state().summonUnit('TREANT', 'BUILD', true);
-Object.assign(worker.container, IsometricHelper.gridToScreen(nextConstruction(state()).x, nextConstruction(state()).y));
-manager.updateConstruction(worker, state(), 4, 65);
-assert.equal(state().defense.castleHp, 600, 'Treant rebuild applies permanent regression HP');
-near(teamBonuses(state()).attack, 1.05, 'regression tier boosts minion attack');
-near(teamBonuses({ regressionCount: 0 }).attack, 1);
+// Endless waves: wave 100 is not the end, the biome stays the player's choice
+{
+  const wb = load('src/state/waveBalance.ts');
+  store.setState({ platformPhase: 2, realmChoice: 2, invasion: { ...initial.invasion, waveNumber: 100, invasionsRepelled: 99, isActive: true } });
+  state().resolveInvasionVictory(0);
+  assert.equal(state().invasion.waveNumber, 101, 'waves continue past 100');
+  assert.equal(state().platformPhase, 2, 'waves no longer change the biome');
+  assert.ok(savesNow > 0, 'the realm is saved after every wave');
+  assert.ok(wb.realmMultiplier(130) > wb.realmMultiplier(100), 'invaders keep hardening after wave 100');
+  assert.ok(wb.isClimaxWave(125), 'every 25th wave is a climax');
+  assert.ok(wb.scaledEnemyCount(40, 'HARD', 2, 5000) <= 220, 'enemy count is capped');
+  near(wb.realmIntensity(10, 4).hp, 1, 'the biome does not change wave strength');
+  state().setRealmChoice(3);
+  assert.equal(state().platformPhase, 3, 'Settings can switch the biome');
+  state().resetRealm();
+}
 
 // Skill points come from clearing wave sets
 assert.equal(earnedSkillPoints(4), 0);
 assert.equal(earnedSkillPoints(5), 3);
-assert.equal(earnedSkillPoints(250), 60, 'rewards stop at wave 100');
+assert.equal(earnedSkillPoints(250), 150, 'skill points keep coming (endless waves)');
 assert.equal(state().learnSkill('MINION_MIGHT'), false, 'no points before the first wave set');
 store.setState({ invasion: { ...state().invasion, invasionsRepelled: 4, waveNumber: 5, isActive: true } });
 state().resolveInvasionVictory(0);
@@ -278,7 +295,7 @@ assert.equal(state().learnSkill('MINION_MIGHT'), true);
 assert.equal(state().skillRanks.MINION_MIGHT, 3);
 assert.equal(state().learnSkill('CASTLE_ARMOR'), false, 'cannot spend unavailable points');
 assert.equal(state().skillPoints, 0);
-near(teamBonuses(state()).attack, 1 + 0.24 + 0.05);
+near(teamBonuses(state()).attack, 1 + 0.24);
 state().resetSkills();
 assert.equal(state().skillPoints, 3, 'free respec refunds every point');
 assert.equal(state().learnSkill('CASTLE_ARMOR'), true);
@@ -304,14 +321,11 @@ assert.equal(Object.keys(state().skillRanks).length, 0);
 assert.equal(state().importSave(skillSave), true);
 assert.equal(state().skillRanks.CASTLE_ARMOR, 2, 'skill ranks survive export/import');
 assert.equal(state().skillPoints, 7, "12 earned, 5 spent");
-assert.equal(state().regressionCount, 1);
-assert.equal(normalizeSkillProgress({ regressionCount: 3, unlockedSkills: ['MINION_MIGHT'] }).skillPoints, 0, 'old regression points are not carried over');
+assert.equal(normalizeSkillProgress({ regressionCount: 3, unlockedSkills: ['MINION_MIGHT'] }).skillPoints, 0, 'old point-tree saves are not carried over');
 assert.equal(normalizeSkillProgress({ skillRanks: { MINION_MIGHT: 3, MINION_HASTE: 1 }, invasion: { invasionsRepelled: 5 } }).skillPoints, 3, 'overspent saves are refunded');
 assert.equal(normalizeSkillProgress({ skillRanks: { MINION_HASTE: 1, bogus: 2 }, invasion: { invasionsRepelled: 10 } }).skillPoints, 6);
-state().resetRegressionProgress('RESET REGRESSIONS');
-assert.equal(state().defense.castleMaxHp, 500);
-near(teamBonuses({ regressionCount: state().regressionCount }).attack, 1);
-console.log('Regression rewards, rebuilding, skill tree, combat and save checks passed.');
+near(teamBonuses({}).attack, 1);
+console.log('Endless waves, permadeath, skill tree, combat and save checks passed.');
 
 // ── Establishment towers, citadel beacon, portals and obstacles ─────────────
 {
@@ -499,8 +513,8 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   assert.equal(layout.getLayoutSeed(), 12345);
   assert.equal(JSON.stringify({ x: state().dynamicResourceNodes.WOOD.x, y: state().dynamicResourceNodes.WOOD.y }), JSON.stringify(layout.BUILDING_SITES.WOOD.workSpot));
   const seedBefore = state().layoutSeed;
-  state().performRegression();
-  assert.notEqual(state().layoutSeed, seedBefore, 'regression rolls a new layout');
+  state().resetRealm();
+  assert.notEqual(state().layoutSeed, seedBefore, 'a new realm rolls a new layout');
   checkLayout(state().layoutSeed);
 
   // Navigation: solids push walkers out and block line of sight
@@ -812,8 +826,8 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   state().resolveBrawl('g1', 'g2');
   const [g1, g2] = state().roster;
   assert.equal(g1.brawlLevel, 1, 'the winner gains +1');
-  assert.equal(g1.brawlAttack, UNIT_CLASSES.HARPY.baseAttack, 'absorbs the loser base attack (not its bonus)');
-  assert.equal(g1.brawlHp, UNIT_CLASSES.HARPY.baseHp);
+  assert.equal(g1.brawlAttack, Math.round((UNIT_CLASSES.HARPY.baseAttack + 30) * brawl.BRAWL_CONFIG.absorb.attack), 'absorbs 10% of the loser current attack');
+  assert.equal(g1.brawlHp, Math.round((UNIT_CLASSES.HARPY.baseHp + 200) * brawl.BRAWL_CONFIG.absorb.hp));
   assert.equal(g2.brawlLevel, 0, 'the loser loses its + levels');
   assert.equal(g2.brawlAttack, 0);
   assert.equal(state().brawlTension[brawl.pairKey('g1', 'g2')], undefined, 'tension resets after the brawl');
@@ -861,17 +875,13 @@ console.log('Regression rewards, rebuilding, skill tree, combat and save checks 
   near(teamBonuses(state()).summonDiscount, runes.runeValue(muster), 'Muster runes discount minion summons');
 
   const save = state().exportSave();
-  store.setState({ invasion: { ...state().invasion, waveNumber: 30 } });
-  state().performRegression();
-  assert.equal(state().runes.length, 2, 'runes are kept through Regression');
-  assert.equal(state().runeSlots.GENERALS[0], fury.id);
   state().resetRealm();
   assert.equal(state().runes.length, 0, 'a new realm starts with an empty vault');
   assert.equal(state().importSave(save), true);
   assert.equal(state().runes.length, 2, 'runes survive export/import');
   const bad = runes.normalizeRunes([{ id: 'x', kind: 'NOPE', tier: 1 }, { id: 'y', kind: 'FURY', tier: 99 }], { CASTLE: ['y'], GENERALS: ['y'] });
   assert.equal(bad.runes.length, 1);
-  assert.equal(bad.runes[0].tier, runes.MAX_TIER, 'tiers are clamped');
+  assert.equal(bad.runes[0].tier, 99, 'merged tiers have no cap');
   assert.equal(bad.runeSlots.CASTLE[0], null, 'a rune cannot sit in another target');
   assert.equal(bad.runeSlots.GENERALS[0], 'y');
   console.log('Rune checks passed.');

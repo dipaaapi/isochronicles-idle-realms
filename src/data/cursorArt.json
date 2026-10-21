@@ -1,0 +1,51 @@
+{
+  "_doc": "Custom pixel cursor (src/game/cursor/cursorArt.ts paints it, src/ui/GameCursor.tsx shows it). `arrow` is the Demon Lord's obsidian claw-arrow with an ember at its tip (16x16, hotspot = its tip at 0,0); every state is painted from it in code: idle (ember flicker), hover (pulsing aether glow), press (pressed in + spark burst), grab (dragging the map), disabled (grey + no-sign). `target` (sky-laser reticle, over the map during a battle) and `wait` (spinning rune circle, loading) are drawn in code too. `scale` = screen pixels per art pixel; `fps` = frames per second per state.",
+  "scale": 2,
+  "fps": { "idle": 6, "hover": 8, "press": 14, "grab": 6, "disabled": 2, "target": 10, "wait": 10 },
+  "palette": {
+    "K": "#0b0510",
+    "O": "#2a1530",
+    "H": "#5b2a6e",
+    "R": "#dc2626",
+    "D": "#7f1d1d",
+    "E": "#f59e0b",
+    "Y": "#fde68a"
+  },
+  "colors": {
+    "glow": "#c084fc",
+    "glowHot": "#f0abfc",
+    "spark": "#fde68a",
+    "sparkHot": "#ffffff",
+    "reticle": "#ef4444",
+    "reticleHot": "#fca5a5",
+    "rune": "#a855f7",
+    "runeHot": "#fde68a",
+    "grey": "#64748b",
+    "greyDark": "#1e293b",
+    "no": "#ef4444"
+  },
+  "arrow": [
+    "K...............",
+    "KK..............",
+    "KYK.............",
+    "KEYK............",
+    "KEHOK...........",
+    "KRHOOK..........",
+    "KROHOOK.........",
+    "KROOOOOK........",
+    "KROOOOOOK.......",
+    "KROOOOOOOK......",
+    "KRODOOKKKKK.....",
+    "KRDKROK.........",
+    "KRK.KROK........",
+    "KK..KDOK........",
+    "K....KROK.......",
+    ".....KKK........"
+  ],
+  "emberFrames": [
+    { "2,1": "Y", "3,1": "E", "3,2": "Y" },
+    { "2,1": "E", "3,1": "Y", "3,2": "Y" },
+    { "2,1": "Y", "3,1": "Y", "3,2": "E" },
+    { "2,1": "E", "3,1": "E", "3,2": "Y" }
+  ]
+}

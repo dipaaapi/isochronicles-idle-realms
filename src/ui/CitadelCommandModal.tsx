@@ -30,7 +30,7 @@ import {
   Users,
   Store,
   Hammer,
-  Zap,
+  Zap, FlaskConical,
   Shield,
   Coins,
   Trees,
@@ -41,6 +41,9 @@ import {
   Sparkles,
   Gem,
 } from 'lucide-react';
+
+/** Sub-tabs of the Laboratory (one sidebar entry). */
+const LAB_TABS: CitadelTab[] = ['RESEARCH', 'SKILLS', 'CASTLE'];
 
 export type CitadelTab = 'OVERVIEW' | 'MINIONS' | 'SKILLS' | 'RUNES' | 'MARKET' | 'FORGE' | 'RESEARCH' | 'CASTLE';
 
@@ -82,7 +85,13 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   const { t: tr } = useTranslation();
   const tenantCounts = useTenantCounts((s) => s.counts);
 
-  const [activeTab, setActiveTab] = useState<CitadelTab>(initialTab);
+  const [activeTab, setActiveTabRaw] = useState<CitadelTab>(initialTab);
+  // The Laboratory tab reopens on whichever of its sub-tabs was used last
+  const [lastLabTab, setLastLabTab] = useState<CitadelTab>(LAB_TABS.includes(initialTab) ? initialTab : 'RESEARCH');
+  const setActiveTab = (tab: CitadelTab) => {
+    if (LAB_TABS.includes(tab)) setLastLabTab(tab);
+    setActiveTabRaw(tab);
+  };
   const [marketMode, setMarketMode] = useState<'SELL' | 'BUY'>('BUY');
   const [lastTradeMsg, setLastTradeMsg] = useState<{ text: string; id: number } | null>(null);
   const [tradeAmounts, setTradeAmounts] = useState<Partial<Record<TradeableResource, number>>>({});
@@ -224,8 +233,8 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
-      <div className="relative w-full max-w-5xl h-[88vh] flex flex-col rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none">
+      <div className="game-modal relative w-full max-w-5xl h-[88vh] flex flex-col rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden">
         {lastTradeMsg && (
           <div
             key={lastTradeMsg.id}
@@ -275,21 +284,22 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
             <div className="space-y-1">
               {[
                 { id: 'OVERVIEW' as CitadelTab, label: tr('hubTabOverview'), icon: <LayoutDashboard className="w-4 h-4" /> },
-                { id: 'SKILLS' as CitadelTab, label: tr('hubTabSkills'), icon: <Sparkles className="w-4 h-4" /> },
+                { id: 'LAB' as const, label: tr('hubTabLab'), icon: <FlaskConical className="w-4 h-4" /> },
                 { id: 'RUNES' as CitadelTab, label: isTL ? 'Mga Runa' : 'Runes', icon: <Gem className="w-4 h-4" /> },
                 { id: 'MINIONS' as CitadelTab, label: isTL ? 'Mga Heneral' : 'Generals', icon: <Users className="w-4 h-4" /> },
                 { id: 'MARKET' as CitadelTab, label: isTL ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
                 { id: 'FORGE' as CitadelTab, label: isTL ? 'Arsenal' : 'Arsenal', icon: <Hammer className="w-4 h-4" /> },
-                { id: 'RESEARCH' as CitadelTab, label: isTL ? 'Agham (Research)' : 'Research', icon: <Zap className="w-4 h-4" /> },
-                { id: 'CASTLE' as CitadelTab, label: isTL ? 'Tanggulan' : 'Fortifications', icon: <Shield className="w-4 h-4" /> },
               ].map((tab) => {
-                const isActive = activeTab === tab.id;
+                // Laboratory = Research + Skills + Fortifications (sub-tabs inside)
+                const isLab = tab.id === 'LAB';
+                const isActive = isLab ? LAB_TABS.includes(activeTab) : activeTab === tab.id;
+                const badge = isLab ? LAB_TABS.reduce((n, id) => n + (readyByTab[id] ?? 0), 0) : readyByTab[tab.id as CitadelTab];
                 return (
                   <button
                     key={tab.id}
                     onClick={() => {
                       soundFx.playTab();
-                      setActiveTab(tab.id);
+                      setActiveTab(isLab ? lastLabTab : (tab.id as CitadelTab));
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       isActive
@@ -301,9 +311,9 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                       {tab.icon}
                       <span>{tab.label}</span>
                     </div>
-                    {readyByTab[tab.id] ? (
+                    {badge ? (
                       <span className="min-w-[1.25rem] px-1 text-center text-[10px] font-mono font-bold bg-emerald-500 text-slate-950">
-                        {readyByTab[tab.id]}
+                        {badge}
                       </span>
                     ) : (
                       isActive && <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
@@ -658,6 +668,22 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
 
             {/* ================= TAB 4: RESEARCH TECH ================= */}
             {activeTab === 'OVERVIEW' && <PowerOverviewPanel onNavigate={setActiveTab} />}
+
+            {LAB_TABS.includes(activeTab) && (
+              <div className="flex gap-1.5 border-b border-slate-800 pb-2">
+                {LAB_TABS.map((id) => (
+                  <button key={id}
+                    onClick={() => { soundFx.playTab(); setActiveTab(id); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border ${
+                      activeTab === id ? 'bg-purple-600/20 text-purple-300 border-purple-500/40' : 'text-slate-400 border-slate-800 hover:bg-slate-800/50'
+                    }`}>
+                    {id === 'RESEARCH' ? <Zap className="w-3.5 h-3.5" /> : id === 'SKILLS' ? <Sparkles className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                    <span>{id === 'RESEARCH' ? tr('labResearch') : id === 'SKILLS' ? tr('hubTabSkills') : tr('labFortifications')}</span>
+                    {readyByTab[id] ? <span className="px-1 text-[10px] font-mono bg-emerald-500 text-slate-950">{readyByTab[id]}</span> : null}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {activeTab === 'SKILLS' && <SkillTreePanel />}
 

@@ -133,7 +133,7 @@ export const INITIAL_UPGRADES: UpgradesState = {
 
 export const SUPPORT_SLIME_ID = 'unit_slime_support_1';
 
-/** The permanent Support Slime; its evolution level survives breaches and regressions. */
+/** The permanent Support Slime; its evolution level is part of every new realm. */
 export const createSupportSlime = (slimeEvolutionLevel = 1): UnitRosterItem => ({
   id: SUPPORT_SLIME_ID,
   name: 'Support Healing Slime',
@@ -160,7 +160,7 @@ export const createInitialBlessings = (): Record<GodBlessingId, number> => ({
 
 export const INITIAL_AUTO_BUY_BUILDING: Record<ResourceBuildingId, boolean> = perBuilding(() => false);
 
-/** Session-only world clock / weather values shared by new games and regressions. */
+/** Session-only world clock / weather values shared by new games. */
 export const createInitialWorldClock = () => ({
   day: 1,
   year: 1,
@@ -230,14 +230,17 @@ export const createInitialProgress = () => {
     invasion: { ...INITIAL_INVASION },
     autoSettings: { ...INITIAL_AUTO_SETTINGS },
     achievements: [],
-    isCastleBreachedModalOpen: false,
-    lootedResources: null,
+    lordName: 'Demon Lord',
+    runId: '',
+    runStartedAt: 0,
+    playSeconds: 0,
+    gameOverRun: null as import('../legacy').LegacyEntry | null,
     merchantRestockTimer: ECONOMY_CONFIG.merchantRestockSeconds,
     ...createInitialWorldClock(),
     offlineGains: null,
     isOfflineModalOpen: false,
 
-    // Platform & Regression Progression
+    // Platform & biome
     layoutSeed,
     buildingPositions: {} as BuildingPositions,
     munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0 },
@@ -246,10 +249,6 @@ export const createInitialProgress = () => {
     pendingBattleEffects: [] as import('../../types/state').BattleEffect[],
     platformPhase: 1 as const,
     realmChoice: null as PlatformPhase | null,
-    regressionCount: 0,
-    regressionHistory: [],
-    isRegressionModalOpen: false,
-    isWave100VictoryCelebration: false,
 
     // Silhouette Discovery: Starting beasts are pre-discovered
     discoveredBeasts: ['DRYAD', 'MINOTAUR'] as UnitClass[],

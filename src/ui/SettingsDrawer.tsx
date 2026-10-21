@@ -1,4 +1,10 @@
 import React, { useRef, useState } from 'react';
+import { DIFFICULTIES, normalizeDifficulty, type Difficulty } from '../state/difficulty';
+import { difficultyChangeCost } from '../state/difficultyChange';
+import { canAfford } from '../state/resources';
+import type { Resources } from '../types/state';
+import { customCursorEnabled, setCustomCursorEnabled } from './GameCursor';
+import { BiomePicker } from './BiomePicker';
 import { DEV_TOOLS, useDevMode } from '../state/devMode';
 import { useGameStore } from '../state/useGameStore';
 import { wipeAllSaveData } from '../state/storageAdapter';
@@ -89,11 +95,20 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
     toggleTileCoordinates,
     measuredFps,
     targetFps,
+    platformPhase,
+    setRealmChoice,
+    difficulty,
+    invasion,
+    resources,
+    changeDifficulty,
   } = useGameStore();
+  const costText = (cost: Partial<Resources>) =>
+    Object.entries(cost).map(([k, v]) => `${(v ?? 0).toLocaleString()} ${k === 'coins' ? '🪙' : k === 'soulFragments' ? '💀' : k === 'aetherShards' ? '💎' : k}`).join(' · ');
 
   if (!isOpen) return null;
 
   const isTL = language === 'TL';
+  const [cursorOn, setCursorOn] = useState(customCursorEnabled);
   const tr = (key: TranslationKey) => translate(key, language);
 
   const handleExport = () => {
@@ -176,11 +191,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm select-none pointer-events-auto animate-in fade-in duration-150"
+      className="game-backdrop fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm select-none pointer-events-auto animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="relative flex h-full w-full max-w-md flex-col overflow-hidden border-l border-sky-500/30 bg-slate-950/95 shadow-2xl"
+        className="game-modal relative flex h-full w-full max-w-md flex-col overflow-hidden border-l border-sky-500/30 bg-slate-950/95 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -249,6 +264,69 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           {/* GAME TAB */}
           {currentTab === 'GAME' && (
             <div className="space-y-5">
+              {/* Biome: a setting now (waves no longer change the realm) */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <span className="text-sm">🌋</span>
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{tr('settingsBiome')}</h3>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 space-y-2">
+                  <BiomePicker value={platformPhase} onChange={(p) => setRealmChoice(p)} isTL={isTL} compact />
+                  <p className="text-[10px] text-slate-500">{tr('settingsBiomeHint')}</p>
+                </div>
+              </section>
+
+              {/* Difficulty (paid change while a realm runs) */}
+              <section>
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <span className="text-sm">⚖️</span>
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{tr('settingsDifficulty')}</h3>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 space-y-2">
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(Object.keys(DIFFICULTIES) as Difficulty[]).map((d) => {
+                      const cur = normalizeDifficulty(difficulty) === d;
+                      const cost = difficultyChangeCost(normalizeDifficulty(difficulty), d, invasion.waveNumber);
+                      const afford = canAfford(resources, cost);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          disabled={cur || !afford}
+                          onClick={async () => {
+                            if (!(await gameConfirm(`${DIFFICULTIES[d].icon} ${isTL ? DIFFICULTIES[d].labelTl : DIFFICULTIES[d].label}: ${costText(cost)}?`))) return;
+                            changeDifficulty(d);
+                          }}
+                          className={`p-2 text-left cursor-pointer ${cur ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-200'}`}
+                          title={!cur && !afford ? tr('settingsDifficultyCantAfford') : undefined}
+                        >
+                          <div className="text-xs font-bold">{DIFFICULTIES[d].icon} {isTL ? DIFFICULTIES[d].labelTl : DIFFICULTIES[d].label}</div>
+                          <div className="text-[9px] leading-tight mt-0.5">{cur ? tr('settingsDifficultyCurrent') : costText(cost)}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-slate-500">{tr('settingsDifficultyHint')}</p>
+                </div>
+              </section>
+
+              {/* Custom cursor */}
+              <section>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold text-slate-200">🖱️ {tr('settingsCursor')}</div>
+                    <p className="text-[10px] text-slate-500">{tr('settingsCursorHint')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { soundFx.playClick(); const next = !cursorOn; setCustomCursorEnabled(next); setCursorOn(next); }}
+                    className={`px-3 py-1.5 text-[11px] font-bold cursor-pointer ${cursorOn ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}
+                  >
+                    {cursorOn ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              </section>
+
               {/* Language Selection */}
               <section>
                 <div className="mb-2 flex items-center gap-2 px-1">

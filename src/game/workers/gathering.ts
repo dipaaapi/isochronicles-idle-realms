@@ -3,7 +3,7 @@ import { FIGHTER_CLASSES } from '../../state/store/rosterSlice';
 import type { GameStoreState, ResourceBuildingId, Resources } from '../../types/state';
 import { useGameStore } from '../../state/useGameStore';
 import { teamBonuses } from '../../state/skillTree';
-import { buildingHpOf, buildingMaxHp, isBuildingOperational, isSpireOperational, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
+import { buildingHpOf, buildingMaxHp, buildingMaxHpOf, isBuildingOperational, isSpireOperational, towerBuildingOf, towerLevelOf } from '../../state/defenseStats';
 import { soundFx } from '../audio/soundFx';
 import { renderCargoGraphics } from './legacyWorkerArt';
 import { CRITICAL_HP, TASK_BUILDING, isEnrichableTask, type WorkerContext, type WorkerFrame, type WorkerInstance } from './types';
@@ -199,7 +199,7 @@ function updateHarvesting(ctx: WorkerContext, worker: WorkerInstance, frame: Wor
   // 2. Tenant Repair at Parent Establishment: if establishment is damaged/wrecked, repair it!
   if (isTenant && worker.parentBuildingId) {
     const building = store.resourceBuildings?.[worker.parentBuildingId];
-    if (building && building.level >= 1 && buildingHpOf(building) < buildingMaxHp(towerLevelOf(building))) {
+    if (building && building.level >= 1 && buildingHpOf(building) < buildingMaxHpOf(building)) {
       worker.stateTimer -= frame.delta;
       worker.overrideEmote = '🔨';
       worker.overrideEmoteTimer = 400;

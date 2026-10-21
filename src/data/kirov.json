@@ -1,0 +1,73 @@
+{
+  "_doc": "Kirov siege airship (game/KirovAirship.ts, sheets art/skills/kirov.lua + kirov-ordnance.lua). Replaced the wave troop transport. It leads every Kirov Invasion Battle (the raids between waves, InvasionManager.spawnLootScouts; formerly \"random battles\"), never a wave. fromWave / raidChance / chancePerWave / maxChance are no longer used. It drifts in from the island edge, drops paratrooper scouts (raider role), then hovers over the castle or an establishment and attacks ONLY structures with three skills. It has huge HP and armour (defence: share of every hit ignored) and only flyers (locomotion.json fly), long-range fighters (attackRange >= longRange), the towers and the Demon Lord's click can hurt it. It leaves after maxStayMs. HP, skill damage and troop counts scale with the wave reached.",
+  "fromWave": 6,
+  "raidChance": 0.35,
+  "chancePerWave": 0.004,
+  "maxChance": 0.7,
+  "hp": 5200,
+  "hpPerWave": 210,
+  "defence": 0.45,
+  "altitude": 92,
+  "speed": 26,
+  "scale": 1.6,
+  "maxStayMs": 110000,
+  "descentMs": 2100,
+  "troops": {
+    "base": 2,
+    "everyWaves": 18,
+    "max": 6,
+    "dropEveryMs": 26000
+  },
+  "antiAir": {
+    "longRange": 100,
+    "reach": 210,
+    "cooldownMs": 1100,
+    "towerDamage": 34,
+    "towerCooldownMs": 1600,
+    "demonLordDamage": 120,
+    "demonLordCooldownMs": 450
+  },
+  "skills": [
+    {
+      "id": "CARPET_BOMB",
+      "cooldownMs": 9000,
+      "bombs": 6,
+      "damage": 44,
+      "damagePerWave": 2.2,
+      "name": {
+        "en": "Carpet Bombing",
+        "tl": "Sunud-sunod na Bomba"
+      }
+    },
+    {
+      "id": "WRECKING_ANCHOR",
+      "cooldownMs": 14000,
+      "damage": 190,
+      "damagePerWave": 7,
+      "name": {
+        "en": "Wrecking Anchor",
+        "tl": "Angklang Panggiba"
+      }
+    },
+    {
+      "id": "FIREBOMB_RAIN",
+      "cooldownMs": 17000,
+      "canisters": 5,
+      "burnMs": 7000,
+      "burnDps": 14,
+      "burnDpsPerWave": 0.8,
+      "name": {
+        "en": "Firebomb Rain",
+        "tl": "Ulan ng Bombang Apoy"
+      }
+    }
+  ],
+  "bounty": {
+    "coins": 900,
+    "coinsPerWave": 45
+  },
+  "name": {
+    "en": "Kirov Airship",
+    "tl": "Kirov na Barkong Panghimpapawid"
+  }
+}

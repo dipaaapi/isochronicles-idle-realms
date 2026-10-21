@@ -1,6 +1,6 @@
 import { soundFx } from '../../game/audio/soundFx';
 import {
-  MAX_TIER,
+  DROP_MAX_TIER,
   MERGE_COUNT,
   RUNES,
   newRuneId,
@@ -16,7 +16,7 @@ import type { SliceArgs } from './types';
 export const createRunesSlice = (...[set, get]: SliceArgs) => ({
   grantRune: (kind: RuneKind, tier: number): Rune | null => {
     if (!RUNES[kind]) return null;
-    const rune: Rune = { id: newRuneId(), kind, tier: Math.max(1, Math.min(MAX_TIER, Math.floor(tier))) };
+    const rune: Rune = { id: newRuneId(), kind, tier: Math.max(1, Math.min(DROP_MAX_TIER, Math.floor(tier))) };
     set((prev) => ({ runes: [...prev.runes, rune], lastSavedTimestamp: Date.now() }));
     return rune;
   },
@@ -49,16 +49,30 @@ export const createRunesSlice = (...[set, get]: SliceArgs) => ({
     return true;
   },
 
-  /** Merges MERGE_COUNT unslotted runes of one kind and tier into one of the next tier. */
+  /**
+   * Merges MERGE_COUNT runes of one kind and tier (slotted or not) into one of
+   * the next tier. Slotted runes are used first, and the upgraded rune takes
+   * the first one's slot, so its effect upgrades in place; the other slots used
+   * are freed.
+   */
   mergeRunes: (kind: RuneKind, tier: number): Rune | null => {
     const state = get();
-    if (tier >= MAX_TIER) return null;
     const slotted = slottedIds(state.runeSlots);
-    const pool = state.runes.filter((r) => r.kind === kind && r.tier === tier && !slotted.has(r.id)).slice(0, MERGE_COUNT);
+    const pool = state.runes
+      .filter((r) => r.kind === kind && r.tier === tier)
+      .sort((a, b) => Number(slotted.has(b.id)) - Number(slotted.has(a.id)))
+      .slice(0, MERGE_COUNT);
     if (pool.length < MERGE_COUNT) return null;
     const used = new Set(pool.map((r) => r.id));
     const merged: Rune = { id: newRuneId(), kind, tier: tier + 1 };
-    set({ runes: [...state.runes.filter((r) => !used.has(r.id)), merged], lastSavedTimestamp: Date.now() });
+    const target: RuneTarget = RUNES[kind].target;
+    const keep = slotted.has(pool[0].id) ? pool[0].id : null;
+    const row = state.runeSlots[target].map((id) => (keep && id === keep ? merged.id : id && used.has(id) ? null : id));
+    set({
+      runes: [...state.runes.filter((r) => !used.has(r.id)), merged],
+      runeSlots: { ...state.runeSlots, [target]: row },
+      lastSavedTimestamp: Date.now(),
+    });
     soundFx.playEvolve();
     return merged;
   },

@@ -1,0 +1,106 @@
+{
+  "_doc": "General command orders (ui/GeneralsPanel.tsx, game/workers/generalOrders.ts). Each General carries one priority; in a battle it goes for that target first and falls back to the normal combat AI when the target is not on the map. Rage fills from combat (dealing / taking damage, clashes); two Generals at full rage can be ordered to brawl. 'invest' turns a General's brawl bonus (+attack / +HP) into extra max HP (sturdiness) for its own establishment and resets the bonus.",
+  "priorities": [
+    {
+      "id": "AUTO",
+      "icon": "🧠",
+      "en": "Auto",
+      "tl": "Kusa",
+      "descEn": "Normal combat AI: nearest threat, castle first.",
+      "descTl": "Karaniwang laban: pinakamalapit na banta, kastilyo muna.",
+      "shortEn": "Auto",
+      "shortTl": "Kusa",
+      "color": "#94a3b8"
+    },
+    {
+      "id": "CATERPILLAR",
+      "icon": "🐛",
+      "en": "Caterpillar",
+      "tl": "Higad",
+      "descEn": "Hunt the Ancient Caterpillar and its brood.",
+      "descTl": "Habulin ang Sinaunang Higad at ang mga anak nito.",
+      "shortEn": "Worm",
+      "shortTl": "Higad",
+      "color": "#d6a35c"
+    },
+    {
+      "id": "LEVIATHAN",
+      "icon": "🐉",
+      "en": "Water Dragon",
+      "tl": "Dragon ng Dagat",
+      "descEn": "Hunt the Leviathan and the Sea Folk.",
+      "descTl": "Habulin ang Leviathan at ang Sea Folk.",
+      "shortEn": "Dragon",
+      "shortTl": "Dragon",
+      "color": "#22d3ee"
+    },
+    {
+      "id": "KIROV",
+      "icon": "🎈",
+      "en": "Kirov",
+      "tl": "Kirov",
+      "descEn": "Shoot down the Kirov airship (flyers and long-range only can hit it).",
+      "descTl": "Pabagsakin ang Kirov (mga lumilipad at malayuan lang ang tatama).",
+      "shortEn": "Kirov",
+      "shortTl": "Kirov",
+      "color": "#f87171"
+    },
+    {
+      "id": "RIFTS",
+      "icon": "🌀",
+      "en": "Towers & Rifts",
+      "tl": "Tore at Lagusan",
+      "descEn": "Topple the Rift Sentinels, then the rifts.",
+      "descTl": "Pabagsakin ang mga Sentinel, saka ang mga lagusan.",
+      "shortEn": "Rifts",
+      "shortTl": "Lagusan",
+      "color": "#a78bfa"
+    },
+    {
+      "id": "LOOT",
+      "icon": "💰",
+      "en": "Looting",
+      "tl": "Pagsamsam",
+      "descEn": "Grab drops first, fight only when nothing is left.",
+      "descTl": "Pulutin muna ang mga nahulog, saka lumaban.",
+      "shortEn": "Loot",
+      "shortTl": "Samsam",
+      "color": "#fbbf24"
+    }
+  ],
+  "rage": {
+    "max": 100,
+    "perHitDealt": 2.5,
+    "perHpLostPct": 0.6,
+    "perClash": 12,
+    "decayPerSecond": 0.15,
+    "brawlCost": 100
+  },
+  "invest": {
+    "hpPerBrawlHp": 2,
+    "hpPerBrawlAttack": 10,
+    "maxSturdy": 6000
+  },
+  "teams": {
+    "all": {
+      "en": "All",
+      "tl": "Lahat"
+    },
+    "none": {
+      "en": "None",
+      "tl": "Wala"
+    },
+    "ready": {
+      "en": "Rage",
+      "tl": "Galit"
+    },
+    "air": {
+      "en": "Anti-air",
+      "tl": "Kontra-ere"
+    },
+    "plus": {
+      "en": "+Power",
+      "tl": "+Lakas"
+    }
+  }
+}

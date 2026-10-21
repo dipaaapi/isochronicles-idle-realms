@@ -33,15 +33,18 @@ export const TOWERS = config.towers as unknown as Record<TowerId, TowerConfig>;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export const buildingMaxHp = (towerLevel: number): number =>
-  config.building.hpBase + config.building.hpPerLevel * (Math.max(1, towerLevel) - 1);
+export const buildingMaxHp = (towerLevel: number, sturdy = 0): number =>
+  config.building.hpBase + config.building.hpPerLevel * (Math.max(1, towerLevel) - 1) + Math.max(0, sturdy);
 
 /** Tower level of a built establishment (older saves had none → 1). */
 export const towerLevelOf = (b?: ResourceBuildingState): number => (b && b.level > 0 ? b.towerLevel ?? 1 : 0);
 
 /** Current HP of a built establishment (older saves had none → full). */
 export const buildingHpOf = (b?: ResourceBuildingState): number =>
-  !b || b.level < 1 ? 0 : Math.min(b.hp ?? buildingMaxHp(towerLevelOf(b)), buildingMaxHp(towerLevelOf(b)));
+  !b || b.level < 1 ? 0 : Math.min(b.hp ?? buildingMaxHpOf(b), buildingMaxHpOf(b));
+
+/** Max HP of a built establishment: tower level plus the sturdiness its General invested. */
+export const buildingMaxHpOf = (b?: ResourceBuildingState): number => buildingMaxHp(towerLevelOf(b), b?.sturdy ?? 0);
 
 export const isBuildingOperational = (b?: ResourceBuildingState): boolean => !!b && b.level >= 1 && buildingHpOf(b) > 0;
 

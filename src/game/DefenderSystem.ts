@@ -27,7 +27,7 @@ import { TENANT_WORK, buildProgressOf } from '../state/tenantWork';
 import { TENANTS_PER_ESTABLISHMENT } from '../state/economy';
 import { BRAWL_CONFIG } from '../state/brawl';
 import { scaleBundle, teamBonuses } from '../state/skillTree';
-import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { buildingHpOf, buildingMaxHp, buildingMaxHpOf, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { BUILDING_IDS } from '../state/buildingLayout';
 import type { ConstructionStatus } from '../state/constructionProgress';
 
@@ -712,7 +712,7 @@ export class DefenderSystem {
     const store = useGameStore.getState();
     const b = towerBuildingOf(store, home);
     if (home !== 'SPIRE' && (b?.level ?? 0) < 1) return this.generalOf(home) ? 'BUILD' : undefined;
-    if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) return 'REPAIR';
+    if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHpOf(b)) return 'REPAIR';
     return undefined;
   }
 

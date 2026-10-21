@@ -14,21 +14,6 @@
       1.15
     ]
   },
-  "airlift": {
-    "fromWave": 8,
-    "baseAircraftPerWave": 0.35,
-    "aircraftGrowthAtWave100": 2.4,
-    "maxAircraftPerWave": 3,
-    "baseDropsPerAircraft": 2,
-    "dropsEveryWaves": 20,
-    "maxDropsPerAircraft": 7,
-    "firstDelayMinMs": 4500,
-    "firstDelayMaxMs": 11000,
-    "nextDelayMinMs": 9000,
-    "nextDelayMaxMs": 16000,
-    "flightMs": 6500,
-    "descentMs": 2100
-  },
   "day": {
     "_doc": "Pressure from the days the realm has lasted (day 1 to 365, capped). Winter hardens invaders a little more.",
     "maxDay": 365,
@@ -146,5 +131,12 @@
       1.5,
       1.8
     ]
+  },
+  "endless": {
+    "_doc": "Endless waves (no wave 100 finish line). Linear per-wave growth simply continues; past the last realmMultiplier step (wave 100) each further 25 waves multiplies invader HP by realmStepPer25. Every 25th wave is a climax. Counts and elite chance are capped for performance and fairness.",
+    "realmStepPer25": 1.2,
+    "climaxEvery": 25,
+    "maxEnemyCount": 220,
+    "maxEliteChance": 0.85
   }
 }

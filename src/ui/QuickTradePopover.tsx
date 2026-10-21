@@ -102,11 +102,11 @@ export const QuickTradePopover: React.FC<QuickTradePopoverProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm pointer-events-auto select-none"
+      className="game-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm pointer-events-auto select-none"
       onClick={onClose}
     >
       <div
-        className={`w-full max-w-sm rounded-2xl ${meta.bg} border ${meta.border} shadow-2xl p-5 text-slate-100 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150`}
+        className={`game-modal relative w-full max-w-sm rounded-2xl ${meta.bg} border ${meta.border} shadow-2xl p-5 text-slate-100 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

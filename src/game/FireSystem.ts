@@ -6,7 +6,7 @@ import type { Defender } from './DefenderSystem';
 import type { WorkerInstance } from './workers/types';
 import { useGameStore } from '../state/useGameStore';
 import { GRID_SIZE, isLandTile, isWaterTile, rectCenter } from '../state/buildingLayout';
-import { buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { buildingMaxHp, buildingMaxHpOf, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { UNIT_CLASSES } from '../types/game';
 import type { TowerId } from '../types/state';
 import { logMessage } from '../state/activityLog';
@@ -288,7 +288,7 @@ export class FireSystem {
     this.collapsed.add(fire.id);
     const store = useGameStore.getState();
     const b = towerBuildingOf(store, fire.id);
-    store.damageBuilding(fire.id, buildingMaxHp(towerLevelOf(b)) * 10);
+    store.damageBuilding(fire.id, buildingMaxHpOf(b) * 10);
     logMessage('fireCollapsed', { building: this.structures.displayName(fire.id) });
     soundFx.playExplosion();
   }

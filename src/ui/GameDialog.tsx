@@ -53,13 +53,13 @@ export function GameDialogHost() {
 
   return (
     <div
-      className="pixel-ui fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 select-none"
+      className="pixel-ui game-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 select-none"
       onClick={() => answer(current.kind === 'alert')}
     >
       <div
         role="alertdialog"
         aria-modal="true"
-        className="pixel-frame w-full max-w-sm bg-slate-900 p-4 text-slate-100"
+        className="game-modal pixel-frame relative w-full max-w-sm bg-slate-900 p-4 text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-fantasy mb-3 text-sm text-amber-300">{t('dialogTitle')}</h2>

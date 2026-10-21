@@ -117,6 +117,7 @@ export const DevPanel: React.FC = () => {
           <div className="flex flex-wrap gap-1">
             <button type="button" className={btn} onClick={() => game.startInvasion()} disabled={inv.isActive}>Start now</button>
             <button type="button" className={btn} onClick={() => devBridge.invasion?.devKillAll()}>Kill all invaders</button>
+            <button type="button" className={btn} onClick={() => devBridge.kirov?.launch()}>Send Kirov airship</button>
             <button type="button" className={btn} onClick={() => jumpToWave(inv.waveNumber + 1)} disabled={inv.isActive}>Wave +1</button>
             <button type="button" className={btn} onClick={() => jumpToWave(inv.waveNumber + 5)} disabled={inv.isActive}>Wave +5</button>
           </div>
@@ -155,7 +156,7 @@ export const DevPanel: React.FC = () => {
             <button type="button" className={btn} onClick={() => set((s) => ({ invasion: { ...s.invasion, invasionsRepelled: Math.max(100, s.invasion.invasionsRepelled) } }))}>All skill points</button>
             <button type="button" className={btn} onClick={summonAllGenerals}>All Generals</button>
             <button type="button" className={btn} onClick={maxEstablishments}>Max establishments</button>
-            <button type="button" className={btn} onClick={() => game.performRegression()}>Regress now</button>
+            <button type="button" className={btn} onClick={() => game.resolveCastleBreach()}>Game over now</button>
           </div>
         </>
       )}

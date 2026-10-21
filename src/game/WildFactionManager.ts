@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { useGameStore } from '../state/useGameStore';
-import { GRID_SIZE, isLandTile, isProtectedTile, isRaisedTile, isWaterTile } from '../state/buildingLayout';
+import { GRID_SIZE, isBridgeTile, isLandTile, isProtectedTile, isRaisedTile, isWaterTile } from '../state/buildingLayout';
 import { INVADER_CONFIGS, UNIT_CLASSES } from '../types/game';
 import type { GridPoint } from '../types/game';
 import { RUNES, bossRuneTier, rollRuneKind, tierColor, tierName, type RuneKind } from '../state/runes';
@@ -8,10 +8,11 @@ import type { Resources } from '../types/state';
 import { logMessage, type MessageKey } from '../state/activityLog';
 import { pickWildCreature, wildGroupSize, wildMood, type WildCreatureDef, type WildFactionData } from '../state/wildFactions';
 import { IsometricHelper } from './IsometricHelper';
-import { Navigation } from './Navigation';
+import { Navigation, type MoveMode } from './Navigation';
+import { invaderMoveMode, minionMoveMode } from './terrain';
 import { WATER_DROP_WORLD } from './PixelTileArt';
 import { soundFx } from './audio/soundFx';
-import { projectileFor, shootProjectile, spawnImpact, spawnSmoke } from './battleFx';
+import { playFx, projectileFor, shootProjectile, spawnImpact, spawnSmoke } from './battleFx';
 import { hitReaction } from './hitReaction';
 import { setPlusBadge } from './plusBadge';
 import {
@@ -23,6 +24,7 @@ import type { WorkerManager } from './WorkerManager';
 import type { DefenderSystem, Defender } from './DefenderSystem';
 import type { GroundLootManager } from './GroundLootManager';
 import type { WorkerInstance } from './workers/types';
+import type { OrderTarget } from './battleTargets';
 import type { ActiveInvader } from './invaders/types';
 
 /** How a wild faction differs: where it lives, its meter in the store, its colours and log wording. */
@@ -103,6 +105,13 @@ const alive = (f: Foe): boolean => {
   if (f.kind === 'wild') return f.ref.creature.state === 'fighting';
   return !f.ref.dead && f.ref.hp > 0 && f.ref.container.active;
 };
+/** Where a foe may stand: walkers keep to land (off raised rock), swimmers to water, flyers anywhere. */
+const foeMode = (f: Foe): MoveMode =>
+  f.kind === 'invader' ? invaderMoveMode(f.ref.type) : f.kind === 'wild' ? 'any' : minionMoveMode(f.ref.unitClass);
+const standOk = (mode: MoveMode, x: number, y: number): boolean =>
+  mode === 'any' ? x >= 0 && y >= 0 && x < GRID_SIZE && y < GRID_SIZE
+  : mode === 'water' ? isWaterTile(x, y)
+  : isBridgeTile(x, y) || (isLandTile(x, y) && !isRaisedTile(x, y));
 const foeAttack = (f: Foe): number =>
   f.kind === 'invader' ? INVADER_CONFIGS[f.ref.type]?.damage ?? 12
   : f.kind === 'worker' ? f.ref.attackPower ?? 12
@@ -352,6 +361,7 @@ export class WildFactionManager {
     spawnImpact(at.x, at.y - 6, 'burst', this.spec.color, def.boss ? 3 : 1.8);
     spawnSmoke(at.x, at.y - 4, def.boss ? 2 : 1, 0);
     if (def.boss) this.spec.onCarve?.(tile, this.D.terrain?.carveRadius ?? 2.6);
+    if (def.boss && this.spec.habitat === 'land') playFx('battle-caterpillar', 'erupt', at.x, at.y + 2, { scale: 2.2 });
     sprite.y = 18;
     this.scene.tweens.add({ targets: container, alpha: 1, duration: 500 });
     this.scene.tweens.add({ targets: sprite, y: 0, duration: def.boss ? 1400 : 700, ease: 'Back.easeOut', onComplete: () => { c.state = 'fighting'; } });
@@ -387,6 +397,14 @@ export class WildFactionManager {
   /** This faction's fighting creatures, as targets for the other wild faction. */
   targets(): WildRef[] {
     return this.creatures.filter((c) => c.state === 'fighting').map((c) => ({ container: c.container, hp: c.hp, maxHp: c.maxHp, owner: this, creature: c, attack: c.attack }));
+  }
+
+  /** Fighting creatures as targets for Generals ordered to hunt this faction (Generals panel). */
+  orderTargets(): OrderTarget[] {
+    return this.creatures.filter((c) => c.state === 'fighting').map((c) => ({
+      x: c.container.x, y: c.container.y, boss: !!c.def.boss,
+      strike: (dmg: number, by: WorkerInstance) => { if (c.state === 'fighting') this.hurt(c, dmg, { kind: 'worker', ref: by }); },
+    }));
   }
 
   /** A rival creature hit one of ours; true when it died. */
@@ -440,8 +458,18 @@ export class WildFactionManager {
       }
       if (!target) {
         const bx = boss.container.x - x, byy = boss.container.y - y, bd = Math.hypot(bx, byy);
-        if (bd > 50) { c.container.x += (bx / bd) * c.def.speed * dt; c.container.y += (byy / bd) * c.def.speed * dt; faceCharacterSprite(c.sprite, bx, byy, true); }
-        else faceCharacterSprite(c.sprite, 0, 0, false);
+        if (bd > 50) {
+          if (c.def.waterOnly || c.def.landOnly) {
+            // Bound kin keep to their own terrain on the way to the boss
+            const onWater = !!c.def.waterOnly;
+            c.repath -= dt;
+            if (c.repath <= 0 || !c.path.length) {
+              c.repath = 0.8;
+              c.path = this.tilePath(this.tileAt(x, y, onWater), this.tileAt(boss.container.x, boss.container.y, onWater), this.boundOk(c.def));
+            }
+            this.followPath(c.container, c.path, c.def.speed, dt, onWater, c.sprite);
+          } else { c.container.x += (bx / bd) * c.def.speed * dt; c.container.y += (byy / bd) * c.def.speed * dt; faceCharacterSprite(c.sprite, bx, byy, true); }
+        } else faceCharacterSprite(c.sprite, 0, 0, false);
         return;
       }
     }
@@ -586,7 +614,7 @@ export class WildFactionManager {
       const p = Math.min(pull, d - 30);
       const nx = u.x + (dx / d) * p, ny = u.y + (dy / d) * p;
       const t = Navigation.tileOf(nx, ny);
-      if (p > 0 && f.kind !== 'wild' && isLandTile(t.x, t.y)) this.scene.tweens.add({ targets: u, x: nx, y: ny, duration: 500, ease: 'Sine.easeIn' });
+      if (p > 0 && f.kind !== 'wild' && standOk(foeMode(f), t.x, t.y)) this.scene.tweens.add({ targets: u, x: nx, y: ny, duration: 500, ease: 'Sine.easeIn' });
       this.strike(c, f, damage);
     }
   }
@@ -619,9 +647,31 @@ export class WildFactionManager {
           this.scene.tweens.add({ targets: ring, scaleX: r / 8, scaleY: r / 8, alpha: 0, duration: 700, delay: k * 160, onComplete: () => ring.destroy() });
         }
         if (roar) this.scene.cameras.main.shake(400, 0.003);
+        else {
+          // Silk Snare: threads shoot out and weave a web; every foe caught gets its own strands
+          const holdMs = sk.durationMs as number;
+          const web = playFx('battle-caterpillar', 'snare-cast', x, y, { scale: (r / 28) * 0.9, then: 'snare-hold' });
+          this.scene.time.delayedCall(holdMs, () => {
+            if (web?.active) { web.play('battle-caterpillar:snare-break'); web.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => web.destroy()); }
+          });
+          for (const f of inReach) {
+            const p = pointOf(f);
+            const strands = playFx('battle-caterpillar', 'snare-hold', p.x, p.y + 2, { scale: 0.55 });
+            this.scene.time.delayedCall(holdMs, () => strands?.destroy());
+          }
+        }
         this.slowAll(inReach, sk.slow as number, (sk.durationMs as number) / 1000);
       } else if (sk.id === 'MAELSTROM' || sk.id === 'SAND_VORTEX') {
         const tint = sk.id === 'MAELSTROM' ? 0x22d3ee : 0xd6a35c;
+        if (sk.id === 'SAND_VORTEX') {
+          // A spinning funnel of sand opens over the Caterpillar, drags foes in, then collapses
+          const funnel = playFx('battle-caterpillar', 'vortex-open', x, y + 2, { scale: (r / 40) * 1.4, then: 'vortex' });
+          this.scene.time.delayedCall(1700, () => {
+            if (!funnel?.active) return;
+            funnel.play('battle-caterpillar:vortex-close');
+            funnel.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => funnel.destroy());
+          });
+        }
         for (let k = 0; k < 16; k++) {
           const a = (k / 16) * Math.PI * 4;
           const rr = r * (1 - k / 16);
@@ -635,12 +685,16 @@ export class WildFactionManager {
         const t = Navigation.tileOf(to.x, to.y);
         if (!isLandTile(t.x, t.y)) continue;
         spawnSmoke(x, y - 4, 2, 0);
+        // A dust mound runs under the ground from where it dove to where it bursts out
+        const mound = playFx('battle-caterpillar', 'burrow', x, y, { scale: 1.3 });
+        if (mound) this.scene.tweens.add({ targets: mound, x: to.x, y: to.y, duration: 350, onComplete: () => mound.destroy() });
         this.scene.tweens.add({ targets: c.sprite, y: 22, duration: 350, ease: 'Sine.easeIn', onComplete: () => {
           if (c.state !== 'fighting') return;
           c.container.setPosition(to.x, to.y);
           c.path = [];
           this.spec.onCarve?.(t, 1.4);
-          spawnImpact(to.x, to.y - 8, 'explode', undefined, 2.6);
+          playFx('battle-caterpillar', 'erupt', to.x, to.y + 2, { scale: 1.9 });
+          spawnImpact(to.x, to.y - 8, 'explode', undefined, 2.2);
           this.scene.cameras.main.shake(300, 0.005);
           soundFx.playExplosion();
           for (const f of this.foes()) if (Math.hypot(pointOf(f).x - to.x, pointOf(f).y - to.y) <= (sk.blast as number)) this.strike(c, f, sk.damage as number);
@@ -825,7 +879,7 @@ export class WildFactionManager {
         const step = Math.min(d - reach * 0.8, stats.speed * dt);
         const nx = u.x + (dx / d) * step, ny = u.y + (dy / d) * step;
         const t = Navigation.tileOf(nx, ny);
-        if (isLandTile(t.x, t.y)) { u.x = nx; u.y = ny; }
+        if (standOk(foeMode(foe), t.x, t.y)) { u.x = nx; u.y = ny; }
         // Invaders' AI is paused, so face them here; Generals and minions keep their own sprite sync
         // (facing them from two places each frame made their animation flicker)
         if (stats.sprite && foe.kind === 'invader') faceCharacterSprite(stats.sprite, dx, dy, true);

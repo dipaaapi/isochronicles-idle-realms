@@ -11,6 +11,8 @@ import { useGameStore } from '../../state/useGameStore';
 import { BUILDING_SITES, rectCenter } from '../../state/buildingLayout';
 import { UNIT_CLASSES } from '../../types/game';
 import type { ResourceBuildingId } from '../../types/state';
+import { RAGE } from '../../state/generalOrders';
+import { addRage, followHuntOrder, orderOf } from './generalOrders';
 
 /** World centre of a General's own establishment, if it has one. */
 function homeOf(worker: WorkerInstance): { x: number; y: number } | null {
@@ -250,12 +252,17 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   // Cast Champion Skills during active combat
   castChampionSkills(ctx, worker, frame);
 
+  // Generals panel: hunt orders take over while their target is on the map
+  const order = orderOf(worker);
+  if ((order === 'CATERPILLAR' || order === 'LEVIATHAN' || order === 'KIROV') && followHuntOrder(ctx, worker, frame, order)) return;
+  const riftsFirst = order === 'RIFTS';
+
   const { target: targetInvader, distance: invaderDistance } = nearestInvader(worker, frame.aliveInvaders);
 
   // Nothing close by: storm the nearest open portal to cut the wave off at its source
   let targetPortal: PortalState | null = null;
-  if (openPortals.length > 0 && (!targetInvader || invaderDistance > 160)) {
-    let best = invaderDistance;
+  if (openPortals.length > 0 && (!targetInvader || invaderDistance > 160 || riftsFirst)) {
+    let best = riftsFirst ? Infinity : invaderDistance;
     for (const portal of openPortals) {
       const d = Math.hypot(portal.x - worker.container.x, portal.y - worker.container.y);
       if (d < best) {
@@ -311,6 +318,7 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   worker.combatCooldown -= deltaSec;
   if (worker.combatCooldown > 0) return;
   worker.combatCooldown = 0.85;
+  addRage(worker, RAGE.perHitDealt);
   ctx.playMinionAttack(worker, targetX, targetY);
   worker.overrideEmote = '⚔️';
   worker.overrideEmoteTimer = 900;

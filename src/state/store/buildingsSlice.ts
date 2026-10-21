@@ -5,7 +5,7 @@ import { teamBonuses } from '../skillTree';
 import {
   DEFENSE_CONFIG,
   buildingHpOf,
-  buildingMaxHp,
+  buildingMaxHp, buildingMaxHpOf,
   buildingRepairCost,
   towerBuildingOf,
   towerLevelOf,
@@ -47,7 +47,7 @@ export const restoreWreckedBuildings = (buildings: ResourceBuildingsState): Reso
   for (const id of Object.keys(result) as ResourceBuildingId[]) {
     const b = result[id];
     if (b.level < 1) continue;
-    const max = buildingMaxHp(towerLevelOf(b));
+    const max = buildingMaxHpOf(b);
     if (buildingHpOf(b) < max * fraction) {
       result[id] = { ...b, hp: Math.round(max * fraction) };
     }
@@ -189,7 +189,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
     repairBuilding: (buildingId: TowerId): boolean => {
       const building = towerBuildingOf(get(), buildingId);
       if (!building || building.level < 1) return false;
-      const max = buildingMaxHp(towerLevelOf(building));
+      const max = buildingMaxHpOf(building);
       if (buildingHpOf(building) >= max) return false;
       if (!get().spendResources(buildingRepairCost())) return false;
       get().restoreBuildingHp(buildingId, Math.round(max * DEFENSE_CONFIG.building.repairFraction));
@@ -223,7 +223,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
     workOnRepair: (buildingId: TowerId): number => {
       const building = towerBuildingOf(get(), buildingId);
       if (!building || building.level < 1) return 0;
-      const missing = buildingMaxHp(towerLevelOf(building)) - buildingHpOf(building);
+      const missing = buildingMaxHpOf(building) - buildingHpOf(building);
       if (missing <= 0) return 0;
       if (!get().spendResources(TENANT_WORK.repairStepCost)) return -1;
       return get().restoreBuildingHp(buildingId, Math.min(missing, TENANT_WORK.repairStepHp));
@@ -246,7 +246,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
       const building = towerBuildingOf(get(), buildingId);
       if (!building || building.level < 1 || !(amount > 0)) return 0;
       const hp = buildingHpOf(building);
-      const nextHp = Math.min(buildingMaxHp(towerLevelOf(building)), Math.round(hp + amount));
+      const nextHp = Math.min(buildingMaxHpOf(building), Math.round(hp + amount));
       if (nextHp <= hp) return 0;
       patchTower(buildingId, { hp: nextHp });
       return nextHp - hp;
@@ -370,7 +370,7 @@ export const createBuildingsSlice = (...[set, get]: SliceArgs) => {
 
       // Relocation is a visual-only effect: WorkerManager picks a new position
       // and calls replenishResourceNode. We just signal the event by a small HP bump.
-      const maxHp = buildingMaxHp(towerLevelOf(building));
+      const maxHp = buildingMaxHpOf(building);
       if (buildingHpOf(building) < maxHp) {
         get().restoreBuildingHp(buildingId, Math.round(maxHp * 0.05));
       }

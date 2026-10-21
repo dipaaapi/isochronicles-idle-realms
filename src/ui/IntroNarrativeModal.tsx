@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DifficultyFrame } from './DifficultyFrame';
+import { getProfile, useProfile } from '../state/playerProfile';
+import { BiomePicker } from './BiomePicker';
+import type { PlatformPhase } from '../types/state';
 import { RealmMapPicker } from './RealmMapPicker';
 import { soundFx } from '../game/audio/soundFx';
 import { ArrowRight, ChevronRight, FastForward, Maximize, Minimize } from 'lucide-react';
@@ -30,6 +32,8 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
   const [typed, setTyped] = useState(0);
   const [skipped, setSkipped] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>(useGameStore.getState().difficulty);
+  const [lordName, setLordName] = useState(getProfile().name || useGameStore.getState().lordName);
+  const [biome, setBiome] = useState<PlatformPhase>(useGameStore.getState().platformPhase);
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== 'undefined' ? !!document.fullscreenElement : false
   );
@@ -128,6 +132,11 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
       });
       return { difficulty, resources };
     });
+    // A brand-new realm starts a new permadeath run under this name, in the chosen biome
+    const st = useGameStore.getState();
+    st.setRealmChoice(biome);
+    if (!st.castleBuilt || !st.runId) st.beginRun(lordName);
+    if (!getProfile().name && lordName.trim()) useProfile.getState().save({ name: lordName });
     onBegin();
   };
 
@@ -138,15 +147,14 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
 
   return (
     <>
-      <DifficultyFrame difficulty={difficulty} />
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 select-none animate-fade-in">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 select-none animate-fade-in">
       <div
         className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-50 blur-[2px]"
         style={{ backgroundImage: `url('/backgrounds/title-screen.jpeg')` }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/85 pointer-events-none" />
 
-      <div className="relative max-h-[94dvh] overflow-y-auto max-w-2xl w-full p-5 md:p-7 border-2 border-red-900/80 bg-gradient-to-b from-stone-950/95 to-red-950/80 shadow-2xl z-10 custom-scrollbar">
+      <div className="game-modal relative max-h-[94dvh] overflow-y-auto max-w-2xl w-full p-5 md:p-7 border-2 border-red-900/80 bg-gradient-to-b from-stone-950/95 to-red-950/80 shadow-2xl z-10 custom-scrollbar">
         <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-amber-500/70 pointer-events-none" />
         <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-amber-500/70 pointer-events-none" />
         <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-amber-500/70 pointer-events-none" />
@@ -284,6 +292,24 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
         )}
 
         {/* Island map — coastline style and seed, before anything is built */}
+        {isFinished && (
+          <fieldset className="mb-5 animate-fade-in space-y-3">
+            <div>
+              <legend className="mb-1.5 text-xs font-bold text-amber-200/90 uppercase tracking-wider">{tr('introLordName')}</legend>
+              <input
+                value={lordName}
+                maxLength={32}
+                onChange={(e) => setLordName(e.target.value)}
+                className="w-full border-2 border-red-950 bg-stone-950 px-3 py-2 text-sm text-amber-100 outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <div className="mb-1.5 text-xs font-bold text-amber-200/90 uppercase tracking-wider">{tr('introBiome')}</div>
+              <BiomePicker value={biome} onChange={setBiome} isTL={isTL} />
+            </div>
+          </fieldset>
+        )}
+
         {isFinished && <RealmMapPicker isTL={isTL} />}
 
         {/* Footer */}

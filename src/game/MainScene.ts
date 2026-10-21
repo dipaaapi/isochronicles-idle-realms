@@ -1,4 +1,5 @@
 import { GraphicsFx } from './graphicsFx';
+import { battleTargets } from './battleTargets';
 import { devBridge } from './devBridge';
 import Phaser from 'phaser';
 import { normalizeDifficulty, type Difficulty } from '../state/difficulty';
@@ -7,12 +8,13 @@ import { TimeOfDayPhase, WeatherType } from '../types/state';
 import { IsometricHelper } from './IsometricHelper';
 import { ProceduralRenderer, getTileColors } from './ProceduralRenderer';
 import { WildFactionManager } from './WildFactionManager';
+import { KirovAirship } from './KirovAirship';
 import { useFocusGeneral } from '../state/focusGeneral';
 import { spawnSmoke } from './battleFx';
 import { WILD_FACTIONS } from '../state/wildFactions';
 import type { WorkerInstance } from './workers/types';
 import { UNIT_CLASSES } from '../types/game';
-import { coastDistance, isCoastalTile, makeCoastField, makeSetField, type CoastField } from './scene/coastField';
+import { coastDistance, isCoastalTile, makeCoastField, makeRoadField, makeSetField, type CoastField } from './scene/coastField';
 import {
   paintTile,
   paintCoast,
@@ -148,6 +150,7 @@ export class MainScene extends Phaser.Scene {
   private waterFx?: WaterFx;
   private waterLife?: WaterLife;
   private defenders!: DefenderSystem;
+  private kirov?: KirovAirship;
   /** The ancient wild factions: the Sea Folk (water) and the Sand Brood (land). */
   private wild: WildFactionManager[] = [];
   private terrainUnsub?: () => void;
@@ -332,7 +335,15 @@ export class MainScene extends Phaser.Scene {
 
     this.airFxLayer = this.add.container(0, 0);
     this.islandContainer.add(this.airFxLayer);
-    const raiders = () => this.invasionManager.getInvaders().some((i) => i.isScout && !i.isDead && !i.isRetreating);
+    // Kirov airship: leads every Kirov Invasion Battle (the raids between waves), never a wave
+    this.kirov = new KirovAirship(this, this.airFxLayer, this.groundFxLayer, this.structures, this.invasionManager,
+      () => this.workerManager.getWorkers(), () => this.defenders.getDefenders());
+    this.invasionManager.onScoutRaid = () => this.kirov?.maybeLaunch();
+    devBridge.kirov = this.kirov;
+    battleTargets.kirov = () => this.kirov?.groundPoint() ?? null;
+    const raiders = () => !!this.kirov?.isActive() || this.invasionManager.getInvaders().some((i) => i.isScout && !i.isDead && !i.isRetreating);
+    battleTargets.kirovInvasion = raiders;
+    battleTargets.brawl = () => this.workerManager.isBrawlActive();
     this.forceFields = new ForceFieldSystem(this, this.airFxLayer, this.structures, this.portals, raiders);
     this.castleAlarm = new CastleAlarm(this, this.airFxLayer, this.structures, raiders);
     this.fires = new FireSystem(this, this.airFxLayer, this.structures, this.invasionManager, (x, y) => this.nav.allows(x, y, 'land'));
@@ -574,6 +585,29 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.tiles = matrix;
+    this.buildRoadField();
+  }
+
+  /** Paved road tiles (not a building pad): drawn as grass with a curved strip of road through them. */
+  private roadField?: CoastField;
+  private roadKeys?: Set<string>;
+  private isRoadStrip(x: number, y: number): boolean {
+    if (this.tiles[y]?.[x]?.type !== 'ANCIENT_STONE') return false;
+    this.roadKeys ??= new Set(ROAD_TILES.map((r) => `${r.x},${r.y}`));
+    if (!this.roadKeys.has(`${x},${y}`) || isRiftTowerTile(x, y)) return false;
+    const pads = [CASTLE_FOOTPRINT, SPIRE_FOOTPRINT, ...Object.values(BUILDING_SITES).map((s) => s.footprint)];
+    return !pads.some((f) => rectContainsTile(f, x, y));
+  }
+
+  private buildRoadField(): void {
+    this.roadKeys = undefined; // a new layout or a moved establishment moves the roads
+    const strip = new Set<string>();
+    for (let y = 0; y < this.mapHeight; y++) for (let x = 0; x < this.mapWidth; x++) if (this.isRoadStrip(x, y)) strip.add(`${x},${y}`);
+    const pad = (x: number, y: number) => {
+      const t = this.tiles[y]?.[x]?.type;
+      return (t === 'ANCIENT_STONE' || t === 'NEXUS_BASE') && !strip.has(`${x},${y}`);
+    };
+    this.roadField = makeRoadField((x, y) => strip.has(`${x},${y}`), pad);
   }
 
   private renderIsland(showTileCoordinates: boolean): void {
@@ -718,7 +752,8 @@ export class MainScene extends Phaser.Scene {
    * (land, beach, bank) are copied into it.
    */
   private paintTileInto(buffer: PixelBuffer, ox: number, oy: number, x: number, y: number, shore?: PixelBuffer, sx = ox, sy = oy): void {
-    const tile = this.tiles[y][x];
+    const real = this.tiles[y][x];
+    const tile = this.isRoadStrip(x, y) ? { ...real, type: 'AETHER_GRASS' as TileType } : real;
     // Grass takes one colour (its shading varies smoothly in PixelTileArt); others keep the checker
     const colors = getTileColors(tile.type, tile.type !== 'AETHER_GRASS' && (x + y) % 2 === 0, this.currentPlatformPhase);
     if (!colors) return;
@@ -733,7 +768,11 @@ export class MainScene extends Phaser.Scene {
       difficulty: this.currentDifficulty,
       shore: this.shoreOf(x, y),
       seed: useGameStore.getState().layoutSeed,
-      terrain: this.terrainFields,
+      terrain: {
+        ...this.terrainFields,
+        road: this.roadField,
+        roadColor: getTileColors('ANCIENT_STONE', false, this.currentPlatformPhase)?.topColor,
+      },
     };
     paintTile(buffer, ox, oy, spec);
     this.coastField ??= makeCoastField(useGameStore.getState().layoutSeed);
@@ -777,6 +816,16 @@ export class MainScene extends Phaser.Scene {
       this.shoreAtlas.context.putImageData(shoreData, 0, 0);
       this.shoreAtlas.refresh();
     }
+  }
+
+  /** A tile was just paved: the curved road strip also bends through its neighbours. */
+  private repaintPaved(x: number, y: number): void {
+    this.buildRoadField();
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (this.tiles[y + dy]?.[x + dx]) this.repaintSingleTile(x + dx, y + dy, false);
+    }
+    this.tileAtlas?.refresh();
+    this.shoreAtlas?.refresh();
   }
 
   /** Repaints a single tile frame in the atlas canvas dynamically without refreshing the page or scene. */
@@ -851,6 +900,7 @@ export class MainScene extends Phaser.Scene {
       onDayChange: () => { store().settleSand(); store().liftRaised(); },
     }, this, burrows, this.entityLayer, this.invasionManager, this.workerManager, this.defenders, this.groundLoot);
     this.wild = [seaFolk, sandBrood];
+    battleTargets.wild = { SEA: () => seaFolk.orderTargets(), BROOD: () => sandBrood.orderTargets() };
     // Stop listening to the store as soon as this scene goes away (a new realm remounts the scene)
     const stop = () => { this.terrainUnsub?.(); this.terrainUnsub = undefined; this.terrainTimer?.remove(); };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, stop);
@@ -862,6 +912,8 @@ export class MainScene extends Phaser.Scene {
       if (!this.tileAtlas?.context || !this.sys.isActive()) return; // a scene that is shutting down
       // Sea <-> land changes re-lay the whole island; everything else repaints only the tiles around it
       if (now.terrainFlooded !== prev.terrainFlooded || now.terrainFilled !== prev.terrainFilled) {
+        // Only the tiles that flipped (and their curved shore) are repainted, a few per frame
+        for (const k of [...now.terrainFlooded, ...prev.terrainFlooded, ...now.terrainFilled, ...prev.terrainFilled]) this.seaLandChanged.add(k);
         this.terrainTimer?.remove();
         this.terrainTimer = this.time.delayedCall(400, () => this.refreshTerrain());
         return;
@@ -921,15 +973,47 @@ export class MainScene extends Phaser.Scene {
     logMessage('terrainHeaved', { raised: carve.raised.length, filled: carve.filled.length });
   }
 
-  /** The sea claimed shore: re-lay tiles, walkways, water surface, curved shore and the factions' terrain. */
+  /** Tiles whose sea/land state may have flipped since the last terrain refresh. */
+  private seaLandChanged = new Set<string>();
+  private repaintQueue = new Set<string>();
+
+  /**
+   * The sea claimed shore (or sand filled it): re-lay the tile data, walkways
+   * and the factions' terrain at once, then repaint only the tiles around the
+   * change, a batch per frame. Repainting the whole island in one go froze the
+   * game for a moment whenever a wild boss rose at the start of a battle.
+   */
   private refreshTerrain(): void {
     if (!this.tileAtlas?.context || !this.sys.isActive()) return;
     this.generateIslandData();
-    this.renderPlatformTiles();
+    this.coastField = makeCoastField(useGameStore.getState().layoutSeed);
     this.nav.setBaseGrid(this.buildWalkGrid());
+    for (const w of this.wild) w.refreshTiles();
+    for (const k of this.seaLandChanged) {
+      const [cx, cy] = k.split(',').map(Number);
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x >= 0 && y >= 0 && x < this.mapWidth && y < this.mapHeight) this.repaintQueue.add(`${x},${y}`);
+      }
+    }
+    this.seaLandChanged.clear();
+    this.drainRepaintQueue();
+  }
+
+  /** Repaints queued tiles 16 at a time (one texture upload per batch), then re-lays the water and shore. */
+  private drainRepaintQueue(): void {
+    if (!this.tileAtlas?.context || !this.sys.isActive()) { this.repaintQueue.clear(); return; }
+    const batch = [...this.repaintQueue].slice(0, 16);
+    for (const k of batch) {
+      this.repaintQueue.delete(k);
+      const [x, y] = k.split(',').map(Number);
+      this.repaintSingleTile(x, y, false);
+    }
+    this.tileAtlas.refresh();
+    this.shoreAtlas?.refresh();
+    if (this.repaintQueue.size) { this.terrainTimer = this.time.delayedCall(16, () => this.drainRepaintQueue()); return; }
     this.waterLife?.rebuild();
     this.createShoreLayer();
-    for (const w of this.wild) w.refreshTiles();
   }
 
   /** Coastal tiles drawn again above the animated water, so the curved shore stays on top of it. */
@@ -992,7 +1076,7 @@ export class MainScene extends Phaser.Scene {
     if (!animated) {
       for (const { x, y } of tilesToPave) {
         this.tiles[y][x].type = typeFor(x, y);
-        this.repaintSingleTile(x, y);
+        this.repaintPaved(x, y);
       }
       return;
     }
@@ -1006,7 +1090,7 @@ export class MainScene extends Phaser.Scene {
       this.time.delayedCall(delay, () => {
         if (!this.scene.isActive()) return;
         this.tiles[y][x].type = typeFor(x, y);
-        this.repaintSingleTile(x, y);
+        this.repaintPaved(x, y);
 
         if (Math.random() > fxChance) return;
         const screenPos = IsometricHelper.gridToScreen(x, y);
@@ -1686,6 +1770,7 @@ export class MainScene extends Phaser.Scene {
     this.portalDefense.update(effectiveDelta);
     this.defenders.update(effectiveDelta);
     for (const w of this.wild) w.update(effectiveDelta);
+    this.kirov?.update(effectiveDelta);
     this.updateFollow(delta);
     this.cullOffscreen(delta);
     this.skills.update(effectiveDelta);
@@ -1787,6 +1872,7 @@ export class MainScene extends Phaser.Scene {
     this.castleAlarm?.destroy();
     this.fires?.destroy();
     for (const w of this.wild) w.destroy();
+    this.kirov?.destroy();
     this.terrainUnsub?.();
     this.terrainTimer?.remove();
     this.portals?.destroy();

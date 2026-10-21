@@ -89,7 +89,6 @@ function diff(state: GameStoreState, prev: GameStoreState): void {
   if (state.invasion.invasionsRepelled > prev.invasion.invasionsRepelled && state.skillPoints > prev.skillPoints) {
     logMessage('skillPointsEarned', { count: state.skillPoints - prev.skillPoints, total: state.skillPoints });
   }
-  if (state.regressionCount > prev.regressionCount) logMessage('regression', { tier: state.regressionCount });
   for (const id of Object.keys(state.activeGodBlessings ?? {}) as GodBlessingId[]) {
     if ((state.activeGodBlessings[id] ?? 0) > 0 && !((prev.activeGodBlessings?.[id] ?? 0) > 0)) {
       const b = GOD_BLESSINGS[id];

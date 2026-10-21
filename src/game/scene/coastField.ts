@@ -90,3 +90,75 @@ export function makeSetField(has: (x: number, y: number) => boolean, seed: numbe
     return bil + n * wobble;
   };
 }
+
+/**
+ * Paved roads drawn as a narrow, curved strip instead of whole stone tiles.
+ * The centreline runs through the road tiles, but every tile on a plain
+ * stretch (two road neighbours) is eased toward its neighbours, so staircase
+ * paths become diagonals and right-angle turns become bends. Junctions and
+ * ends stay put, and each road tile also links to any paved pad (castle,
+ * establishment, spire) next to it. Returns > 0 inside the strip (1 on the
+ * centreline), negative outside.
+ */
+export function makeRoadField(
+  isRoad: (x: number, y: number) => boolean,
+  isPad: (x: number, y: number) => boolean,
+  halfWidth = 0.27,
+): CoastField {
+  const N = GRID_SIZE;
+  const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const pos = new Map<number, { x: number; y: number }>();
+  const links = new Map<number, number[]>();
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!isRoad(x, y)) continue;
+    const k = y * N + x;
+    pos.set(k, { x, y });
+    links.set(k, STEPS.filter(([dx, dy]) => isRoad(x + dx, y + dy)).map(([dx, dy]) => (y + dy) * N + x + dx));
+  }
+  if (!pos.size) return () => -1;
+  // Ease plain stretches (a few passes of neighbour averaging)
+  for (let pass = 0; pass < 3; pass++) {
+    const next = new Map(pos);
+    for (const [k, p] of pos) {
+      const n = links.get(k)!;
+      if (n.length !== 2) continue;
+      const a = pos.get(n[0])!, b = pos.get(n[1])!;
+      next.set(k, { x: p.x * 0.5 + (a.x + b.x) * 0.25, y: p.y * 0.5 + (a.y + b.y) * 0.25 });
+    }
+    for (const [k, p] of next) pos.set(k, p);
+  }
+  // Segments, bucketed by the tiles they pass near
+  type Seg = { ax: number; ay: number; bx: number; by: number };
+  const buckets = new Map<number, Seg[]>();
+  const addSeg = (s: Seg) => {
+    const x0 = Math.floor(Math.min(s.ax, s.bx)) - 1, x1 = Math.ceil(Math.max(s.ax, s.bx)) + 1;
+    const y0 = Math.floor(Math.min(s.ay, s.by)) - 1, y1 = Math.ceil(Math.max(s.ay, s.by)) + 1;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (x < 0 || y < 0 || x >= N || y >= N) continue;
+      const k = y * N + x;
+      let list = buckets.get(k);
+      if (!list) buckets.set(k, (list = []));
+      list.push(s);
+    }
+  };
+  for (const [k, p] of pos) {
+    for (const n of links.get(k)!) if (n > k) { const q = pos.get(n)!; addSeg({ ax: p.x, ay: p.y, bx: q.x, by: q.y }); }
+    const tx = k % N, ty = Math.floor(k / N);
+    for (const [dx, dy] of STEPS) if (isPad(tx + dx, ty + dy)) addSeg({ ax: p.x, ay: p.y, bx: tx + dx * 0.5, by: ty + dy * 0.5 });
+    if (!links.get(k)!.length) addSeg({ ax: p.x, ay: p.y, bx: p.x, by: p.y }); // a lone paving stone
+  }
+  return (u, v) => {
+    const list = buckets.get(Math.round(v) * N + Math.round(u));
+    if (!list) return -1;
+    let best = Infinity;
+    for (const s of list) {
+      const ex = s.bx - s.ax, ey = s.by - s.ay;
+      const len = ex * ex + ey * ey;
+      const t = len ? Math.max(0, Math.min(1, ((u - s.ax) * ex + (v - s.ay) * ey) / len)) : 0;
+      const d = Math.hypot(u - s.ax - ex * t, v - s.ay - ey * t);
+      if (d < best) best = d;
+    }
+    const w = halfWidth * (1 + 0.12 * Math.sin(u * 4.3 + v * 2.9) + 0.06 * Math.sin(u * 9.1 - v * 7.7));
+    return 1 - best / w;
+  };
+}

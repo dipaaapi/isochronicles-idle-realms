@@ -45,6 +45,10 @@ export interface WorkerInstance extends NavAgent {
   emoteBaseY: number;
   /** Brawl wins (+1 … +10) and the badge beside the status bubble that shows them. */
   brawlLevel?: number;
+  /** Rage gauge 0–100 (Generals panel): fills from combat, an ordered brawl spends it. */
+  rage?: number;
+  /** HP seen last frame, to fill rage from damage taken. */
+  rageLastHp?: number;
   /** True from brawl start through its resolution; pauses loot, healing and normal AI. */
   isBrawling?: boolean;
   /** A General defeated in a brawl cannot be resurrected by the Support Slime. */

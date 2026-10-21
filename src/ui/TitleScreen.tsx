@@ -3,7 +3,8 @@ import { useGameStore } from '../state/useGameStore';
 import { hasSavedRealm } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
 import { gameAlert } from './GameDialog';
-import { Play, RotateCcw, Sliders, BookOpen } from 'lucide-react';
+import { Play, RotateCcw, Sliders, BookOpen, Trophy, Upload } from 'lucide-react';
+import { LeaderboardModal } from './LeaderboardModal';
 import { useTranslation } from '../i18n/translations';
 import { TitleAmbience } from './TitleAmbience';
 
@@ -22,6 +23,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   const [canContinue, setCanContinue] = useState(false);
   const [checkingSave, setCheckingSave] = useState(true);
   const [clickedBtn, setClickedBtn] = useState<'NEW' | 'CONTINUE' | 'SETTINGS' | null>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importSave = useGameStore((state) => state.importSave);
@@ -103,7 +105,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           soundFx.stopBackgroundMusic();
           onContinueRealm();
         } else {
-          void gameAlert('Failed to load save file. Please check if the JSON is valid.');
+          void gameAlert(t('titleUploadFailed'));
         }
       }
     };
@@ -197,6 +199,31 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           </span>
         </button>
 
+        {/* No save on this device yet: upload one */}
+        {!checkingSave && !canContinue && (
+          <p className="text-[11px] text-amber-100/80 bg-black/60 px-3 py-1 text-center">{t('titleNoSaveHint')}</p>
+        )}
+
+        {/* LEADERBOARD + UPLOAD SAVE */}
+        <div className="grid w-full grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => { soundFx.playClick(); setShowLeaderboard(true); }}
+            className="group flex items-center justify-center gap-2 px-3 py-3 rounded-2xl text-xs font-bold tracking-wider uppercase border bg-stone-950/85 border-amber-600/70 text-amber-200 hover:text-amber-100 shadow-[0_4px_0_#1c0a0a] cursor-pointer"
+          >
+            <Trophy className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+            <span>{t('titleLeaderboard')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { soundFx.playClick(); fileInputRef.current?.click(); }}
+            className="group flex items-center justify-center gap-2 px-3 py-3 rounded-2xl text-xs font-bold tracking-wider uppercase border bg-stone-950/85 border-red-900/70 text-amber-200/80 hover:text-amber-100 shadow-[0_4px_0_#1c0a0a] cursor-pointer"
+          >
+            <Upload className="w-4 h-4 text-amber-500 group-hover:-translate-y-0.5 transition-transform" />
+            <span>{t('titleUploadSave')}</span>
+          </button>
+        </div>
+
         {/* SETTINGS BUTTON */}
         {onOpenSettings && (
           <button
@@ -221,6 +248,8 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           className="hidden"
         />
       </div>
+
+      {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} />}
 
       {/* --- FOOTER: COPYRIGHT --- */}
       <div className="relative z-20 pb-5 text-center text-[11px] text-slate-400 font-mono tracking-widest">

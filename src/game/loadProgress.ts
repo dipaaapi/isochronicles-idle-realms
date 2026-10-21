@@ -4,7 +4,7 @@ import { create } from 'zustand';
  * What the loading screen waits for before handing the realm to the player:
  * the baked character sheets and structure strips (Web Workers) and the
  * world scene itself. Baked art is cached per page load, so a remount after
- * Regression finishes almost at once.
+ * a new realm finishes almost at once.
  */
 export type LoadTask = 'characters' | 'structures';
 

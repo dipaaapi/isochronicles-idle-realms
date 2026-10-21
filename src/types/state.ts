@@ -39,6 +39,8 @@ export interface ResourceBuildingState {
   towerLevel?: number;
   /** Current structure HP; 0 = wrecked (no production or attacks until repaired). */
   hp?: number;
+  /** Extra max HP bought with a General's brawl bonus (Generals panel → Fortify). */
+  sturdy?: number;
   /** Construction steps already paid for by tenants (level 0 only; see tenantWork.json). */
   buildStep?: number;
 }
@@ -171,19 +173,6 @@ export interface PlatformConfig {
   ambientTone: string;
 }
 
-export interface RegressionRecord {
-  id: string;
-  regressionIndex: number;
-  waveReached: number;
-  phaseReached: PlatformPhase;
-  dayReached: number;
-  yearReached: number;
-  seasonReached: Season;
-  invasionsRepelled: number;
-  timestamp: number;
-  completedWave100: boolean;
-}
-
 export interface UnitRosterItem {
   id: string;
   name: string;
@@ -199,6 +188,8 @@ export interface UnitRosterItem {
   /** Attack / max HP absorbed from beaten rival Generals. */
   brawlAttack?: number;
   brawlHp?: number;
+  /** Battle priority set from the Generals panel (src/state/generalOrders.ts); unset = AUTO. */
+  order?: import('../state/generalOrders').GeneralOrder;
 }
 
 /** 0 = paused, 1 = normal, 2 = 2×, 3 = 3×. */
@@ -234,8 +225,13 @@ export interface GameStoreState {
   defense: CastleDefenseState;
   invasion: InvasionState;
   achievements: Achievement[];
-  isCastleBreachedModalOpen: boolean;
-  lootedResources: Partial<Resources> | null;
+  /** Permadeath run: who leads it, its id (fallen runs can't be re-imported), when it began and real time played. */
+  lordName: string;
+  runId: string;
+  runStartedAt: number;
+  playSeconds: number;
+  /** Session only: the run that just fell (shows the Game Over screen). */
+  gameOverRun: import('../state/legacy').LegacyEntry | null;
   merchantRestockTimer: number;
 
   autoSettings: AutoSettings;
@@ -255,7 +251,7 @@ export interface GameStoreState {
   isGoreEnabled: boolean;
   /** Phase wallpaper behind the island (off = plain dark backdrop). */
   showWallpaper: boolean;
-  /** Saved YouTube links for the in-game music player (kept across regression, saved with the realm). */
+  /** Saved YouTube links for the in-game music player (saved with the realm). */
   musicLibrary: import('../state/externalMusic').MusicEntry[];
   /** Which library entry the player is on. */
   musicIndex: number;
@@ -264,7 +260,7 @@ export interface GameStoreState {
   /** Repeat: the list wraps around (auto-play on) or the current entry replays (auto-play off). */
   musicLoop: boolean;
 
-  // Platform & Regression Progression
+  // Platform & biome
   /** Seed for this realm's random establishment placement (src/state/buildingLayout.ts). */
   layoutSeed: number;
   /** Sea Folk: how poisoned the sea is (0–100, src/data/seaFolk.json). */
@@ -314,13 +310,9 @@ export interface GameStoreState {
   /** Fractional landmark yields waiting to become whole resources. */
   landmarkCarry?: Record<string, number>;
   platformPhase: PlatformPhase; // 1: Demon Citadel, 2: Magma Caldera, 3: Frost Spire, 4: Astral Sanctum
-  /** Realm picked by the player (null = follow the waves); sets platformPhase and the waves' intensity. */
+  /** Biome picked by the player at New Game or in Settings (mirrors platformPhase; waves no longer change it). */
   realmChoice: PlatformPhase | null;
   setRealmChoice: (phase: PlatformPhase | null) => void;
-  regressionCount: number;
-  regressionHistory: RegressionRecord[];
-  isRegressionModalOpen: boolean;
-  isWave100VictoryCelebration: boolean;
 
   // Auto-Enhance Prompts
   promptedUpgrades: Record<string, number>;
@@ -341,7 +333,7 @@ export interface GameStoreState {
 
   // Silhouette Discovery System (Bestiary)
   discoveredBeasts: UnitClass[];
-  /** Rune Vault: every rune owned, and which are slotted per target (kept through Regression). */
+  /** Rune Vault: every rune owned, and which are slotted per target (cleared with the realm). */
   runes: import('../state/runes').Rune[];
   runeSlots: import('../state/runes').RuneSlots;
   /** A wave boss dropped a rune: adds it to the vault. */
@@ -377,6 +369,10 @@ export interface GameStoreState {
   recordClash: (aId: string, bId: string, x: number, y: number) => import('../state/brawl').BrawlTension;
   /** Ends a brawl: the winner absorbs 10% of the loser's current stats (up to +10 wins); tension resets. */
   resolveBrawl: (winnerId: string, loserId: string) => void;
+  /** Sets the battle priority of these Generals (roster ids). */
+  setGeneralOrder: (unitIds: string[], order: import('../state/generalOrders').GeneralOrder) => void;
+  /** Spends a General's brawl bonus on its establishment's sturdiness; returns the HP added (0 = nothing to spend). */
+  investBrawlPower: (unitId: string) => number;
   addResources: (delta: Partial<Resources>) => void;
   spendResources: (cost: Partial<Resources>) => boolean;
   summonWorker: () => boolean;
@@ -429,8 +425,14 @@ export interface GameStoreState {
   stirVengeance: (amount: number) => void;
   setEnemiesRemaining: (count: number) => void;
   resolveInvasionVictory: (bountyCoins: number) => void;
+  /** The castle fell: game over. The run goes to the Hall of Legacy and the realm save is deleted. */
   resolveCastleBreach: () => void;
-  closeCastleBreachedModal: () => void;
+  /** Pays the price (src/data/difficultyChange.json) and switches the running realm's difficulty. */
+  changeDifficulty: (next: import('../state/difficulty').Difficulty) => boolean;
+  /** Starts a fresh run (new id and clock) under this Demon Lord's name. */
+  beginRun: (lordName: string) => void;
+  addPlayTime: (seconds: number) => void;
+  dismissGameOver: () => void;
   unlockAchievement: (id: string, title: string, description: string, icon: string) => void;
 
 
@@ -465,12 +467,6 @@ export interface GameStoreState {
   // Random loot from scouts
   grantRandomLoot: () => void;
 
-  // Regression Actions
-  openRegressionModal: () => void;
-  closeRegressionModal: () => void;
-  performRegression: () => void;
-  resetRegressionProgress: (confirmation: string) => boolean;
-  dismissWave100Celebration: () => void;
 
   // ── Establishments ─────────────────────────────────────────────────────────
   /** Skill cooldowns in seconds for each establishment's 2 skills. */

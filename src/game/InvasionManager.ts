@@ -48,7 +48,8 @@ import { pickWaveInvader, pickWaveInvaderOfCategory } from './invaders/wavePool'
 import type { Resources } from '../types/state';
 import { pickScout, rollScoutDrops } from '../state/scoutLoot';
 import { buildWavePlan, type PlannedSpawn } from './invaders/wavePlan';
-import { WAVE_BALANCE, aircraftCount, aircraftDropCount, invaderStats, portalHpMultiplier, realmIntensity, skillPower, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
+import KIROV from '../data/kirov.json';
+import { WAVE_BALANCE, invaderStats, portalHpMultiplier, realmIntensity, skillPower, spawnIntervalMs, victoryBounty as waveVictoryBounty, type InvaderRank } from '../state/waveBalance';
 import { TACTIC_EFFECTS, tacticOf, type WaveTactic } from '../state/waveTactics';
 import { SCOUT_DEFENCE_CAP, SCOUT_ROLES, pickScoutRole, rollStolen, scoutCount, scoutScaling, scoutWave } from '../state/scoutRaid';
 
@@ -98,9 +99,8 @@ export class InvasionManager {
   private wasInvasionActive: boolean = false;
   private battleFxReady = false;
   private pendingBattleFx: Array<'POISON_SMOKE' | 'BONE_CAGE'> = [];
-  private aircraftRemaining = 0;
-  private aircraftTimer = 0;
-  private activeAircraft = new Set<Phaser.GameObjects.Sprite>();
+  /** Called when a Kirov Invasion Battle (raid between waves) starts: the Kirov airship leads it. */
+  public onScoutRaid?: () => void;
 
   /** Hands the movement / targeting helpers (invaders/) access to this manager. */
   private readonly ctx: InvaderContext = (() => {
@@ -269,8 +269,6 @@ export class InvasionManager {
       // V4 Rocket Launcher raid (a random few waves)
       this.launchersLeft = launchersForWave(wave, difficulty);
       this.launcherAt = Math.max(1, Math.floor(this.totalEnemiesToSpawn * LAUNCHERS.spawnAtFraction));
-      this.aircraftRemaining = aircraftCount(wave);
-      this.aircraftTimer = Phaser.Math.Between(WAVE_BALANCE.airlift.firstDelayMinMs, WAVE_BALANCE.airlift.firstDelayMaxMs);
     }
 
     // Every portal smashed: the rest of the wave never arrives
@@ -298,19 +296,14 @@ export class InvasionManager {
       }
     }
 
-    this.updateAircraft(delta, store.invasion.waveNumber);
-
     // Check Victory
     if (
       this.enemiesSpawnedCount >= this.totalEnemiesToSpawn &&
       this.invaders.length === 0 &&
-      this.aircraftRemaining === 0 &&
-      this.activeAircraft.size === 0 &&
       store.invasion.isActive
     ) {
       this.totalEnemiesToSpawn = 0;
       this.enemiesSpawnedCount = 0;
-      this.aircraftRemaining = 0;
       const victoryBounty = waveVictoryBounty(store.invasion.waveNumber);
       store.resolveInvasionVictory(victoryBounty);
 
@@ -333,97 +326,17 @@ export class InvasionManager {
     }
   }
 
-  /** Wave-only transport raids. The plane crosses the island and drops a wave-scaled mixed squad. */
-  private updateAircraft(delta: number, wave: number): void {
-    if (!this.aircraftRemaining || !useGameStore.getState().invasion.isActive) return;
-    this.aircraftTimer -= delta;
-    if (this.aircraftTimer > 0) return;
-    this.aircraftRemaining--;
-    this.aircraftTimer = Phaser.Math.Between(WAVE_BALANCE.airlift.nextDelayMinMs, WAVE_BALANCE.airlift.nextDelayMaxMs);
-    this.sendAircraft(wave);
-  }
-
-  private sendAircraft(wave: number): void {
-    if (!this.scene.textures.exists('battle-transport')) return;
-    const plane = this.scene.add.sprite(-820, 215, 'battle-transport');
-    // Some transports limp in already hit by the citadel's flak: burning engine and a heavy smoke trail
-    const damaged = Math.random() < 0.3;
-    plane.setScale(2.5).setDepth(100000).play(damaged ? 'battle-transport:damaged' : 'battle-transport:fly');
-    const trail = this.scene.time.addEvent({
-      delay: damaged ? 70 : 160,
-      loop: true,
-      callback: () => {
-        if (plane.active) spawnSmoke(plane.x - 46, plane.y + (damaged ? 22 : 6), damaged ? 1.5 : 0.8, -14);
-      },
-    });
-    this.parentContainer?.add(plane);
-    this.activeAircraft.add(plane);
-
-    const duration = WAVE_BALANCE.airlift.flightMs;
-    const dropCount = aircraftDropCount(wave);
-    const groups: Array<{ category: 'HUMAN' | 'MECHA'; type: InvaderType }> = [];
-    for (let i = 0; i < dropCount; i++) {
-      const category = i % 2 === 0 ? 'HUMAN' : 'MECHA';
-      groups.push({ category, type: pickWaveInvaderOfCategory(wave, category) });
-    }
-    const force = `${groups.filter((g) => g.category === 'HUMAN').length} Humans / ${groups.filter((g) => g.category === 'MECHA').length} Mechas`;
-    const forceTl = `${groups.filter((g) => g.category === 'HUMAN').length} tao / ${groups.filter((g) => g.category === 'MECHA').length} mecha`;
-    logMessage('aircraftDrop', { count: dropCount, force: { en: force, tl: forceTl }, wave });
-
-    // Ramp opens over the drop zone and closes after the last jumper
-    if (!damaged) {
-      this.scene.time.delayedCall(duration * 0.22, () => plane.active && plane.play('battle-transport:drop'));
-      this.scene.time.delayedCall(duration * 0.8, () => plane.active && plane.play('battle-transport:fly'));
-    }
-    groups.forEach((group, i) => {
-      const fraction = 0.24 + (0.52 * (i + 1)) / (groups.length + 1);
-      this.scene.time.delayedCall(duration * fraction, () => {
-        const invasion = useGameStore.getState().invasion;
-        if (!invasion.isActive || invasion.waveNumber !== wave || !this.nav) return;
-        const tile = this.airdropTile(fraction);
-        if (tile) this.spawnSingleInvader(wave, { type: group.type, grid: tile, airborne: true });
-      });
-    });
-    this.scene.tweens.add({
-      targets: plane,
-      x: 960,
-      duration,
-      ease: 'Linear',
-      onComplete: () => {
-        trail.remove();
-        this.activeAircraft.delete(plane);
-        plane.destroy();
-      },
-    });
-  }
-
-  private airdropTile(fraction: number): GridPoint | null {
-    if (!this.nav) return null;
-    const along = Math.max(1, Math.min(17, Math.round(18 * fraction)));
-    const base = { x: along, y: 17 - along };
-    for (let radius = 0; radius <= 4; radius++) {
-      const candidates: GridPoint[] = [];
-      for (let dx = -radius; dx <= radius; dx++) for (let dy = -radius; dy <= radius; dy++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
-        const x = base.x + dx, y = base.y + dy;
-        if (x >= 0 && y >= 0 && x < GRID_SIZE && y < GRID_SIZE && this.nav.allows(x, y, 'land')) candidates.push({ x, y });
-      }
-      if (candidates.length) return Phaser.Utils.Array.GetRandom(candidates);
-    }
-    return null;
-  }
-
   private attachParachute(invader: ActiveInvader): void {
     if (!this.scene.textures.exists('battle-parachute')) return;
     // deploy -> swaying fall -> canopy collapses on touchdown
     const parachute = this.scene.add.sprite(0, -70, 'battle-parachute').setScale(1.5).play('battle-parachute:deploy');
     parachute.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => parachute.active && parachute.play('battle-parachute:fall'));
     invader.container.add(parachute);
-    invader.dropTimer = WAVE_BALANCE.airlift.descentMs / 1000;
+    invader.dropTimer = KIROV.descentMs / 1000;
     this.scene.tweens.add({
       targets: parachute,
       y: -22,
-      duration: WAVE_BALANCE.airlift.descentMs,
+      duration: KIROV.descentMs,
       ease: 'Sine.easeIn',
       onComplete: () => {
         if (!parachute.active) return;
@@ -519,23 +432,49 @@ export class InvasionManager {
   }
 
   public spawnLootScouts(): void {
-    // A random fight: more scouts the further the realm has come (scoutRaid.json)
+    // Kirov Invasion Battle: more raiders the further the realm has come (scoutRaid.json)
     const wave = scoutWave();
     const numScouts = scoutCount(wave);
     logMessage('scoutRaid', { count: numScouts, wave });
     for (let i = 0; i < numScouts; i++) {
       this.spawnSingleScout();
     }
+    this.onScoutRaid?.();
+  }
+
+  /**
+   * A paratrooper from the Kirov airship: a raider scout dropped by canopy on
+   * the nearest land tile to `grid`. Returns false when there is no room.
+   */
+  public spawnRaidTrooper(grid: GridPoint): boolean {
+    const tile = this.landTileNear(grid);
+    if (!tile) return false;
+    this.spawnSingleScout({ grid: tile, role: 'RAIDER', airborne: true });
+    return true;
+  }
+
+  private landTileNear(base: GridPoint): GridPoint | null {
+    if (!this.nav) return base;
+    for (let radius = 0; radius <= 4; radius++) {
+      const candidates: GridPoint[] = [];
+      for (let dx = -radius; dx <= radius; dx++) for (let dy = -radius; dy <= radius; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        const x = base.x + dx, y = base.y + dy;
+        if (x >= 0 && y >= 0 && x < GRID_SIZE && y < GRID_SIZE && this.nav.allows(x, y, 'land')) candidates.push({ x, y });
+      }
+      if (candidates.length) return Phaser.Utils.Array.GetRandom(candidates);
+    }
+    return null;
   }
 
   /** Portal exit tiles, used as spawn/leave points when no PortalManager is attached (tests). */
   private static readonly EXITS: GridPoint[] = PORTAL_SITES.map((p) => p.exit);
 
-  private spawnSingleScout(): void {
-    const fromPortal = this.portals?.pickAny();
-    const spawnGrid = fromPortal
+  private spawnSingleScout(opts: { grid?: GridPoint; role?: ReturnType<typeof pickScoutRole>; airborne?: boolean } = {}): void {
+    const fromPortal = opts.grid ? undefined : this.portals?.pickAny();
+    const spawnGrid = opts.grid ?? (fromPortal
       ? fromPortal.site.exit
-      : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)];
+      : InvasionManager.EXITS[Math.floor(Math.random() * InvasionManager.EXITS.length)]);
 
     // A random human or mecha scout (scoutLoot.json)
     const scout = pickScout();
@@ -543,7 +482,7 @@ export class InvasionManager {
 
     // Raiders scale with the last wave reached and take a role: runner, looter or raider
     const scaling = scoutScaling(scoutWave());
-    const role = pickScoutRole();
+    const role = opts.role ?? pickScoutRole();
     const roleCfg = SCOUT_ROLES[role];
     const finalMaxHp = Math.round(scout.hp * scaling.hp * roleCfg.hp);
     const finalDamage = Math.round(scout.damage * scaling.damage);
@@ -2026,7 +1965,7 @@ export class InvasionManager {
     const defenderX = closestDefender.container.x;
     const defenderY = closestDefender.container.y;
 
-    // Hardened Hides skill + regression tiers
+    // Hardened Hides skill + runes
     const team = teamBonuses(useGameStore.getState());
     // Iron Resolve skill: Generals (fighters) take less on top
     const teamMitigation = team.minionDamageTaken * (UNIT_CLASSES[closestDefender.unitClass]?.role === 'FIGHTER' ? team.generalDamageTaken : 1);
@@ -2202,9 +2141,6 @@ export class InvasionManager {
   }
 
   public wipeAllInvaders(): void {
-    for (const plane of this.activeAircraft) plane.destroy();
-    this.activeAircraft.clear();
-    this.aircraftRemaining = 0;
     for (const beam of this.beams) beam.gfx.destroy();
     this.beams = [];
     for (const invader of this.invaders) {
@@ -2220,8 +2156,6 @@ export class InvasionManager {
   }
 
   public destroy(): void {
-    for (const plane of this.activeAircraft) plane.destroy();
-    this.activeAircraft.clear();
     for (const invader of this.invaders) {
       invader.container.destroy();
     }

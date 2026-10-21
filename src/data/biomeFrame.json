@@ -1,0 +1,7 @@
+{
+  "_doc": "Frame around the game map only (not the sidebar, title or new-game screens), styled by the chosen biome (ui/BiomeFrame.tsx). `corner` picks the corner ornament: horn (Demon Citadel), flame (Magma Caldera), crystal (Frost Spire), star (Astral Sanctum).",
+  "1": { "corner": "horn", "main": "#dc2626", "light": "#fca5a5", "dark": "#450a0a", "glow": "#7f1d1d" },
+  "2": { "corner": "flame", "main": "#f97316", "light": "#fde68a", "dark": "#431407", "glow": "#c2410c" },
+  "3": { "corner": "crystal", "main": "#38bdf8", "light": "#e0f2fe", "dark": "#0c4a6e", "glow": "#0369a1" },
+  "4": { "corner": "star", "main": "#facc15", "light": "#fefce8", "dark": "#3b0764", "glow": "#a855f7" }
+}

@@ -629,16 +629,10 @@
   "invasion": {
     "countdownSeconds": 150,
     "breachCountdownSeconds": 180,
-    "maxWave": 100,
+    "maxWave": 0,
+    "_maxWave": "0 = endless waves (no finish line since 2026-10-21).",
     "baseEnemies": 4,
     "enemiesPerWave": 2
-  },
-  "regression": {
-    "coinsBase": 100,
-    "coinsPerRegression": 75,
-    "shardsBase": 50,
-    "shardsPerRegression": 25,
-    "castleHpPerRegression": 100
   },
   "landmarkYields": {
     "TRENCH": {

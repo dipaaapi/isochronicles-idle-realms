@@ -15,8 +15,8 @@ export const CodexModal: React.FC<CodexModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none">
-      <div className="relative max-w-xl w-full max-h-[85vh] flex flex-col p-6 rounded-3xl border border-purple-500/40 bg-slate-950/95 shadow-2xl shadow-purple-950/80">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none">
+      <div className="game-modal relative max-w-xl w-full max-h-[85vh] flex flex-col p-6 rounded-3xl border border-purple-500/40 bg-slate-950/95 shadow-2xl shadow-purple-950/80">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
           <div className="flex items-center gap-3">

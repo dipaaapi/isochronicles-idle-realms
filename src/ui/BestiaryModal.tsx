@@ -58,8 +58,8 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
   ).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none animate-fade-in">
-      <div className="relative max-w-3xl w-full max-h-[88vh] flex flex-col p-6 rounded-3xl border border-red-500/40 bg-slate-950/95 shadow-2xl shadow-red-950/80 overflow-hidden">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none animate-fade-in">
+      <div className="game-modal relative max-w-3xl w-full max-h-[88vh] flex flex-col p-6 rounded-3xl border border-red-500/40 bg-slate-950/95 shadow-2xl shadow-red-950/80 overflow-hidden">
         {/* Header with Demon Lord Theme */}
         <div className="flex items-center justify-between border-b border-red-500/20 pb-4 mb-4">
           <div className="flex items-center gap-3">

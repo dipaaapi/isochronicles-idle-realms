@@ -624,13 +624,6 @@
       }
     }
   },
-  "regressionBoostPerTier": {
-    "minionAttack": 0.05,
-    "minionSpeed": 0.03,
-    "minionDefense": 0.03,
-    "towerDamage": 0.05,
-    "harvest": 0.05
-  },
   "text": {
     "title": {
       "en": "Skill Tree",
@@ -685,16 +678,16 @@
       "tl": "Susunod"
     },
     "teamBonuses": {
-      "en": "Team bonuses (skills + runes + regression)",
-      "tl": "Bonus ng koponan (kasanayan + runa + regression)"
+      "en": "Team bonuses (skills + runes)",
+      "tl": "Bonus ng koponan (kasanayan + runa)"
     },
     "noBonuses": {
       "en": "No bonuses yet — clear waves to earn points.",
       "tl": "Wala pang bonus — tapusin ang mga wave para sa puntos."
     },
     "perRealm": {
-      "en": "Skills belong to this realm: Regression refunds them and you earn points again from wave 1. Regression tiers give permanent team boosts — enemies never get stronger from them.",
-      "tl": "Pang-kahariang ito ang kasanayan: ibinabalik ito ng Regression at muling kikitain mula wave 1. Ang Regression ay nagbibigay ng permanenteng lakas sa koponan — hindi lumalakas ang kalaban dahil dito."
+      "en": "Skills belong to this run: you earn points every few waves, without limit. Resetting them is free.",
+      "tl": "Pang-takbong ito ang kasanayan: may puntos ka bawat ilang alon, walang hangganan. Libre ang pag-reset."
     },
     "close": {
       "en": "Close",
@@ -715,60 +708,6 @@
     "legend": {
       "en": "Passive skills add a bonus each rank. Enhancements now come from 🔷 Runes dropped by wave bosses (Citadel Command → Runes); their bonuses add to the totals below.",
       "tl": "Nagdaragdag ng bonus bawat antas ang pasibong kasanayan. Ang mga pagpapahusay ay galing na sa 🔷 Runa na hinuhulog ng boss ng alon (Citadel Command → Mga Runa); kasama ang bonus nila sa kabuuan sa ibaba."
-    }
-  },
-  "regressionText": {
-    "teamBoost": {
-      "en": "Permanent team boost (tier {from} → {to}) — your side only, enemies stay the same:",
-      "tl": "Permanenteng lakas ng koponan (antas {from} → {to}) — sa panig mo lang, hindi lumalakas ang kalaban:"
-    },
-    "confirm": {
-      "en": "Undergo Regression now?\n\n• Your achievement is recorded (Wave {wave}, Phase {phase}, Day {day}).\n• Days and waves restart at 1 and the Treant rebuilds the citadel.\n• Skills are refunded — earn points again by clearing waves.\n• Your team gets permanent stat boosts and +{hp} castle HP. Enemies do not get stronger.",
-      "tl": "Mag-Regress na ba?\n\n• Itatala ang narating mo (Wave {wave}, Phase {phase}, Day {day}).\n• Babalik sa 1 ang araw at wave at muling itatayo ng Treant ang kuta.\n• Ibabalik ang mga kasanayan — kitain muli ang puntos sa pagtapos ng mga wave.\n• Permanenteng lalakas ang koponan at +{hp} HP ng kuta. Hindi lumalakas ang kalaban."
-    },
-    "note": {
-      "en": "Each regression resets to Day 1, Year 1 and Wave 1. Your team keeps every regression boost forever; the skill tree is refunded and refills as you clear waves again.",
-      "tl": "Bawat regression ay babalik sa Day 1, Year 1 at Wave 1. Mananatili magpakailanman ang lakas mula sa regression; ibabalik ang puno ng kasanayan at mapupuno muli habang tinatapos ang mga wave."
-    },
-    "resetInfo": {
-      "en": "erase the Regression tier, history, permanent team boosts and permanent regression HP.",
-      "tl": "burahin ang antas ng Regression, kasaysayan, permanenteng lakas ng koponan at dagdag na HP."
-    },
-    "resetConfirm": {
-      "en": "This erases regression history, permanent team boosts and permanent regression HP. Continue?",
-      "tl": "Mabubura ang Regression tier, kasaysayan at permanenteng lakas. Ituloy?"
-    },
-    "resetTitle": {
-      "en": "Reset Regression Records",
-      "tl": "I-reset ang Talaan ng Regression"
-    },
-    "resetType": {
-      "en": "Type {phrase} to",
-      "tl": "I-type ang {phrase} para"
-    },
-    "resetButton": {
-      "en": "Reset",
-      "tl": "I-reset"
-    },
-    "historyWave": {
-      "en": "Wave {n}",
-      "tl": "Alon {n}"
-    },
-    "historyPhase": {
-      "en": "Phase {n} ({realm})",
-      "tl": "Yugto {n} ({realm})"
-    },
-    "historyDay": {
-      "en": "Day {day} (Year {year})",
-      "tl": "Araw {day} (Taon {year})"
-    },
-    "historyRepelled": {
-      "en": "{n} repelled",
-      "tl": "{n} napaatras"
-    },
-    "conquered100": {
-      "en": "Conquered Wave 100!",
-      "tl": "Nasakop ang Alon 100!"
     }
   }
 }

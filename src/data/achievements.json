@@ -24,9 +24,6 @@
       "tl": { "title": "Bumangon ang Panginoong Demonyo", "desc": "Napaatras ang lahat ng 100 alon ng pananakop." } },
     { "id": "first_brawl", "steam": "ACH_FIRST_BRAWL", "icon": "🥊", "color": "#eab308",
       "en": { "title": "Pecking Order", "desc": "Two Generals settled a quarrel in a brawl." },
-      "tl": { "title": "Sino ang Mas Malakas", "desc": "Nagsuntukan ang dalawang Heneral para ayusin ang alitan." } },
-    { "id": "first_regression", "steam": "ACH_FIRST_REGRESSION", "icon": "🌀", "color": "#8b5cf6",
-      "en": { "title": "Eternal Regression", "desc": "Conquered the mortal world and regressed with the memories of the Demon Citadel." },
-      "tl": { "title": "Walang Hanggang Pagbabalik", "desc": "Sinakop ang mundo ng mortal at bumalik dala ang alaala ng Kutang Demonyo." } }
+      "tl": { "title": "Sino ang Mas Malakas", "desc": "Nagsuntukan ang dalawang Heneral para ayusin ang alitan." } }
   ]
 }

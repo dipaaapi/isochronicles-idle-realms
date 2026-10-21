@@ -68,8 +68,8 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({ isOpen, onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in select-none">
-      <div className="relative w-full max-w-3xl max-h-[85vh] flex flex-col bg-slate-900/95 border border-amber-500/40 rounded-2xl shadow-2xl shadow-amber-950/40 overflow-hidden glass-panel">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in select-none">
+      <div className="game-modal relative w-full max-w-3xl max-h-[85vh] flex flex-col bg-slate-900/95 border border-amber-500/40 rounded-2xl shadow-2xl shadow-amber-950/40 overflow-hidden glass-panel">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-amber-500/20 bg-slate-950/70">
           <div className="flex items-center gap-3">

@@ -4,7 +4,7 @@ import { TILE_WIDTH } from './IsometricHelper';
 import type { StructureManager, StructureId } from './StructureManager';
 import type { PortalManager, PortalState } from './PortalManager';
 import { useGameStore } from '../state/useGameStore';
-import { buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { buildingMaxHp, buildingMaxHpOf, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { logMessage } from '../state/activityLog';
 import { soundFx } from './audio/soundFx';
 import CONFIG from '../data/forceFields.json';
@@ -66,7 +66,7 @@ export class ForceFieldSystem {
     const store = useGameStore.getState();
     const b = towerBuildingOf(store, id);
     const wave = store.invasion.waveNumber || 1;
-    return Math.round(buildingMaxHp(towerLevelOf(b)) * CONFIG.establishment.maxHpFraction * (1 + wave * CONFIG.establishment.perWave) *
+    return Math.round(buildingMaxHpOf(b) * CONFIG.establishment.maxHpFraction * (1 + wave * CONFIG.establishment.perWave) *
       teamBonuses(store).forceFieldHp); // Rune Wards skill
   }
 

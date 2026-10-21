@@ -24,11 +24,12 @@ import { tryResurrect, updateSupportSlime } from './workers/supportSlime';
 import { updateConstruction, updateTreant } from './workers/treant';
 import { updateGeneralConstruction } from './workers/generalConstruction';
 import { updateGeneralLooting } from './workers/generalLooting';
+import { orderOf, tickRage } from './workers/generalOrders';
 import { playSummonRitual, SUMMON_RITUALS } from './workers/summonRitual';
 import { promotingClasses } from './promotions';
 import { rallyForInvasion, updateCombat, updateHealer, castChampionSkill } from './workers/combat';
 import { abandonUnavailableTask, chooseGatherTask, isGatherer, updateGatherState, updateStatusEmote } from './workers/gathering';
-import { buildingHpOf, buildingMaxHp, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { buildingHpOf, buildingMaxHp, buildingMaxHpOf, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import MOVEMENT from '../data/minionMovement.json';
 import { BrawlDirector } from './workers/brawl';
 import { BRAWL_CONFIG, BRAWL_GLOW_COLOR, brawlLevelOf } from '../state/brawl';
@@ -59,8 +60,17 @@ export class WorkerManager implements WorkerContext {
   private fires?: import('./FireSystem').FireSystem;
   private readonly brawls = new BrawlDirector(this);
   private readonly activityCommandListener = (event: Event): void => {
-    const detail = (event as CustomEvent<{ command?: string; respond?: (success: boolean) => void }>).detail;
+    const detail = (event as CustomEvent<{ command?: string; a?: string; b?: string; respond?: (result: unknown) => void }>).detail;
     if (detail?.command === 'brawl') detail.respond?.(this.startRandomBrawl());
+    // Generals panel
+    else if (detail?.command === 'orderedBrawl') detail.respond?.(this.startOrderedBrawl(detail.a ?? '', detail.b ?? ''));
+    else if (detail?.command === 'generalGauges') detail.respond?.(this.getGeneralGauges());
+    // @kirov_battle: start a Kirov Invasion Battle now (between waves)
+    else if (detail?.command === 'kirovBattle') {
+      const busy = useGameStore.getState().invasion.isActive || !this.invasionManager;
+      if (!busy) this.invasionManager!.spawnLootScouts();
+      detail.respond?.(!busy);
+    }
   };
 
   /** The two Generals brawling right now (their minions gather round), or null. */
@@ -70,6 +80,19 @@ export class WorkerManager implements WorkerContext {
 
   public startRandomBrawl(): boolean {
     return this.brawls.command(this.workers.filter((worker) => this.isFieldGeneral(worker)));
+  }
+
+  /** Generals panel: brawl between these two roster Generals (both need full rage). */
+  public startOrderedBrawl(aId: string, bId: string): 'ok' | 'busy' | 'wave' | 'missing' | 'rage' {
+    const find = (id: string) => this.workers.find((w) => w.id === id && this.isFieldGeneral(w));
+    return this.brawls.commandPair(find(aId), find(bId));
+  }
+
+  /** Live gauges of the field Generals for the Generals panel. */
+  public getGeneralGauges(): Array<{ id: string; hp: number; maxHp: number; rage: number; brawling: boolean }> {
+    return this.workers.filter((w) => this.isFieldGeneral(w)).map((w) => ({
+      id: w.id, hp: Math.max(0, Math.round(w.hp)), maxHp: Math.round(w.maxHp), rage: Math.round(w.rage ?? 0), brawling: !!w.isBrawling,
+    }));
   }
 
   public setFireSystem(fires: import('./FireSystem').FireSystem): void {
@@ -739,8 +762,14 @@ export class WorkerManager implements WorkerContext {
       const isTenant = !!worker.parentBuildingId || worker.id.startsWith('tenant_');
       const isGeneral = !isTenant && !isSupportSlime && !isTreant && !isHealer;
       if (isGeneral) {
+        tickRage(worker, frame.deltaSec);
+        // Generals panel → Looting: drops come before the fight
+        const lootFirst = worker.status === 'COMBAT' && orderOf(worker) === 'LOOT'
+          && updateGeneralLooting(this, this.groundLoot, worker, frame.deltaSec, frame.effectiveSpeed);
         // Generals loot the platform's drops and haul them to the castle (credited on delivery)
-        if (worker.status === 'COMBAT') {
+        if (lootFirst) {
+          // busy looting under orders
+        } else if (worker.status === 'COMBAT') {
           updateCombat(this, worker, frame);
           for (const [i, id] of (worker.carriedLoot ?? []).entries()) this.groundLoot?.carry(id, worker.container.x, worker.container.y, i);
         } else if (updateGeneralLooting(this, this.groundLoot, worker, frame.deltaSec, frame.effectiveSpeed)) {
@@ -1093,7 +1122,7 @@ export class WorkerManager implements WorkerContext {
       const homeBuilding = UNIT_CLASSES[worker.unitClass]?.requiredBuilding;
       if (homeBuilding) {
         const b = towerBuildingOf(store, homeBuilding);
-        if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHp(towerLevelOf(b))) {
+        if (b && b.level >= 1 && buildingHpOf(b) < buildingMaxHpOf(b)) {
           const spot = homeBuilding === 'SPIRE' ? SPIRE_WORK_SPOT : BUILDING_SITES[homeBuilding]?.workSpot;
           if (spot) {
             this.followPathTo(worker, spot);

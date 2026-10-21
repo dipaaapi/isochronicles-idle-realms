@@ -36,19 +36,40 @@ export const RUNES = config.runes as unknown as Record<RuneKind, RuneDef>;
 export const RUNE_KINDS = Object.keys(RUNES) as RuneKind[];
 export const RUNE_TARGETS = config.targets as Record<RuneTarget, { icon: string; color: string; name: Localized }>;
 export const RUNE_TARGET_IDS = Object.keys(RUNE_TARGETS) as RuneTarget[];
-export const MAX_TIER = config.tierPower.length;
+/** Highest tier a boss drops; merges go past it without limit. */
+export const DROP_MAX_TIER = config.tierPower.length;
+/** @deprecated kept for older imports: same as DROP_MAX_TIER. */
+export const MAX_TIER = DROP_MAX_TIER;
 export const SLOTS_PER_TARGET = config.slotsPerTarget;
 export const MERGE_COUNT = config.mergeCount;
 
-export const tierName = (tier: number): string => config.tierNames[Math.max(0, Math.min(MAX_TIER, tier) - 1)] ?? String(tier);
-export const tierColor = (tier: number): string => config.tierColors[Math.max(0, Math.min(MAX_TIER, tier) - 1)] ?? '#94a3b8';
+const ROMAN: Array<[number, string]> = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+const roman = (n: number): string => {
+  let out = '';
+  for (const [v, s] of ROMAN) while (n >= v) { out += s; n -= v; }
+  return out;
+};
+/** Mythic tiers (past the last listed colour) cycle through these. */
+const MYTHIC_COLORS = ['#f43f5e', '#22d3ee', '#e879f9', '#fb923c'];
+
+export const tierName = (tier: number): string => config.tierNames[tier - 1] ?? (tier > 3999 ? String(tier) : roman(Math.max(1, Math.floor(tier))));
+export const tierColor = (tier: number): string =>
+  config.tierColors[tier - 1] ?? MYTHIC_COLORS[(Math.max(1, tier) - config.tierColors.length - 1) % MYTHIC_COLORS.length];
+
+/** Power multiplier of a tier: the listed table, then +tierGrowth per tier. */
+export const tierPower = (tier: number): number => {
+  const t = Math.max(1, Math.floor(tier));
+  const table = config.tierPower;
+  return table[t - 1] ?? table[table.length - 1] + config.tierGrowth * (t - table.length);
+};
+
 
 export const emptyRuneSlots = (): RuneSlots =>
   Object.fromEntries(RUNE_TARGET_IDS.map((t) => [t, Array<string | null>(SLOTS_PER_TARGET).fill(null)])) as RuneSlots;
 
 /** Bonus one rune gives to its stat. */
 export const runeValue = (rune: Pick<Rune, 'kind' | 'tier'>): number =>
-  (RUNES[rune.kind]?.perTier ?? 0) * (config.tierPower[Math.max(1, Math.min(MAX_TIER, rune.tier)) - 1] ?? 0);
+  (RUNES[rune.kind]?.perTier ?? 0) * tierPower(rune.tier);
 
 /** Summed bonus per stat from every slotted rune. */
 export const runeStatTotals = (runes: Rune[] | undefined, slots: RuneSlots | undefined): Record<string, number> => {
@@ -68,7 +89,7 @@ export const runeStatTotals = (runes: Rune[] | undefined, slots: RuneSlots | und
 
 /** Tier of the rune a boss carries on this wave. */
 export const bossRuneTier = (wave: number, climax: boolean): number =>
-  Math.max(1, Math.min(MAX_TIER, 1 + Math.floor(Math.max(0, wave - 1) / config.wavesPerTier) + (climax ? config.climaxBonus : 0)));
+  Math.max(1, Math.min(DROP_MAX_TIER, 1 + Math.floor(Math.max(0, wave - 1) / config.wavesPerTier) + (climax ? config.climaxBonus : 0)));
 
 export const rollRuneKind = (rand: () => number = Math.random): RuneKind => RUNE_KINDS[Math.floor(rand() * RUNE_KINDS.length)];
 
@@ -85,7 +106,7 @@ export const normalizeRunes = (rawRunes: unknown, rawSlots: unknown): { runes: R
   for (const r of Array.isArray(rawRunes) ? rawRunes : []) {
     if (!r || typeof r.id !== 'string' || seen.has(r.id) || !(r.kind in RUNES)) continue;
     seen.add(r.id);
-    runes.push({ id: r.id, kind: r.kind as RuneKind, tier: Math.max(1, Math.min(MAX_TIER, Math.floor(Number(r.tier) || 1))) });
+    runes.push({ id: r.id, kind: r.kind as RuneKind, tier: Math.max(1, Math.min(9999, Math.floor(Number(r.tier) || 1))) });
   }
   const byId = new Map(runes.map((r) => [r.id, r]));
   const runeSlots = emptyRuneSlots();
@@ -93,6 +114,7 @@ export const normalizeRunes = (rawRunes: unknown, rawSlots: unknown): { runes: R
   const saved = (rawSlots && typeof rawSlots === 'object' ? rawSlots : {}) as Record<string, unknown>;
   for (const target of RUNE_TARGET_IDS) {
     const list = Array.isArray(saved[target]) ? (saved[target] as unknown[]) : [];
+    // Slots are fixed (extra slots once sold are dropped; their runes go back to the vault)
     for (let i = 0; i < SLOTS_PER_TARGET; i++) {
       const id = list[i];
       const rune = typeof id === 'string' ? byId.get(id) : undefined;

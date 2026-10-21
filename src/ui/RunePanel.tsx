@@ -1,7 +1,6 @@
 import React from 'react';
 import { useGameStore } from '../state/useGameStore';
 import {
-  MAX_TIER,
   MERGE_COUNT,
   RUNES,
   RUNE_TARGETS,
@@ -18,7 +17,7 @@ import {
 import { TEAM_STATS, formatStat, type TeamStat } from '../state/skillTree';
 
 /** One rune chip: icon, tier numeral in its tier colour, and its bonus. */
-const RuneChip: React.FC<{ rune: Rune; t: (s: Localized) => string; action?: React.ReactNode }> = ({ rune, t, action }) => {
+const RuneChip: React.FC<{ rune: Rune; t: (s: Localized) => string; action?: React.ReactNode; upgrade?: React.ReactNode }> = ({ rune, t, action, upgrade }) => {
   const def = RUNES[rune.kind];
   const color = tierColor(rune.tier);
   const stat = def.stat as TeamStat;
@@ -37,6 +36,7 @@ const RuneChip: React.FC<{ rune: Rune; t: (s: Localized) => string; action?: Rea
           {TEAM_STATS[stat] ? formatStat(stat, runeValue(rune)) : ''} <span className="text-slate-400">{t(def.desc)}</span>
         </div>
       </div>
+      {upgrade}
       {action}
     </div>
   );
@@ -50,15 +50,41 @@ export const RunePanel: React.FC = () => {
   const slotted = slottedIds(runeSlots);
   const loose = runes.filter((r) => !slotted.has(r.id)).sort((a, b) => b.tier - a.tier || a.kind.localeCompare(b.kind));
 
-  // Groups of mergeable runes (same kind and tier, unslotted)
+  // Groups of mergeable runes (same kind and tier; slotted ones upgrade in their slot)
   const groups = new Map<string, { kind: RuneKind; tier: number; count: number }>();
-  for (const r of loose) {
+  for (const r of runes) {
     const key = `${r.kind}:${r.tier}`;
     const g = groups.get(key) ?? { kind: r.kind, tier: r.tier, count: 0 };
     g.count++;
     groups.set(key, g);
   }
-  const mergeable = [...groups.values()].filter((g) => g.count >= MERGE_COUNT && g.tier < MAX_TIER);
+  const mergeable = [...groups.values()].filter((g) => g.count >= MERGE_COUNT);
+
+  /** Upgrade button for a rune: how many of the same kind and tier you hold (need MERGE_COUNT). */
+  const upgradeButton = (rune: Rune) => {
+    const have = groups.get(`${rune.kind}:${rune.tier}`)?.count ?? 0;
+    const ready = have >= MERGE_COUNT;
+    const next = tierColor(rune.tier + 1);
+    const hint = t(RUNE_TEXT.upgradeHint)
+      .replace('{count}', String(MERGE_COUNT))
+      .replace('{name}', t(RUNES[rune.kind].name))
+      .replace('{tier}', tierName(rune.tier))
+      .replace('{next}', tierName(rune.tier + 1));
+    return (
+      <button
+        type="button"
+        disabled={!ready}
+        onClick={() => mergeRunes(rune.kind, rune.tier)}
+        title={hint}
+        className="shrink-0 rounded-md px-2 py-1 text-[10px] font-bold disabled:cursor-not-allowed"
+        style={ready
+          ? { background: next, color: '#0b0f1a', boxShadow: `0 0 8px ${next}` }
+          : { background: '#1e293b', color: '#64748b' }}
+      >
+        ⬆ {ready ? `${t(RUNE_TEXT.upgrade)} → ${tierName(rune.tier + 1)}` : `${Math.min(have, MERGE_COUNT)}/${MERGE_COUNT}`}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-4 text-slate-200">
@@ -86,6 +112,7 @@ export const RunePanel: React.FC = () => {
                       key={i}
                       rune={rune}
                       t={t}
+                      upgrade={upgradeButton(rune)}
                       action={
                         <button
                           type="button"
@@ -139,6 +166,7 @@ export const RunePanel: React.FC = () => {
                   key={rune.id}
                   rune={rune}
                   t={t}
+                  upgrade={upgradeButton(rune)}
                   action={
                     <button
                       type="button"

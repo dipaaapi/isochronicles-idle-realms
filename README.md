@@ -17,7 +17,7 @@ Repository: <https://github.com/dipaaapi/isochronicles-idle-realms>
 5. **Each General summons its minions one at a time** (the first free, the rest paid from the castle). The **minions build** the establishment, taking its cost from the castle step by step while a gauge above the site fills, and later **repair** it the same way.
 6. Minions gather, craft and go on expeditions; Generals scout, lead in battle and **brawl** rival Generals; the Treant tends the castle and enriches the soil.
 7. Defend against human and mecha invasions. Every **5 waves** cleared earns skill points for the Skill Tree.
-8. Reach Wave 100 (or regress at any time) to restart with permanent team boosts.
+8. Survive as long as you can: waves never end, and if the castle falls the run is over for good (permadeath) and is engraved in the **Hall of Legacy**.
 
 There is no build button. Construction runs on autopilot, and you steer the realm through the market, upgrades, skills and battle actions.
 
@@ -56,11 +56,11 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - Structures rendered from voxel models that follow the Codex art, with construction, idle, firing, hit and destroyed states.
 - Autonomous units with movement, gathering, combat, healing, construction and expedition states, plus EasyStar.js pathfinding.
 - 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel. Each rift is guarded by two **Rift Sentinel** towers and fights back with its own skills and ultimate.
-- **Realm picker:** choose the realm (Demon Citadel, Magma Caldera, Frost Spire, Astral Sanctum) anytime in Atlas → Regression, or follow the waves. A later realm scales wave HP, damage, count, spawn speed and rift HP up; an earlier one eases them (`realmIntensity` in `src/data/waveBalance.json`).
+- **Biome:** choose the realm (Demon Citadel, Magma Caldera, Frost Spire, Astral Sanctum) at New Game or anytime in Settings. It changes the island's look, water life and music; waves keep the same strength in every biome.
 - Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's **sky lasers**: double-click invaders to lock up to 10 beams that burn and slow them; crit chance grows (and misses fade) the longer a beam stays on one target, and they leave burn scars that hurt and slow invaders walking over them (`holdStrike` in `src/data/defenseConfig.json`).
 - Support Slime and Ancient Treant evolution (five forms each), God Blessings and research upgrades. There is no gear: Generals grow by winning brawls.
 - Skill Tree with ranked skills earned by clearing waves, plus a free respec.
-- Regression prestige with permanent team-only boosts.
+- Endless waves and permadeath, with a local Hall of Legacy leaderboard (Steam leaderboard planned).
 - Easy / Normal / Hard difficulty.
 - Day/night cycle, seasons and weather: rain (sometimes stormy, with lightning and camera shake), snow and heat haze.
 - Living world: grass sways and water wakes follow units, fish leap, clouds drift, and the sun and moon arc over the island.
@@ -84,9 +84,9 @@ Brawls replaced gear and armour (tuned in `src/data/brawl.json`, logic in `src/s
 
 ## Skill Tree
 
-Skill points come from clearing waves; you don't need to regress to earn them.
+Skill points come from clearing waves, without limit.
 
-- Every **5 waves** cleared grants **3 skill points** (60 points by Wave 100).
+- Every **5 waves** cleared grants **3 skill points** (no limit: waves never end).
 - There are seven branches. Each branch is a chain: a skill needs at least one rank in the skill before it. Every skill is a ranked **passive**; enhancements come from **Runes** (below).
 
 | Branch | Skills |
@@ -100,7 +100,7 @@ Skill points come from clearing waves; you don't need to regress to earn them.
 | 🧑‍🌾 Minions | Bountiful Toil (bigger hauls), Master Builders (faster build/repair), Hardy Stock (minion HP & damage) |
 
 - Click a skill to add a rank; it takes effect immediately. **Reset skills** refunds every point for free.
-- Skills belong to the current realm. Regression refunds them, and you earn the points again from Wave 1.
+- Skills belong to the current run; points keep coming every 5 waves without limit.
 - Numbers and EN/TL text live in `src/data/skillTree.json`.
 
 ## Runes
@@ -118,30 +118,15 @@ Runes replaced the skill tree's unlock enhancements (`src/data/runes.json`, `src
 | 🧑‍🌾 Minions | Banner (stronger while their General lives), Vigor (HP & damage), Spoils (expedition loot), Muster (cheaper summons; 100% = free) |
 
 - **Escalation:** merge 3 unslotted runes of the same kind and tier into one of the next tier (power ×1, ×2, ×3.5, ×5.5, ×8).
-- Rune bonuses add to the skill tree totals and are **kept through Regression** (a new realm starts with an empty vault).
+- Rune bonuses add to the skill tree totals (a new realm starts with an empty vault).
 - Minions are only ever summoned by their own General (two per establishment).
 
-## Regression
+## Endless waves and permadeath
 
-Regression resets the active realm and keeps your long-term progression.
-
-- The realm returns to ruins with a new random establishment layout. Only the Support Slime remains.
-- The Slime summons the Treant again. The Treant rebuilds the castle and spire and summons the Generals, and each General calls its minions to rebuild its establishment.
-- Regression bonuses, Support Slime evolution and regression history are kept. Skill ranks are refunded.
-- Each Regression tier permanently boosts **your team only**; enemies never get stronger from it:
-  - +5% minion attack
-  - +3% minion speed
-  - 3% less damage taken by minions
-  - +5% tower damage
-  - +5% harvest
-  - +100 castle max HP
-  - bonus starting coins and shards
-
-To regress, type the current realm name in the confirmation field. To erase your Regression tier and history, type:
-
-```text
-RESET REGRESSIONS
-```
+- Waves never end. After wave 100 they keep growing stronger; every 25th wave is a climax, and enemy counts are capped (`endless` in `src/data/waveBalance.json`).
+- The game saves itself after every repelled wave (💾 in the activity log).
+- If the castle falls it is **game over for good**: the run (Demon Lord name, waves cleared, days, time played, difficulty, biome) is engraved in the **Hall of Legacy** (Atlas tab, kept on this device), the realm save is deleted, and an exported save of a fallen run can no longer be imported.
+- There is no Regression any more. How far you get depends on spreading upgrades, runes and loot well.
 
 ## Controls
 
@@ -175,7 +160,7 @@ Shortcuts are ignored while you type in a text field.
 - **Citadel Command:** reconstruction status, minions, market, forge, research and defenses.
 - **Atlas:** Guide, Lore and Structures.
 - **Bestiary:** discovered minions and invaders, plus the rifts and their Rift Sentinels.
-- **Skill Tree** and **Regression:** skills, prestige and reset controls.
+- **Skill Tree** and **Hall of Legacy:** skills and the leaderboard of fallen runs.
 - **Settings:** language (EN/TL), audio, blood & gore, difficulty, FPS and performance, saves, and the tile coordinate overlay.
 
 ## Run Locally
@@ -209,7 +194,7 @@ npm test
 
 - construction order: Treant → castle/spire → Generals → establishments
 - the economy, purchases and realm reset
-- difficulty, regression and the skill tree
+- difficulty, endless waves, permadeath and the skill tree
 - saves and migrations
 - crews, expeditions and invasions
 
@@ -228,7 +213,6 @@ docker compose down
 - Offline progression is calculated when you return.
 - Settings can export a JSON save or import one from another browser or device.
 - **Reset Realm** clears the active realm and returns to the title screen.
-- Regression reset is separate from Reset Realm and needs typed confirmation.
 
 ## Technology
 
@@ -251,7 +235,7 @@ public/
 ├── structures/            Codex art for every structure (design source for structure models)
 └── pwa-*.png, robots.txt
 scripts/
-├── test-construction.cjs  Construction, economy, reset, difficulty, regression, crew checks
+├── test-construction.cjs  Construction, economy, reset, difficulty, permadeath, crew checks
 └── test-invasions.cjs     Invasion and wave checks
 src/
 ├── App.tsx                Screen coordinator (Title → Story → Game) and modal state
@@ -259,7 +243,7 @@ src/
 │                          seasons, evolutions, blessings, items, wave pool, units, invaders…
 ├── game/
 │   ├── MainScene.ts       World, tiles, camera, lighting
-│   ├── PhaserGame.tsx     React ↔ Phaser wrapper (remounts on regression / new layout)
+│   ├── PhaserGame.tsx     React ↔ Phaser wrapper (remounts on a new layout)
 │   ├── PixelTileArt.ts    Pixel-art tile atlas painter
 │   ├── WorkerManager.ts   Minion lifecycle, movement, visuals
 │   ├── workers/           Per-role behaviour: supportSlime, treant, generalConstruction,
@@ -285,7 +269,7 @@ src/
 ├── types/                 game.ts (shared types), state.ts (store and save shape)
 └── ui/                    GameHUD, ActivityLogTray, Atlas (+ StructureAtlas), CitadelCommand,
                            EstablishmentModal, UnitRoster, Merchant, Research,
-                           Fortifications, SkillTree, Regression, Bestiary, Settings, …
+                           Fortifications, SkillTree, HallOfLegacy, GameOver, Bestiary, Settings, …
 ```
 
 ## Contributing

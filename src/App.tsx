@@ -11,12 +11,14 @@ import { CitadelCommandModal, CitadelTab } from './ui/CitadelCommandModal';
 import { AtlasModal, AtlasTab } from './ui/AtlasModal';
 import { BestiaryModal } from './ui/BestiaryModal';
 import { SettingsDrawer } from './ui/SettingsDrawer';
-import { CastleBreachedModal } from './ui/CastleBreachedModal';
 import { QuickTradePopover } from './ui/QuickTradePopover';
-import { RegressionModal } from './ui/RegressionModal';
+import { GameOverScreen } from './ui/GameOverScreen';
+import { GameCursor } from './ui/GameCursor';
+import { loadLegacy } from './state/legacy';
 import { PhaserGame } from './game/PhaserGame';
 import { LoadingScreen } from './ui/LoadingScreen';
-import { DifficultyFrame } from './ui/DifficultyFrame';
+import { BiomeFrame } from './ui/BiomeFrame';
+import { BattleStatusHud } from './ui/BattleStatusHud';
 import { EstablishmentModal } from './ui/EstablishmentModal';
 import { ActivityLogTray } from './ui/ActivityLogTray';
 import { LiveStreamOverlay } from './ui/LiveStreamOverlay';
@@ -28,13 +30,9 @@ export const App: React.FC = () => {
   const difficulty = useGameStore((s) => s.difficulty);
   const {
     screen,
-    regressionCount,
     layoutSeed,
     setScreen,
     checkOfflineProgress,
-    isRegressionModalOpen,
-    openRegressionModal,
-    closeRegressionModal,
     selectedEstablishmentId,
     closeEstablishmentModal,
   } = useGameStore();
@@ -60,6 +58,22 @@ export const App: React.FC = () => {
   // Narrate realm events into the activity log tray
   useEffect(() => startActivityWatcher(), []);
 
+  // Hall of Legacy: cache fallen runs (a fallen run's save can't be imported)
+  useEffect(() => { void loadLegacy(); }, []);
+
+  // Run clock for the Hall of Legacy: real time played while the realm runs (not paused, tab visible).
+  // Saves from before permadeath get a run id the first time they are played.
+  useEffect(() => {
+    if (screen !== 'GAME') return;
+    const s = useGameStore.getState();
+    if (!s.runId) s.beginRun(s.lordName);
+    const id = window.setInterval(() => {
+      const st = useGameStore.getState();
+      if (st.gameSpeed > 0 && document.visibilityState === 'visible') st.addPlayTime(5);
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [screen]);
+
   // Process offline progression when entering game simulation
   useEffect(() => {
     if (screen === 'GAME') {
@@ -81,10 +95,11 @@ export const App: React.FC = () => {
 
   return (
     <main className="pixel-ui relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Screen-edge frame in the realm's difficulty colour (the story screen shows the one being picked) */}
-      {screen !== 'STORY' && <DifficultyFrame difficulty={difficulty} />}
-      {/* Screen-edge frame in the realm's difficulty colour (the story screen shows the one being picked) */}
-      {screen !== 'STORY' && <DifficultyFrame difficulty={difficulty} />}
+      {/* The Demon Lord's animated pixel cursor (Settings → Game can turn it off) */}
+      <GameCursor />
+      {/* Permadeath: the run that just fell, over the title screen */}
+      <GameOverScreen onNewRealm={() => setScreen('STORY')} />
+
       {/* Screen 1: Title Screen (No Atlas button here) */}
       {screen === 'TITLE' && (
         <TitleScreen
@@ -106,10 +121,13 @@ export const App: React.FC = () => {
       {screen === 'GAME' && (
         <div className="flex w-full h-full overflow-hidden">
           {/* Covers canvas + HUD while the scene and baked art load behind it */}
-          <LoadingScreen key={`load-${regressionCount}-${layoutSeed}`} />
+          <LoadingScreen key={`load-${layoutSeed}`} />
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
-            <PhaserGame key={`${regressionCount}-${layoutSeed}`} />
+            <PhaserGame key={layoutSeed} />
+            {/* Frame around the map only, in the biome's style; status + difficulty at its lower right */}
+            <BiomeFrame />
+            <BattleStatusHud onOpenSettings={() => setIsSettingsOpen(true)} />
             <LiveStreamOverlay />
             <ActivityLogTray />
             {DEV_TOOLS && <DevPanel />}
@@ -131,10 +149,6 @@ export const App: React.FC = () => {
             }}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenSkillTree={() => setCitadelTab('SKILLS')}
-            onOpenRegression={() => {
-              setAtlasInitialSection('REGRESSION');
-              setIsAtlasOpen(true);
-            }}
             onOpenQuickTrade={(res) => setQuickTradeResource(res)}
           />
 
@@ -157,11 +171,6 @@ export const App: React.FC = () => {
             }}
           />
 
-          <CastleBreachedModal />
-
-          {isRegressionModalOpen && (
-            <RegressionModal onClose={closeRegressionModal} />
-          )}
 
           {quickTradeResource && (
             <QuickTradePopover
@@ -170,7 +179,7 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* Atlas Knowledge Hub (Guide, Bestiary, Regression, FAQ, Lore) */}
+          {/* Atlas Knowledge Hub (Guide, Bestiary, Hall of Legacy, FAQ, Lore) */}
           <AtlasModal
             isOpen={isAtlasOpen}
             onClose={() => setIsAtlasOpen(false)}

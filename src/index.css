@@ -355,3 +355,86 @@
   .title-drift, .title-ember, .title-mist, .title-glow, .title-crystal, .title-crystal-vein, .title-crystal-shadow { animation: none; }
   .title-ember, .title-blood, .title-crystal-drip { display: none; }
 }
+
+/* ── Game theme: cursor, scrollbars, buttons, modals ── */
+/* The custom cursor (ui/GameCursor.tsx) replaces the native one; text fields keep the caret */
+body.game-cursor, body.game-cursor * { cursor: none !important; }
+body.game-cursor input:not([type]), body.game-cursor input[type="text"], body.game-cursor input[type="search"],
+body.game-cursor input[type="number"], body.game-cursor input[type="email"], body.game-cursor input[type="password"],
+body.game-cursor textarea, body.game-cursor [contenteditable="true"] { cursor: text !important; }
+
+/* Pixel scrollbars: obsidian thumb, crimson rim, ember highlight; aether on hover */
+.pixel-ui ::-webkit-scrollbar { width: 12px; height: 12px; }
+.pixel-ui ::-webkit-scrollbar-track { background: #0b0510; box-shadow: inset 2px 2px 0 #1c0f24; }
+.pixel-ui ::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(#f59e0b, #f59e0b) top / 100% 2px no-repeat,
+    linear-gradient(90deg, #5b2a6e 0 2px, #2a1530 2px calc(100% - 2px), #12081a calc(100% - 2px));
+  border: 2px solid #0b0510;
+  box-shadow: inset 0 0 0 1px #7f1d1d;
+  min-height: 28px;
+}
+.pixel-ui ::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(#fde68a, #fde68a) top / 100% 2px no-repeat,
+    linear-gradient(90deg, #a855f7 0 2px, #5b2a6e 2px calc(100% - 2px), #2a1530 calc(100% - 2px));
+  box-shadow: inset 0 0 0 1px #dc2626;
+}
+.pixel-ui ::-webkit-scrollbar-thumb:active { box-shadow: inset 0 0 0 1px #fde68a; }
+.pixel-ui ::-webkit-scrollbar-corner { background: #0b0510; }
+.pixel-ui ::-webkit-scrollbar-button { display: none; }
+@supports (-moz-appearance: none) {
+  .pixel-ui, .pixel-ui * { scrollbar-color: #5b2a6e #0b0510; }
+}
+
+/* Buttons: bevel (keeps each button's own colours and shadows), press-in, glow on hover */
+.pixel-ui button[class*="bg-"]:not(.no-bevel) {
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.14),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.4),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
+}
+.pixel-ui button { transition: filter 80ms linear, transform 60ms steps(2); }
+.pixel-ui button:not(:disabled):hover { filter: brightness(1.12) saturate(1.05); }
+.pixel-ui button:not(:disabled):active { transform: translateY(1px); }
+.pixel-ui button[class*="bg-"]:not(.no-bevel):not(:disabled):active {
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.45), inset -2px -2px 0 rgba(255, 255, 255, 0.1);
+}
+.pixel-ui button:disabled { filter: grayscale(0.55) brightness(0.8); }
+.pixel-ui button:focus-visible { outline: 2px solid #fbbf24; outline-offset: 1px; }
+
+/* Modals: dimmed backdrop with an ember vignette, obsidian frame with gold rivets */
+@keyframes game-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes game-modal-in {
+  0% { transform: scale(0.94); opacity: 0; }
+  50% { transform: scale(1.01); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.pixel-ui .game-backdrop {
+  background-image:
+    radial-gradient(ellipse at center, transparent 45%, rgba(80, 6, 18, 0.45) 100%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 4px);
+  animation: game-backdrop-in 160ms steps(4);
+}
+.pixel-ui .game-modal {
+  border-width: 2px !important;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.07),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 2px #0b0510,
+    0 0 0 4px rgba(220, 38, 38, 0.5),
+    8px 8px 0 4px rgba(0, 0, 0, 0.7) !important;
+  animation: game-modal-in 200ms steps(5);
+}
+.pixel-ui .game-modal::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  z-index: 60;
+  background:
+    linear-gradient(#fbbf24, #fbbf24) left top / 4px 4px no-repeat,
+    linear-gradient(#fbbf24, #fbbf24) right top / 4px 4px no-repeat,
+    linear-gradient(#fbbf24, #fbbf24) left bottom / 4px 4px no-repeat,
+    linear-gradient(#fbbf24, #fbbf24) right bottom / 4px 4px no-repeat;
+}

@@ -432,67 +432,115 @@ const scorpion = (): VoxelModel => {
 
 // ── Sand Brood boss: the Ancient Caterpillar ────────────────────────────────
 
+/**
+ * A jointed caterpillar: every body segment is its own part, so the walk is a
+ * real crawl wave running from the tail to the rearing head. Own walk / idle /
+ * attack / skill (rear up, dive, burst out) / hit / death sets with many frames.
+ */
 const caterpillar = (): VoxelModel => {
-  const M = { skin: 0, skinDark: 1, band: 2, spot: 3, leg: 4, mandible: 5, eye: 6, horn: 7, glow: 8, sand: 9 };
+  const M = { skin: 0, skinDark: 1, band: 2, spot: 3, leg: 4, mandible: 5, eye: 6, horn: 7, glow: 8, sand: 9, bristle: 10, belly: 11 };
   const c = 32;
-  // Body segments trailing back and to the side, the front rearing up
+  // Body segments, tail (0) to front (5): [x, y, z, radius]
   const segs: Array<[number, number, number, number]> = [
-    [c + 2, c - 16, 5, 5], [c - 2, c - 12, 6, 6], [c - 4, c - 6, 6.5, 6.6], [c - 3, c, 7, 7], [c, c + 5, 7.4, 7.2],
+    [c + 3, c - 19, 4.2, 4.2], [c + 1, c - 15, 5.2, 5.2], [c - 2, c - 10.5, 6.2, 6.2], [c - 3, c - 5, 6.9, 6.9], [c - 2, c + 0.5, 7.3, 7.2], [c, c + 5.5, 7.6, 7.3],
   ];
-  const bodyShapes: Shape[] = [];
-  segs.forEach(([x, y, z, r], i) => {
-    bodyShapes.push(ell(x, y, z, r, r * 0.92, r, i % 2 ? M.skin : M.skinDark));
-    bodyShapes.push(ell(x, y, z + r * 0.15, r * 1.02, r * 0.35, r * 0.95, M.band));      // ring band
-    bodyShapes.push(ball(x + r * 0.55, y, z + r * 0.55, r * 0.22, M.spot));              // purple eye-spots
-    bodyShapes.push(ball(x - r * 0.55, y, z + r * 0.55, r * 0.22, M.spot));
-    bodyShapes.push(ell(x, y - r * 0.2, z + r * 0.95, 0.8, 0.8, 1.8, M.horn));            // dorsal spine
-  });
-  const legShapes: Shape[] = [];
-  segs.forEach(([x, y, , r]) => [-1, 1].forEach((sx) => legShapes.push(...chain([[x + sx * r * 0.7, y, 3], [x + sx * (r + 2), y + 0.5, 0.8]], 1, 0.7, M.leg, 2))));
+  const segName = (i: number) => `seg${i}`;
+  const segmentPart = (i: number): Part => {
+    const [x, y, z, r] = segs[i];
+    const shapes: Shape[] = [
+      ell(x, y, z, r, r * 0.92, r, i % 2 ? M.skin : M.skinDark),
+      ell(x, y, z - r * 0.55, r * 0.86, r * 0.82, r * 0.42, M.belly),               // pale underside
+      ell(x, y + r * 0.5, z + r * 0.12, r * 1.03, r * 0.3, r * 0.96, M.band),        // ring band at the joint
+      ball(x + r * 0.58, y, z + r * 0.5, r * 0.22, M.spot),                          // glowing eye-spots
+      ball(x - r * 0.58, y, z + r * 0.5, r * 0.22, M.spot),
+      ell(x, y - r * 0.15, z + r * 0.98, 0.9, 0.9, 2, M.horn),                       // dorsal spine
+      ...[-1, 1].flatMap((sx) => chain([[x + sx * r * 0.45, y - r * 0.3, z + r * 0.85], [x + sx * r * 0.75, y - r * 0.5, z + r * 1.35]], 0.45, 0.25, M.bristle, 2)),
+      // stubby prolegs
+      ...[-1, 1].flatMap((sx) => chain([[x + sx * r * 0.7, y, z - r * 0.5], [x + sx * (r * 0.95), y + 0.4, 0.8]], 1.1, 0.8, M.leg, 2)),
+    ];
+    return { name: segName(i), parent: i ? segName(i - 1) : undefined, pivot: [x, y, z * 0.5], shapes };
+  };
   const parts: Part[] = [
-    { name: 'legs', pivot: [c, c, 3], shapes: [...legShapes, ell(c, c - 4, 0.6, 16, 18, 0.8, M.sand)] },
-    { name: 'body', pivot: [c, c - 4, 6], shapes: bodyShapes },
+    { name: 'legs', pivot: [c, c, 1], shapes: [ell(c, c - 6, 0.6, 15, 20, 0.8, M.sand), ell(c, c - 6, 1, 11, 16, 0.5, M.sand)] },
+    ...segs.map((_, i) => segmentPart(i)),
     {
       // Rearing front segment and the great head
-      name: 'head', parent: 'body', pivot: [c, c + 7, 12], shapes: [
-        ell(c, c + 8, 15, 7, 6.4, 7, M.skin),
-        ell(c, c + 8.4, 16, 7.2, 2.4, 6.6, M.band),
-        ell(c, c + 12.5, 21, 6.4, 5.6, 5.6, M.skinDark),
-        ...[-1, 1].map((sx) => ball(c + sx * 3.2, c + 16.4, 23, 1.5, M.eye)),
-        ...[-1, 1].flatMap((sx) => chain([[c + sx * 3, c + 16, 18], [c + sx * 2.4, c + 19.5, 16], [c + sx * 0.6, c + 20.5, 15.4]], 1.3, 0.6, M.mandible, 3)),
-        ...[-1, 1].flatMap((sx) => chain([[c + sx * 2.6, c + 12, 26], [c + sx * 5, c + 13, 31], [c + sx * 6.4, c + 11, 34]], 0.9, 0.4, M.horn, 3)),
-        ball(c, c + 14, 26.5, 1.1, M.glow),                                                  // the Deity's mark
+      name: 'head', parent: segName(segs.length - 1), pivot: [c, c + 8, 12], shapes: [
+        ell(c, c + 9, 15, 7, 6.4, 7, M.skin),
+        ell(c, c + 9.4, 16, 7.2, 2.4, 6.6, M.band),
+        ell(c, c + 13, 21, 6.6, 5.8, 5.8, M.skinDark),
+        ell(c, c + 15.4, 19.5, 4.6, 2, 3, M.belly),                                     // pale face plate
+        ...[-1, 1].map((sx) => ball(c + sx * 3.3, c + 17, 23, 1.6, M.eye)),
+        ...[-1, 1].map((sx) => ball(c + sx * 4.6, c + 16, 21.2, 0.9, M.eye)),             // second pair of eyes
+        ball(c, c + 14.6, 26.8, 1.2, M.glow),                                            // the Deity's mark
+        ...[-1, 1].flatMap((sx) => chain([[c + sx * 2.6, c + 12, 26], [c + sx * 5, c + 13, 31], [c + sx * 6.6, c + 11, 34.5]], 0.9, 0.4, M.horn, 3)),
+        ...[-1, 1].map((sx) => ball(c + sx * 6.6, c + 11, 34.8, 0.8, M.glow)),          // glowing horn tips
       ],
     },
     {
-      name: 'arms', parent: 'head', pivot: [c, c + 10, 13], shapes: [
-        ...[-1, 1].flatMap((sx) => chain([[c + sx * 5, c + 10, 13], [c + sx * 7, c + 13, 10], [c + sx * 6, c + 15, 8]], 1.1, 0.7, M.leg, 2)),
+      name: 'jaw', parent: 'head', pivot: [c, c + 17, 18], shapes: [
+        ...[-1, 1].flatMap((sx) => chain([[c + sx * 3, c + 16.5, 18], [c + sx * 2.6, c + 20, 16], [c + sx * 0.7, c + 21.2, 15.2]], 1.4, 0.6, M.mandible, 3)),
+        ...[-1, 1].map((sx) => ball(c + sx * 0.8, c + 21.3, 15.3, 0.6, M.glow)),
+      ],
+    },
+    {
+      name: 'arms', parent: 'head', pivot: [c, c + 11, 13], shapes: [
+        ...[-1, 1].flatMap((sx) => chain([[c + sx * 5, c + 11, 13], [c + sx * 7.4, c + 14, 10], [c + sx * 6.2, c + 16.5, 7.5]], 1.2, 0.7, M.leg, 2)),
       ],
     },
   ];
-  const walk: Pose[] = [0, 1, 2, 3, 4, 5].map((i) => {
-    const a = (i / 6) * Math.PI * 2;
-    return { body: { offset: [0, 0, Math.max(0, Math.sin(a)) * 1.4], yaw: Math.sin(a) * 0.05 }, head: { pitch: Math.sin(a) * 0.08, yaw: -Math.sin(a) * 0.08 }, legs: { yaw: Math.sin(a) * 0.08 } };
+
+  // Crawl wave: a hump runs from the tail to the head
+  const wave = (a: number, amp: number, lift = 0): Pose => {
+    const pose: Pose = {};
+    segs.forEach((_, k) => {
+      const ph = a - k * 0.95;
+      pose[segName(k)] = { offset: [0, Math.cos(ph) * 0.35 * amp, Math.max(0, Math.sin(ph)) * 1.7 * amp + (k === segs.length - 1 ? lift : 0)], pitch: Math.cos(ph) * 0.06 * amp };
+    });
+    return pose;
+  };
+  const walk: Pose[] = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * Math.PI * 2;
+    return { ...wave(a, 1), head: { pitch: Math.sin(a) * 0.07, yaw: Math.sin(a * 0.5) * 0.12 }, jaw: { pitch: Math.max(0, Math.sin(a * 2)) * 0.15 }, arms: { pitch: Math.sin(a) * 0.35 } };
   });
-  const attack: Pose[] = [
-    { head: { pitch: -0.35, offset: [0, -1, 1] } },
-    { head: { pitch: -0.5, offset: [0, -2, 2] }, body: { pitch: -0.1 } },
-    { head: { pitch: 0.55, offset: [0, 5, -3] }, arms: { pitch: 0.6 } },
-    { head: { pitch: 0.3, offset: [0, 3, -2] } },
-    { head: { pitch: 0 } },
+  const idle: Pose[] = Array.from({ length: 10 }, (_, i) => {
+    const a = (i / 10) * Math.PI * 2;
+    return { ...wave(a, 0.3), head: { yaw: Math.sin(a) * 0.18, pitch: Math.cos(a) * 0.06 }, jaw: { pitch: Math.max(0, Math.sin(a * 3)) * 0.18 }, arms: { pitch: Math.sin(a * 2) * 0.25 } };
+  });
+  // Rear back, then a lunging bite
+  const attackKeys: Array<[number, number, number, number]> = [
+    // [head pitch, head forward, jaw open, front lift]
+    [-0.2, -1, 0.1, 1], [-0.45, -2, 0.35, 2.5], [-0.6, -3, 0.5, 3.5], [0.2, 3, 0.45, 1], [0.6, 6, 0.1, -1], [0.45, 5, 0, -1], [0.2, 2, 0.1, 0], [0, 0, 0, 0],
   ];
-  const idle: Pose[] = [0, 1, 2, 3, 4, 5].map((i) => {
-    const a = (i / 6) * Math.PI * 2;
-    return { head: { yaw: Math.sin(a) * 0.14, pitch: Math.cos(a) * 0.05 }, body: { offset: [0, 0, Math.sin(a) * 0.6] }, arms: { pitch: Math.sin(a * 2) * 0.2 } };
+  const attack: Pose[] = attackKeys.map(([p, f, j, lift], i) => ({
+    ...wave(i * 0.4, 0.3, lift), head: { pitch: p, offset: [0, f, 0] }, jaw: { pitch: j }, arms: { pitch: p > 0 ? 0.7 : -0.4 },
+  }));
+  // Skill: rears up tall, roars, dives into the sand and bursts out
+  const skill: Pose[] = [
+    ...[0.3, 0.6, 1, 1, 1].map((t, i): Pose => ({ ...wave(i * 0.5, 0.4, 5 * t), head: { pitch: -0.5 * t, offset: [0, -1, 2 * t] }, jaw: { pitch: i >= 3 ? 0.6 : 0.2 }, arms: { pitch: -0.8 * t } })),
+    ...[0.3, 0.7, 1].map((t): Pose => ({ legs: { offset: [0, 0, 0] }, ...wave(0, 0.2, -6 * t), seg5: { offset: [0, 2 * t, -6 * t] }, seg4: { offset: [0, 0, -4 * t] }, head: { pitch: 0.8 * t, offset: [0, 2, -4 * t] }, jaw: { pitch: 0.1 } })),
+    ...[1, 0.6, 0.25, 0].map((t): Pose => ({ ...wave(0, 0.2, 4 * t), head: { pitch: -0.3 * t, offset: [0, 0, 2 * t] }, jaw: { pitch: 0.5 * t }, arms: { pitch: -0.6 * t } })),
+  ];
+  const hit: Pose[] = [1, 0.7, 0.4, 0.15, 0].map((k) => ({
+    ...wave(k * 2, 0.5 * k), head: { pitch: -0.35 * k, offset: [0, -2 * k, 0], roll: 0.12 * k }, jaw: { pitch: 0.4 * k },
+  }));
+  const death: Pose[] = Array.from({ length: 10 }, (_, i) => {
+    const t = i / 9;
+    return {
+      ...wave(t * 3, 0.6 * (1 - t), -2 * t),
+      seg0: { roll: 0.5 * t, offset: [0, 0, -1.2 * t] },
+      head: { pitch: 0.9 * t, roll: 0.6 * t, offset: [0, 1 * t, -6 * t] }, jaw: { pitch: 0.5 * (1 - t) }, arms: { pitch: 1 * t },
+    };
   });
   return {
     size: [64, 64, 40], foot: [c, c, 0], pixelsPerVoxel: 1.1,
     materials: [
-      { color: 0xd6a35c }, { color: 0xa16207 }, { color: 0x7c2d12 }, { color: 0x7e22ce, emissive: true }, { color: 0x44403c },
+      { color: 0xd6a35c }, { color: 0xa16207 }, { color: 0x7c2d12 }, { color: 0x9333ea, emissive: true }, { color: 0x44403c },
       { color: 0x1c1917 }, { color: 0xfde047, emissive: true }, { color: 0xe7e5e4 }, { color: 0xc084fc, emissive: true }, { color: 0xe9d8a6 },
+      { color: 0x57534e }, { color: 0xf1d9a8 },
     ],
     parts,
-    animations: { walk, attack, idle },
+    animations: { walk, attack, idle, skill, hit, death },
   };
 };
 

@@ -11,8 +11,8 @@ export const WelcomeBackModal: React.FC = () => {
   if (!isOfflineModalOpen || !offlineGains) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 select-none">
-      <div className="relative max-w-md w-full p-6 md:p-8 rounded-2xl border border-sky-400/40 bg-slate-950/95 shadow-2xl shadow-sky-950/80 animate-float">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md px-4 select-none">
+      <div className="game-modal relative max-w-md w-full p-6 md:p-8 rounded-2xl border border-sky-400/40 bg-slate-950/95 shadow-2xl shadow-sky-950/80 animate-float">
         {/* Header Icon */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-16 h-16 rounded-3xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 mb-3 shadow-xl shadow-sky-500/20">

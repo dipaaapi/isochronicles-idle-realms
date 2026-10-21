@@ -8,10 +8,13 @@ import { vengeanceExtraInvaders } from '../establishmentCrews';
 import { realmIntensity, scaledEnemyCount } from '../waveBalance';
 import { devFlag } from '../devMode';
 import { rollWaveTactic, tacticOf } from '../waveTactics';
-import { lootResources } from '../resources';
+import { logMessage } from '../activityLog';
+import { newRunId, recordLegacy, type LegacyEntry } from '../legacy';
+import { getProfile } from '../playerProfile';
+import { endRunSave, saveNow } from '../storageAdapter';
+import { createInitialProgress } from './initialState';
 import { availableSkillPoints, teamBonuses } from '../skillTree';
 import { restoreWreckedBuildings, restoreWreckedSpire } from './buildingsSlice';
-import { INITIAL_UPGRADES, createSupportSlime } from './initialState';
 import type { GameStoreState, PlatformPhase } from '../../types/state';
 import type { SliceArgs } from './types';
 
@@ -29,8 +32,9 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
   /** Pick the realm the waves are fought in (null = follow the waves). Harder realms bring tougher waves. */
   setRealmChoice: (phase: PlatformPhase | null) => {
     set((prev) => ({
-      realmChoice: phase,
-      platformPhase: phase ?? getPhaseFromWave(prev.invasion.waveNumber),
+      // The biome is the player's choice (New Game / Settings); null keeps the current one
+      realmChoice: phase ?? prev.platformPhase,
+      platformPhase: phase ?? prev.platformPhase,
     }));
   },
 
@@ -161,8 +165,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     soundFx.playVictory();
     set((prev) => {
       const currentWave = prev.invasion.waveNumber;
-      const nextWave = Math.min(INVASION.maxWave, currentWave + 1);
-      const completedWave100 = currentWave >= INVASION.maxWave;
+      const nextWave = currentWave + 1; // endless waves
       const wavesCleared = prev.invasion.invasionsRepelled + 1;
       // Mending Stones: the citadel recovers part of its max HP after each wave
       const repair = Math.round(prev.defense.castleMaxHp * teamBonuses(prev).waveRepair);
@@ -178,9 +181,6 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
           soulFragments: (prev.resources.soulFragments ?? 0) +
             (prev.resourceBuildings.CRYPT?.level ?? 0) * ECONOMY_CONFIG.landmarkYields.CRYPT.soulFragmentsPerWave,
         },
-        platformPhase: prev.realmChoice ?? getPhaseFromWave(nextWave),
-        isWave100VictoryCelebration: completedWave100 || prev.isWave100VictoryCelebration,
-        isRegressionModalOpen: completedWave100 || prev.isRegressionModalOpen,
         invasion: {
           ...prev.invasion,
           isActive: false,
@@ -207,35 +207,33 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     for (const a of waveAchievements(get().invasion.invasionsRepelled)) {
       get().unlockAchievement(a.id, a.en.title, a.en.desc, a.icon);
     }
+    // Autosave: the save is overwritten after every repelled wave
+    void saveNow().then(() => logMessage('autoSaved', { wave: get().invasion.invasionsRepelled }));
   },
 
   resolveCastleBreach: () => {
+    const s = get();
+    if (s.gameOverRun) return;
     soundFx.playBreach();
-    set((prev) => {
-      // Enemies loot a share of every stockpile when the castle is crushed
-      const { looted, remaining } = lootResources(prev.resources, ECONOMY_CONFIG.breachLootFraction);
-
-      return {
-        resources: remaining,
-        lootedResources: looted,
-        // Reset base structures and restore castle health
-        defense: { ...prev.defense, castleHp: prev.defense.castleMaxHp, shieldHp: prev.defense.shieldMaxHp },
-        resourceBuildings: restoreWreckedBuildings(prev.resourceBuildings),
-        spireTower: restoreWreckedSpire(prev.spireTower),
-        invasion: {
-          ...prev.invasion,
-          isActive: false,
-          countdown: INVASION.breachCountdownSeconds,
-          maxCountdown: INVASION.breachCountdownSeconds,
-          enemiesRemaining: 0,
-        },
-        isCastleBreachedModalOpen: true,
-        lastSavedTimestamp: Date.now(),
-      };
-    });
-  },
-
-  closeCastleBreachedModal: () => {
-    set({ isCastleBreachedModalOpen: false, lootedResources: null });
+    // Permadeath: the run is written into the Hall of Legacy and the realm save is deleted
+    const entry: LegacyEntry = {
+      id: `legacy_${Date.now().toString(36)}`,
+      runId: s.runId || newRunId(),
+      lord: s.lordName || getProfile().name || 'Demon Lord',
+      avatar: getProfile().avatar,
+      realmName: s.realmName,
+      difficulty: normalizeDifficulty(s.difficulty),
+      biome: s.platformPhase,
+      waveReached: s.invasion.waveNumber,
+      wavesCleared: s.invasion.invasionsRepelled,
+      days: (Math.max(1, s.year) - 1) * 365 + Math.max(1, s.day),
+      playSeconds: Math.round(s.playSeconds),
+      startedAt: s.runStartedAt || s.lastSavedTimestamp,
+      endedAt: Date.now(),
+    };
+    logMessage('runFallen', { wave: entry.waveReached });
+    void endRunSave().then(() => recordLegacy(entry));
+    // Back to a ruined, unsaved realm; the Game Over screen shows over the title
+    set({ ...createInitialProgress(), gameOverRun: entry, lastSavedTimestamp: Date.now() });
   },
 }) satisfies Partial<GameStoreState>;

@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 
 /**
  * Sprite-sheet battle effects authored in Aseprite (art/skills/*.lua → public/skills):
- * flying projectiles with impacts, establishment fire stages, smoke puffs, the troop
- * transport and the paratrooper canopy. InvasionManager loads the sheets and registers
+ * flying projectiles with impacts, establishment fire stages, smoke puffs, the Kirov
+ * airship and its ordnance, the paratrooper canopy and the Ancient Caterpillar's skills. InvasionManager loads the sheets and registers
  * the scene/layer here; everything else just calls the spawn helpers.
  */
 
@@ -17,7 +17,14 @@ const SHEETS: Array<[string, string, Array<[tag: string, fps: number, repeat: nu
     ['spark', 22, 0], ['burst', 20, 0], ['explode', 16, 0],
   ]],
   ['battle-fire', 'fire', [['ignite', 10, 0], ['burn', 12, -1], ['blaze', 14, -1], ['smoulder', 7, -1], ['smoke', 11, 0]]],
-  ['battle-transport', 'troop-transport', [['fly', 11, -1], ['drop', 11, -1], ['damaged', 12, -1]]],
+  ['battle-kirov', 'kirov', [
+    ['cruise', 11, -1], ['drop', 11, -1], ['bomb', 12, 0], ['anchor', 12, 0], ['flare', 12, 0], ['hit', 16, 0], ['damaged', 12, -1], ['destroyed', 11, 0],
+  ]],
+  ['battle-ordnance', 'kirov-ordnance', [['bomb-fall', 16, -1], ['blast', 18, 0], ['anchor-slam', 16, 0], ['canister', 16, -1], ['napalm', 13, -1]]],
+  ['battle-caterpillar', 'caterpillar-skills', [
+    ['erupt', 15, 0], ['burrow', 14, -1], ['snare-cast', 16, 0], ['snare-hold', 11, -1], ['snare-break', 14, 0],
+    ['vortex-open', 14, 0], ['vortex', 16, -1], ['vortex-close', 14, 0],
+  ]],
   ['battle-parachute', 'parachute', [['deploy', 14, 0], ['fall', 9, -1], ['land', 12, 0]]],
 ];
 
@@ -100,6 +107,31 @@ export function shootProjectile(
       opts.onHit?.();
     },
   });
+}
+
+/**
+ * Plays one tag of a battle sheet at (x, y) (origin at the sheet's ground
+ * point). One-shots destroy themselves when done; loops are returned for the
+ * caller to stop. Null while the sheets are still loading.
+ */
+export function playFx(
+  key: 'battle-ordnance' | 'battle-caterpillar',
+  tag: string,
+  x: number,
+  y: number,
+  opts: { scale?: number; tint?: number; then?: string } = {},
+): Phaser.GameObjects.Sprite | null {
+  if (!battleFxReady() || !scene || !scene.anims.exists(`${key}:${tag}`)) return null;
+  const ground = key === 'battle-ordnance' ? 52 / 64 : 52 / 64;
+  const s = add(scene.add.sprite(x, y, key).setOrigin(0.5, ground).setScale(opts.scale ?? 1.5));
+  if (opts.tint !== undefined) s.setTint(opts.tint);
+  s.play(`${key}:${tag}`);
+  const loops = (scene.anims.get(`${key}:${tag}`)?.repeat ?? 0) !== 0;
+  if (!loops) s.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+    if (opts.then && s.active) s.play(`${key}:${opts.then}`);
+    else s.destroy();
+  });
+  return s;
 }
 
 /** One smoke puff that rises and fades (engine trails, doused fires). */

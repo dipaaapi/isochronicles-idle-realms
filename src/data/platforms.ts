@@ -79,7 +79,7 @@ export const PLATFORM_CONFIGS = {
     nameEn: 'Astral Sanctum',
     tagline: 'Rurok ng Langit at Banal na Hukbo ng mga Tao',
     taglineEn: 'Celestial Spires & the Grand Zenith Crusade',
-    description: 'Lumulutang na santwaryo ng ginto at puting marmol sa tuktok ng uniberso. Dito nagtitipon ang buong lakas ng sangkatauhan bago ang Regression!',
+    description: 'Lumulutang na santwaryo ng ginto at puting marmol sa tuktok ng uniberso. Dito nagtitipon ang buong lakas ng sangkatauhan!',
     descriptionEn: 'High-altitude floating crystal spires and radiant holy marble ruins. The ultimate human and mecha armadas challenge the supreme Demon Lord!',
     waveRange: 'Waves 76 - 100',
     accentColor: '#fbbf24', // Celestial Gold

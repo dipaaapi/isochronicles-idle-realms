@@ -29,7 +29,9 @@ export interface TacticMods {
   damage?: number;
 }
 
-const clampWave = (wave: number) => Math.max(1, Math.min(config.stats.realmMultiplier.length * 25, wave));
+/** Waves are endless: per-wave growth keeps going past wave 100 (see waveBalance.json `endless`). */
+const clampWave = (wave: number) => Math.max(1, Math.floor(wave) || 1);
+const LAST_REALM_WAVE = config.stats.realmMultiplier.length * 25;
 
 /** Days the realm has lasted, capped at maxDay (365). */
 export const daysElapsed = (day = 1, year = 1): number =>
@@ -38,34 +40,32 @@ export const daysElapsed = (day = 1, year = 1): number =>
 /** 0 on day 1 → 1 on day 365. */
 const dayProgress = (ctx: WaveContext) => (daysElapsed(ctx.day, ctx.year) - 1) / (config.day.maxDay - 1);
 
-export const isClimaxWave = (wave: number) => config.climax.waves.includes(wave);
+export const isClimaxWave = (wave: number) => config.climax.waves.includes(wave) || (wave > 0 && wave % config.endless.climaxEvery === 0);
 export const isBossWave = (wave: number) => wave % 5 === 0 || isClimaxWave(wave);
 
 /** Realm multiplier: each realm (25 waves) hardens its invaders a step. */
-export const realmMultiplier = (wave: number) =>
-  config.stats.realmMultiplier[Math.min(config.stats.realmMultiplier.length - 1, Math.floor((clampWave(wave) - 1) / 25))];
+export const realmMultiplier = (wave: number) => {
+  const w = clampWave(wave);
+  const table = config.stats.realmMultiplier;
+  const base = table[Math.min(table.length - 1, Math.floor((w - 1) / 25))];
+  // Endless: every 25 waves past the last realm step hardens invaders again
+  const beyond = Math.max(0, Math.floor((w - 1 - LAST_REALM_WAVE) / 25) + 1);
+  return w > LAST_REALM_WAVE ? base * Math.pow(config.endless.realmStepPer25, beyond) : base;
+};
 
 export type RealmIntensity = { hp: number; damage: number; count: number; interval: number; portalHp: number };
 
 /** The wave's own realm (1-4): 25 waves each. */
 export const naturalRealm = (wave: number) => Math.min(4, Math.floor((clampWave(wave) - 1) / 25) + 1);
 
+const NEUTRAL: RealmIntensity = { hp: 1, damage: 1, count: 1, interval: 1, portalHp: 1 };
 /**
- * Extra intensity from playing a wave in a realm the player picked: chosen
- * realm ÷ the wave's own realm, so 1 everywhere when following the waves.
+ * The biome (realm) is picked by the player (New Game / Settings) and no longer
+ * follows the waves; it is a setting, not a difficulty step, so it adds no
+ * intensity. Kept as a hook (wave, biome) for per-biome tuning later.
  */
-export function realmIntensity(wave: number, phase?: number): RealmIntensity {
-  const r = config.realmIntensity;
-  const at = (n: number) => Math.max(0, Math.min(3, n - 1));
-  const chosen = at(phase ?? naturalRealm(wave));
-  const own = at(naturalRealm(wave));
-  return {
-    hp: r.hp[chosen] / r.hp[own],
-    damage: r.damage[chosen] / r.damage[own],
-    count: r.count[chosen] / r.count[own],
-    interval: r.interval[chosen] / r.interval[own],
-    portalHp: r.portalHp[chosen] / r.portalHp[own],
-  };
+export function realmIntensity(_wave: number, _phase?: number): RealmIntensity {
+  return NEUTRAL;
 }
 
 export function hpMultiplier(ctx: WaveContext): number {
@@ -113,13 +113,13 @@ export function invaderStats(
 /** Chance that an ordinary invader comes as an elite (bigger, tougher, richer). */
 export function eliteChance(wave: number, difficulty: Difficulty): number {
   if (wave < config.elite.fromWave) return 0;
-  return WAVE_BALANCE.difficulty[difficulty].eliteChance + (wave - config.elite.fromWave) * config.elite.chancePerWave;
+  return Math.min(config.endless.maxEliteChance, WAVE_BALANCE.difficulty[difficulty].eliteChance + (wave - config.elite.fromWave) * config.elite.chancePerWave);
 }
 
 /** Invaders in a wave after difficulty and tactic (base count from economy.json). */
 export const scaledEnemyCount = (baseCount: number, difficulty: Difficulty, tacticCount = 1, wave = 1): number => {
   const progress = (clampWave(wave) - 1) / (config.stats.realmMultiplier.length * 25 - 1);
-  return Math.max(1, Math.round(baseCount * WAVE_BALANCE.difficulty[difficulty].count * tacticCount * (1 + config.stats.countGrowthAtWave100 * progress)));
+  return Math.min(config.endless.maxEnemyCount, Math.max(1, Math.round(baseCount * WAVE_BALANCE.difficulty[difficulty].count * tacticCount * (1 + config.stats.countGrowthAtWave100 * progress))));
 };
 
 /** Gap before the next spawn group, in ms. */
@@ -141,18 +141,3 @@ export const alliedDamageMultiplier = (wave: number): number =>
 
 /** Flat structure-skill damage multiplier for the current wave. */
 export const skillPower = (wave: number): number => 1 + (clampWave(wave) - 1) * config.skills.powerPerWave;
-
-/** Expected number of transport aircraft this wave; fractional values are rounded randomly. */
-export function aircraftCount(wave: number, rand: () => number = Math.random): number {
-  const airlift = config.airlift;
-  if (wave < airlift.fromWave) return 0;
-  const progress = (clampWave(wave) - airlift.fromWave) / Math.max(1, 100 - airlift.fromWave);
-  const expected = airlift.baseAircraftPerWave + airlift.aircraftGrowthAtWave100 * progress;
-  return Math.min(airlift.maxAircraftPerWave, Math.floor(expected) + (rand() < expected % 1 ? 1 : 0));
-}
-
-/** Number of parachutists per plane grows by one at the configured wave intervals. */
-export function aircraftDropCount(wave: number): number {
-  const airlift = config.airlift;
-  return Math.min(airlift.maxDropsPerAircraft, airlift.baseDropsPerAircraft + Math.floor(Math.max(0, wave - airlift.fromWave) / airlift.dropsEveryWaves));
-}

@@ -16,7 +16,7 @@ import {
   Pause,
   ChevronRight,
   ChevronLeft,
-  Sparkles,
+  Sparkles, FlaskConical,
   Compass,
   Swords,
   Check,
@@ -51,16 +51,16 @@ import { HoverTooltip } from './HoverTooltip';
 import { useTranslation } from '../i18n/translations';
 import { useExternalMusic } from '../state/externalMusic';
 import { MusicPlayer } from './MusicPlayer';
+import { GeneralsPanel } from './GeneralsPanel';
 import { SeaFolkPanel } from './SeaFolkPanel';
 import { GeneralSkillPanel } from './GeneralSkillPanel';
 
 interface GameHUDProps {
   onOpenCitadel: (tab?: CitadelTab) => void;
-  onOpenAtlas: (section?: 'GUIDE' | 'BESTIARY' | 'REGRESSION' | 'FAQ' | 'LORE') => void;
+  onOpenAtlas: (section?: 'GUIDE' | 'BESTIARY' | 'LEGACY' | 'FAQ' | 'LORE') => void;
   onOpenBestiary?: () => void;
   onOpenSettings: () => void;
   onOpenSkillTree: () => void;
-  onOpenRegression?: () => void;
   onOpenQuickTrade: (
     resourceKey: 'aetherShards' | 'wood' | 'stone' | 'arcaneEssence' | 'fish' | 'water'
   ) => void;
@@ -236,6 +236,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   const isTL = language === 'TL';
   const { t: tr } = useTranslation();
+  // Sidebar dock: Generals command panel or the YouTube player
+  const [dockTab, setDockTab] = useState<'GENERALS' | 'MUSIC'>('GENERALS');
   const externalMusic = useGameStore((s) => s.musicLibrary.length > 0);
   const isMusicPlayerOpen = useExternalMusic((s) => s.isPlayerOpen);
   const setMusicPlayerOpen = useExternalMusic((s) => s.setPlayerOpen);
@@ -584,20 +586,20 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <span className="text-2xl">🏰</span>
                   <div className="text-left">
                     <div className="text-xs font-bold text-white">{isTL ? 'Sentro ng Kuta' : 'Citadel Command'}</div>
-                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Lahat ng upgrade: Skill, Agham, Tanggulan, Arsenal' : 'Every upgrade: Skills, Research, Defenses, Arsenal'}</div>
+                    <div className="text-[10px] text-purple-300/80">{isTL ? 'Laboratoryo, Runa, Pamilihan, Arsenal' : 'Laboratory, Runes, Market, Arsenal'}</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-purple-400" />
               </button>
 
-              {/* 2 Quick Hub Buttons (Skills & Atlas) */}
+              {/* 2 Quick Hub Buttons (Laboratory & Atlas); S opens the Laboratory's Skills */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
                   className="relative p-2.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-900/40 transition"
                 >
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>{tr('hudSkills')} {skillPoints > 0 && `(${skillPoints})`}</span>
+                  <FlaskConical className="w-4 h-4 text-purple-400" />
+                  <span>{tr('hubTabLab')} {skillPoints > 0 && `(${skillPoints})`}</span>
                   <KeyBadge k="S" className="top-1 right-2" />
                 </button>
 
@@ -843,9 +845,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </div>
       )}
 
-      {/* Docked music player: stays mounted (hidden) while the side menu is collapsed so it keeps playing */}
+      {/* Generals command panel / docked music player share one slot (tabs). The player stays
+          mounted (hidden) on the Generals tab and while the side menu is collapsed so it keeps playing */}
       <div className={isSidebarOpen ? 'pl-3 pb-2' : ''} style={isSidebarOpen ? { paddingRight: 12 + scrollGutter } : undefined}>
-        <MusicPlayer placement="SIDEBAR" hidden={!isSidebarOpen} />
+        {isSidebarOpen && (
+          <div className="flex gap-1 mb-1.5">
+            {(['GENERALS', 'MUSIC'] as const).map((tab) => (
+              <button key={tab}
+                onClick={() => { soundFx.playClick(); setDockTab(tab); }}
+                className={`pixel-btn flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer ${
+                  dockTab === tab ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                }`}>
+                {tab === 'GENERALS' ? `⚔️ ${tr('genTabGenerals')}` : `🎵 ${tr('genTabMusic')}`}
+              </button>
+            ))}
+          </div>
+        )}
+        {isSidebarOpen && dockTab === 'GENERALS' && <GeneralsPanel />}
+        <MusicPlayer placement="SIDEBAR" hidden={!isSidebarOpen || dockTab !== 'MUSIC'} />
       </div>
 
       {/* 4. FOOTER CONTROLS TOOLBAR */}
@@ -857,6 +874,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               <button
                 onClick={() => {
                   soundFx.playClick();
+                  setDockTab('MUSIC');
                   if (externalMusic) setMusicPlayerOpen(!isMusicPlayerOpen);
                   else setMusicManagerOpen(true);
                 }}

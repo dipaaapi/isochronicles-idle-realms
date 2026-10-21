@@ -12,16 +12,12 @@ import {
   HelpCircle,
   Scroll,
   Sparkles,
-  Shield,
-  Zap,
   Flame,
   Swords,
   Lock,
-  RotateCcw,
-  History,
   Search,
-  Award,
   Castle,
+  Trophy,
 } from 'lucide-react';
 import {
   UNIT_CLASSES,
@@ -32,23 +28,15 @@ import {
   SEASON_CONFIGS,
 } from '../types/game';
 import { BEAST_PORTRAITS, INVADER_PORTRAITS } from '../game/bestiaryPortraits';
-import { ECONOMY_CONFIG } from '../state/economy';
-import {
-  REGRESSION_BOOST_PER_TIER,
-  REGRESSION_TEXT,
-  fillText,
-  teamStatTotals,
-  type Localized,
-  type TeamStat,
-  TEAM_STATS,
-} from '../state/skillTree';
-import { gameConfirm } from './GameDialog';
+import { type Localized } from '../state/skillTree';
 import { StructureAtlas } from './StructureAtlas';
 import STRUCTURE_TEXT from '../i18n/structureAtlas.json';
 import { useTranslation } from '../i18n/translations';
-import { realmIntensity } from '../state/waveBalance';
 
-export type AtlasTab = 'GUIDE' | 'BESTIARY' | 'STRUCTURES' | 'REGRESSION' | 'FAQ' | 'LORE';
+import { HallOfLegacy } from './HallOfLegacy';
+import { formatPlayTime } from '../state/legacy';
+
+export type AtlasTab = 'GUIDE' | 'BESTIARY' | 'STRUCTURES' | 'LEGACY' | 'FAQ' | 'LORE';
 
 interface AtlasModalProps {
   isOpen: boolean;
@@ -120,7 +108,6 @@ const GUIDE_COLORS: Record<string, { card: string; title: string; badge: string 
 };
 
 const PHASE_ICONS: Record<1 | 2 | 3 | 4, string> = { 1: '🔥', 2: '🌋', 3: '❄️', 4: '✨' };
-const PHASE_WAVES: Record<1 | 2 | 3 | 4, [number, number]> = { 1: [1, 25], 2: [26, 50], 3: [51, 75], 4: [76, 100] };
 
 export const AtlasModal: React.FC<AtlasModalProps> = ({
   isOpen,
@@ -134,17 +121,12 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
     discoveredInvaders,
     invasion,
     platformPhase,
-    realmChoice,
-    setRealmChoice,
-    regressionCount,
-    regressionHistory,
-    performRegression,
     day,
     year,
     season,
-    realmName,
-    isWave100VictoryCelebration,
-    dismissWave100Celebration,
+    lordName,
+    playSeconds,
+    difficulty,
   } = useGameStore();
 
   const isTL = language === 'TL';
@@ -152,13 +134,11 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
   const [activeTab, setActiveTab] = useState<AtlasTab>(initialSection);
   const [bestiarySubTab, setBestiarySubTab] = useState<'BEASTS' | 'INVADERS'>('BEASTS');
   const [searchQuery, setSearchQuery] = useState('');
-  const [regressionNameInput, setRegressionNameInput] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialSection);
       setSearchQuery('');
-      setRegressionNameInput('');
     }
   }, [isOpen, initialSection]);
 
@@ -182,30 +162,8 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
     discoveredInvaders?.includes(k)
   ).length;
 
-  // Regression helpers
   const currentPlatform = PLATFORM_CONFIGS[platformPhase || 1];
   const t = (text: Localized) => (isTL ? text.tl : text.en);
-  const hpPerTier = ECONOMY_CONFIG.regression.castleHpPerRegression;
-  const boostNow = teamStatTotals({}, regressionCount);
-  const boostNext = teamStatTotals({}, regressionCount + 1);
-  const boostStats = Object.keys(REGRESSION_BOOST_PER_TIER) as TeamStat[];
-  const isRecommended = invasion.waveNumber >= 100;
-
-  const handlePerformRegression = async () => {
-    if (regressionNameInput.trim() !== realmName.trim()) return;
-    soundFx.playFanfare();
-    const promptMsg = fillText(t(REGRESSION_TEXT.confirm), {
-      wave: invasion.waveNumber,
-      phase: platformPhase,
-      day,
-      hp: hpPerTier,
-    });
-
-    if (await gameConfirm(promptMsg)) {
-      performRegression();
-      onClose();
-    }
-  };
 
   // FAQ & Lore helpers
   const faqContent = faqTranslations[language] || faqTranslations.EN;
@@ -221,14 +179,10 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
       item.heading.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.plain.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const wavesLabel = (phase: 1 | 2 | 3 | 4) =>
-    t(ATLAS_GUIDE.header.waves)
-      .replace('{from}', String(PHASE_WAVES[phase][0]))
-      .replace('{to}', String(PHASE_WAVES[phase][1]));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 select-none animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl h-[90vh] flex flex-col rounded-3xl border border-sky-500/40 bg-slate-950/95 shadow-2xl shadow-sky-950/80 overflow-hidden">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 select-none animate-in fade-in duration-200">
+      <div className="game-modal relative w-full max-w-5xl h-[90vh] flex flex-col rounded-3xl border border-sky-500/40 bg-slate-950/95 shadow-2xl shadow-sky-950/80 overflow-hidden">
         
         {/* TOP HEADER */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-900/80">
@@ -245,8 +199,8 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
               </h2>
               <p className="text-[11px] text-slate-400">
                 {isTL
-                  ? 'Gabay, Talaan ng mga Nilalang, Muling Pagkabuhay, FAQ, at Kasaysayan ng Nether Realm.'
-                  : 'Your complete companion for Guides, Bestiary, Regression, FAQ, and Nether Realm Lore.'}
+                  ? 'Gabay, Talaan ng mga Nilalang, Bulwagan ng Pamana, FAQ, at Kasaysayan ng Nether Realm.'
+                  : 'Your complete companion for Guides, Bestiary, the Hall of Legacy, FAQ, and Nether Realm Lore.'}
               </p>
             </div>
           </div>
@@ -254,7 +208,6 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
           <button
             onClick={() => {
               soundFx.playClick();
-              if (isWave100VictoryCelebration) dismissWave100Celebration();
               onClose();
             }}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
@@ -314,20 +267,20 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
               <span>{t(STRUCTURE_TEXT.tab)}</span>
             </button>
 
-            {/* TAB 3: REGRESSION */}
+            {/* TAB 3: HALL OF LEGACY */}
             <button
               onClick={() => {
                 soundFx.playClick();
-                setActiveTab('REGRESSION');
+                setActiveTab('LEGACY');
               }}
               className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                activeTab === 'REGRESSION'
+                activeTab === 'LEGACY'
                   ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <RotateCcw className="w-3.5 h-3.5 text-purple-300" />
-              <span>{isTL ? 'Regresyon' : 'Regression'}</span>
+              <Trophy className="w-3.5 h-3.5 text-amber-300" />
+              <span>{tr('legacyTitle')}</span>
             </button>
 
             {/* TAB 4: FAQ */}
@@ -416,7 +369,7 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
                       >
                         <div className="text-lg">{PHASE_ICONS[phase]}</div>
                         <div className="text-xs font-bold text-slate-200 mt-1">{isTL ? cfg.name : cfg.nameEn}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{wavesLabel(phase)}</div>
+                        <div className="text-[10px] text-slate-500">{platformPhase === phase ? t(ATLAS_GUIDE.header.biomeCurrent) : t(ATLAS_GUIDE.header.biomePick)}</div>
                       </div>
                     );
                   })}
@@ -701,211 +654,33 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
             </div>
           )}
 
-          {/* ================= TAB 3: REGRESSION ================= */}
+          {/* ================= TAB 3: HALL OF LEGACY ================= */}
           {activeTab === 'STRUCTURES' && <StructureAtlas isTL={isTL} searchQuery={searchQuery} />}
 
-          {activeTab === 'REGRESSION' && (
+          {activeTab === 'LEGACY' && (
             <div className="space-y-4">
-              {/* Wave 100 Victory Banner if completed */}
-              {isWave100VictoryCelebration && (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-red-500/20 border border-amber-400/60 shadow-lg text-center animate-bounce-short">
-                  <div className="text-3xl mb-1">👑 🏆 ⚡</div>
-                  <h3 className="text-lg font-black text-amber-300">
-                    {isTL ? 'KUMPLETO ANG WAVE 100! TAGUMPAY NG DEMON LORD!' : 'WAVE 100 CONQUERED! SUPREME DEMON LORD VICTORY!'}
-                  </h3>
-                  <p className="text-xs text-amber-200/90 mt-1 max-w-md mx-auto">
-                    {isTL
-                      ? 'Nalampasan mo ang lahat ng 4 na platform at 100 waves ng paglusob ng mga tao! Inirerekomenda na ngayon ang REGRESSION para sa susunod na antas ng kapangyarihan.'
-                      : 'You have survived all 4 platforms and 100 waves of crusaders and mechas! Regression is now strongly recommended for eternal transcendence.'}
-                  </p>
-                </div>
-              )}
-
-              {/* Status Overview Card */}
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    {isTL ? 'Kasalukuyang Takbo ng Panahon' : 'Current Timeline Progress'}
-                  </span>
-                  <span className="text-xs font-mono font-bold text-purple-400">
-                    {isTL ? `Yugto ${platformPhase} ng 4 · Antas ng Regression ${regressionCount}` : `Phase ${platformPhase} of 4 · Regression Tier ${regressionCount}`}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
-                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                    <div className="text-[11px] text-slate-400">{isTL ? 'Kasalukuyang Wave' : 'Current Wave'}</div>
-                    <div className="text-xl font-black text-red-400 font-mono mt-0.5">{invasion.waveNumber} / 100</div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                    <div className="text-[11px] text-slate-400">{isTL ? 'Plataporma' : 'Platform'}</div>
-                    <div className="text-sm font-black text-purple-300 mt-1 truncate" title={isTL ? currentPlatform.name : currentPlatform.nameEn}>
-                      {isTL ? currentPlatform.name : currentPlatform.nameEn}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                    <div className="text-[11px] text-slate-400">{isTL ? 'Panahon at Araw' : 'Season & Day'}</div>
-                    <div className="text-sm font-black text-emerald-300 mt-1 font-mono">
-                      {SEASON_CONFIGS[season].icon} D{day} / Y{year}
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                    <div className="text-[11px] text-slate-400">{isTL ? 'Napatalsik na Paglusob' : 'Repelled Waves'}</div>
-                    <div className="text-xl font-black text-amber-400 font-mono mt-0.5">{invasion.invasionsRepelled}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4 Phases Overview Map */}
-              <div className="space-y-2">
+              {/* The run in progress */}
+              <div className="pixel-frame bg-slate-950 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    {isTL ? 'Mga Yugto ng Plataporma (Phases 1 - 4)' : 'Platform Phases (Waves 1 - 100)'}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => { soundFx.playClick(); setRealmChoice(null); }}
-                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border cursor-pointer transition-colors ${
-                      realmChoice == null
-                        ? 'bg-purple-600/40 border-purple-400 text-white'
-                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {tr('realmFollowWaves')}
-                  </button>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{tr('legacyCurrentRun')}</span>
+                  <span className="text-xs font-bold" style={{ color: currentPlatform.accentColor }}>{isTL ? currentPlatform.name : currentPlatform.nameEn}</span>
                 </div>
-                <p className="text-[11px] text-slate-500">{tr('realmPickHint')}</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {([1, 2, 3, 4] as const).map((pIndex) => {
-                    const pCfg = PLATFORM_CONFIGS[pIndex];
-                    const isActive = platformPhase === pIndex;
-                    const isPassed = platformPhase > pIndex;
-                    const intensity = realmIntensity(invasion.waveNumber, pIndex).hp;
-                    return (
-                      <button
-                        type="button"
-                        key={pIndex}
-                        onClick={() => { soundFx.playClick(); setRealmChoice(pIndex); }}
-                        className={`text-left cursor-pointer hover:opacity-100 hover:border-purple-400 p-3 rounded-xl border transition-all ${
-                          isActive
-                            ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
-                            : isPassed
-                            ? 'bg-slate-950/40 border-emerald-500/40 opacity-80'
-                            : 'bg-slate-950/30 border-slate-800 opacity-60'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold" style={{ color: pCfg.accentColor }}>
-                            {isTL ? `Yugto ${pIndex}: ${pCfg.name}` : `Phase ${pIndex}: ${pCfg.nameEn}`}
-                          </span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300">
-                            {wavesLabel(pIndex)}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 leading-tight line-clamp-2">
-                          {isTL ? pCfg.description : pCfg.descriptionEn}
-                        </p>
-                        <div className="flex items-center justify-between mt-1.5 text-[10px] font-mono">
-                          <span className={intensity > 1.001 ? 'text-rose-400' : intensity < 0.999 ? 'text-emerald-400' : 'text-slate-500'}>
-                            {tr('realmIntensity').replace('{n}', intensity.toFixed(2))}
-                          </span>
-                          {realmChoice === pIndex && <span className="text-purple-300 font-bold">✔ {tr('realmChosen')}</span>}
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+                  {([
+                    [tr('legacyLord'), lordName],
+                    [tr('legacyWaves'), String(invasion.invasionsRepelled)],
+                    [tr('legacyDays'), `${SEASON_CONFIGS[season].icon} ${(year - 1) * 365 + day}`],
+                    [tr('legacyTime'), formatPlayTime(playSeconds)],
+                  ] as const).map(([label, value]) => (
+                    <div key={label} className="pixel-frame bg-slate-900 p-2">
+                      <div className="text-[10px] text-slate-400">{label}</div>
+                      <div className="text-sm font-black text-amber-300 truncate">{value}</div>
+                    </div>
+                  ))}
                 </div>
+                <p className="text-[11px] text-slate-400">💀 {tr('legacyPermadeathHint').replace('{difficulty}', difficulty)}</p>
               </div>
-
-              {/* Demon Lord Regression Tier Buffs */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-950/50 to-slate-900/80 border border-purple-500/40 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-purple-400" />
-                    <span>{isTL ? 'Mga Permanenteng Bonus ng Regression' : 'Permanent Regression Bonuses'}</span>
-                  </h4>
-                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    +{hpPerTier * regressionCount} {isTL ? 'Max HP ng Kastilyo' : 'Castle Max HP'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {boostStats.map((st) => {
-                    const curr = boostNow[st] ?? 0;
-                    const next = boostNext[st] ?? 0;
-                    const perTier = REGRESSION_BOOST_PER_TIER[st];
-                    return (
-                      <div key={st} className="p-2.5 rounded-xl bg-slate-950/70 border border-purple-500/20">
-                        <div className="text-[10px] font-medium text-slate-400">{t(TEAM_STATS[st].name)}</div>
-                        <div className="text-xs font-black font-mono text-purple-300 mt-0.5">
-                          +{curr.toFixed(0)}% <span className="text-emerald-400 text-[10px]">➜ +{next.toFixed(0)}%</span>
-                        </div>
-                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">+{perTier}% {isTL ? 'bawat antas' : 'per tier'}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Perform Regression Action */}
-              <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/50 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-purple-600/30 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
-                    <RotateCcw className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">
-                      {isTL ? 'Magsagawa ng Regression (Muling Pagkabuhay)' : 'Trigger Demon Lord Regression'}
-                    </h4>
-                    <p className="text-[11px] text-slate-300 leading-relaxed mt-0.5">
-                      {isTL
-                        ? `I-type ang pangalan ng Realm ("${realmName}") upang i-reset ang takbo ng panahon at makamit ang Tier ${regressionCount + 1} buff!`
-                        : `Type your Realm name ("${realmName}") to restart the timeline with permanent Tier ${regressionCount + 1} power!`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="text"
-                    placeholder={realmName}
-                    value={regressionNameInput}
-                    onChange={(e) => setRegressionNameInput(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-xl border border-purple-500/40 bg-slate-950 text-xs text-white placeholder-slate-600 outline-none focus:border-purple-400 font-mono"
-                  />
-                  <button
-                    type="button"
-                    disabled={regressionNameInput.trim() !== realmName.trim()}
-                    onClick={handlePerformRegression}
-                    className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-600 text-white transition cursor-pointer shadow-lg shadow-purple-600/30 disabled:shadow-none"
-                  >
-                    {isTL ? 'Muling Mabuhay 🌀' : 'Regress 🌀'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Past Regression History Logs */}
-              {regressionHistory && regressionHistory.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <History className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{isTL ? 'Kasaysayan ng Muling Pagkabuhay' : 'Past Regression Timeline Logs'}</span>
-                  </h4>
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
-                    {regressionHistory.map((entry, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] flex items-center justify-between font-mono"
-                      >
-                        <span className="text-purple-300 font-bold">{isTL ? 'Antas' : 'Tier'} {entry.regressionIndex}</span>
-                        <span className="text-slate-400">{t(REGRESSION_TEXT.historyWave).replace('{n}', String(entry.waveReached))}</span>
-                        <span className="text-slate-500">{isTL ? 'Araw' : 'Day'} {entry.dayReached}</span>
-                        <span className="text-slate-500">{new Date(entry.timestamp).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <HallOfLegacy />
             </div>
           )}
 
@@ -978,7 +753,6 @@ export const AtlasModal: React.FC<AtlasModalProps> = ({
           <button
             onClick={() => {
               soundFx.playClick();
-              if (isWave100VictoryCelebration) dismissWave100Celebration();
               onClose();
             }}
             className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition cursor-pointer shadow-md shadow-sky-600/20"

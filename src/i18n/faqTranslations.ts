@@ -86,11 +86,11 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '✨ How do I get skill points?',
-        answer: 'Just keep winning! Every 5 waves you clear gives 3 skill points (60 by Wave 100). Open Skills and click a skill to add a rank — it works immediately. Seven branches (Legion, Citadel, Resources, Mystic, Establishments, Generals, Minions) unlock top to bottom; each rank adds a passive bonus, and enhancements come from Runes that wave bosses drop (Citadel Command → Runes), and "Reset skills" refunds every point for free, so experiment as much as you like.',
+        answer: 'Just keep winning! Every 5 waves you clear gives 3 skill points (no limit: waves never end). Open Skills and click a skill to add a rank — it works immediately. Seven branches (Legion, Citadel, Resources, Mystic, Establishments, Generals, Minions) unlock top to bottom; each rank adds a passive bonus, and enhancements come from Runes that wave bosses drop (Citadel Command → Runes), and "Reset skills" refunds every point for free, so experiment as much as you like.',
       },
       {
-        question: '🔁 What do I gain from regression?',
-        answer: 'Days and waves restart at 1 and the Treant rebuilds your realm from scratch. In return, every regression tier permanently strengthens YOUR team — never the enemy: +5% minion attack, +3% minion speed, 3% less damage to minions, +5% tower damage, +5% harvest, and +100 Castle HP, plus bonus starting coins and shards. Your skill ranks are refunded and you earn the points again by clearing waves.',
+        question: '💀 What happens if my castle falls?',
+        answer: 'It is game over for good (permadeath); there is no Regression any more. The run is engraved in the Hall of Legacy (Atlas tab) with your Demon Lord name, waves cleared, days, time played, difficulty and biome, and its save is deleted. Waves never end, so plan your upgrades, runes and loot to last. The game saves itself after every wave.',
       },
       {
         question: '🥊 What are General brawls?',
@@ -184,11 +184,11 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '✨ Paano makakuha ng puntos ng kasanayan?',
-        answer: 'Manalo lang nang manalo! Kada 5 alon na matapos mo, may 3 puntos ka (60 pagdating ng Alon 100). Buksan ang Kasanayan at i-click ang isang kasanayan para magdagdag ng antas — gagana agad. Pitong sangay (Hukbo, Kuta, Yaman, Mahika, Establisimyento, Heneral, Alagad) ang nagbubukas mula taas pababa; nagdaragdag ng pasibong bonus ang bawat antas, at ang mga pagpapahusay ay galing sa Runa na hinuhulog ng boss ng alon (Citadel Command → Mga Runa), at libre ang "I-reset" para maibalik lahat ng puntos, kaya mag-eksperimento ka lang.',
+        answer: 'Manalo lang nang manalo! Kada 5 alon na matapos mo, may 3 puntos ka (walang hangganan: walang katapusan ang alon). Buksan ang Kasanayan at i-click ang isang kasanayan para magdagdag ng antas — gagana agad. Pitong sangay (Hukbo, Kuta, Yaman, Mahika, Establisimyento, Heneral, Alagad) ang nagbubukas mula taas pababa; nagdaragdag ng pasibong bonus ang bawat antas, at ang mga pagpapahusay ay galing sa Runa na hinuhulog ng boss ng alon (Citadel Command → Mga Runa), at libre ang "I-reset" para maibalik lahat ng puntos, kaya mag-eksperimento ka lang.',
       },
       {
-        question: '🔁 Ano ang makukuha ko sa regression?',
-        answer: 'Babalik sa 1 ang araw at alon at muling itatayo ng Treant ang kaharian mo mula sa simula. Kapalit nito, bawat antas ng regression ay permanenteng nagpapalakas sa KOPONAN mo — hindi sa kalaban: +5% atake ng alagad, +3% bilis ng alagad, 3% bawas pinsala sa alagad, +5% pinsala ng tore, +5% ani, at +100 HP ng Kastilyo, dagdag pa ang panimulang barya at kristal. Ibabalik ang mga antas ng kasanayan mo at kikitain muli ang puntos sa pagtapos ng mga alon.',
+        question: '💀 Ano ang mangyayari kapag bumagsak ang kuta ko?',
+        answer: 'Tapos na ang laro nang tuluyan (permadeath); wala nang Regression. Iuukit ang takbo sa Bulwagan ng Pamana (tab sa Atlas) kasama ang pangalan ng iyong Demon Lord, mga along natapos, araw, oras na nilaro, hirap at biome, at buburahin ang save nito. Walang katapusan ang mga alon, kaya planuhin ang upgrade, runa at samsam para tumagal. Kusang nase-save ang laro pagkatapos ng bawat alon.',
       },
       {
         question: '🥊 Ano ang rambulan ng mga Heneral?',

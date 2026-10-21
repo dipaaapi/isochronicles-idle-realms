@@ -1,0 +1,11 @@
+{
+  "_doc": "What is happening right now, shown at the lower right of the game map (ui/BattleStatusHud.tsx). Several can be on at once. Kirov Invasion Battle replaced the old 'random battle' (scout raid): the Kirov airship now joins every one.",
+  "kinds": {
+    "WAVE": { "icon": "⚔️", "color": "#ef4444", "en": "Wave Battle", "tl": "Labanan ng Alon" },
+    "KIROV": { "icon": "🎈", "color": "#f97316", "en": "Kirov Invasion Battle", "tl": "Labanan sa Paglusob ng Kirov" },
+    "SAND_GOD": { "icon": "🐛", "color": "#d6a35c", "en": "Sand God Battle", "tl": "Labanan ng Diyos ng Buhangin" },
+    "OCEAN_GOD": { "icon": "🐉", "color": "#22d3ee", "en": "Ocean God Battle", "tl": "Labanan ng Diyos ng Dagat" },
+    "BRAWL": { "icon": "🥊", "color": "#f43f5e", "en": "Brawl Battle", "tl": "Rambulan" },
+    "CALM": { "icon": "🌙", "color": "#64748b", "en": "At peace", "tl": "Payapa" }
+  }
+}

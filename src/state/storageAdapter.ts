@@ -143,6 +143,29 @@ const SAVE_EVERY_MS = 2000;
  * never starts a write while one is still running, and flushes when the tab
  * is hidden or closed.
  */
+/**
+ * Permadeath: when the castle falls the realm save is deleted and no realm
+ * writes happen until a new run starts (resumeRealmSaves). Settings and the
+ * Hall of Legacy are unaffected.
+ */
+let runEnded = false;
+const flushers: Array<() => Promise<void>> = [];
+
+export async function endRunSave(): Promise<void> {
+  runEnded = true;
+  for (const key of ALL_SAVE_KEYS) await Promise.resolve(localForageStorage.removeItem(key)).catch(() => undefined);
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* storage blocked */ }
+}
+
+export function resumeRealmSaves(): void {
+  runEnded = false;
+}
+
+/** Writes the realm save now (used after every repelled wave). */
+export async function saveNow(): Promise<void> {
+  for (const f of flushers) await f();
+}
+
 export function createThrottledStorage<S>(): PersistStorage<S> {
   const latest = new Map<string, StorageValue<S>>();
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -150,7 +173,7 @@ export function createThrottledStorage<S>(): PersistStorage<S> {
   const schedule = () => { if (!timer) timer = setTimeout(() => void flush(), SAVE_EVERY_MS); };
   const flush = async () => {
     timer = null;
-    if (wiped) { latest.clear(); return; }
+    if (wiped || runEnded) { latest.clear(); return; }
     if (writing) { schedule(); return; }
     writing = true;
     const batch = [...latest];
@@ -164,6 +187,15 @@ export function createThrottledStorage<S>(): PersistStorage<S> {
     }
     if (latest.size) schedule();
   };
+  flushers.push(async () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    await flush();
+    if (!desktop || wiped || runEnded) return;
+    // Desktop files are debounced too: push them out now
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    for (const [name, value] of pending) await desktop.writeSave(fileKey(name), value);
+    pending.clear();
+  });
   if (typeof window !== 'undefined') {
     const now = () => { if (latest.size && !writing) void flush(); };
     window.addEventListener('beforeunload', now);
@@ -178,7 +210,7 @@ export function createThrottledStorage<S>(): PersistStorage<S> {
       try { return JSON.parse(raw) as StorageValue<S>; } catch { return null; }
     },
     setItem: (name, value) => {
-      if (wiped) return;
+      if (wiped || runEnded) return;
       latest.set(name, value);
       schedule();
     },

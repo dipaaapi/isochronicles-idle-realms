@@ -11,6 +11,7 @@ import {
 } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { BRAWL_CONFIG, addClash, applyBrawlResult, baseStatsOf, brawlLevelOf, pairKey } from '../brawl';
+import { clampSturdy, sturdyFromBonus, type GeneralOrder } from '../generalOrders';
 import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { HarvestTask, InvaderType, UnitClass } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
@@ -93,6 +94,37 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
       return { roster: applyBrawlResult(prev.roster, winnerId, loserId), brawlTension, lastSavedTimestamp: Date.now() };
     });
     get().unlockAchievement('first_brawl', '', '', '');
+  },
+
+  setGeneralOrder: (unitIds: string[], order: GeneralOrder) => {
+    const ids = new Set(unitIds);
+    set((prev) => ({
+      roster: prev.roster.map((u) => (ids.has(u.id) ? { ...u, order: order === 'AUTO' ? undefined : order } : u)),
+      lastSavedTimestamp: Date.now(),
+    }));
+  },
+
+  /** The General's + bonus becomes extra max HP for its own establishment; the + resets. */
+  investBrawlPower: (unitId: string): number => {
+    const state = get();
+    const unit = state.roster.find((u) => u.id === unitId);
+    const home = unit ? (UNIT_CLASSES[unit.unitClass]?.requiredBuilding as ResourceBuildingId | undefined) : undefined;
+    const building = home ? state.resourceBuildings[home] : undefined;
+    if (!unit || !home || !building || building.level < 1) return 0;
+    const before = building.sturdy ?? 0;
+    const after = clampSturdy(before + sturdyFromBonus(unit.brawlAttack ?? 0, unit.brawlHp ?? 0));
+    const added = after - before;
+    if (added <= 0) return 0;
+    set((prev) => ({
+      roster: prev.roster.map((u) => (u.id === unitId ? { ...u, brawlLevel: 0, brawlAttack: 0, brawlHp: 0 } : u)),
+      resourceBuildings: {
+        ...prev.resourceBuildings,
+        // The new HP arrives filled, so investing mid-fight also patches the walls
+        [home]: { ...prev.resourceBuildings[home], sturdy: after, hp: (prev.resourceBuildings[home].hp ?? 0) + added },
+      },
+      lastSavedTimestamp: Date.now(),
+    }));
+    return added;
   },
 
   discoverEntry: (category: 'beast' | 'invader', id: string) => {

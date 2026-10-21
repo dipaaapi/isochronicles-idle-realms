@@ -1,3 +1,5 @@
+import { isGeneralOrder } from '../generalOrders';
+import { isFallenRunSync } from '../legacy';
 import type { PersistOptions } from 'zustand/middleware';
 import { isCoastStyle } from '../buildingLayout';
 import { normalizeDifficulty } from '../difficulty';
@@ -80,6 +82,7 @@ const migrateRoster = (roster: UnitRosterItem[]): UnitRosterItem[] =>
       brawlLevel: brawlLevelOf(unit),
       brawlAttack: Math.max(0, Math.round(Number(unit.brawlAttack) || 0)),
       brawlHp: Math.max(0, Math.round(Number(unit.brawlHp) || 0)),
+      order: isGeneralOrder(unit.order) ? unit.order : undefined,
     }));
 
 /** Brawl tension from a save: only well-formed { count, x, y } entries. */
@@ -161,8 +164,10 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       difficulty: state.difficulty,
       skillPoints: state.skillPoints,
       skillRanks: state.skillRanks,
-      regressionCount: state.regressionCount,
-      regressionHistory: state.regressionHistory,
+      lordName: state.lordName,
+      runId: state.runId,
+      runStartedAt: state.runStartedAt,
+      playSeconds: state.playSeconds,
       layoutSeed: state.layoutSeed,
       coastStyle: state.coastStyle,
       buildingPositions: state.buildingPositions,
@@ -220,6 +225,8 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
   importSave: (jsonString: string): boolean => {
     try {
       const data = JSON.parse(jsonString);
+      // Permadeath: a save of a run that already fell can't be brought back
+      if (isFallenRunSync(data.runId)) return false;
       if (!data.resources) throw new Error('Invalid save payload');
 
       const roster = withPermanentSlime(Array.isArray(data.roster) ? data.roster : []);
@@ -228,9 +235,12 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         realmName: data.realmName || 'Aether Haven',
         difficulty: normalizeDifficulty(data.difficulty),
         ...normalizeSkillProgress(data),
-        regressionHistory: Array.isArray(data.regressionHistory) ? data.regressionHistory : [],
+        lordName: typeof data.lordName === 'string' ? data.lordName.slice(0, 32) : 'Demon Lord',
+        runId: typeof data.runId === 'string' ? data.runId : '',
+        runStartedAt: Number(data.runStartedAt) || Date.now(),
+        playSeconds: Math.max(0, Number(data.playSeconds) || 0),
         realmChoice: validRealm(data.realmChoice),
-        platformPhase: validRealm(data.realmChoice) ?? getPhaseFromWave(data.invasion?.waveNumber ?? 1),
+        platformPhase: validRealm(data.realmChoice) ?? validRealm(data.platformPhase) ?? getPhaseFromWave(data.invasion?.waveNumber ?? 1),
         year: data.year || 1,
         season: data.season || 'SPRING',
         hasCompletedIntro: !!data.hasCompletedIntro,
@@ -325,8 +335,10 @@ const partialize = (state: GameStoreState) => ({
   season: state.season,
   platformPhase: state.platformPhase,
   realmChoice: state.realmChoice,
-  regressionCount: state.regressionCount,
-  regressionHistory: state.regressionHistory,
+  lordName: state.lordName,
+  runId: state.runId,
+  runStartedAt: state.runStartedAt,
+  playSeconds: state.playSeconds,
   layoutSeed: state.layoutSeed,
   coastStyle: state.coastStyle,
   buildingPositions: state.buildingPositions,

@@ -121,8 +121,8 @@ export const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg overflow-hidden border rounded-3xl bg-slate-950/95 border-purple-500/30 shadow-2xl shadow-purple-950/50">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+      <div className="game-modal relative w-full max-w-lg overflow-hidden border rounded-3xl bg-slate-950/95 border-purple-500/30 shadow-2xl shadow-purple-950/50">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-slate-900 via-purple-950/50 to-slate-900 border-slate-800">

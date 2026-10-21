@@ -166,8 +166,8 @@ export const UpgradesModal: React.FC<UpgradesModalProps> = ({ isOpen, onClose })
   const marketResources = ['aetherShards', 'wood', 'stone', 'arcaneEssence'] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-3xl border border-sky-500/40 bg-slate-950/95 shadow-2xl shadow-black/80 overflow-hidden">
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none animate-fade-in">
+      <div className="game-modal relative w-full max-w-4xl max-h-[88vh] flex flex-col rounded-3xl border border-sky-500/40 bg-slate-950/95 shadow-2xl shadow-black/80 overflow-hidden">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/60">
           <div className="flex items-center gap-3">

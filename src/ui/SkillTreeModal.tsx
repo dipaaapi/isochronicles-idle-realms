@@ -116,13 +116,13 @@ const SkillCard: React.FC<SkillCardProps> = ({ id, ranks, points, color, t, onLe
 
 /** Skill tree body; used as a Citadel Command tab and inside the standalone modal. */
 export const SkillTreePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { skillPoints, skillRanks, learnSkill, resetSkills, regressionCount, invasion, language, runes, runeSlots } = useGameStore();
+  const { skillPoints, skillRanks, learnSkill, resetSkills, invasion, language, runes, runeSlots } = useGameStore();
 
   const t = (text: Localized) => (language === 'TL' ? text.tl : text.en);
   const wavesCleared = invasion.invasionsRepelled;
   const nextWave = nextRewardWave(wavesCleared);
   const setProgress = wavesCleared % WAVES_PER_SET;
-  const totals = teamStatTotals(skillRanks, regressionCount, { runes, runeSlots });
+  const totals = teamStatTotals(skillRanks, { runes, runeSlots });
   const activeStats = (Object.keys(totals) as TeamStat[]).filter((s) => totals[s] > 0);
   const spent = Object.values(skillRanks).some((r) => (r ?? 0) > 0);
 

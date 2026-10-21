@@ -20,7 +20,7 @@ const FILTERS: Filter[] = ['all', 'combat', 'economy', 'minions', 'world'];
 const COMMAND_CHOICES: Array<{ value: string; label: CommandOptionKey }> = [
   { value: '@brawl', label: 'brawl' },
   { value: '@wave_battle', label: 'wave' },
-  { value: '@random_battle', label: 'random' },
+  { value: '@kirov_battle', label: 'kirov' },
   { value: '@sell', label: 'sell' },
   { value: '@buy', label: 'buy' },
   { value: '@weather', label: 'weather' },
@@ -189,7 +189,15 @@ const executeCommand = (rawCommand: string): { handled: boolean; success: boolea
 
   if (verb === 'help') return { handled: true, success: true };
 
-  if (verb === 'wave_battle' || verb === 'random_battle') {
+  if (verb === 'kirov_battle' || verb === 'random_battle') {
+    if (!isConstructionReady(state)) return { handled: true, success: false, reason: 'Build the castle before starting a battle.' };
+    let ok: boolean | undefined;
+    window.dispatchEvent(new CustomEvent('isochronicle:activity-command', { detail: { command: 'kirovBattle', respond: (r: boolean) => { ok = r; } } }));
+    if (ok === undefined) return { handled: true, success: false, reason: 'The game scene is not ready.' };
+    return { handled: true, success: ok, reason: ok ? undefined : 'A Kirov Invasion Battle can only start between waves.' };
+  }
+
+  if (verb === 'wave_battle') {
     if (!isConstructionReady(state)) return { handled: true, success: false, reason: 'Build the castle before starting a battle.' };
     const count = parseCount(args[0]);
     if (count === null) return { handled: true, success: false, reason: `Waves: a whole number from 1 to ${MAX_REPEAT}.` };

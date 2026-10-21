@@ -22,7 +22,7 @@ import {
   beaconLevelOf,
   beaconStats,
   buildingHpOf,
-  buildingMaxHp,
+  buildingMaxHp, buildingMaxHpOf,
   towerBuildingOf,
   towerLevelOf,
   buildingArmor,
@@ -522,7 +522,7 @@ export class StructureManager {
       } else {
         const b = towerBuildingOf(store, view.id);
         hp = buildingHpOf(b);
-        maxHp = buildingMaxHp(towerLevelOf(b));
+        maxHp = buildingMaxHpOf(b);
         state = !store.castleBuilt || !b || b.level < 1 ? 'site' : hp <= 0 ? 'ruined' : 'idle';
       }
 

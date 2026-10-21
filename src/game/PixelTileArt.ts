@@ -56,7 +56,11 @@ export interface TileArtSpec {
    * Living terrain as curved fields over the island (>= 0.5 inside): sand the
    * Caterpillar churned, shore the Leviathan is soaking, and raised rock.
    */
-  terrain?: { sand?: (u: number, v: number) => number; wet?: (u: number, v: number) => number; raised?: (u: number, v: number) => number };
+  terrain?: {
+    sand?: (u: number, v: number) => number; wet?: (u: number, v: number) => number; raised?: (u: number, v: number) => number;
+    /** Curved road strip (> 0 inside) and its cobble colour. */
+    road?: (u: number, v: number) => number; roadColor?: number;
+  };
 }
 
 const SAND = 0xe9d8a6;
@@ -474,7 +478,7 @@ export function paintCoast(
 
 const ROCK_TOP = 0xc9a26b;
 const ROCK_RIM = 0xe7cc98;
-const CLIFF = [0x8a6440, 0x7a5636, 0x6b4a2e, 0x5d3f27, 0x4f3520, 0x432c1a];
+const CLIFF = [0x9a7248, 0x8a6440, 0x84603d, 0x7a5636, 0x725033, 0x6b4a2e, 0x644529, 0x5d3f27, 0x553a23, 0x4f3520, 0x49311d, 0x432c1a];
 const CLIFF_ROWS = CLIFF.length;
 
 /**
@@ -485,13 +489,37 @@ const CLIFF_ROWS = CLIFF.length;
  */
 function paintLivingTerrain(gx: number, gy: number, px: number, py: number, T: NonNullable<TileArtSpec['terrain']>, base: number): number | null {
   const { u, v } = frameUV(gx, gy, px, py);
+  // Paved road: small iso cobbles with a darker curb along its curved edge
+  const road = T.road?.(u, v) ?? -1;
+  if (road > 0 && T.roadColor !== undefined) {
+    const cu = px + 2 * py, cv = px - 2 * py + 64;
+    let c = shade(T.roadColor, 0.9 + hash(gx, gy, Math.floor(cu / 6), Math.floor(cv / 6) + 500) * 0.2);
+    if (cu % 6 === 0 || cv % 6 === 0) c = shade(T.roadColor, 0.78);
+    if (road < 0.22) c = shade(T.roadColor, 0.68);
+    return c;
+  }
+  if (road > -0.25 && T.roadColor !== undefined) return shade(base, 0.86); // worn grass beside the road
   const raised = T.raised;
   if (raised) {
     const f = raised(u, v);
     if (f >= 0.5) {
-      let c = f < 0.6 ? ROCK_RIM : ROCK_TOP;
+      // Two terraces: the heaved core stands a step above its rim, with its own little ledge
+      const core = f >= 0.82;
+      let c = f < 0.58 || (f >= 0.82 && f < 0.86) ? ROCK_RIM : core ? shade(ROCK_TOP, 1.05) : ROCK_TOP;
       const strata = Math.sin(v * 9 + u * 2 + Math.sin(u * 3) * 0.8);
       if (f >= 0.6 && strata > 0.82) c = shade(c, 0.88);
+      // Cracks the Caterpillar tore, glowing with the Deity's purple where they run deep
+      const crack = Math.abs(Math.sin(u * 4.1 + Math.sin(v * 3.3) * 1.4) + Math.sin(v * 5.3 - u * 1.7) * 0.6);
+      if (crack < 0.07) c = core ? 0xc084fc : 0x4a3220;
+      else if (crack < 0.13 && core) c = mix(c, 0x7e22ce, 0.45);
+      // Ledge shadow just below the core terrace
+      if (!core && f > 0.7) {
+        const up = frameUV(gx, gy, px, py - 2);
+        if (raised(up.u, up.v) >= 0.82) c = shade(c, 0.72);
+      }
+      // Boulders and pebbles strewn on top
+      const b = hash(Math.floor(u * 3), Math.floor(v * 3), 7, 2300);
+      if (b > 0.9 && hash(gx, gy, px, py + 2400) > 0.4) c = shade(0xb08a58, 0.85 + hash(gx, gy, px, py + 2500) * 0.3);
       if (hash(gx, gy, px, py + 2100) > 0.965) c = shade(c, 0.8);
       else if (hash(gx, gy, px, py + 2200) > 0.985) c = mix(c, 0x6b8f3a, 0.6); // a tuft clinging on top
       return c;
@@ -500,7 +528,12 @@ function paintLivingTerrain(gx: number, gy: number, px: number, py: number, T: N
       const up = frameUV(gx, gy, px, py - k);
       if (raised(up.u, up.v) >= 0.5) {
         let c = CLIFF[k - 1];
-        if ((px + Math.floor(py / 2)) % 4 === 0) c = shade(c, 0.86); // vertical cracks
+        // Rock strata in bands, vertical cracks, a lit edge where the face turns
+        if (k % 4 === 0) c = shade(c, 0.82);
+        if ((px + Math.floor(py / 2)) % 5 === 0) c = shade(c, 0.86);
+        const side = frameUV(gx, gy, px - 1, py - k);
+        if (raised(side.u, side.v) < 0.5) c = shade(c, 1.18);
+        if (k === CLIFF_ROWS && hash(gx, gy, px, py + 2600) > 0.6) c = 0x3a2614; // rubble at the foot
         return c;
       }
     }
@@ -520,8 +553,22 @@ function paintLivingTerrain(gx: number, gy: number, px: number, py: number, T: N
   if (sand >= 0.5) {
     const ripple = Math.sin(u * 7.3 + v * 3.1 + Math.sin(v * 2.3) * 1.6);
     let c = sand < 0.56 ? mix(SAND, 0x5f8f3e, 0.35) : SAND; // grass fringe at the edge
-    if (ripple > 0.7) c = shade(c, 1.08);
-    else if (ripple < -0.75) c = shade(c, 0.86);
+    // Dune ripples with a lit crest and a shaded trough
+    if (ripple > 0.82) c = shade(c, 1.12);
+    else if (ripple > 0.6) c = shade(c, 1.05);
+    else if (ripple < -0.75) c = shade(c, 0.84);
+    // Burrow holes: a dark pit with a raised, lighter rim
+    const hu = Math.floor(u * 1.5), hv = Math.floor(v * 1.5);
+    if (hash(hu, hv, 3, 2700) > 0.72 && sand > 0.62) {
+      const cx = (hu + 0.3 + hash(hu, hv, 4, 2800) * 0.4) / 1.5, cy = (hv + 0.3 + hash(hu, hv, 5, 2900) * 0.4) / 1.5;
+      const d = Math.hypot((u - cx) * 1.0, (v - cy) * 1.0);
+      if (d < 0.07) c = 0x3b2a16;
+      else if (d < 0.11) c = shade(SAND, 0.7);
+      else if (d < 0.16) c = shade(SAND, 1.14);
+    }
+    // Segmented crawl tracks winding across the sand
+    const track = Math.abs(Math.sin(u * 1.9 + Math.sin(v * 1.3) * 1.8) * 1.2 - v * 0.0 - Math.cos(v * 2.1) * 0.5);
+    if (track < 0.05 && (Math.floor((u + v) * 9) % 2 === 0)) c = shade(c, 0.8);
     if (hash(gx, gy, px, py + 1800) > 0.97) c = shade(c, 0.75);
     return c;
   }

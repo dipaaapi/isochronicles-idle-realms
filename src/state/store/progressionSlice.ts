@@ -1,28 +1,18 @@
-import { getCoastStyle } from '../buildingLayout';
 import { soundFx } from '../../game/audio/soundFx';
-import { ECONOMY_CONFIG, techUpgradeCost } from '../economy';
+import { difficultyChangeCost } from '../difficultyChange';
+import { normalizeDifficulty, type Difficulty } from '../difficulty';
+import { logMessage } from '../activityLog';
+import { techUpgradeCost } from '../economy';
 import { canAfford, subtractCost } from '../resources';
 import { availableSkillPoints, canLearn, rankOf, type SkillId } from '../skillTree';
-import {
-  INITIAL_DEFENSE,
-  INITIAL_INVASION,
-  INITIAL_RESOURCES,
-  INITIAL_RESOURCE_BUILDINGS,
-  INITIAL_SPIRE_TOWER,
-  createInitialBlessings,
-  createInitialProgress,
-  createInitialResourceNodes,
-  createInitialWorldClock,
-  createSupportSlime,
-  rollLayout,
-} from './initialState';
+import { createInitialProgress } from './initialState';
 import { achievementDef, unlockSteamAchievement } from '../achievements';
-import type { Achievement, GameStoreState, RegressionRecord, UpgradesState } from '../../types/state';
+import type { Achievement, GameStoreState, UpgradesState } from '../../types/state';
+import { newRunId } from '../legacy';
+import { resumeRealmSaves } from '../storageAdapter';
 import type { SliceArgs } from './types';
 
-const REGRESSION = ECONOMY_CONFIG.regression;
-
-/** Skill tree, tech upgrades, achievements, Regression (prestige) and full resets. */
+/** Skill tree, tech upgrades, achievements, the permadeath run and full resets. */
 export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
   learnSkill: (id: SkillId) => {
     const state = get();
@@ -76,110 +66,37 @@ export const createProgressionSlice = (...[set, get]: SliceArgs) => ({
     unlockSteamAchievement(id);
   },
 
-  // ── Regression ────────────────────────────────────────────────────────────
-  openRegressionModal: () => {
-    set({ isRegressionModalOpen: true });
-  },
-
-  closeRegressionModal: () => {
-    set({ isRegressionModalOpen: false });
-  },
-
-  dismissWave100Celebration: () => {
-    set({ isWave100VictoryCelebration: false });
-  },
-
-  performRegression: () => {
-    soundFx.playFanfare();
-    set((prev) => {
-      const nextCount = prev.regressionCount + 1;
-      const record: RegressionRecord = {
-        id: `reg_${Date.now()}`,
-        regressionIndex: nextCount,
-        waveReached: prev.invasion.waveNumber,
-        phaseReached: prev.platformPhase,
-        dayReached: prev.day,
-        yearReached: prev.year,
-        seasonReached: prev.season,
-        invasionsRepelled: prev.invasion.invasionsRepelled,
-        timestamp: Date.now(),
-        completedWave100: prev.invasion.waveNumber >= ECONOMY_CONFIG.invasion.maxWave,
-      };
-
-      // Regression bonuses survive, but the realm must be rebuilt from ruins.
-      const slime = prev.roster.find((unit) => unit.unitClass === 'AQUA_SLIME');
-      const roster = [createSupportSlime(slime?.slimeEvolutionLevel)];
-
-      // A new realm rises with a fresh random establishment layout
-      const layoutSeed = rollLayout();
-      const coastStyle = getCoastStyle();
-
-      return {
-        ...createInitialWorldClock(),
-        layoutSeed,
-        coastStyle,
-        buildingPositions: {},
-        munitions: { armorPiercing: 0, incendiary: 0, cryoFrost: 0, teslaChain: 0, voidFlak: 0 },
-        platformPhase: 1,
-        // Skills belong to a realm: refunded here and earned again from wave 1.
-        // The new tier's permanent team boosts come from regressionCount.
-        skillPoints: 0,
-        skillRanks: {},
-        dynamicResourceNodes: createInitialResourceNodes(),
-        activeGodBlessings: createInitialBlessings(),
-        isCastleBreachedModalOpen: false,
-        lootedResources: null,
-        offlineGains: null,
-        isOfflineModalOpen: false,
-        merchantRestockTimer: ECONOMY_CONFIG.merchantRestockSeconds,
-        regressionCount: nextCount,
-        regressionHistory: [record, ...prev.regressionHistory],
-        isRegressionModalOpen: false,
-        isWave100VictoryCelebration: false,
-        resources: {
-          ...INITIAL_RESOURCES,
-          coins: REGRESSION.coinsBase + nextCount * REGRESSION.coinsPerRegression,
-          aetherShards: REGRESSION.shardsBase + nextCount * REGRESSION.shardsPerRegression,
-        },
-        castleBuilt: false,
-        spireBuilt: false,
-        spireTower: { ...INITIAL_SPIRE_TOWER },
-        resourceBuildings: { ...INITIAL_RESOURCE_BUILDINGS },
-        roster,
-        workerCount: roster.length,
-        defense: {
-          ...INITIAL_DEFENSE,
-          castleMaxHp: INITIAL_DEFENSE.castleMaxHp + nextCount * REGRESSION.castleHpPerRegression,
-          castleHp: 0,
-        },
-        invasion: { ...INITIAL_INVASION },
-        lastSavedTimestamp: Date.now(),
-      };
-    });
-
-    get().unlockAchievement(
-      'first_regression',
-      'Eternal Regression',
-      'Conquered the mortal world and regressed with the memories of the Demon Citadel.',
-      '🌀'
-    );
-  },
-
-  resetRegressionProgress: (confirmation: string): boolean => {
-    if (confirmation.trim().toUpperCase() !== 'RESET REGRESSIONS') return false;
-    const state = get();
-    const castleMaxHp = Math.max(
-      INITIAL_DEFENSE.castleMaxHp,
-      state.defense.castleMaxHp - state.regressionCount * REGRESSION.castleHpPerRegression
-    );
+  beginRun: (lordName: string) => {
+    resumeRealmSaves();
     set({
-      regressionCount: 0,
-      regressionHistory: [],
-      defense: { ...state.defense, castleMaxHp, castleHp: Math.min(state.defense.castleHp, castleMaxHp) },
+      lordName: lordName.trim().slice(0, 32) || 'Demon Lord',
+      runId: newRunId(),
+      runStartedAt: Date.now(),
+      playSeconds: 0,
+      gameOverRun: null,
       lastSavedTimestamp: Date.now(),
     });
-    soundFx.playClick();
+  },
+
+  changeDifficulty: (next: Difficulty): boolean => {
+    const state = get();
+    const from = normalizeDifficulty(state.difficulty);
+    if (from === next) return false;
+    const cost = difficultyChangeCost(from, next, state.invasion.waveNumber);
+    if (!get().spendResources(cost)) return false;
+    set({ difficulty: next, lastSavedTimestamp: Date.now() });
+    logMessage('difficultyChanged', { difficulty: next });
+    soundFx.playUpgrade();
     return true;
+  },
+
+  addPlayTime: (seconds: number) => {
+    if (!(seconds > 0)) return;
+    set((prev) => ({ playSeconds: prev.playSeconds + seconds }));
+  },
+
+  dismissGameOver: () => {
+    set({ gameOverRun: null });
   },
 
   /** Wipes all progress back to a brand-new realm; player preferences are kept. */

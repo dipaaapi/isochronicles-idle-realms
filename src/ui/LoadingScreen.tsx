@@ -50,6 +50,7 @@ export function LoadingScreen() {
 
   return (
     <div
+      data-cursor="wait"
       className={`absolute inset-0 z-[200] flex flex-col items-center justify-end bg-slate-950 bg-cover bg-center transition-opacity duration-500 ${fading ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       style={{ backgroundImage: `linear-gradient(to bottom, rgba(2,6,23,0.55), rgba(2,6,23,0.95)), url('/backgrounds/title-screen.jpeg')` }}
       role="progressbar"

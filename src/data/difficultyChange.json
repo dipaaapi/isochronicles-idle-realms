@@ -1,0 +1,7 @@
+{
+  "_doc": "Changing the difficulty mid-run (Settings → Game). It costs resources: base + perWave × the wave reached, paid from the stockpile. Making the realm easier costs easierMultiplier times as much (harder is cheaper: the risk is yours).",
+  "base": { "coins": 3000, "soulFragments": 10, "aetherShards": 40 },
+  "perWave": { "coins": 250, "soulFragments": 1, "aetherShards": 4 },
+  "easierMultiplier": 2,
+  "harderMultiplier": 0.5
+}

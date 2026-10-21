@@ -570,7 +570,7 @@ export const MusicManagerModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fadeIn"
+      className="game-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) close();
       }}
@@ -579,7 +579,7 @@ export const MusicManagerModal: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="music-manager-title"
-        className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-indigo-500/30 bg-slate-950/95 shadow-2xl shadow-indigo-950/50"
+        className="game-modal relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-indigo-500/30 bg-slate-950/95 shadow-2xl shadow-indigo-950/50"
       >
         <div className="flex items-center justify-between border-b border-slate-800 bg-gradient-to-r from-slate-900 via-indigo-950/50 to-slate-900 px-6 py-4">
           <div className="flex items-center gap-3">

@@ -15,7 +15,7 @@ import localforage from 'localforage';
  *
  * Sheets are rendered once per page load by two Web Workers (minions first,
  * since they are on screen from the start) and cached here at module level,
- * so a new Phaser.Game (e.g. after Regression) re-creates its textures
+ * so a new Phaser.Game (e.g. a new realm after game over) re-creates its textures
  * instantly instead of re-baking.
  */
 

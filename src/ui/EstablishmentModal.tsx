@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES } from '../state/useGameStore';
 import { BUILDING_IDS } from '../state/buildingLayout';
-import { DEFENSE_TEXT, buildingArmor, buildingHpOf, buildingMaxHp, towerAccuracy, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
+import { DEFENSE_TEXT, buildingArmor, buildingHpOf, buildingMaxHp, buildingMaxHpOf, towerAccuracy, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../data/establishmentSkills';
 import { useTranslation, unitName } from '../i18n/translations';
 import { BEAST_PORTRAITS } from '../game/bestiaryPortraits';
@@ -192,7 +192,7 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
 
   // HP
   const hp = isCastle ? defense.castleHp : (buildingState ? buildingHpOf(buildingState) : 0);
-  const maxHp = isCastle ? defense.castleMaxHp : (buildingState ? buildingMaxHp(towerLevelOf(buildingState)) : 0);
+  const maxHp = isCastle ? defense.castleMaxHp : (buildingState ? buildingMaxHpOf(buildingState) : 0);
   const hpPct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
   const hpColor = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f59e0b' : '#ef4444';
 
@@ -229,9 +229,9 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
   const tenantCdBonus = Math.min(0.6, ((upgrades.tenantCooldownSummon ?? 1) - 1) * 0.12);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none" onClick={onClose}>
+    <div className="game-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in select-none" onClick={onClose}>
       <div
-        className="relative w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden"
+        className="game-modal relative w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Top Header ── */}

@@ -1,11 +1,10 @@
 import config from '../data/skillTree.json';
-import economy from '../data/economy.json';
 import { runeStatTotals, type Rune, type RuneSlots } from './runes';
 
 /**
  * Skill tree: ranked skills bought with points earned by clearing wave sets
- * (every `wavesPerSet` waves). Skills belong to the current realm — Regression
- * refunds them — while Regression tiers add permanent team boosts on top.
+ * (every `wavesPerSet` waves). Skills belong to the current run; waves are endless,
+ * so points keep coming.
  * Text and numbers live in src/data/skillTree.json.
  */
 
@@ -38,8 +37,6 @@ export interface StatDef {
 
 export const SKILL_CONFIG = config;
 export const SKILL_TEXT = config.text;
-export const REGRESSION_TEXT = config.regressionText;
-export const REGRESSION_BOOST_PER_TIER = config.regressionBoostPerTier as Partial<Record<TeamStat, number>>;
 export const SKILLS = config.skills as unknown as Record<SkillId, SkillDef>;
 export const SKILL_IDS = Object.keys(SKILLS) as SkillId[];
 export const SKILL_BRANCHES = config.branches as Record<SkillBranch, { icon: string; color: string; name: Localized }>;
@@ -47,7 +44,8 @@ export const TEAM_STATS = config.stats as unknown as Record<TeamStat, StatDef>;
 
 export const WAVES_PER_SET = config.wavesPerSet;
 export const POINTS_PER_SET = config.pointsPerSet;
-const MAX_WAVE = economy.invasion.maxWave;
+/** Waves are endless, so skill points keep coming. */
+const MAX_WAVE = Number.POSITIVE_INFINITY;
 
 /** Skills of a branch in unlock order (each requires the one before it). */
 export const branchSkills = (branch: SkillBranch): SkillId[] => {
@@ -86,10 +84,9 @@ export const canLearn = (id: SkillId, ranks: SkillRanks | undefined, points: num
   return !skill.requires || rankOf(ranks, skill.requires) > 0;
 };
 
-/** Raw summed bonus per stat from skill ranks, slotted runes and regression tiers. */
+/** Raw summed bonus per stat from skill ranks and slotted runes. */
 export const teamStatTotals = (
   ranks: SkillRanks | undefined,
-  regressionCount = 0,
   runes?: { runes?: Rune[]; runeSlots?: RuneSlots }
 ): Record<TeamStat, number> => {
   const totals = Object.fromEntries(Object.keys(TEAM_STATS).map((k) => [k, 0])) as Record<TeamStat, number>;
@@ -97,8 +94,6 @@ export const teamStatTotals = (
   for (const [stat, value] of Object.entries(runeStatTotals(runes?.runes, runes?.runeSlots))) {
     if (stat in totals) totals[stat as TeamStat] += value;
   }
-  const tiers = Math.max(0, regressionCount || 0);
-  for (const [stat, per] of Object.entries(REGRESSION_BOOST_PER_TIER) as Array<[TeamStat, number]>) totals[stat] += tiers * per;
   for (const stat of Object.keys(totals) as TeamStat[]) {
     const cap = TEAM_STATS[stat].cap;
     if (cap !== undefined) totals[stat] = Math.min(cap, totals[stat]);
@@ -107,8 +102,8 @@ export const teamStatTotals = (
 };
 
 /** Multipliers the game applies. Everything here helps the Demon Lord's side only. */
-export const teamBonuses = (state: { skillRanks?: SkillRanks; regressionCount?: number; runes?: Rune[]; runeSlots?: RuneSlots } = {}) => {
-  const t = teamStatTotals(state.skillRanks, state.regressionCount, state);
+export const teamBonuses = (state: { skillRanks?: SkillRanks; runes?: Rune[]; runeSlots?: RuneSlots } = {}) => {
+  const t = teamStatTotals(state.skillRanks, state);
   return {
     attack: 1 + t.minionAttack,
     speed: 1 + t.minionSpeed,
@@ -144,14 +139,12 @@ export const teamBonuses = (state: { skillRanks?: SkillRanks; regressionCount?: 
 
 /**
  * Validates saved ranks against the waves cleared this realm. Old saves
- * (`unlockedSkills` list from the regression-point tree) are refunded.
+ * (`unlockedSkills` list from the old point tree) are refunded.
  */
 export const normalizeSkillProgress = (data: {
-  regressionCount?: unknown;
   skillRanks?: unknown;
   invasion?: { invasionsRepelled?: unknown };
 }) => {
-  const regressionCount = Number.isSafeInteger(data.regressionCount) && Number(data.regressionCount) >= 0 ? Number(data.regressionCount) : 0;
   const wavesCleared = Number(data.invasion?.invasionsRepelled) || 0;
   const saved = (data.skillRanks && typeof data.skillRanks === 'object' ? data.skillRanks : {}) as Record<string, unknown>;
   let skillRanks: SkillRanks = {};
@@ -163,7 +156,7 @@ export const normalizeSkillProgress = (data: {
     skillRanks[id] = Math.min(rank, SKILLS[id].maxRank);
   }
   if (spentPoints(skillRanks) > earnedSkillPoints(wavesCleared)) skillRanks = {};
-  return { regressionCount, skillRanks, skillPoints: availableSkillPoints(wavesCleared, skillRanks) };
+  return { skillRanks, skillPoints: availableSkillPoints(wavesCleared, skillRanks) };
 };
 
 /** Scales every amount of a resource bundle, rounding up so small hauls still grow. */
