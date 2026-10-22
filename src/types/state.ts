@@ -278,6 +278,10 @@ export interface GameStoreState {
   terrainRaised: Record<string, number>;
   /** Sea the Caterpillar filled with sand (now land). */
   terrainFilled: string[];
+  /** Active minion/Treant project moving one finite Sand God tile to water. */
+  terrainReclamation: { source: string; target: string; progress: number; requiredWork: number } | null;
+  /** Filled tiles created by transfer, excluded as future finite Sand God sources. */
+  terrainReclaimed: string[];
   /** Coastline style carved into this realm's rim (buildingLayout.json coast.styles; NONE for old saves). */
   coastStyle: import('../state/buildingLayout').CoastStyle;
   /** Player-relocated establishments (top-left tile), layered over the seeded layout. */
@@ -373,6 +377,8 @@ export interface GameStoreState {
   setGeneralOrder: (unitIds: string[], order: import('../state/generalOrders').GeneralOrder) => void;
   /** Spends a General's brawl bonus on its establishment's sturdiness; returns the HP added (0 = nothing to spend). */
   investBrawlPower: (unitId: string) => number;
+  /** Converts a maxed General's + levels into tier-one runes. */
+  sellBrawlPlus: (unitId: string) => number;
   addResources: (delta: Partial<Resources>) => void;
   spendResources: (cost: Partial<Resources>) => boolean;
   summonWorker: () => boolean;
@@ -505,6 +511,8 @@ export interface GameStoreState {
   floodPending: () => void;
   settleSand: () => void;
   applyCarve: (carve: { filled: string[]; toSand: string[]; toLand: string[]; raised: string[] }) => void;
+  startTerrainReclamation: (source: string, target: string) => void;
+  advanceTerrainReclamation: (work: number) => void;
   liftRaised: () => void;
   setGeneralPlus: (unitId: string, level: number) => void;
   offerSeaTribute: () => boolean;

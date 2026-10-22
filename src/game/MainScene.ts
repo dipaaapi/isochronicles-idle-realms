@@ -40,7 +40,7 @@ import { soundFx } from './audio/soundFx';
 import { pickPavementFxStyle, spawnPavementBurst, spawnPavementTileFx } from './scene/pavementFx';
 import { prepareCharacterSprites } from './sprites/CharacterSprites';
 import { prepareStructureSprites } from './sprites/StructureSprites';
-import { useLoadProgress } from './loadProgress';
+import { isLoadComplete, useLoadProgress } from './loadProgress';
 import { WorldEffects } from './WorldEffects';
 import { DefenderSystem } from './DefenderSystem';
 import { SkillSystem } from './skills/SkillSystem';
@@ -57,6 +57,7 @@ import { PortalDefenseSystem } from './PortalDefenseSystem';
 import { WaterFx } from './scene/waterFx';
 import { WaterLife } from './scene/waterLife';
 import { RoadsideFlora, type RoadFloraTile } from './scene/roadsideFlora';
+import { ForageNodeManager } from './scene/ForageNodeManager';
 import {
   BUILDING_IDS,
   BUILDING_SITES,
@@ -142,7 +143,7 @@ export class MainScene extends Phaser.Scene {
   private castleAlarm?: CastleAlarm;
   private fires?: FireSystem;
   private worldEffects?: WorldEffects;
-  /** Buildings, portals, units and combat effects — depth-sorted by feet position every frame. */
+  /** Buildings, portals, units and combat effects â€” depth-sorted by feet position every frame. */
   private entityLayer!: Phaser.GameObjects.Container;
   private nav!: Navigation;
   private structures!: StructureManager;
@@ -152,6 +153,7 @@ export class MainScene extends Phaser.Scene {
   private waterFx?: WaterFx;
   private waterLife?: WaterLife;
   private roadsideFlora?: RoadsideFlora;
+  private forageNodes?: ForageNodeManager;
   private defenders!: DefenderSystem;
   private kirov?: KirovAirship;
   /** The ancient wild factions: the Sea Folk (water) and the Sand Brood (land). */
@@ -209,6 +211,9 @@ export class MainScene extends Phaser.Scene {
 
   // Cached targetFps from store (avoid per-frame getState())
   private _cachedTargetFps: number = 60;
+
+  // Guard: only start BGM after the loading screen has finished (loading screen hides once sceneReady + bakes done)
+  private _bgmReady: boolean = false;
 
   // FPS debug overlay text
   private _fpsDebugText: Phaser.GameObjects.Text | null = null;
@@ -293,6 +298,7 @@ export class MainScene extends Phaser.Scene {
       this.entityLayer
     );
     this.groundLoot = new GroundLootManager(this, this.islandContainer);
+    this.forageNodes = new ForageNodeManager(this, this.groundFxLayer);
     this.workerManager.setGroundLoot(this.groundLoot);
     // Drops land only where a land walker can stand (nav grid, live as buildings go up)
     this.groundLoot.setTerrain(
@@ -465,7 +471,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Chess-style tile names: letters (A…Z, AA…) run along X, numbers from 1 along Y.
+   * Chess-style tile names: letters (Aâ€¦Z, AAâ€¦) run along X, numbers from 1 along Y.
    * Each tile shows its name at the centre of its top face, and the island's
    * front edges carry large rank/file markers like a chessboard border.
    */
@@ -561,7 +567,7 @@ export class MainScene extends Phaser.Scene {
         let walkable = true;
 
         if (isPortalTile(x, y)) {
-          type = 'SPAWN_BLOCK'; // the 2×2 rift dais
+          type = 'SPAWN_BLOCK'; // the 2Ã—2 rift dais
         } else if (isRiftTowerTile(x, y)) {
           type = 'ANCIENT_STONE'; // Rift Sentinel plinths
         } else if (isWaterTile(x, y)) { // ocean ring, canals and this realm's coves
@@ -952,7 +958,7 @@ export class MainScene extends Phaser.Scene {
 
   /**
    * The Ancient Caterpillar surfaced: every unprotected tile in a wobbly circle
-   * around it changes one step — fillable sea to sand, sand to land, land to
+   * around it changes one step â€” fillable sea to sand, sand to land, land to
    * raised rock. Roads, buildings, the citadel and the rifts are never touched.
    */
   private carveAround(center: { x: number; y: number }, radius: number): void {
@@ -1279,14 +1285,14 @@ export class MainScene extends Phaser.Scene {
     for (const invader of [...this.invasionManager.getInvaders()]) {
       if (invader.isDead || !invader.container.active) continue;
       if (Math.hypot(invader.container.x - x, invader.container.y - y) > radius) continue;
-      this.invasionManager.damageInvader(invader, Math.round(40 * strength), '⚡ Struck!');
+      this.invasionManager.damageInvader(invader, Math.round(40 * strength), 'âš¡ Struck!');
     }
     for (const worker of this.workerManager.getWorkers()) {
       if (worker.hp <= 0 || !worker.container?.active) continue;
       if (Math.hypot(worker.container.x - x, worker.container.y - y) > radius) continue;
       const damage = Math.round(18 * strength);
       worker.hp = Math.max(0, worker.hp - damage);
-      this.workerManager.spawnFloatingPopup(worker.container.x, worker.container.y - 40, `⚡ -${damage} HP`, '#fde047');
+      this.workerManager.spawnFloatingPopup(worker.container.x, worker.container.y - 40, `âš¡ -${damage} HP`, '#fde047');
     }
   }
 
@@ -1340,7 +1346,7 @@ export class MainScene extends Phaser.Scene {
 
   /**
    * Generals on the field, strongest first. Overall power = attack (base +
-   * brawl gains) weighted ×3 plus max HP, so brawl winners climb the list.
+   * brawl gains) weighted Ã—3 plus max HP, so brawl winners climb the list.
    */
   private generalsByPower(): WorkerInstance[] {
     return this.workerManager
@@ -1349,7 +1355,7 @@ export class MainScene extends Phaser.Scene {
       .sort((a, b) => (b.attackPower * 3 + b.maxHp) - (a.attackPower * 3 + a.maxHp));
   }
 
-  /** → next (weaker) General, ← previous (stronger); wraps around the list. */
+  /** â†’ next (weaker) General, â† previous (stronger); wraps around the list. */
   private cycleGeneralFocus(step: 1 | -1): void {
     const ranked = this.generalsByPower();
     if (!ranked.length) return;
@@ -1361,7 +1367,7 @@ export class MainScene extends Phaser.Scene {
     this.glideTween?.once(Phaser.Tweens.Events.TWEEN_COMPLETE, () => this.setFollow(g));
   }
 
-  /** The General the camera keeps centred (← / →); drag or Esc lets go. */
+  /** The General the camera keeps centred (â† / â†’); drag or Esc lets go. */
   private followGeneral?: WorkerInstance;
   private focusPublishTimer = 0;
 
@@ -1390,12 +1396,12 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  // ── Off-screen culling ─────────────────────────────────────────────────────
+  // â”€â”€ Off-screen culling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   private cullTimer = 0;
 
   /**
    * Units, structures and tiles outside the main camera's view (plus a margin)
-   * skip the main camera's render via cameraFilter — their logic keeps running
+   * skip the main camera's render via cameraFilter â€” their logic keeps running
    * and their own visibility is untouched, and the live-stream / brawl split
    * camera still draws them.
    */
@@ -1448,7 +1454,7 @@ export class MainScene extends Phaser.Scene {
     soundFx.playClick();
   }
 
-  /** Eased zoom about the current view centre (↑ / ↓). */
+  /** Eased zoom about the current view centre (â†‘ / â†“). */
   private easeZoom(delta: number): void {
     const cam = this.cameras.main;
     const cx = cam.scrollX + cam.width / 2;
@@ -1488,7 +1494,7 @@ export class MainScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { unsubCast(); useFocusGeneral.getState().setFocus(null, null); });
     this.events.once(Phaser.Scenes.Events.DESTROY, () => unsubCast());
-    // Arrow keys: ←/→ cycle the camera through the Generals by overall power, ↑/↓ zoom
+    // Arrow keys: â†/â†’ cycle the camera through the Generals by overall power, â†‘/â†“ zoom
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       const el = event.target as HTMLElement | null;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -1581,7 +1587,7 @@ export class MainScene extends Phaser.Scene {
         return;
       }
 
-      // Short tap (< 10 px) = click on a structure → open establishment modal
+      // Short tap (< 10 px) = click on a structure â†’ open establishment modal
       if (dragDist < 10 && this.structures) {
         const localX = pointer.worldX - this.islandContainer.x;
         const localY = pointer.worldY - this.islandContainer.y;
@@ -1606,7 +1612,7 @@ export class MainScene extends Phaser.Scene {
     );
   }
 
-  // ── Establishment relocation ────────────────────────────────────────────────
+  // â”€â”€ Establishment relocation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private startMove(id: MovableId, pointer: Phaser.Input.Pointer): void {
     this.isDragging = false;
@@ -1616,7 +1622,7 @@ export class MainScene extends Phaser.Scene {
     this.moving = { id, ghost, footprint, tile: { ...footprintOf(id) }, valid: false };
     this.updateGhost(pointer);
     soundFx.playClick();
-    this.workerManager.spawnFloatingPopup(ghost.x, ghost.y - 70, 'Click a new spot · Right-click / Esc to cancel', '#fde68a');
+    this.workerManager.spawnFloatingPopup(ghost.x, ghost.y - 70, 'Click a new spot Â· Right-click / Esc to cancel', '#fde68a');
   }
 
   /** Snaps the ghost to the tile under the pointer and tints its footprint green or red. */
@@ -1690,7 +1696,7 @@ export class MainScene extends Phaser.Scene {
     // FPS calibration: on slower machines the ambient layers (sky, clouds, rain/snow,
     // grass/water reactions, ocean surface, fish) update every 2nd/3rd frame with the
     // summed delta, and weather particles thin out. Gameplay is never throttled.
-    // The FPS setting caps the tier (30 FPS → LOW, ≤45 → MEDIUM); a slow machine can lower it further
+    // The FPS setting caps the tier (30 FPS â†’ LOW, â‰¤45 â†’ MEDIUM); a slow machine can lower it further
     const rank = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
     const settingTier = this._cachedTargetFps <= 30 ? 'LOW' : this._cachedTargetFps <= 45 ? 'MEDIUM' : 'HIGH';
     const fpsTier = this.fpsController.getQualityTier();
@@ -1731,6 +1737,7 @@ export class MainScene extends Phaser.Scene {
 
     this.structures.update(effectiveDelta);
     this.portals.update(effectiveDelta);
+    this.forageNodes?.update(effectiveDelta);
     this.forceFields?.update(effectiveDelta);
     this.liveFocus?.update(effectiveDelta);
     this.castleAlarm?.update(effectiveDelta);
@@ -1785,15 +1792,23 @@ export class MainScene extends Phaser.Scene {
 
     const isInvading = store.invasion.isActive;
     const weather = store.weather;
-    if (isInvading) {
-      // Every 5th wave brings a boss: heavier battle theme
-      soundFx.playBackgroundMusic(store.invasion.waveNumber % 5 === 0 ? 'BOSS' : 'BATTLE');
-    } else if (weather !== 'CLEAR') {
-      soundFx.playBackgroundMusic(weather);
-    } else if (store.timeOfDay === 'NIGHT') {
-      soundFx.playBackgroundMusic('NIGHT');
-    } else {
-      soundFx.playBackgroundMusic('LIVELY');
+    // Only start BGM after the loading screen has fully hidden (bakes done + scene ready).
+    // Prevents music and SFX from playing while the progress bar is still visible.
+    if (!this._bgmReady) {
+      const lp = useLoadProgress.getState();
+      if (isLoadComplete(lp)) this._bgmReady = true;
+    }
+    if (this._bgmReady) {
+      if (isInvading) {
+        // Every 5th wave brings a boss: heavier battle theme
+        soundFx.playBackgroundMusic(store.invasion.waveNumber % 5 === 0 ? 'BOSS' : 'BATTLE');
+      } else if (weather !== 'CLEAR') {
+        soundFx.playBackgroundMusic(weather);
+      } else if (store.timeOfDay === 'NIGHT') {
+        soundFx.playBackgroundMusic('NIGHT');
+      } else {
+        soundFx.playBackgroundMusic('LIVELY');
+      }
     }
 
     this.invasionManager?.update(effectiveDelta);
@@ -1864,13 +1879,13 @@ export class MainScene extends Phaser.Scene {
           this._fpsDebugUpdateTimer = 0;
           const stats = this.fpsController.getDebugStats();
           const tier = stats.qualityTier;
-          const tierColor = tier === 'HIGH' ? '🟢' : tier === 'MEDIUM' ? '🟡' : '🔴';
+          const tierColor = tier === 'HIGH' ? 'ðŸŸ¢' : tier === 'MEDIUM' ? 'ðŸŸ¡' : 'ðŸ”´';
           this._fpsDebugText.setText(
             `FPS: ${stats.measured} / ${stats.target} ${tierColor}
 ` +
             `Frame: ${stats.frameTimeMs.toFixed(1)}ms  Jank: ${stats.jankCount}
 ` +
-            `Quality: ${tier}${stats.performanceWarning ? '  ⚠️ PERF WARN' : ''}`
+            `Quality: ${tier}${stats.performanceWarning ? '  âš ï¸ PERF WARN' : ''}`
           );
           store.setMeasuredFps(stats.measured);
         }
@@ -1908,6 +1923,7 @@ export class MainScene extends Phaser.Scene {
     this.terrainUnsub?.();
     this.terrainTimer?.remove();
     this.portals?.destroy();
+    this.forageNodes?.destroy();
     this.structures?.destroy();
     this.worldEffects?.destroy();
     this.groundLoot?.destroy();

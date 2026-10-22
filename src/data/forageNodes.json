@@ -1,0 +1,14 @@
+{
+  "_doc": "Renewable wild bushes and trees. Nodes are click/tap harvested for wood, then regrow on another valid land tile. Population rises slowly with completed waves while remaining capped.",
+  "baseNodes": 4,
+  "maxNodes": 10,
+  "extraNodeEveryWaves": 15,
+  "respawnSeconds": 42,
+  "minRespawnSeconds": 16,
+  "respawnAccelerationPerWave": 0.012,
+  "treeChance": 0.45,
+  "wood": {
+    "bush": [4, 9],
+    "tree": [12, 24]
+  }
+}

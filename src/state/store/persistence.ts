@@ -48,7 +48,7 @@ const sanitizeShape = <T extends Record<string, unknown>>(defaults: T, raw: unkn
   return result as T;
 };
 /** Brood meter / truce and the living terrain from a save (tile keys validated). */
-const normalizeTerrain = (data: { broodUnrest?: unknown; broodTruceWaves?: unknown; terrainFlooded?: unknown; terrainFlooding?: unknown; terrainSand?: unknown; terrainRaised?: unknown; terrainFilled?: unknown }) => {
+const normalizeTerrain = (data: { broodUnrest?: unknown; broodTruceWaves?: unknown; terrainFlooded?: unknown; terrainFlooding?: unknown; terrainSand?: unknown; terrainRaised?: unknown; terrainFilled?: unknown; terrainReclamation?: unknown; terrainReclaimed?: unknown }) => {
   const keys = (v: unknown) => (Array.isArray(v)
     ? Array.from(new Set(v.filter((k): k is string => typeof k === 'string' && validTileKey(k)))).slice(0, MAX_TERRAIN_TILES)
     : []);
@@ -60,6 +60,17 @@ const normalizeTerrain = (data: { broodUnrest?: unknown; broodTruceWaves?: unkno
     return out;
   };
   const sand = days(data.terrainSand);
+  const rawJob = isPlainRecord(data.terrainReclamation) ? data.terrainReclamation : null;
+  const terrainReclamation = rawJob
+    && typeof rawJob.source === 'string' && validTileKey(rawJob.source)
+    && typeof rawJob.target === 'string' && validTileKey(rawJob.target)
+    ? {
+        source: rawJob.source,
+        target: rawJob.target,
+        progress: finite(rawJob.progress, 0, 0, 100000),
+        requiredWork: finite(rawJob.requiredWork, 90, 1, 100000),
+      }
+    : null;
   return {
     broodUnrest: clampMeter(WILD_FACTIONS.BROOD, Number(data.broodUnrest ?? 0)),
     broodTruceWaves: Math.max(0, Math.floor(Number(data.broodTruceWaves ?? 0)) || 0),
@@ -68,6 +79,8 @@ const normalizeTerrain = (data: { broodUnrest?: unknown; broodTruceWaves?: unkno
     terrainSand: sand,
     terrainRaised: days(data.terrainRaised),
     terrainFilled: keys(data.terrainFilled),
+    terrainReclamation,
+    terrainReclaimed: keys(data.terrainReclaimed),
   };
 };
 import { RESOURCE_KEYS } from '../resources';
@@ -353,6 +366,8 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       terrainSand: state.terrainSand,
       terrainRaised: state.terrainRaised,
       terrainFilled: state.terrainFilled,
+      terrainReclamation: state.terrainReclamation,
+      terrainReclaimed: state.terrainReclaimed,
       discoveredInvaders: state.discoveredInvaders,
       promptedUpgrades: state.promptedUpgrades,
       targetFps: state.targetFps,
@@ -467,6 +482,8 @@ const partialize = (state: GameStoreState) => ({
   terrainSand: state.terrainSand,
   terrainRaised: state.terrainRaised,
   terrainFilled: state.terrainFilled,
+  terrainReclamation: state.terrainReclamation,
+  terrainReclaimed: state.terrainReclaimed,
   discoveredInvaders: state.discoveredInvaders,
   day: state.day,
   year: state.year,

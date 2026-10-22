@@ -262,6 +262,8 @@ export const createInitialProgress = () => {
     terrainSand: {} as Record<string, number>,
     terrainRaised: {} as Record<string, number>,
     terrainFilled: [] as string[],
+    terrainReclamation: null,
+    terrainReclaimed: [] as string[],
     runes: [],
     runeSlots: emptyRuneSlots(),
     discoveredInvaders: [] as InvaderType[],

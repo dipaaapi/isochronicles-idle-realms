@@ -44,21 +44,28 @@ export const addClash = (prev: BrawlTension | undefined, x: number, y: number): 
 
 export const tensionFull = (t?: BrawlTension): boolean => !!t && t.count > config.clashesToBrawl;
 
-/** Roster after a brawl: winner gains 10% of the loser's current stats, up to 10 wins. */
+/**
+ * Roster after a brawl: winner inherits the loser's entire + level.
+ * If the loser was at +3 the winner gains +3 levels (capped at maxLevel=10);
+ * the loser resets to +0. The winner's attack and HP bonuses grow by the
+ * full accumulated bonus the loser had (their brawlAttack / brawlHp).
+ */
 export const applyBrawlResult = (roster: UnitRosterItem[], winnerId: string, loserId: string): UnitRosterItem[] => {
   const loser = roster.find((u) => u.id === loserId);
   const winner = roster.find((u) => u.id === winnerId);
   if (!loser || !winner) return roster;
-  const gain = generalStatsOf(loser);
+  const loserLevel = brawlLevelOf(loser);
   return roster.map((u) => {
     if (u.id === winnerId) {
-      const level = brawlLevelOf(u);
-      if (level >= config.maxLevel) return u;
+      const winLevel = brawlLevelOf(u);
+      if (winLevel >= config.maxLevel) return u;
+      const newLevel = Math.min(config.maxLevel, winLevel + Math.max(1, loserLevel));
       return {
         ...u,
-        brawlLevel: level + 1,
-        brawlAttack: (u.brawlAttack ?? 0) + Math.round(gain.attack * config.absorb.attack),
-        brawlHp: (u.brawlHp ?? 0) + Math.round(gain.hp * config.absorb.hp),
+        brawlLevel: newLevel,
+        // Absorb the loser's full accumulated bonus on top of the winner's own
+        brawlAttack: (u.brawlAttack ?? 0) + Math.max(0, loser.brawlAttack ?? 0),
+        brawlHp: (u.brawlHp ?? 0) + Math.max(0, loser.brawlHp ?? 0),
       };
     }
     if (u.id === loserId) return { ...u, brawlLevel: 0, brawlAttack: 0, brawlHp: 0 };

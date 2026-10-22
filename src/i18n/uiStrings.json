@@ -1063,6 +1063,22 @@
     "en": "No + power to spend (or the establishment isn't built yet).",
     "tl": "Walang + na lakas na magagastos (o hindi pa tapos ang establisyemento)."
   },
+  "genSellPlus": {
+    "en": "Sell + as Runes",
+    "tl": "Ipagbili ang + bilang Runa"
+  },
+  "genSellPlusHint": {
+    "en": "A +10 General cannot brawl. Sell all ten + levels to the castle for ten random tier-one runes.",
+    "tl": "Hindi na maaaring rumambol ang +10 na Heneral. Ipagbili sa kuta ang sampung + level kapalit ng sampung random na tier-one na runa."
+  },
+  "genSellPlusNone": {
+    "en": "Only +10 Generals can sell their power as runes.",
+    "tl": "Mga +10 na Heneral lamang ang maaaring magbenta ng lakas bilang runa."
+  },
+  "genSellPlusDone": {
+    "en": "The castle forged {count} runes from the sold power.",
+    "tl": "Humubog ang kuta ng {count} runa mula sa ipinagbilíng lakas."
+  },
   "hubTabLab": {
     "en": "Laboratory",
     "tl": "Laboratoryo"

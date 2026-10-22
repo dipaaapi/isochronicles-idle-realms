@@ -1,6 +1,7 @@
 import { soundFx } from '../../game/audio/soundFx';
 import {
   DROP_MAX_TIER,
+  MAX_TIER,
   MERGE_COUNT,
   RUNES,
   newRuneId,
@@ -56,6 +57,7 @@ export const createRunesSlice = (...[set, get]: SliceArgs) => ({
    * are freed.
    */
   mergeRunes: (kind: RuneKind, tier: number): Rune | null => {
+    if (tier >= MAX_TIER) return null;
     const state = get();
     const slotted = slottedIds(state.runeSlots);
     const pool = state.runes
@@ -64,7 +66,7 @@ export const createRunesSlice = (...[set, get]: SliceArgs) => ({
       .slice(0, MERGE_COUNT);
     if (pool.length < MERGE_COUNT) return null;
     const used = new Set(pool.map((r) => r.id));
-    const merged: Rune = { id: newRuneId(), kind, tier: tier + 1 };
+    const merged: Rune = { id: newRuneId(), kind, tier: Math.min(MAX_TIER, tier + 1) };
     const target: RuneTarget = RUNES[kind].target;
     const keep = slotted.has(pool[0].id) ? pool[0].id : null;
     const row = state.runeSlots[target].map((id) => (keep && id === keep ? merged.id : id && used.has(id) ? null : id));

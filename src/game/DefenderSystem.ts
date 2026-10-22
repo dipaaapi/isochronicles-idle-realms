@@ -30,6 +30,8 @@ import { scaleBundle, teamBonuses } from '../state/skillTree';
 import { buildingHpOf, buildingMaxHp, buildingMaxHpOf, towerBuildingOf, towerLevelOf } from '../state/defenseStats';
 import { BUILDING_IDS } from '../state/buildingLayout';
 import type { ConstructionStatus } from '../state/constructionProgress';
+import reclamation from '../data/terrainReclamation.json';
+import { ensureTerrainReclamation, reclamationPoint } from './workers/reclamation';
 
 export type DefenderState =
   | 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT'
@@ -467,6 +469,11 @@ export class DefenderSystem {
     }
 
     // ── 2. Update Defenders & Tenants Behavior ──
+    // A small rotating work crew helps reclamation; the remaining tenants keep
+    // gathering so the realm economy never stalls behind a long earthwork job.
+    const reclamationCrew = new Set(this.defenders
+      .filter((d) => !d.dead && d.home !== 'SUMMON' && minionMoveMode(d.unitClass) === 'land')
+      .slice(0, 3));
     for (const d of [...this.defenders]) {
       if (d.dead || !d.container.active) continue;
       this.syncUnitSprite(d);
@@ -486,6 +493,8 @@ export class DefenderSystem {
         this.updateSummonCombat(d, invaders, dt);
         continue;
       }
+
+      if (reclamationCrew.has(d) && this.updateReclamation(d, dt, isWaveActive)) continue;
 
       // ── Slime Morale Buff Update ──
       if (d.activeSlimeBuff && d.activeSlimeBuff.duration > 0) {
@@ -852,6 +861,26 @@ export class DefenderSystem {
 
   private dist(d: Defender, p: { x: number; y: number }): number {
     return Math.hypot(p.x - d.container.x, p.y - d.container.y);
+  }
+
+  /** Land tenants help the Treant excavate and pack the shared reclamation project. */
+  private updateReclamation(d: Defender, dt: number, battle: boolean): boolean {
+    if (battle || minionMoveMode(d.unitClass) !== 'land') return false;
+    ensureTerrainReclamation();
+    const project = useGameStore.getState().terrainReclamation;
+    if (!project) return false;
+    const excavating = project.progress < project.requiredWork / 2;
+    const tile = reclamationPoint(excavating ? project.source : project.target);
+    const destination = IsometricHelper.gridToScreen(tile.x, tile.y);
+    d.harvestTask = 'STONE';
+    d.state = 'HARVESTING';
+    if (this.dist(d, destination) > reclamation.workRadiusPx + 12) {
+      this.step(d, destination.x, destination.y, dt, DEFENDER_SPEED * reclamation.travelSpeedMultiplier);
+    } else {
+      useGameStore.getState().advanceTerrainReclamation(reclamation.workerWorkPerSecond * dt);
+      if (d.sprite) playCharacterWork(d.sprite);
+    }
+    return true;
   }
 
   private step(d: Defender, tx: number, ty: number, dt: number, speed: number = DEFENDER_SPEED): void {

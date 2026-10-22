@@ -141,7 +141,9 @@
     "commandSucceeded": { "category": "world", "tone": "neutral", "icon": "⌨️", "en": "Command completed: {command}", "tl": "Natupad ang utos: {command}" },
     "commandFailed": { "category": "world", "tone": "bad", "icon": "⌨️", "en": "Command failed: {reason}", "tl": "Hindi natupad ang utos: {reason}" },
     "brawlInterrupted": { "category": "minions", "tone": "neutral", "icon": "🛑", "en": "The brawl between {a} and {b} broke off", "tl": "Naputol ang rambulan nina {a} at {b}" },
-    "brawlWon": { "category": "minions", "tone": "epic", "icon": "🏆", "en": "{winner} defeated {loser} to the death and absorbed 10% of their stats (+{level}/10 wins)", "tl": "Natalo ni {winner} si {loser} hanggang kamatayan at nakuha ang 10% ng stats nito (+{level}/10 panalo)" },
+    "brawlWon": { "category": "minions", "tone": "epic", "icon": "🏆", "en": "{winner} defeated {loser} and inherited their full + power (+{level}/10)", "tl": "Natalo ni {winner} si {loser} at minana ang buong + na lakas nito (+{level}/10)" },
+    "generalPlusSold": { "category": "minions", "tone": "epic", "icon": "🔷", "en": "The castle forged {count} runes from a General's sold + power", "tl": "Humubog ang kuta ng {count} runa mula sa ipinagbilíng + na lakas ng Heneral" },
+    "forageHarvested": { "category": "economy", "tone": "good", "icon": "🌳", "en": "Gathered {amount} wood from a wild {kind}; another will regrow elsewhere", "tl": "Nakakuha ng {amount} kahoy mula sa ligaw na {kind}; tutubo muli ang isa sa ibang lugar" },
     "bossCarriesRune": { "category": "combat", "tone": "epic", "icon": "🔷", "en": "{name} carries a {rune}: defeat it to claim the rune", "tl": "May dalang {rune} ang {name}: talunin ito para makuha ang runa" },
     "runeDropped": { "category": "combat", "tone": "epic", "icon": "🔷", "en": "{name} dropped a {rune}! It is in the Rune Vault", "tl": "Nahulog ng {name} ang {rune}! Nasa Kaban ng Runa na" },
     "mirrorArrives": { "category": "combat", "tone": "bad", "icon": "🪞", "en": "{name} mirrors {general}'s strength", "tl": "Ginagaya ng {name} ang lakas ni {general}" },
@@ -174,7 +176,9 @@
     "broodBodyguards": { "category": "combat", "tone": "bad", "icon": "🛡️", "en": "{count} of the Sand Brood swear to guard the Ancient Caterpillar", "tl": "{count} ng Sand Brood ang nanumpang ipagtatanggol ang Sinaunang Higad" },
     "broodTribute": { "category": "economy", "tone": "good", "icon": "🤝", "en": "Tribute accepted: the Sand Brood spare your demons for {waves} waves", "tl": "Tinanggap ang alay: hindi gagalawin ng Sand Brood ang iyong mga demonyo sa loob ng {waves} alon" },
     "terrainFlooded": { "category": "world", "tone": "neutral", "icon": "🌊", "en": "The sea swallows {count} tiles of shore where the Leviathan stirred", "tl": "Nilamon ng dagat ang {count} na tile ng pampang kung saan gumalaw ang Leviathan" },
-    "terrainHeaved": { "category": "world", "tone": "epic", "icon": "⛰️", "en": "The Ancient Caterpillar heaves the ground: {raised} tiles of raised rock, {filled} tiles of sea turned to sand", "tl": "Itinulak ng Sinaunang Higad ang lupa: {raised} na tile ng nakaangat na bato, {filled} na tile ng dagat na naging buhangin" }
+    "terrainHeaved": { "category": "world", "tone": "epic", "icon": "⛰️", "en": "The Ancient Caterpillar heaves the ground: {raised} tiles of raised rock, {filled} tiles of sea turned to sand", "tl": "Itinulak ng Sinaunang Higad ang lupa: {raised} na tile ng nakaangat na bato, {filled} na tile ng dagat na naging buhangin" },
+    "reclamationStarted": { "category": "world", "tone": "neutral", "icon": "🏝️", "en": "The Ancient Treant and minions begin moving a finite Sand God deposit to reclaim water", "tl": "Sinimulan ng Sinaunang Treant at mga minion ang paglilipat ng limitadong lupa ng Diyos ng Buhangin upang bawiin ang tubig" },
+    "reclamationComplete": { "category": "world", "tone": "good", "icon": "🌱", "en": "Land reclaimed: the source was depleted and a water tile became fertile sand", "tl": "Nabawi ang lupa: naubos ang pinagmulan at naging matabang buhangin ang isang tile ng tubig" }
   },
   "classifier": {
     "combat": "victory|repelled|loot|defend|invader|smite|castle hp|incursion|wounded|died|kia",

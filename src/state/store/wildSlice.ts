@@ -2,6 +2,7 @@ import { soundFx } from '../../game/audio/soundFx';
 import { logMessage } from '../activityLog';
 import { WILD_FACTIONS, clampMeter, wildTributeCost } from '../wildFactions';
 import type { SliceArgs } from './types';
+import reclamation from '../../data/terrainReclamation.json';
 
 const BROOD = WILD_FACTIONS.BROOD;
 const uniq = (keys: string[]) => [...new Set(keys)];
@@ -79,9 +80,45 @@ export const createWildSlice = (...[set, get]: SliceArgs) => ({
         terrainRaised,
         terrainFilled: uniq([...prev.terrainFilled, ...carve.filled]),
         terrainFlooded: prev.terrainFlooded.filter((k) => !filled.has(k)),
+        terrainReclaimed: prev.terrainReclaimed.filter((k) => !filled.has(k)),
         lastSavedTimestamp: Date.now(),
       };
     });
+  },
+
+  startTerrainReclamation: (source: string, target: string) => {
+    set((prev) => prev.terrainReclamation ? prev : {
+      terrainReclamation: { source, target, progress: 0, requiredWork: reclamation.requiredWork },
+      lastSavedTimestamp: Date.now(),
+    });
+    logMessage('reclamationStarted');
+  },
+
+  advanceTerrainReclamation: (work: number) => {
+    if (!(work > 0)) return;
+    let completed = false;
+    set((prev) => {
+      const job = prev.terrainReclamation;
+      if (!job) return prev;
+      const progress = Math.min(job.requiredWork, job.progress + work);
+      if (progress < job.requiredWork) return { terrainReclamation: { ...job, progress } };
+      const terrainSand = { ...prev.terrainSand };
+      delete terrainSand[job.source];
+      terrainSand[job.target] = prev.day;
+      const filled = new Set(prev.terrainFilled);
+      filled.delete(job.source);
+      filled.add(job.target);
+      completed = true;
+      return {
+        terrainSand,
+        terrainFilled: [...filled],
+        terrainFlooded: uniq([...prev.terrainFlooded.filter((key) => key !== job.target), job.source]),
+        terrainReclaimed: uniq([...prev.terrainReclaimed.filter((key) => key !== job.source), job.target]),
+        terrainReclamation: null,
+        lastSavedTimestamp: Date.now(),
+      };
+    });
+    if (completed) logMessage('reclamationComplete');
   },
 
   /** A new day: raised rock settles back into plain land. */

@@ -749,8 +749,18 @@ console.log('Endless waves, permadeath, skill tree, combat and save checks passe
     store.setState({ day: 21 });
     state().liftRaised();
     assert.equal(Object.keys(state().terrainRaised).length, 0, 'raised rock settles back the next day');
+    store.setState({ day: 22, terrainSand: { '6,1': 20 }, terrainFilled: ['6,1'], terrainFlooded: ['7,1'], terrainReclamation: null, terrainReclaimed: [] });
+    state().startTerrainReclamation('6,1', '7,1');
+    assert.equal(state().terrainReclamation.source, '6,1', 'reclamation persists its finite source');
+    state().advanceTerrainReclamation(state().terrainReclamation.requiredWork);
+    assert.equal(state().terrainReclamation, null, 'completed reclamation clears the project');
+    assert.equal(state().terrainFilled.includes('6,1'), false, 'the transferred source is depleted back to water');
+    assert.equal(state().terrainFlooded.includes('6,1'), true);
+    assert.equal(state().terrainFilled.includes('7,1'), true, 'the destination water becomes filled sand');
+    assert.equal(state().terrainSand['7,1'], 22);
+    assert.equal(state().terrainReclaimed.includes('7,1'), true, 'moved fill cannot be mined again as fresh Sand God terrain');
     lay.setTerrainEdits([], [], [], [], []);
-    store.setState({ terrainFlooded: [], terrainFlooding: [], terrainSand: {}, terrainRaised: {}, terrainFilled: [] });
+    store.setState({ terrainFlooded: [], terrainFlooding: [], terrainSand: {}, terrainRaised: {}, terrainFilled: [], terrainReclamation: null, terrainReclaimed: [] });
     console.log('Terrain checks passed.');
   }
 }
@@ -825,15 +835,15 @@ console.log('Endless waves, permadeath, skill tree, combat and save checks passe
   assert.ok(brawl.tensionFull(state().brawlTension[brawl.pairKey('g1', 'g2')]));
   state().resolveBrawl('g1', 'g2');
   const [g1, g2] = state().roster;
-  assert.equal(g1.brawlLevel, 1, 'the winner gains +1');
-  assert.equal(g1.brawlAttack, Math.round((UNIT_CLASSES.HARPY.baseAttack + 30) * brawl.BRAWL_CONFIG.absorb.attack), 'absorbs 10% of the loser current attack');
-  assert.equal(g1.brawlHp, Math.round((UNIT_CLASSES.HARPY.baseHp + 200) * brawl.BRAWL_CONFIG.absorb.hp));
+  assert.equal(g1.brawlLevel, 2, "the winner inherits the loser's full + level");
+  assert.equal(g1.brawlAttack, 30, "inherits the loser's full brawl attack bonus");
+  assert.equal(g1.brawlHp, 200, "inherits the loser's full brawl HP bonus");
   assert.equal(g2.brawlLevel, 0, 'the loser loses its + levels');
   assert.equal(g2.brawlAttack, 0);
   assert.equal(state().brawlTension[brawl.pairKey('g1', 'g2')], undefined, 'tension resets after the brawl');
 
-  let r = state().roster;
-  for (let i = 0; i < 15; i++) r = brawl.applyBrawlResult(r, 'g1', 'g2');
+  let r = [{ ...g1, brawlLevel: 8 }, { ...g2, brawlLevel: 5, brawlAttack: 10, brawlHp: 20 }];
+  r = brawl.applyBrawlResult(r, 'g1', 'g2');
   assert.equal(r[0].brawlLevel, brawl.BRAWL_CONFIG.maxLevel, 'the badge caps at +10');
   const stats = brawl.generalStatsOf(r[0]);
   assert.equal(stats.attack, UNIT_CLASSES.GOLEM.baseAttack + r[0].brawlAttack, 'mirror invaders copy the full General stats');
@@ -844,7 +854,7 @@ console.log('Endless waves, permadeath, skill tree, combat and save checks passe
   state().resetRealm();
   assert.equal(Object.keys(state().brawlTension).length, 0, 'a new realm has no tension');
   assert.equal(state().importSave(save), true);
-  assert.equal(state().roster.find((u) => u.id === 'g1').brawlLevel, 1, 'brawl levels survive export/import');
+  assert.equal(state().roster.find((u) => u.id === 'g1').brawlLevel, 2, 'brawl levels survive export/import');
   console.log('Brawl checks passed.');
 }
 
@@ -855,7 +865,7 @@ console.log('Endless waves, permadeath, skill tree, combat and save checks passe
   state().resetRealm();
   assert.equal(runes.bossRuneTier(1, false), 1);
   assert.equal(runes.bossRuneTier(26, false), 2, 'later waves carry stronger runes');
-  assert.equal(runes.bossRuneTier(100, true), runes.MAX_TIER, 'the climax boss carries the top tier');
+  assert.equal(runes.bossRuneTier(100, true), runes.DROP_MAX_TIER, 'the climax boss carries the top drop tier');
 
   const fury = state().grantRune('FURY', 1);
   assert.ok(fury && state().runes.length === 1, 'a boss rune lands in the vault');
@@ -879,9 +889,9 @@ console.log('Endless waves, permadeath, skill tree, combat and save checks passe
   assert.equal(state().runes.length, 0, 'a new realm starts with an empty vault');
   assert.equal(state().importSave(save), true);
   assert.equal(state().runes.length, 2, 'runes survive export/import');
-  const bad = runes.normalizeRunes([{ id: 'x', kind: 'NOPE', tier: 1 }, { id: 'y', kind: 'FURY', tier: 99 }], { CASTLE: ['y'], GENERALS: ['y'] });
+  const bad = runes.normalizeRunes([{ id: 'x', kind: 'NOPE', tier: 1 }, { id: 'y', kind: 'FURY', tier: 999 }], { CASTLE: ['y'], GENERALS: ['y'] });
   assert.equal(bad.runes.length, 1);
-  assert.equal(bad.runes[0].tier, 99, 'merged tiers have no cap');
+  assert.equal(bad.runes[0].tier, runes.MAX_TIER, 'saved and merged rune tiers cap at 100');
   assert.equal(bad.runeSlots.CASTLE[0], null, 'a rune cannot sit in another target');
   assert.equal(bad.runeSlots.GENERALS[0], 'y');
   console.log('Rune checks passed.');

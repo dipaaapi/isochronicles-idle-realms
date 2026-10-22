@@ -293,12 +293,15 @@ export class WildFactionManager {
     if (truce && !wave) return;
     if (!wave && Math.random() > this.D.brawlEmergeChance) return;
     const size = wildGroupSize(this.D, meter);
-    if (size <= 0 || !this.spawnTiles.length) return;
+    if (!this.spawnTiles.length) return;
     const kinds = Array.from({ length: size }, () => pickWildCreature(this.D));
     const bossKind = Object.keys(this.D.creatures).find((k) => this.D.creatures[k].boss);
     // The boss comes when the meter is near the top, and now and then on any restless wave
+    // Both island gods are guaranteed third/fourth-side participants in every
+    // invasion wave. Brawls retain the old unrest/chance rules.
     const boss = (wave || !!this.D.boss.inBrawls) && !!bossKind && !this.creatures.some((c) => c.def.boss)
-      && (meter >= C.bossAt || Math.random() < this.D.boss.randomChance);
+      && (wave || meter >= C.bossAt || Math.random() < this.D.boss.randomChance);
+    if (size <= 0 && !boss) return;
     if (boss) kinds.push(bossKind!);
     let risen = 0;
     kinds.forEach((kind, i) => this.scene.time.delayedCall(i * 450, () => { if (this.rise(kind)) risen++; }));

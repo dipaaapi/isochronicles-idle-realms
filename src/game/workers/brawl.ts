@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { RAGE } from '../../state/generalOrders';
 import { addRage } from './generalOrders';
 import { useGameStore } from '../../state/useGameStore';
-import { BRAWL_CONFIG, tensionFull } from '../../state/brawl';
+import { BRAWL_CONFIG, brawlLevelOf, tensionFull } from '../../state/brawl';
 import { logMessage } from '../../state/activityLog';
 import { soundFx } from '../audio/soundFx';
 import { playCharacterHit, playCharacterSkill } from '../sprites/CharacterSprites';
@@ -51,7 +51,9 @@ export class BrawlDirector {
   /** Starts a player-requested brawl between two random living field Generals. */
   command(generals: WorkerInstance[]): boolean {
     if (this.brawl || hasNonBrawlBattle(useGameStore.getState().invasion.isActive)) return false;
-    const eligible = generals.filter((g) => g.hp > 0 && g.container.active && g.container.visible);
+    const roster = new Map(useGameStore.getState().roster.map((u) => [u.id, u]));
+    const eligible = generals.filter((g) => g.hp > 0 && g.container.active && g.container.visible
+      && brawlLevelOf(roster.get(g.id)!) < CFG.maxLevel);
     if (eligible.length < 2) return false;
     const aIndex = Math.floor(Math.random() * eligible.length);
     const [a] = eligible.splice(aIndex, 1);
@@ -69,6 +71,8 @@ export class BrawlDirector {
     if (hasNonBrawlBattle(useGameStore.getState().invasion.isActive)) return 'wave';
     const up = (g?: WorkerInstance): g is WorkerInstance => !!g && g.hp > 0 && g.container.active && g.container.visible;
     if (!up(a) || !up(b) || a === b) return 'missing';
+    const roster = new Map(useGameStore.getState().roster.map((u) => [u.id, u]));
+    if (brawlLevelOf(roster.get(a.id)!) >= CFG.maxLevel || brawlLevelOf(roster.get(b.id)!) >= CFG.maxLevel) return 'missing';
     if ((a.rage ?? 0) < RAGE.brawlCost || (b.rage ?? 0) < RAGE.brawlCost) return 'rage';
     addRage(a, -RAGE.brawlCost);
     addRage(b, -RAGE.brawlCost);
@@ -95,7 +99,9 @@ export class BrawlDirector {
 
   private countClashes(generals: WorkerInstance[], battle: boolean): void {
     const store = useGameStore.getState();
-    const live = generals.filter((g) => g.hp > 0 && g.container.active && g.container.visible);
+    const roster = new Map(store.roster.map((u) => [u.id, u]));
+    const live = generals.filter((g) => g.hp > 0 && g.container.active && g.container.visible
+      && brawlLevelOf(roster.get(g.id)!) < CFG.maxLevel);
     for (let i = 0; i < live.length; i++) {
       for (let j = i + 1; j < live.length; j++) {
         const a = live[i];

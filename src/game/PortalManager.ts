@@ -360,6 +360,9 @@ export class PortalManager {
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
     for (const p of this.portals) {
+      // Portals are map fixtures. Combat tweens and camera shake must never leave
+      // their entity containers offset from the exact centre of their 2x2 dais.
+      p.container.setPosition(p.x, p.y).setScale(PORTAL_SCALE);
       if (p.busy > 0) p.busy -= dt;
       if (p.wardTimer > 0) p.wardTimer -= dt;
       const show = p.mode === 'open' && p.hp < p.maxHp;

@@ -36,10 +36,10 @@ export const RUNES = config.runes as unknown as Record<RuneKind, RuneDef>;
 export const RUNE_KINDS = Object.keys(RUNES) as RuneKind[];
 export const RUNE_TARGETS = config.targets as Record<RuneTarget, { icon: string; color: string; name: Localized }>;
 export const RUNE_TARGET_IDS = Object.keys(RUNE_TARGETS) as RuneTarget[];
-/** Highest tier a boss drops; merges go past it without limit. */
+/** Highest tier a boss drops. */
 export const DROP_MAX_TIER = config.tierPower.length;
-/** @deprecated kept for older imports: same as DROP_MAX_TIER. */
-export const MAX_TIER = DROP_MAX_TIER;
+/** Hard ceiling for merges, display, stat power and imported saves. */
+export const MAX_TIER = config.maxTier;
 export const SLOTS_PER_TARGET = config.slotsPerTarget;
 export const MERGE_COUNT = config.mergeCount;
 
@@ -58,7 +58,7 @@ export const tierColor = (tier: number): string =>
 
 /** Power multiplier of a tier: the listed table, then +tierGrowth per tier. */
 export const tierPower = (tier: number): number => {
-  const t = Math.max(1, Math.floor(tier));
+  const t = Math.max(1, Math.min(MAX_TIER, Math.floor(tier)));
   const table = config.tierPower;
   return table[t - 1] ?? table[table.length - 1] + config.tierGrowth * (t - table.length);
 };
@@ -106,7 +106,7 @@ export const normalizeRunes = (rawRunes: unknown, rawSlots: unknown): { runes: R
   for (const r of Array.isArray(rawRunes) ? rawRunes : []) {
     if (!r || typeof r.id !== 'string' || seen.has(r.id) || !(r.kind in RUNES)) continue;
     seen.add(r.id);
-    runes.push({ id: r.id, kind: r.kind as RuneKind, tier: Math.max(1, Math.min(9999, Math.floor(Number(r.tier) || 1))) });
+    runes.push({ id: r.id, kind: r.kind as RuneKind, tier: Math.max(1, Math.min(MAX_TIER, Math.floor(Number(r.tier) || 1))) });
   }
   const byId = new Map(runes.map((r) => [r.id, r]));
   const runeSlots = emptyRuneSlots();

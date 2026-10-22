@@ -9,6 +9,7 @@ import { soundFx } from '../game/audio/soundFx';
 import KIROV from '../data/kirov.json';
 import LOCOMOTION from '../data/locomotion.json';
 import { battleTargets, hasNonBrawlBattle } from '../game/battleTargets';
+import { BRAWL_CONFIG } from '../state/brawl';
 
 interface Gauge { id: string; hp: number; maxHp: number; rage: number; brawling: boolean }
 type Priority = (typeof GENERAL_ORDERS.priorities)[number];
@@ -47,6 +48,7 @@ export function GeneralsPanel() {
   const roster = useGameStore((s) => s.roster);
   const setGeneralOrder = useGameStore((s) => s.setGeneralOrder);
   const investBrawlPower = useGameStore((s) => s.investBrawlPower);
+  const sellBrawlPlus = useGameStore((s) => s.sellBrawlPlus);
   const [gauges, setGauges] = useState<Record<string, Gauge>>({});
   const [picked, setPicked] = useState<string[]>([]);
   const [hoverOrder, setHoverOrder] = useState<Priority | null>(null);
@@ -79,7 +81,8 @@ export function GeneralsPanel() {
   const sharedOrder = selOrders.size === 1 ? [...selOrders][0] : null;
   const fortifyHp = sel.reduce((n, u) => n + sturdyFromBonus(u.brawlAttack ?? 0, u.brawlHp ?? 0), 0);
   const otherBattleActive = hasNonBrawlBattle(useGameStore.getState().invasion.isActive);
-  const canBrawl = generals.filter((u) => (gauges[u.id]?.hp ?? 0) > 0).length >= 2 && !otherBattleActive;
+  const canBrawl = generals.filter((u) => (gauges[u.id]?.hp ?? 0) > 0 && (u.brawlLevel ?? 0) < BRAWL_CONFIG.maxLevel).length >= 2 && !otherBattleActive;
+  const maxed = sel.filter((u) => (u.brawlLevel ?? 0) >= BRAWL_CONFIG.maxLevel);
 
   const pick = (ids: string[]) => { soundFx.playClick(); setPicked(ids); };
   const toggle = (id: string) => pick(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
@@ -112,6 +115,16 @@ export function GeneralsPanel() {
     }
     if (total > 0) { soundFx.playFanfare(); setNote({ text: `🏰 +${total.toLocaleString()} HP`, good: true }); }
     else setNote({ text: t('genFortifyNone') });
+  };
+
+  const sellPlus = () => {
+    if (!maxed.length) return setNote({ text: t('genSellPlusNone') });
+    let count = 0;
+    for (const u of maxed) count += sellBrawlPlus(u.id);
+    if (count > 0) {
+      logMessage('generalPlusSold', { count });
+      setNote({ text: t('genSellPlusDone').replace('{count}', String(count)), good: true });
+    }
   };
 
   if (!generals.length) {
@@ -210,9 +223,9 @@ export function GeneralsPanel() {
           className={`pixel-btn px-1 py-1.5 text-[10px] font-bold cursor-pointer ${canBrawl ? 'bg-rose-600 text-white animate-pulse' : 'bg-rose-950 text-rose-300/70'}`}>
           🥊 {t('genBrawl')}
         </button>
-        <button onClick={fortify} title={t('genFortifyHint')}
+        <button onClick={maxed.length ? sellPlus : fortify} title={maxed.length ? t('genSellPlusHint') : t('genFortifyHint')}
           className={`pixel-btn px-1 py-1.5 text-[10px] font-bold cursor-pointer ${fortifyHp > 0 ? 'bg-amber-500 text-slate-950' : 'bg-amber-950 text-amber-300/70'}`}>
-          🏰 {t('genFortify')}{fortifyHp > 0 ? ` +${fortifyHp.toLocaleString()}` : ''}
+          {maxed.length ? `🔷 ${t('genSellPlus')}` : `🏰 ${t('genFortify')}${fortifyHp > 0 ? ` +${fortifyHp.toLocaleString()}` : ''}`}
         </button>
       </div>
       {note && <div className={`text-[10px] ${note.good ? 'text-emerald-300' : 'text-amber-300'}`}>{note.text}</div>}

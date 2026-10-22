@@ -1,0 +1,8 @@
+{
+  "_doc": "Peacetime land transfer: roster minions and the Ancient Treant excavate one Sand God fill tile and rebuild one eligible water tile. One completed project consumes its source tile.",
+  "requiredWork": 90,
+  "workerWorkPerSecond": 1,
+  "treantWorkPerSecond": 2.5,
+  "workRadiusPx": 34,
+  "travelSpeedMultiplier": 0.85
+}

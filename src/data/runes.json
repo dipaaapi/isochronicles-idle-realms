@@ -1,8 +1,9 @@
 {
-  "_doc": "Runes (src/state/runes.ts) replaced the skill tree's unlock enhancements. Every wave boss carries one rune (rolled at spawn from `runes`, tier from the wave: 1 + floor((wave-1)/wavesPerTier), +climaxBonus for the realm climax, capped at the top tier) and drops it into the Rune Vault when slain. Each target (Citadel, Establishments, Generals, Minions) has slotsPerTarget slots; a rune only fits its own target. A slotted rune adds perTier × tierPower[tier-1] to its stat (summed with the skill tree, capped by the stat's cap). Three runes of the same kind and tier (slotted or not) merge into one of the next tier; a merge that uses a slotted rune upgrades it in its slot.",
+  "_doc": "Runes (src/state/runes.ts) replaced the skill tree's unlock enhancements. Every wave boss carries one rune (rolled at spawn from `runes`, tier from the wave: 1 + floor((wave-1)/wavesPerTier), +climaxBonus for the realm climax, capped at the top tier) and drops it into the Rune Vault when slain. Each target (Citadel, Establishments, Generals, Minions) has slotsPerTarget slots; a rune only fits its own target. A slotted rune adds perTier Ã— tierPower[tier-1] to its stat (summed with the skill tree, capped by the stat's cap). Three runes of the same kind and tier (slotted or not) merge into one of the next tier; a merge that uses a slotted rune upgrades it in its slot.",
   "slotsPerTarget": 3,
   "_tierGrowth": "Runes are upgraded only by merging: three of the same kind and tier make one of the next tier, with no tier cap. Past the last tierPower entry each tier adds tierGrowth power. Bosses still drop up to the last listed tier. Slots stay fixed at slotsPerTarget.",
   "tierGrowth": 3,
+  "maxTier": 100,
   "mergeCount": 3,
   "wavesPerTier": 25,
   "climaxBonus": 1,
@@ -29,7 +30,7 @@
   ],
   "targets": {
     "CASTLE": {
-      "icon": "🏰",
+      "icon": "ðŸ°",
       "color": "#60a5fa",
       "name": {
         "en": "Citadel",
@@ -37,7 +38,7 @@
       }
     },
     "ESTABLISHMENTS": {
-      "icon": "🏛️",
+      "icon": "ðŸ›ï¸",
       "color": "#fbbf24",
       "name": {
         "en": "Establishments",
@@ -45,7 +46,7 @@
       }
     },
     "GENERALS": {
-      "icon": "👑",
+      "icon": "ðŸ‘‘",
       "color": "#f472b6",
       "name": {
         "en": "Generals",
@@ -53,7 +54,7 @@
       }
     },
     "MINIONS": {
-      "icon": "🧑‍🌾",
+      "icon": "ðŸ§‘â€ðŸŒ¾",
       "color": "#2dd4bf",
       "name": {
         "en": "Minions",
@@ -64,7 +65,7 @@
   "runes": {
     "OBSIDIAN": {
       "target": "CASTLE",
-      "icon": "🪨",
+      "icon": "ðŸª¨",
       "stat": "castleArmor",
       "perTier": 0.03,
       "name": {
@@ -78,7 +79,7 @@
     },
     "MENDING": {
       "target": "CASTLE",
-      "icon": "💖",
+      "icon": "ðŸ’–",
       "stat": "waveRepair",
       "perTier": 0.03,
       "name": {
@@ -92,7 +93,7 @@
     },
     "ARTILLERY": {
       "target": "CASTLE",
-      "icon": "🎯",
+      "icon": "ðŸŽ¯",
       "stat": "towerDamage",
       "perTier": 0.05,
       "name": {
@@ -106,7 +107,7 @@
     },
     "BASTION": {
       "target": "ESTABLISHMENTS",
-      "icon": "🧱",
+      "icon": "ðŸ§±",
       "stat": "buildingArmor",
       "perTier": 0.03,
       "name": {
@@ -120,7 +121,7 @@
     },
     "WARD": {
       "target": "ESTABLISHMENTS",
-      "icon": "🔮",
+      "icon": "ðŸ”®",
       "stat": "forceFieldHp",
       "perTier": 0.1,
       "name": {
@@ -134,7 +135,7 @@
     },
     "SIGIL": {
       "target": "ESTABLISHMENTS",
-      "icon": "📜",
+      "icon": "ðŸ“œ",
       "stat": "structureSkillPower",
       "perTier": 0.06,
       "name": {
@@ -148,7 +149,7 @@
     },
     "FURY": {
       "target": "GENERALS",
-      "icon": "⚔️",
+      "icon": "âš”ï¸",
       "stat": "generalAttack",
       "perTier": 0.05,
       "name": {
@@ -162,7 +163,7 @@
     },
     "AEGIS": {
       "target": "GENERALS",
-      "icon": "🛡️",
+      "icon": "ðŸ›¡ï¸",
       "stat": "generalArmor",
       "perTier": 0.03,
       "name": {
@@ -176,7 +177,7 @@
     },
     "FOCUS": {
       "target": "GENERALS",
-      "icon": "🌀",
+      "icon": "ðŸŒ€",
       "stat": "generalSkillCooldown",
       "perTier": 0.04,
       "name": {
@@ -190,7 +191,7 @@
     },
     "BANNER": {
       "target": "MINIONS",
-      "icon": "🚩",
+      "icon": "ðŸš©",
       "stat": "generalBanner",
       "perTier": 0.04,
       "name": {
@@ -204,7 +205,7 @@
     },
     "VIGOR": {
       "target": "MINIONS",
-      "icon": "💪",
+      "icon": "ðŸ’ª",
       "stat": "tenantHp",
       "perTier": 0.08,
       "name": {
@@ -218,7 +219,7 @@
     },
     "SPOILS": {
       "target": "MINIONS",
-      "icon": "💰",
+      "icon": "ðŸ’°",
       "stat": "expeditionYield",
       "perTier": 0.1,
       "name": {
@@ -232,7 +233,7 @@
     },
     "MUSTER": {
       "target": "MINIONS",
-      "icon": "📯",
+      "icon": "ðŸ“¯",
       "stat": "summonDiscount",
       "perTier": 0.1,
       "name": {
@@ -271,8 +272,8 @@
       "tl": "Mga runang hindi nakalagay"
     },
     "noRunes": {
-      "en": "No runes yet — defeat a wave boss to earn one.",
-      "tl": "Wala pang runa — talunin ang boss ng alon para makakuha."
+      "en": "No runes yet â€” defeat a wave boss to earn one.",
+      "tl": "Wala pang runa â€” talunin ang boss ng alon para makakuha."
     },
     "slot": {
       "en": "Slot",
@@ -283,8 +284,8 @@
       "tl": "Alisin"
     },
     "merge": {
-      "en": "Merge {count} → {tier}",
-      "tl": "Pagsamahin {count} → {tier}"
+      "en": "Merge {count} â†’ {tier}",
+      "tl": "Pagsamahin {count} â†’ {tier}"
     },
     "full": {
       "en": "Slots full",

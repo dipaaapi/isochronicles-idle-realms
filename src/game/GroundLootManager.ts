@@ -47,6 +47,9 @@ export interface DropOptions {
 /** Who is looking for loot: tenants skip General-only spoils. */
 export type LootSeeker = 'tenant' | 'general';
 
+/** Minimum ms between successive loot-collect sounds; prevents General LOOT-mode spam. */
+const COLLECT_SOUND_DEBOUNCE_MS = 600;
+
 export class GroundLootManager {
   private scene: Phaser.Scene;
   private parentContainer: Phaser.GameObjects.Container;
@@ -55,6 +58,8 @@ export class GroundLootManager {
   /** Tiles a land walker can stand on (set by the scene from the nav grid). */
   private reachable?: (x: number, y: number) => boolean;
   private nearestReachable?: (x: number, y: number) => GridPoint | null;
+  /** Timestamp of the last collect-sound; rate-limits deposit chimes during mass looting. */
+  private lastCollectSoundAt: number = 0;
 
   constructor(scene: Phaser.Scene, parentContainer: Phaser.GameObjects.Container) {
     this.scene = scene;
@@ -339,7 +344,12 @@ export class GroundLootManager {
     const store = useGameStore.getState();
     // Grant resources to store
     store.addResources({ [loot.resourceKey]: loot.amount } as Partial<Resources>);
-    soundFx.playDeposit();
+    // Rate-limit the deposit chime so rapid back-to-back collects (General LOOT mode) don't spam
+    const now = Date.now();
+    if (now - this.lastCollectSoundAt >= COLLECT_SOUND_DEBOUNCE_MS) {
+      soundFx.playDeposit();
+      this.lastCollectSoundAt = now;
+    }
     // Narrated in the activity log tray (no floating text over the map)
     logFloatingText(`+${loot.amount} ${loot.icon}`, '#fef08a', collectorName);
 

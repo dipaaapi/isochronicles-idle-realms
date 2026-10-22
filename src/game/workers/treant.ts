@@ -11,6 +11,7 @@ import { IsometricHelper } from '../IsometricHelper';
 import { soundFx } from '../audio/soundFx';
 import { clampLevel } from './modifiers';
 import type { EnrichableNode, WorkerContext, WorkerFrame, WorkerInstance } from './types';
+import { updateTerrainReclamation } from './reclamation';
 
 const ENRICHABLE: EnrichableNode[] = ['AETHER', 'STONE', 'WOOD', 'ESSENCE'];
 
@@ -257,6 +258,7 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
   // Duties in order: castle & spire, then summon every General, then care for the realm
   if (updateConstruction(ctx, worker, store, deltaSec, effectiveSpeed)) return;
   if (updateGeneralSummoning(ctx, worker, store, deltaSec, effectiveSpeed)) return;
+  if (updateTerrainReclamation(ctx, worker, frame, true)) return;
 
   if (worker.treantActionTimer === undefined) {
     worker.treantActionTimer = 5.0; // Initial check countdown

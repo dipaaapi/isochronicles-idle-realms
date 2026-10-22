@@ -11,6 +11,7 @@ import {
 } from '../economy';
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { BRAWL_CONFIG, addClash, applyBrawlResult, baseStatsOf, brawlLevelOf, pairKey } from '../brawl';
+import { newRuneId, rollRuneKind } from '../runes';
 import { clampSturdy, sturdyFromBonus, type GeneralOrder } from '../generalOrders';
 import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { HarvestTask, InvaderType, UnitClass } from '../../types/game';
@@ -125,6 +126,31 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
       lastSavedTimestamp: Date.now(),
     }));
     return added;
+  },
+
+  /**
+   * A General at +10 may sell their accumulated + to the castle as runes.
+   * Each level sold yields one random rune (tier 1). Resets the General's brawl bonus.
+   * Returns the number of runes granted (0 if the General has no level to sell).
+   */
+  sellBrawlPlus: (unitId: string): number => {
+    const unit = get().roster.find((u) => u.id === unitId);
+    if (!unit) return 0;
+    const level = brawlLevelOf(unit);
+    if (level < BRAWL_CONFIG.maxLevel) return 0;
+    // Grant one random tier-1 rune per + level sold
+    const newRunes = Array.from({ length: level }, () => ({
+      id: newRuneId(),
+      kind: rollRuneKind(),
+      tier: 1,
+    }));
+    set((prev) => ({
+      roster: prev.roster.map((u) => (u.id === unitId ? { ...u, brawlLevel: 0, brawlAttack: 0, brawlHp: 0 } : u)),
+      runes: [...prev.runes, ...newRunes],
+      lastSavedTimestamp: Date.now(),
+    }));
+    soundFx.playUpgrade();
+    return level;
   },
 
   discoverEntry: (category: 'beast' | 'invader', id: string) => {
