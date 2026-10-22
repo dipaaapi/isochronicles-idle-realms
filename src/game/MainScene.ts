@@ -56,6 +56,7 @@ import { TowerSystem } from './TowerSystem';
 import { PortalDefenseSystem } from './PortalDefenseSystem';
 import { WaterFx } from './scene/waterFx';
 import { WaterLife } from './scene/waterLife';
+import { RoadsideFlora, type RoadFloraTile } from './scene/roadsideFlora';
 import {
   BUILDING_IDS,
   BUILDING_SITES,
@@ -150,6 +151,7 @@ export class MainScene extends Phaser.Scene {
   private portalDefense!: PortalDefenseSystem;
   private waterFx?: WaterFx;
   private waterLife?: WaterLife;
+  private roadsideFlora?: RoadsideFlora;
   private defenders!: DefenderSystem;
   private kirov?: KirovAirship;
   /** The ancient wild factions: the Sea Folk (water) and the Sand Brood (land). */
@@ -623,6 +625,8 @@ export class MainScene extends Phaser.Scene {
     // Waterfalls off the front rims + bridges over the canals
     this.waterFx = new WaterFx(this, this.groundFxLayer);
     this.waterLife = new WaterLife(this, this.groundFxLayer, useGameStore.getState().platformPhase || 1);
+    this.roadsideFlora = new RoadsideFlora(this, this.groundFxLayer);
+    this.refreshRoadsideFlora();
     this.createShoreLayer();
 
     // Ocean swell, foam and crests are painted into the tiles (PixelTileArt paintWater)
@@ -1078,6 +1082,7 @@ export class MainScene extends Phaser.Scene {
         this.tiles[y][x].type = typeFor(x, y);
         this.repaintPaved(x, y);
       }
+      this.refreshRoadsideFlora();
       return;
     }
 
@@ -1108,6 +1113,27 @@ export class MainScene extends Phaser.Scene {
         spawnPavementBurst(this, this.groundFxLayer, pos.x, pos.y);
       });
     }
+    this.time.delayedCall(tilesToPave.length * 40 + 100, () => {
+      if (this.scene.isActive()) this.refreshRoadsideFlora();
+    });
+  }
+
+  /** Plants can only grow on the paved road owned by a built establishment. */
+  private refreshRoadsideFlora(): void {
+    if (!this.roadsideFlora) return;
+    const roads: RoadFloraTile[] = [];
+    for (const id of BUILDING_IDS) {
+      if (!this.pavedStructures.has(id)) continue;
+      const connectedRoad = (ROADS_BY_BUILDING[id] ?? []).filter((tile) =>
+        this.tiles[tile.y]?.[tile.x]?.type === 'ANCIENT_STONE' && this.isRoadStrip(tile.x, tile.y));
+      const featuredIndex = connectedRoad.length
+        ? Math.abs(id.split('').reduce((hash, char) => hash * 31 + char.charCodeAt(0), 0)) % connectedRoad.length
+        : -1;
+      connectedRoad.forEach((tile, index) => {
+        roads.push({ x: tile.x, y: tile.y, featured: index === featuredIndex });
+      });
+    }
+    this.roadsideFlora.refresh(roads, useGameStore.getState().layoutSeed);
   }
 
   private setupDayNightLighting(): void {
@@ -1208,6 +1234,7 @@ export class MainScene extends Phaser.Scene {
   private applyRelayout(): void {
     this.generateIslandData();
     this.renderPlatformTiles();
+    this.refreshRoadsideFlora();
     this.nav.setBaseGrid(this.buildWalkGrid());
     this.structures.relayout();
     this.waterFx?.drawBridges();
@@ -1869,6 +1896,7 @@ export class MainScene extends Phaser.Scene {
     this.portalDefense?.destroy();
     this.waterFx?.destroy();
     this.waterLife?.destroy();
+    this.roadsideFlora?.destroy();
     this.defenders?.destroy();
     this.skills?.destroy();
     this.forceFields?.destroy();
