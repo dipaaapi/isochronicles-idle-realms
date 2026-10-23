@@ -1,4 +1,5 @@
 import React from 'react';
+import { AutoToggle } from './AutoToggle';
 import { Hammer, Shield, Wrench, Zap } from 'lucide-react';
 import { useGameStore, RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { BUILDING_IDS } from '../state/buildingLayout';
@@ -109,6 +110,7 @@ export const FortificationsPanel: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      <AutoToggle setting="autoFortify" icon="🌳" label="autoFortifyToggle" hint="autoFortifyHint" />
       {/* ── Citadel ── */}
       <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
         <div className="flex items-start gap-3">

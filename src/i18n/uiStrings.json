@@ -1418,5 +1418,41 @@
   "legacyDragonsTitle": {
     "en": "Dragons slain (Ignara)",
     "tl": "Mga dragong napatay (Ignara)"
+  },
+  "autoSkillsToggle": {
+    "en": "Auto-Skills (Slime)",
+    "tl": "Auto-Skills (Slime)"
+  },
+  "autoSkillsHint": {
+    "en": "The Slime spends every skill point as it is earned, spreading ranks evenly.",
+    "tl": "Gagastusin ng Slime ang bawat puntos ng kasanayan pagkakuha, pantay-pantay sa mga ranggo."
+  },
+  "autoRunesToggle": {
+    "en": "Auto-Runes (Slime)",
+    "tl": "Auto-Runes (Slime)"
+  },
+  "autoRunesHint": {
+    "en": "The Slime merges triples, slots the strongest runes and sells the ones that can no longer be used.",
+    "tl": "Pinagsasama ng Slime ang tatluhan, inilalagay ang pinakamalalakas na rune at ibinebenta ang hindi na magagamit."
+  },
+  "autoFortifyToggle": {
+    "en": "Auto-Fortify (Treant)",
+    "tl": "Auto-Fortify (Treant)"
+  },
+  "autoFortifyHint": {
+    "en": "The Treant raises the castle's walls, beacon and shield and every tower with what the stores already hold (it never buys materials).",
+    "tl": "Pinatitibay ng Treant ang pader, liwanag at kalasag ng kuta at bawat tore gamit ang laman ng imbakan (hindi ito bumibili ng materyales)."
+  },
+  "runeSell": {
+    "en": "Sell",
+    "tl": "Ibenta"
+  },
+  "runeSellAll": {
+    "en": "Sell unusable ({count}) · {coins}🪙",
+    "tl": "Ibenta ang hindi magagamit ({count}) · {coins}🪙"
+  },
+  "runeSellHint": {
+    "en": "Runes are rare, so they sell dear. Unusable = weaker than every rune in its slots and no merge partners.",
+    "tl": "Bihira ang mga rune kaya mahal ang bentahan. Hindi magagamit = mas mahina sa lahat ng nakalagay at walang kapares na mapagsasamahan."
   }
 }

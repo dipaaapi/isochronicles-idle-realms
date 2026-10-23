@@ -1,4 +1,6 @@
 import React from 'react';
+import { AutoToggle } from './AutoToggle';
+import { t as tr, type TranslationKey } from '../i18n/translations';
 import { useGameStore } from '../state/useGameStore';
 import {
   MERGE_COUNT,
@@ -6,6 +8,8 @@ import {
   RUNE_TARGETS,
   RUNE_TARGET_IDS,
   RUNE_TEXT,
+  isUnusableRune,
+  runeSellPrice,
   runeValue,
   slottedIds,
   tierColor,
@@ -44,7 +48,10 @@ const RuneChip: React.FC<{ rune: Rune; t: (s: Localized) => string; action?: Rea
 
 /** Rune Vault: slots per target, unslotted runes and merges. Lives as a Citadel Command tab. */
 export const RunePanel: React.FC = () => {
-  const { runes, runeSlots, slotRune, unslotRune, mergeRunes, language } = useGameStore();
+  const { runes, runeSlots, slotRune, unslotRune, mergeRunes, sellRune, sellObsoleteRunes, language } = useGameStore();
+  const unusable = runes.filter((r) => isUnusableRune(r, runes, runeSlots));
+  const unusableCoins = unusable.reduce((sum, r) => sum + runeSellPrice(r.tier), 0);
+  const ui = (key: TranslationKey) => tr(key, language);
   const t = (s: Localized) => (language === 'TL' ? s.tl : s.en);
   const byId = new Map(runes.map((r) => [r.id, r]));
   const slotted = slottedIds(runeSlots);
@@ -91,6 +98,7 @@ export const RunePanel: React.FC = () => {
       <header>
         <h2 className="text-xl font-bold text-sky-200">🔷 {t(RUNE_TEXT.title)}</h2>
         <p className="mt-1 text-xs text-slate-400">{t(RUNE_TEXT.howTo).replace('{count}', String(MERGE_COUNT))}</p>
+        <div className="mt-2"><AutoToggle setting="autoRunes" icon="🫧" label="autoRunesToggle" hint="autoRunesHint" /></div>
       </header>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -153,7 +161,19 @@ export const RunePanel: React.FC = () => {
       )}
 
       <section className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3">
-        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-300">{t(RUNE_TEXT.vault)} ({loose.length})</h3>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-300">{t(RUNE_TEXT.vault)} ({loose.length})</h3>
+          {unusable.length > 0 && (
+            <button
+              type="button"
+              onClick={() => sellObsoleteRunes()}
+              title={ui('runeSellHint')}
+              className="rounded-md bg-amber-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-amber-500"
+            >
+              {ui('runeSellAll').replace('{count}', String(unusable.length)).replace('{coins}', unusableCoins.toLocaleString())}
+            </button>
+          )}
+        </div>
         {loose.length === 0 ? (
           <p className="text-[11px] text-slate-500">{t(RUNE_TEXT.noRunes)}</p>
         ) : (
@@ -168,16 +188,26 @@ export const RunePanel: React.FC = () => {
                   t={t}
                   upgrade={upgradeButton(rune)}
                   action={
-                    <button
-                      type="button"
-                      disabled={full}
-                      onClick={() => slotRune(rune.id)}
-                      title={`${RUNE_TARGETS[target].icon} ${t(RUNE_TARGETS[target].name)}`}
-                      className="shrink-0 rounded-md px-2 py-1 text-[10px] font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
-                      style={full ? undefined : { background: RUNE_TARGETS[target].color }}
-                    >
-                      {full ? t(RUNE_TEXT.full) : `${RUNE_TARGETS[target].icon} ${t(RUNE_TEXT.slot)}`}
-                    </button>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        disabled={full}
+                        onClick={() => slotRune(rune.id)}
+                        title={`${RUNE_TARGETS[target].icon} ${t(RUNE_TARGETS[target].name)}`}
+                        className="shrink-0 rounded-md px-2 py-1 text-[10px] font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                        style={full ? undefined : { background: RUNE_TARGETS[target].color }}
+                      >
+                        {full ? t(RUNE_TEXT.full) : `${RUNE_TARGETS[target].icon} ${t(RUNE_TEXT.slot)}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => sellRune(rune.id)}
+                        title={ui('runeSellHint')}
+                        className="shrink-0 rounded-md bg-amber-700/80 px-2 py-1 text-[10px] font-bold text-amber-50 hover:bg-amber-600"
+                      >
+                        🪙 {ui('runeSell')} {runeSellPrice(rune.tier).toLocaleString()}
+                      </button>
+                    </div>
                   }
                 />
               );

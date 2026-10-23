@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { IsometricHelper, TILE_HEIGHT, TILE_WIDTH } from '../IsometricHelper';
 import { VOLCANO_SITE, rectCenter } from '../../state/buildingLayout';
 import { useGameStore } from '../../state/useGameStore';
+import { createStructureSprite, isStructureReady, playStructureAnim } from '../sprites/StructureSprites';
+import LAIR from '../../data/dragonsLair.json';
 
 /** One art pixel in world units (chunky pixel art like the tiles). */
 const PX = 3;
@@ -9,7 +11,11 @@ const ROCK = { lit: 0x57534e, mid: 0x44403c, shade: 0x292524, deep: 0x1c1917, as
 
 /**
  * The northern volcano that replaced the North Rift: a permanent landmark
- * drawn as pixel art over its corner footprint. Its cave mouth faces the
+ * on its corner footprint, drawn from the baked HD voxel strip ('volcano' in
+ * structureModels.ts) once it is ready (the vector drawing below stands in
+ * until then). Its state counts the waves to the next cave opening
+ * (stage1…stage4), roars 'open' while the cave is open, 'erupt's before a
+ * magma flow and goes 'dormant' while Ignara is slain. Its cave mouth faces the
  * island; while the cave is open (every 5th repelled wave, until the dragon
  * raid ends) the crater and mouth glow and smoke pours out. Fixed in place:
  * nothing here ever moves the container.
@@ -20,6 +26,7 @@ export class VolcanoLandmark {
   private glow: Phaser.GameObjects.Graphics;
   private smoke: { x: number; y: number; r: number; life: number; max: number }[] = [];
   private smokeGfx: Phaser.GameObjects.Graphics;
+  private sprite?: Phaser.GameObjects.Sprite;
   private open: boolean | null = null;
   private elapsed = 0;
   private puffTimer = 0;
@@ -185,10 +192,37 @@ export class VolcanoLandmark {
     this.rumbleLeft = Math.max(this.rumbleLeft, seconds + 2);
   }
 
+  /** The baked state for the realm right now. */
+  private stateName(): string {
+    const s = useGameStore.getState();
+    if (this.rumbleLeft > 0) return 'erupt';
+    if (s.lairOpen) return 'open';
+    if (s.dragon.slain) return 'dormant';
+    // Waves cleared since the last opening: 1 → stage1 … 4 → stage4
+    const since = Math.max(0, s.invasion.waveNumber - 1) % LAIR.cave.everyWaves;
+    return `stage${Math.max(1, Math.min(4, since))}`;
+  }
+
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
     this.elapsed += dt;
     this.rumbleLeft = Math.max(0, this.rumbleLeft - dt);
+    // The HD strip takes over from the vector stand-in as soon as it is baked
+    if (!this.sprite && isStructureReady(this.scene, 'volcano')) {
+      this.sprite = createStructureSprite(this.scene, 'volcano', this.stateName()) ?? undefined;
+      if (this.sprite) {
+        // The mountain towers over its corner: a little larger than a building of its footprint
+        this.sprite.setScale(this.sprite.scaleX * 1.3);
+        this.container.add(this.sprite);
+        this.body.setVisible(false);
+        this.glow.setVisible(false);
+        this.smokeGfx.setVisible(false);
+      }
+    }
+    if (this.sprite) {
+      playStructureAnim(this.sprite, this.stateName());
+      return;
+    }
     const open = useGameStore.getState().lairOpen;
     if (open !== this.open) {
       this.open = open;

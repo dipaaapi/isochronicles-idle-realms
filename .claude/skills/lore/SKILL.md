@@ -35,16 +35,16 @@ node $L check                    # EN/TL gaps; LORE.md vs LORE.tl.md section/par
 - **Ancient Treant** (starts as Sprout Treant; only one, summoned free by the Slime): builds the **Citadel**, then the **Crystal Spire**. It is "mother of the realm": it summons the 13 Generals one at a time. It does not build establishments. Afterwards it repairs, enriches the soil, gears itself and tends the walls. It has 5 forms.
 - **13 establishments**, each with 1 **General** + 5 **tenants** of the same kind, its own tower and 3 skills (2 techniques + 1 ultimate). They are placed randomly per realm and can be moved, but not during an invasion. Each General builds its own home, then scouts, guards and leads. Tenants gather, garrison and counter-attack.
 
-| Establishment | General / tenants | Codex art |
+| Establishment | General / tenants | Look |
 |---|---|---|
 | Wood Grove | Thornwood Dryad | Tree of Life |
 | Stone Quarry | Watchtower Minotaur | Watchtower |
 | Metal Mine | Ember Imp | Ore Furnace |
-| Water Port | Water Merman | Wellspring |
-| Mystic Cave | Lava Gargoyle | Magma Cavern |
+| Water Port | Water Merman | Abyssal Wharf (black-water basin under a rib cage) |
+| Mystic Cave | Lava Gargoyle | Gargoyle Grotto (arcane crystals, not a volcano) |
 | Abyssal Trench | Kraken | Deepwater Basin |
 | Crypt of Souls | Lich Necromancer | Bone Mausoleum |
-| Brimstone Perch | Harpy | Obsidian Spire |
+| Brimstone Perch | Harpy | Harpy Aerie (obsidian pillars, bone nest) |
 | Infernal Kennel | Demon Hound | Infernal Kennel |
 | Golem Foundry | Earth Golem | Golem Foundry |
 | Shadow Pavilion | Succubus | Shadow Pavilion |

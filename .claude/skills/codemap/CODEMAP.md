@@ -10,7 +10,7 @@ then `outline <file>` and read only the line range you need.
 - `render-portraits.mjs` (7.0 KB, 123) — Renders Codex-style 160px portraits (public/portraits/) from voxel models for characters without painted art
 - `run-electron.cjs` (0.4 KB, 7) — Launches Electron with a script, clearing ELECTRON_RUN_AS_NODE
 - `steam-capture.cjs` (12 KB, 271) — Electron capture for Steam: achievement icons, event art, live gameplay screenshots and trailer draft (stages a realm via dev-only window.__isoStore)
-- `test-construction.cjs` (68 KB, 1081) — Logic test: runs the Treant construction / General summoning routine in a Node VM (Phaser, audio, storage stubbed); asserts General ↔ establishment pairing
+- `test-construction.cjs` (71 KB, 1119) — Logic test: runs the Treant construction / General summoning routine in a Node VM (Phaser, audio, storage stubbed); asserts General ↔ establishment pairing
 - `test-invasions.cjs` (8.1 KB, 161) — Logic test: invasion waves, targeting and breach handling in a Node VM with stubs
 - `test-music-links.cjs` (3.9 KB, 67) — (no purpose yet)
 - `test-save-import.cjs` (3.0 KB, 53) — (no purpose yet)
@@ -43,7 +43,7 @@ then `outline <file>` and read only the line range you need.
 - `godBlessings.json` (2.0 KB, 51) — God blessings (timed global buffs): cost, effect, EN/TL text
 - `graphicsPresets.json` (1.3 KB, 27) — (no purpose yet)
 - `invaders.ts` (9.0 KB, 252) — Invader configs (Human & Mecha Alliance): stats, bounty, role, weather category, EN/TL text, colours · INVADER_CONFIGS
-- `kirov.json` (2.2 KB, 74) — Kirov airship tuning: raid chance, HP/armour, troops, anti-air rules, the three skills, bounty, EN/TL names
+- `kirov.json` (2.4 KB, 75) — Kirov airship tuning: raid chance, HP/armour, troops, anti-air rules, the three skills, bounty, EN/TL names
 - `leapingFish.json` (3.3 KB, 149) — Leaping fish per realm: species colours, rare catch, jump style (height, hops, school), splash and trail
 - `liveStream.json` (1.8 KB, 106) — Live-stream focus tuning: detection, timings, frame size, reaction list (EN/TL)
 - `locomotion.json` (0.5 KB, 11) — (no purpose yet)
@@ -59,7 +59,7 @@ then `outline <file>` and read only the line range you need.
 - `resourceIcons.json` (0.3 KB, 7) — (no purpose yet)
 - `riftSquads.json` (3.7 KB, 159) — (no purpose yet)
 - `rocketLaunchers.json` (1.2 KB, 17) — V4 Rocket Launcher raids: wave chance, escorts, range, lock-on and reload times, rocket damage
-- `runes.json` (8.6 KB, 312) — Rune kinds per target (Citadel, Establishments, Generals, Minions), tier power, slots, boss tier curve, EN/TL text
+- `runes.json` (9.0 KB, 314) — Rune kinds per target (Citadel, Establishments, Generals, Minions), tier power, slots, boss tier curve, EN/TL text
 - `sandBrood.json` (6.2 KB, 120) — (no purpose yet)
 - `scoutLoot.json` (2.1 KB, 111) — Peacetime scouts: random human/mecha types and stats, ground coin/resource drops, equipment drop chance and pools
 - `scoutRaid.json` (1.1 KB, 13) — Scout raid tuning: wave scaling, count, role weights and multipliers, steal amounts, weakness weights
@@ -87,9 +87,9 @@ then `outline <file>` and read only the line range you need.
 - `FireSystem.ts` (17 KB, 449) — Torch raids: human scouts in random fights torch establishments; fire gauge (0 = out, 100 = collapse), tenant bucket brigade from the nearest shore, Treant/General panic · FireSystem
 - `ForceFieldSystem.ts` (8.0 KB, 219) — Wave-time rotating force-field domes over the castle, establishments and open rifts; per-dome gauge soaks hits (castle dome = shieldHp), breaks and reboots · ForceFieldSystem
 - `GroundLootManager.ts` (14 KB, 413) — Loot drops from slain invaders: arc, bounce, pickup by minions · GroundLootItem, DropOptions, LootSeeker, GroundLootManager
-- `InvasionManager.ts` (95 KB, 2170) — Waves and invaders: spawning through rifts, rushers/scouts, combat, breach, weather effects (helpers in invaders/) · InvasionManager
+- `InvasionManager.ts` (98 KB, 2182) — Waves and invaders: spawning through rifts, rushers/scouts, combat, breach, weather effects (helpers in invaders/) · InvasionManager
 - `IsometricHelper.ts` (1.8 KB, 54) — gridToScreen / screenToGrid, tile sizes, chess-style tileName · TILE_WIDTH, TILE_HEIGHT, TILE_DEPTH, IsometricHelper
-- `KirovAirship.ts` (19 KB, 439) — Kirov siege airship (random battles only): drifts in, drops paratrooper raiders, 3 structure-only skills (Carpet Bombing, Wrecking Anchor, Firebomb Rain), hurt only by flyers / long range / towers / Demon Lord click · KirovAirship
+- `KirovAirship.ts` (21 KB, 476) — Kirov siege airship (random battles only): drifts in, drops paratrooper raiders, 3 structure-only skills (Carpet Bombing, Wrecking Anchor, Firebomb Rain), hurt only by flyers / long range / towers / Demon Lord click · KirovAirship
 - `MainScene.ts` (89 KB, 2011) — Phaser scene: island tiles, structures, camera (zoom/clamp), day-night lighting, pathfinding setup, building move ghost · MainScene
 - `Navigation.ts` (15 KB, 372) — Walk-grid values and NavAgent movement helpers on top of PathfindingService · WALK_LAND, WALK_WATER, WALK_SOLID, WALK_BRIDGE, WALK_CLIFF, MoveMode, TILES_FOR, SolidArea +2
 - `PathfindingService.ts` (3.5 KB, 118) — Synchronous A* pathfinder for the platform grid · PathfindingService
@@ -158,7 +158,7 @@ then `outline <file>` and read only the line range you need.
 - `pavementFx.ts` (4.3 KB, 134) — Paving flash/spark effects · PavementFxStyle, PAVEMENT_FX_STYLES, pickPavementFxStyle, spawnPavementTileFx, spawnPavementBurst
 - `roadsideFlora.ts` (5.4 KB, 146) — (no purpose yet) · RoadFloraTile, RoadsideFlora
 - `volcanicMagma.ts` (8.8 KB, 208) — Demon Realm volcanic magma while Ignara lives: rumble telegraph, flows from the volcano mouth over land/flooded shore, burns units on ACTIVE tiles (game time), draws stages · VolcanicMagma
-- `volcano.ts` (9.2 KB, 216) — VolcanoLandmark: pixel-art Dragon Volcano on the north corner (replaced the North Rift); sealed/open glow, smoke, click hit-test for the Dragon's Lair cave · VolcanoLandmark
+- `volcano.ts` (11 KB, 250) — VolcanoLandmark: pixel-art Dragon Volcano on the north corner (replaced the North Rift); sealed/open glow, smoke, click hit-test for the Dragon's Lair cave · VolcanoLandmark
 - `waterFx.ts` (15 KB, 339) — (no purpose yet) · WaterFx
 - `waterLife.ts` (9.4 KB, 246) — Live water: animated HD Aseprite surface over every water tile and wandering/diving fish, one biome per realm (ocean, magma, frost, astral) · WaterLife
 
@@ -172,17 +172,18 @@ then `outline <file>` and read only the line range you need.
 
 ## src/game/sprites/
 
-- `CharacterSprites.ts` (13 KB, 279) — Phaser glue for baked 8-direction character sheets (textures, anims, facing) · Gait, prepareCharacterSprites, createEnemySprite, createMinionSprite, createSeaSprite, createLairSprite, seaSpriteHeadroom, createSaplingSprite +10
+- `CharacterSprites.ts` (13 KB, 285) — Phaser glue for baked 8-direction character sheets (textures, anims, facing) · Gait, prepareCharacterSprites, createEnemySprite, createMinionSprite, createSeaSprite, createLairSprite, createAirshipSprite, seaSpriteHeadroom +11
 - `StructureSprites.ts` (7.5 KB, 161) — Phaser glue for baked structure strips · STRUCTURE_PIXEL, stripFrameOrigin, structureAnimKey, prepareStructureSprites, subscribeStructureStrips, isStructureReady, createStructureSprite, playStructureAnim +4
 - `VoxelSprite.ts` (26 KB, 666) — Voxel model types, voxelize, ray-cast renderer (renderSheet / renderStrip), recolorModel · Vec3, Material, Shape, Part, PartPose, Pose, CoreAnimation, StateAnimation +21
+- `airshipModels.ts` (12 KB, 200) — Kirov airship voxel model (8-direction sheet: cruise, drop, bombs, anchor, damaged, hit, death) · AirshipSpriteKey, AIRSHIP_MODELS
 - `enemyModels.ts` (44 KB, 1024) — Voxel models for invaders (use /voxel-model) · breathe, flightCycle, EnemySpriteKey, ENEMY_MODELS, INVADER_SPRITE
 - `lairModels.ts` (10 KB, 224) — Voxel models of the Dragon's Lair creatures: giantBat, dragonKin, magmaGolem (LAIR_MODELS, baked with the other characters) · LairSpriteKey, LAIR_MODELS
 - `minionModels.ts` (51 KB, 1210) — Voxel models for minions/Generals (use /voxel-model) · MinionSpriteKey, MINION_MODELS, UNIT_SPRITE
 - `seaModels.ts` (28 KB, 559) — Voxel models for the Sea Folk: mermaid, piranha, kappa, leviathan boss · SeaSpriteKey, SEA_MODELS
-- `spriteBake.worker.ts` (1.7 KB, 45) — Web worker: bakes character sprite sheets · CHARACTER_MODELS, BakedSheet
+- `spriteBake.worker.ts` (1.7 KB, 46) — Web worker: bakes character sprite sheets · CHARACTER_MODELS, BakedSheet
 - `stateAnimations.ts` (5.9 KB, 153) — Builds run / tired / skill / hit / death key poses for the Generals from each model rig (blockout-style), tuned by src/data/stateAnimations.json · withStateAnimations
 - `structureBake.worker.ts` (2.6 KB, 65) — Web worker: bakes structure strips · BakedStrip
-- `structureModels.ts` (91 KB, 1741) — Voxel models for citadel, spire, portals, 13 establishments + STRUCTURE_ART mapping (use /voxel-model) · StructureModel, VOXELS_PER_TILE, StructureKey, STRUCTURE_MODELS, STRUCTURE_ART, BUILDING_SPRITE
+- `structureModels.ts` (107 KB, 2009) — Voxel models for citadel, spire, portals, 13 establishments + STRUCTURE_ART mapping (use /voxel-model) · StructureModel, VOXELS_PER_TILE, StructureKey, STRUCTURE_MODELS, STRUCTURE_ART, BUILDING_SPRITE
 - `structureStates.ts` (3.6 KB, 83) — HD structure strips: 2x voxel detail, tweened loops, derived build / damaged / collapse states · DETAIL, BUILD_STAGES, ExpandedStructure, expandStructure
 
 ## src/game/workers/
@@ -197,19 +198,19 @@ then `outline <file>` and read only the line range you need.
 - `modifiers.ts` (6.6 KB, 149) — Per-frame speed/attack/stamina modifiers (weather, buffs, Kennel howl) · clampLevel, computeWorkerFrame
 - `reclamation.ts` (2.6 KB, 63) — (no purpose yet) · reclamationPoint, ensureTerrainReclamation, updateTerrainReclamation
 - `summonRitual.ts` (2.8 KB, 87) — Summon entrance rituals (glowing rings) per class · SUMMON_RITUALS, playSummonRitual
-- `supportSlime.ts` (14 KB, 372) — Support Slime: healing, resurrection, auto-summon, morale pulses · tryResurrect, autoSummon, pulseMoraleBoost, updateSupportSlime
-- `treant.ts` (13 KB, 307) — Ancient Treant: builds castle/spire, summons Generals in order, repairs, enriches soil · updateConstruction, updateGeneralSummoning, updateTreant
-- `types.ts` (7.4 KB, 196) — WorkerInstance and worker-related types/constants · SlimeMoraleBuffDef, WorkerInstance, TASK_BUILDING, EnrichableNode, isEnrichableTask, CRITICAL_HP, WorkerFrame, WorkerContext
+- `supportSlime.ts` (15 KB, 378) — Support Slime: healing, resurrection, auto-summon, morale pulses · tryResurrect, autoSummon, pulseMoraleBoost, updateSupportSlime
+- `treant.ts` (14 KB, 315) — Ancient Treant: builds castle/spire, summons Generals in order, repairs, enriches soil · updateConstruction, updateGeneralSummoning, updateTreant
+- `types.ts` (7.5 KB, 198) — WorkerInstance and worker-related types/constants · SlimeMoraleBuffDef, WorkerInstance, TASK_BUILDING, EnrichableNode, isEnrichableTask, CRITICAL_HP, WorkerFrame, WorkerContext
 
 ## src/i18n/
 
-- `activityMessages.json` (42 KB, 317) — Activity log wording (EN/TL), phrases table, resource names
+- `activityMessages.json` (44 KB, 323) — Activity log wording (EN/TL), phrases table, resource names
 - `atlasGuide.json` (33 KB, 239) — Atlas Guide steps (EN/TL, **bold** supported)
 - `faqTranslations.ts` (31 KB, 236) — FAQ questions/answers in EN and TL · Language, faqTranslations
 - `introDialogue.json` (2.3 KB, 40) — (no purpose yet)
-- `structureAtlas.json` (10 KB, 62) — Atlas Structures tab text (EN/TL)
+- `structureAtlas.json` (12 KB, 63) — Atlas Structures tab text (EN/TL)
 - `translations.ts` (1.4 KB, 42) — t(key) / useTranslation over uiStrings.json, pick(), unitName() · TranslationKey, t, useTranslation, pick, unitName
-- `uiStrings.json` (41 KB, 1423) — UI strings (EN/TL) keyed for t()
+- `uiStrings.json` (42 KB, 1459) — UI strings (EN/TL) keyed for t()
 - `useLanguage.ts` (0.5 KB, 14) — useLanguage hook over the store's language · useLanguage
 
 ## src/state/
@@ -217,6 +218,7 @@ then `outline <file>` and read only the line range you need.
 - `achievements.ts` (1.5 KB, 35) — Typed achievement table, wave milestones, Steam unlock/sync through window.isoDesktop · AchievementDef, ACHIEVEMENTS, achievementDef, waveAchievements, unlockSteamAchievement, syncSteamAchievements
 - `activityLog.ts` (10 KB, 276) — Session activity log store: logMessage, merging repeated events ×N, floating-text classifier · ActivityCategory, ActivityTone, Localized, MessageKey, ActivityEntry, ActivityInput, localize, useActivityLog +7
 - `activityWatcher.ts` (5.2 KB, 110) — Narrates store diffs (day, weather, waves, construction, roster, achievements…) into the activity log · startActivityWatcher
+- `autoCaretakers.ts` (5.2 KB, 101) — Caretaker automation: Slime auto-skills / auto-runes (merge, slot strongest, sell unusable), Treant auto-fortify (castle defences, towers, spire) · slimeAutoSkills, slimeAutoRunes, treantAutoFortify
 - `brawl.ts` (3.5 KB, 83) — Typed brawl rules: pair tension, clash counting, applyBrawlResult (winner absorbs loser base stats), mirror chance · BRAWL_CONFIG, BrawlTension, pairKey, brawlLevelOf, baseStatsOf, generalStatsOf, addClash, tensionFull +4
 - `buildingLayout.ts` (35 KB, 721) — Typed 20×20 layout: GRID_SIZE, BUILDING_SITES, ROAD_TILES, generateLayout(seed), applyLayoutSeed · TileRect, BuildingSite, PortalSite, GRID_SIZE, GRID_CENTER, CASTLE_FOOTPRINT, CASTLE_GATE, SPIRE_FOOTPRINT +55
 - `constructionProgress.ts` (4.3 KB, 113) — Construction seconds, Treant build order, nextGeneralToSummon · CONSTRUCTION_SECONDS, ConstructionStatus, CORE_BUILDINGS, nextEntConstruction, nextGeneralToSummon, nextConstruction, nextMinionSpireConstruction, nextChampionConstruction +1
@@ -238,7 +240,7 @@ then `outline <file>` and read only the line range you need.
 - `playerProfile.ts` (3.5 KB, 83) — Player profile (name + avatar: upload / icon / General / none) kept on the device; image upload crop + sanitising · Avatar, PlayerProfile, AVATAR_PX, sanitizeAvatar, useProfile, getProfile, imageFileToAvatar
 - `portalDefense.ts` (3.1 KB, 65) — (no purpose yet) · PORTAL_DEFENSE, PortalSkillId, RiftContext, RiftEnv, riftEnv, riftDamageScale, riftHpScale, riftBoltDamage +6
 - `resources.ts` (1.8 KB, 45) — RESOURCE_KEYS, canAfford, subtractCost, addResourceDelta, lootResources · RESOURCE_KEYS, canAfford, addResourceDelta, subtractCost, lootResources
-- `runes.ts` (5.8 KB, 129) — Typed rune rules: rune stat totals, boss rune tier/roll, slots, save normalisation · Localized, RuneKind, RuneTarget, RuneDef, Rune, RuneSlots, RUNE_CONFIG, RUNE_TEXT +19
+- `runes.ts` (6.8 KB, 149) — Typed rune rules: rune stat totals, boss rune tier/roll, slots, save normalisation · Localized, RuneKind, RuneTarget, RuneDef, Rune, RuneSlots, RUNE_CONFIG, RUNE_TEXT +21
 - `saveValidation.ts` (4.2 KB, 93) — (no purpose yet) · MAX_SAVE_FILE_BYTES, SanitizedSave, isPlainRecord, sanitizeSavePayload, isSaveFileSizeAllowed
 - `scoutLoot.ts` (1.8 KB, 53) — Typed scout table: SCOUTS, pickScout, rollScoutDrops (coin piles, supplies, item id) · ScoutKind, ScoutDef, ScoutDrops, SCOUTS, pickScout, rollScoutDrops
 - `scoutRaid.ts` (3.5 KB, 75) — Random-fight scout scaling by wave (HP, damage, defence, count), roles (runner/looter/raider), loot theft and establishment defence score for raider targeting · ScoutRole, SCOUT_ROLES, SCOUT_DEFENCE_CAP, scoutWave, scoutScaling, scoutCount, pickScoutRole, rollStolen +1
@@ -257,11 +259,11 @@ then `outline <file>` and read only the line range you need.
 - `buildingsSlice.ts` (19 KB, 435) — Establishments: build, upgrade, move, repair, wreck/restore, normalization of old saves · normalizeResourceBuildings, normalizeSpireTower, restoreWreckedBuildings, restoreWreckedSpire, createBuildingsSlice
 - `defenseSlice.ts` (11 KB, 253) — Castle fortifications, invasion waves, victories, breaches · getPhaseFromWave, createDefenseSlice
 - `economySlice.ts` (9.4 KB, 241) — Resources, merchant trades, loot, offline gains · createEconomySlice
-- `initialState.ts` (9.2 KB, 292) — New-game values (createInitialProgress) shared by initial state and resetRealm · INITIAL_RESOURCES, perBuilding, INITIAL_RESOURCE_BUILDINGS, INITIAL_SPIRE_TOWER, INITIAL_DEFENSE, INITIAL_INVASION, INITIAL_AUTO_SETTINGS, INITIAL_UPGRADES +9
+- `initialState.ts` (9.3 KB, 295) — New-game values (createInitialProgress) shared by initial state and resetRealm · INITIAL_RESOURCES, perBuilding, INITIAL_RESOURCE_BUILDINGS, INITIAL_SPIRE_TOWER, INITIAL_DEFENSE, INITIAL_INVASION, INITIAL_AUTO_SETTINGS, INITIAL_UPGRADES +9
 - `persistence.ts` (29 KB, 609) — Save export/import, persist partialize/merge, migrations (security-sensitive: see /security-audit) · createPersistenceSlice, persistOptions
 - `progressionSlice.ts` (3.8 KB, 107) — Skill tree, upgrades, achievements, Regression, resets · createProgressionSlice
 - `rosterSlice.ts` (12 KB, 293) — Roster: summon/craft costs, summon locks, Generals, castle/refinery levels · summonLock, generalOf, FIGHTER_CLASSES, createRosterSlice
-- `runesSlice.ts` (3.2 KB, 82) — Rune Vault actions: grantRune (boss drop), slotRune / unslotRune, mergeRunes (3 → next tier) · createRunesSlice
+- `runesSlice.ts` (4.8 KB, 118) — Rune Vault actions: grantRune (boss drop), slotRune / unslotRune, mergeRunes (3 → next tier) · createRunesSlice
 - `seaSlice.ts` (1.4 KB, 34) — Sea contamination, tribute truce and per-wave truce countdown actions · createSeaSlice
 - `types.ts` (0.6 KB, 14) — Slice helper types (StoreSet, StoreGet, SliceArgs) · StoreSet, StoreGet, SliceArgs
 - `wildSlice.ts` (7.1 KB, 180) — Sand Brood meter/truce/tribute and living terrain actions: digSand, markFlooding, floodPending, settleSand · createWildSlice
@@ -270,13 +272,14 @@ then `outline <file>` and read only the line range you need.
 ## src/types/
 
 - `game.ts` (5.9 KB, 228) — Shared game types; re-exports lookup tables (units, invaders, seasons…) · PLATFORM_CONFIGS, TASK_NODE_LOCATIONS, TASK_CONFIG, UNIT_CLASSES, INVADER_CONFIGS, GridPoint, ScreenPoint, TileType +19
-- `state.ts` (24 KB, 561) — Store contracts and save shape (Resources, buildings, battle items…) · Resources, BattleItemId, BattleEffect, ResourceBuildingId, ResourceBuildingState, ResourceBuildingsState, TowerId, SpireTowerState +17
+- `state.ts` (25 KB, 571) — Store contracts and save shape (Resources, buildings, battle items…) · Resources, BattleItemId, BattleEffect, ResourceBuildingId, ResourceBuildingState, ResourceBuildingsState, TowerId, SpireTowerState +17
 
 ## src/ui/
 
-- `ActivityLogTray.tsx` (30 KB, 606) — Bottom-left activity log tray · ActivityLogTray
+- `ActivityLogTray.tsx` (29 KB, 606) — Bottom-left activity log tray · ActivityLogTray
 - `AtlasModal.tsx` (37 KB, 767) — Atlas: Guide, Bestiary, Structures, Regression, FAQ and Lore tabs (parses LORE.md) · AtlasTab, AtlasModal
 - `AutoEnhancePrompt.tsx` (4.9 KB, 124) — Prompt suggesting affordable tech/defense upgrades · AutoEnhancePrompt
+- `AutoToggle.tsx` (1.3 KB, 28) — Caretaker automation switch (autoSettings key) with a one-line hint, used in the Skills, Runes and Fortifications tabs · AutoToggle
 - `BattleItemsToolbar.tsx` (14 KB, 290) — Battle relics toolbar with active timers · BattleItemsToolbar
 - `BattleStatusHud.tsx` (2.8 KB, 69) — Lower right of the map: which battles are on now + the difficulty badge (opens Settings) · BattleStatusHud
 - `BestiaryModal.tsx` (24 KB, 452) — Bestiary of discovered minions and invaders · BestiaryModal
@@ -287,7 +290,7 @@ then `outline <file>` and read only the line range you need.
 - `DevPanel.tsx` (9.2 KB, 167) — Dev-build-only developer panel: resources, waves, realms, time/weather, unlocks, god mode, one-hit kill, live stats · DevPanel
 - `EstablishmentModal.tsx` (50 KB, 875) — Per-establishment panel: upgrade, tower, skills, General and tenants · EstabTab, EstablishmentModal
 - `FAQModal.tsx` (2.2 KB, 52) — FAQ modal · FAQModal
-- `FortificationsPanel.tsx` (17 KB, 336) — Spire and establishment tower upgrades · FortificationsPanel
+- `FortificationsPanel.tsx` (17 KB, 338) — Spire and establishment tower upgrades · FortificationsPanel
 - `GameCursor.tsx` (7.3 KB, 170) — Demon Lord's animated pixel cursor overlay: picks the state from what is under the pointer, Settings toggle · customCursorEnabled, setCustomCursorEnabled, GameCursor
 - `GameDialog.tsx` (3.0 KB, 85) — In-game confirm/alert dialogs (gameConfirm, gameAlert) · gameConfirm, gameAlert, GameDialogHost
 - `GameHUD.tsx` (45 KB, 925) — Right sidebar HUD: resources, time/weather, wave status, menu buttons · GameHUD
@@ -312,12 +315,12 @@ then `outline <file>` and read only the line range you need.
 - `QuickTradePopover.tsx` (12 KB, 294) — Quick trade popover from the resource bar · QuickTradePopover
 - `RealmMapPicker.tsx` (7.3 KB, 151) — New-realm setup under the difficulty: game mode and map size cards (realmSetup.json) and a mini-map of the rolled island · RealmMapPicker
 - `ResearchPanel.tsx` (14 KB, 283) — Research tree UI · ResearchPanel
-- `RunePanel.tsx` (8.0 KB, 191) — Citadel Command Runes tab: slots per target, unslotted runes, merges · RunePanel
+- `RunePanel.tsx` (9.7 KB, 221) — Citadel Command Runes tab: slots per target, unslotted runes, merges · RunePanel
 - `SeaFolkPanel.tsx` (4.0 KB, 82) — HUD card for a wild faction (Sea Folk or Sand Brood): meter, mood and tribute · SeaFolkPanel
 - `SettingsDrawer.tsx` (39 KB, 912) — Settings: language, audio, FPS, save export/import, reset · SettingsDrawer
-- `SkillTreeModal.tsx` (10 KB, 251) — Skill tree UI · SkillTreePanel, SkillTreeModal
+- `SkillTreeModal.tsx` (11 KB, 253) — Skill tree UI · SkillTreePanel, SkillTreeModal
 - `SkyStatusPanel.tsx` (14 KB, 266) — HUD day-cycle + weather cards: live sky, sun/moon arc, phase timeline, weather particles, tomorrow forecast, change banners · SkyStatusPanel
-- `StructureAtlas.tsx` (22 KB, 558) — Atlas Structures tab: baked structure next to its Codex art in every state · StructureAtlas
+- `StructureAtlas.tsx` (22 KB, 553) — Atlas Structures tab: baked structure next to its Codex art in every state · StructureAtlas
 - `TitleAmbience.tsx` (4.2 KB, 93) — Title screen ambience: rising embers, drifting mist, pulsing glow · TitleAmbience
 - `TitleScreen.tsx` (12 KB, 272) — Title screen: new game, continue, import save · TitleScreen
 - `UnitRosterModal.tsx` (22 KB, 480) — Roster: summon minions, assign tasks · UnitRosterModal

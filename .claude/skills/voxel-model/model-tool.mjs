@@ -38,6 +38,7 @@ const FILES = {
   structure: 'structureModels.ts',
   sea: 'seaModels.ts',
   lair: 'lairModels.ts',
+  airship: 'airshipModels.ts',
 };
 
 // Reference art for models whose file name isn't the kebab-case of the key
@@ -57,6 +58,7 @@ export { MINION_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.minion))
 export { ENEMY_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.enemy))};
 export { SEA_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.sea))};
 export { LAIR_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.lair))};
+export { AIRSHIP_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.airship))};
 export { STRUCTURE_MODELS, STRUCTURE_ART } from ${JSON.stringify(path.join(SPRITES, FILES.structure))};
 export { expandStructure } from ${JSON.stringify(path.join(SPRITES, 'structureStates.ts'))};
 `);
@@ -70,6 +72,7 @@ function findModel(mods, key) {
   if (mods.ENEMY_MODELS[key]) return { kind: 'enemy', make: mods.ENEMY_MODELS[key] };
   if (mods.SEA_MODELS?.[key]) return { kind: 'sea', make: mods.SEA_MODELS[key] };
   if (mods.LAIR_MODELS?.[key]) return { kind: 'lair', make: mods.LAIR_MODELS[key] };
+  if (mods.AIRSHIP_MODELS?.[key]) return { kind: 'airship', make: mods.AIRSHIP_MODELS[key] };
   if (mods.STRUCTURE_MODELS[key]) return { kind: 'structure', make: mods.STRUCTURE_MODELS[key] };
   const all = [...Object.keys(mods.MINION_MODELS), ...Object.keys(mods.ENEMY_MODELS), ...Object.keys(mods.STRUCTURE_MODELS)];
   fail(`Unknown model "${key}". Known: ${all.join(', ')}`);

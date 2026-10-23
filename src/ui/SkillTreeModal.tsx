@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { AutoToggle } from './AutoToggle';
 import { useGameStore } from '../state/useGameStore';
 import {
   POINTS_PER_SET,
@@ -138,6 +139,7 @@ export const SkillTreePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) 
           <p className="mt-1 text-xs text-slate-400">
             {fillText(t(SKILL_TEXT.howTo), { waves: WAVES_PER_SET, points: POINTS_PER_SET })}
           </p>
+          <div className="mt-2"><AutoToggle setting="autoSkills" icon="🫧" label="autoSkillsToggle" hint="autoSkillsHint" /></div>
         </div>
         <div className="flex items-center gap-2">
           <div className="rounded-xl border border-amber-400/50 bg-amber-500/10 px-3 py-1.5 text-center" aria-live="polite">

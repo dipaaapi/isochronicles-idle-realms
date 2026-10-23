@@ -121,6 +121,17 @@ Runes replaced the skill tree's unlock enhancements (`src/data/runes.json`, `src
 - Rune bonuses add to the skill tree totals (a new realm starts with an empty vault).
 - Minions are only ever summoned by their own General (two per establishment).
 
+## Caretaker automation
+
+Every upgrade can run on its own. Each switch sits in its own tab:
+
+- **Research** (Slime): Laboratory → Research, *Auto-Research*.
+- **Skills** (Slime): Laboratory → Skills, *Auto-Skills*. Spends skill points as they arrive, evening out the ranks.
+- **Runes** (Slime): Runes, *Auto-Runes*. Merges triples, slots the strongest runes and sells the unusable ones.
+- **Fortifications** (Treant): Laboratory → Fortifications, *Auto-Fortify*. Raises the castle walls, beacon and shield, the establishment towers and the spire, using only what the stores hold.
+
+Runes are rare (wave bosses, the Leviathan, the Ancient Caterpillar), so any vault rune can be sold for a high price: 4,000 coins at tier I, ×2.2 per tier. **Sell unusable** clears every rune that is weaker than everything in its slots and has no merge partners.
+
 ## The Dragon's Lair
 
 The north corner of the island is a volcano. Inside sleeps **Ignara, the Ember Matriarch**.

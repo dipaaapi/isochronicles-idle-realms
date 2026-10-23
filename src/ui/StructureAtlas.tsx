@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RESOURCE_BUILDING_CONFIG } from '../state/useGameStore';
 import { DEFENSE_TEXT } from '../state/defenseStats';
-import { BUILDING_SITES, CASTLE_FOOTPRINT, SPIRE_FOOTPRINT } from '../state/buildingLayout';
+import { BUILDING_SITES, CASTLE_FOOTPRINT, SPIRE_FOOTPRINT, VOLCANO_SITE } from '../state/buildingLayout';
 import { FALLBACK_COLORS } from '../game/StructureManager';
 import { STRUCTURE_PIXEL, stripFrameOrigin, subscribeStructureStrips } from '../game/sprites/StructureSprites';
 import type { BakedStrip } from '../game/sprites/structureBake.worker';
-import { STRUCTURE_ART, type StructureKey } from '../game/sprites/structureModels';
+import type { StructureKey } from '../game/sprites/structureModels';
 import type { ResourceBuildingId } from '../types/state';
 import { soundFx } from '../game/audio/soundFx';
 import TEXT from '../i18n/structureAtlas.json';
@@ -42,6 +42,7 @@ const ENTRIES: Entry[] = [
   { key: 'spire', name: DEFENSE_TEXT.spireName, icon: '💎', tiles: SPIRE_FOOTPRINT.w },
   { key: 'portal', name: TEXT.portalName, icon: '🌀', tiles: 1 },
   { key: 'sentinel', name: TEXT.sentinelName, icon: '🗼', tiles: 1 },
+  { key: 'volcano', name: VOLCANO_SITE.name, icon: '🌋', tiles: VOLCANO_SITE.footprint.w },
   building('quarry', 'QUARRY'),
   building('mine', 'MINE'),
   building('grove', 'WOOD'),
@@ -57,7 +58,6 @@ const ENTRIES: Entry[] = [
   building('ossuary', 'OSSUARY'),
 ];
 
-const artUrl = (key: StructureKey) => `${import.meta.env.BASE_URL}structures/${STRUCTURE_ART[key]}.jpg`;
 
 /** Which strip animation each preview state plays. */
 const animFor = (key: StructureKey, state: PreviewState): string => {
@@ -516,11 +516,6 @@ export const StructureAtlas: React.FC<{ isTL: boolean; searchQuery: string }> = 
           </h3>
           <p className="text-xs text-slate-300 leading-relaxed mt-1">{t(TEXT.structures[entry.key])}</p>
         </div>
-
-        <figure className="rounded-xl border border-slate-800 bg-slate-950/70 p-2">
-          <figcaption className="text-[11px] font-bold text-slate-200 mb-1">{t(TEXT.reference)}</figcaption>
-          <img src={artUrl(entry.key)} alt={t(entry.name)} className="w-full max-w-md rounded-lg [image-rendering:pixelated]" />
-        </figure>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {STATES.map((state, i) => (

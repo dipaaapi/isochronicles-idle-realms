@@ -1,5 +1,7 @@
 {
   "_doc": "Runes (src/state/runes.ts) replaced the skill tree's unlock enhancements. Every wave boss carries one rune (rolled at spawn from `runes`, tier from the wave: 1 + floor((wave-1)/wavesPerTier), +climaxBonus for the realm climax, capped at the top tier) and drops it into the Rune Vault when slain. Each target (Citadel, Establishments, Generals, Minions) has slotsPerTarget slots; a rune only fits its own target. A slotted rune adds perTier Ã— tierPower[tier-1] to its stat (summed with the skill tree, capped by the stat's cap). Three runes of the same kind and tier (slotted or not) merge into one of the next tier; a merge that uses a slotted rune upgrades it in its slot.",
+  "_sell": "Runes are rare (wave bosses, the Abyssal Leviathan, the Ancient Caterpillar), so the vault buys them dear: coins × perTier^(tier-1). A rune is 'unusable' when it sits in the vault, every slot of its target holds a stronger rune, and it has no merge partners yet; the Slime's auto-runes sells those.",
+  "sell": { "coins": 4000, "perTier": 2.2 },
   "slotsPerTarget": 3,
   "_tierGrowth": "Runes are upgraded only by merging: three of the same kind and tier make one of the next tier, with no tier cap. Past the last tierPower entry each tier adds tierGrowth power. Bosses still drop up to the last listed tier. Slots stay fixed at slotsPerTarget.",
   "tierGrowth": 3,

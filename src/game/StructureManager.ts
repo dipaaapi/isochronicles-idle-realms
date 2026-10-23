@@ -91,7 +91,7 @@ interface StructureView {
 export const FALLBACK_COLORS: Record<StructureKey, number> = {
   castle: 0x45414f, quarry: 0x5b6470, mine: 0x6b6560, grove: 0x22a34a, port: 0xd6d3d1, cave: 0x2f2a28, spire: 0x22d3ee, portal: 0x6b6475, sentinel: 0x94a3b8,
   trench: 0x334155, crypt: 0x52605a, perch: 0x231d2e, kennel: 0x3a2a26,
-  foundry: 0x4b5563, pavilion: 0x6d28d9, voidgate: 0x2a2438, ossuary: 0x3f4d4a,
+  foundry: 0x4b5563, pavilion: 0x6d28d9, voidgate: 0x2a2438, ossuary: 0x3f4d4a, volcano: 0x3a3330,
 };
 
 /**
@@ -979,7 +979,7 @@ export class StructureManager {
  */
 const MUZZLES: Record<Exclude<TowerId, 'SPIRE'>, { x: number; y: number }> = {
   QUARRY: { x: 44, y: -57 },   // watchtower cannon mouth
-  PORT: { x: 0, y: -55 },      // fountain jet
+  PORT: { x: 0, y: -55 },      // basin surge
   WOOD: { x: 0, y: -80 },      // tree canopy
   MINE: { x: 0, y: -53 },      // furnace fire
   CAVE: { x: 0, y: -66 },      // volcano crater

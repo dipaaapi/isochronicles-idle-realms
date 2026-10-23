@@ -335,6 +335,44 @@ console.log('Full realm reset checks passed.');
     assert.equal(JSON.stringify(lair.normalizeMagma({ '1,1': { stage: 'ACTIVE', left: 5 }, '99,1': { stage: 'ACTIVE', left: 5 }, '2,2': { stage: 'LAVA' } }, layout.GRID_SIZE)), JSON.stringify({ '1,1': { stage: 'ACTIVE', left: 5 } }), 'saved magma is validated');
     console.log('  volcanic magma: flows, burns, cools and restores land');
   }
+  // Caretakers: rune selling, the Slime's skills/runes and the Treant's fortifications
+  {
+    const R = load('src/state/runes.ts');
+    const C = load('src/state/autoCaretakers.ts');
+    const kinds = R.RUNE_KINDS.filter((k) => R.RUNES[k].target === 'CASTLE');
+    const k = kinds[0];
+    store.setState({
+      runes: [{ id: 'a', kind: k, tier: 3 }, { id: 'b', kind: k, tier: 3 }, { id: 'c', kind: k, tier: 3 }, { id: 'weak', kind: k, tier: 1 }],
+      runeSlots: { ...R.emptyRuneSlots(), CASTLE: ['a', 'b', 'c'] },
+    });
+    assert.ok(R.isUnusableRune(state().runes.find((r) => r.id === 'weak'), state().runes, state().runeSlots), 'a weaker loose rune with full slots and no partners is unusable');
+    assert.equal(R.runeSellPrice(1), 4000);
+    assert.ok(R.runeSellPrice(5) > 90000, 'high tiers sell very dear');
+    const coins0 = state().resources.coins;
+    assert.equal(state().sellRune('a'), 0, 'slotted runes cannot be sold');
+    assert.equal(state().sellObsoleteRunes().count, 1);
+    assert.equal(state().resources.coins, coins0 + 4000);
+    // Auto-runes: merges a triple first (slotted ones upgrade in their slot)
+    store.setState({ autoSettings: { ...state().autoSettings, autoRunes: true, autoSkills: true, autoFortify: true } });
+    assert.equal(C.slimeAutoRunes(), true);
+    assert.ok(state().runes.some((r) => r.tier === 4), 'three tier-3 runes merged into a tier 4');
+    // Auto-runes: slots a stronger loose rune over the weakest
+    store.setState({ runes: [...state().runes, { id: 'strong', kind: k, tier: 5 }], runeSlots: { ...state().runeSlots, CASTLE: [state().runeSlots.CASTLE.find((x) => x) , 'x1', 'x2'] } });
+    store.setState({ runes: [...state().runes, { id: 'x1', kind: k, tier: 1 }, { id: 'x2', kind: k, tier: 2 }] });
+    C.slimeAutoRunes();
+    assert.ok(state().runeSlots.CASTLE.includes('strong'), 'the strongest rune takes a slot');
+    // Auto-skills
+    store.setState({ skillPoints: 2, skillRanks: {} });
+    assert.ok(C.slimeAutoSkills(), 'the Slime spends a skill point');
+    // Auto-fortify (castle built, rich stores)
+    store.setState({ castleBuilt: true, spireBuilt: true, resources: Object.fromEntries(Object.keys(state().resources).map((r) => [r, 1e9])) });
+    const before = JSON.stringify([state().defense.wallLevel, state().defense.shieldLevel, state().defense.beaconLevel, state().spireTower.towerLevel]);
+    assert.ok(C.treantAutoFortify(), 'the Treant raises a fortification');
+    assert.notEqual(JSON.stringify([state().defense.wallLevel, state().defense.shieldLevel, state().defense.beaconLevel, state().spireTower.towerLevel]), before);
+    store.setState({ autoSettings: { ...state().autoSettings, autoFortify: false } });
+    assert.equal(C.treantAutoFortify(), false, 'off means off');
+    console.log('  caretakers: rune selling, auto-runes, auto-skills, auto-fortify');
+  }
   console.log("Dragon's Lair cave checks passed.");
 }
 

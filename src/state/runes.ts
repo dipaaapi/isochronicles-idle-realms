@@ -71,6 +71,26 @@ export const emptyRuneSlots = (): RuneSlots =>
 export const runeValue = (rune: Pick<Rune, 'kind' | 'tier'>): number =>
   (RUNES[rune.kind]?.perTier ?? 0) * tierPower(rune.tier);
 
+/** Coins the vault pays for a rune (rare drops, so the price is high and climbs steeply by tier). */
+export const runeSellPrice = (tier: number): number =>
+  Math.round(config.sell.coins * Math.pow(config.sell.perTier, Math.max(0, Math.floor(tier) - 1)));
+
+/**
+ * A rune that can no longer help: in the vault, its target's slots are all
+ * full of stronger runes, and it has no merge partners (fewer than MERGE_COUNT
+ * of its kind and tier). Safe to sell.
+ */
+export const isUnusableRune = (rune: Rune, runes: Rune[], slots: RuneSlots): boolean => {
+  const slotted = slottedIds(slots);
+  if (slotted.has(rune.id)) return false;
+  const row = slots[RUNES[rune.kind]?.target];
+  if (!row || row.includes(null)) return false;
+  const byId = new Map(runes.map((r) => [r.id, r]));
+  const weakestSlotted = Math.min(...row.map((id) => (id && byId.get(id) ? runeValue(byId.get(id)!) : Infinity)));
+  if (runeValue(rune) >= weakestSlotted) return false;
+  return runes.filter((r) => r.kind === rune.kind && r.tier === rune.tier).length < MERGE_COUNT;
+};
+
 /** Summed bonus per stat from every slotted rune. */
 export const runeStatTotals = (runes: Rune[] | undefined, slots: RuneSlots | undefined): Record<string, number> => {
   const totals: Record<string, number> = {};

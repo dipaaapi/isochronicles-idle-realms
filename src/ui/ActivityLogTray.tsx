@@ -150,7 +150,7 @@ const SETTING_COMMANDS: Record<string, (value: string) => string | undefined> = 
   random_weather: switchSetting((s) => s.randomWeatherEnabled !== false, (s, on) => s.setRandomWeatherEnabled(on)),
   autoplay: switchSetting((s) => s.musicAutoPlay, (s, on) => s.setMusicAutoPlay(on)),
   loop: switchSetting((s) => s.musicLoop, (s, on) => s.setMusicLoop(on)),
-  ...Object.fromEntries((['autoDispatch', 'autoRest', 'autoDefend', 'autoSell', 'autoBuy', 'autoUpgrade', 'autoTap', 'autoEvolve', 'autoSurvivalSkills'] as const).map((key) => [
+  ...Object.fromEntries((['autoDispatch', 'autoRest', 'autoDefend', 'autoSell', 'autoBuy', 'autoUpgrade', 'autoTap', 'autoEvolve', 'autoSurvivalSkills', 'autoSkills', 'autoRunes', 'autoFortify'] as const).map((key) => [
     key.replace(/^auto/, 'auto_').toLocaleLowerCase(),
     switchSetting((s) => !!s.autoSettings[key], (s) => s.toggleAutoSetting(key)),
   ])),

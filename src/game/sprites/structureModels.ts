@@ -597,162 +597,200 @@ const grove = (): StructureModel => {
   );
 };
 
-// ── 10. Wellspring (Water Port) — tiered fountain in a lily pool on a tiled plaza ─
+// ── 10. Abyssal Wharf (Water Port) — black-water basin under a drowned beast's rib cage ─
 
 const port = (): StructureModel => {
-  const M = { tile: 0, tileDark: 1, stone: 2, stoneDark: 3, water: 4, waterLight: 5, waterDeep: 6, spray: 7, lily: 8, flower: 9, hedge: 10, edge: 11, flowerY: 12 };
-  const C = 27;
-  const parts: Part[] = [
-    {
-      name: 'ground', pivot: [25, 25, 0], shapes: [
-        box(0.5, 0.5, 0, 50.5, 50.5, 3, M.tile),
-        ...[6, 12, 18, 24, 30, 36, 42, 48].flatMap((t) => [box(t, 0.5, 2.9, t + 0.5, 50.5, 3.1, M.tileDark), box(0.5, t, 2.9, 50.5, t + 0.5, 3.1, M.tileDark)]),
-        box(0.5, 49, 0, 50.5, 50.5, 3.2, M.edge), box(49, 0.5, 0, 50.5, 50.5, 3.2, M.edge),
-        // Flower hedges along the back edges
-        box(0.5, 0.5, 3, 4.5, 50, 7, M.hedge), box(0.5, 0.5, 3, 50, 4.5, 7, M.hedge),
-        ...[6, 14, 22, 30, 38, 46].flatMap((t, i) => [
-          ball(3, t, 7.4, 1.2, i % 2 ? M.flower : M.flowerY), ball(t, 3, 7.4, 1.2, i % 2 ? M.flowerY : M.flower),
-        ]),
-      ],
-    },
-    {
-      name: 'pool', pivot: [C, C, 3], shapes: [
-        box(8, 8, 3, 47, 47, 5.5, M.stone),
-        box(10, 10, 3, 45, 45, 5.2, M.waterDeep),
-        box(10.5, 10.5, 5, 44.5, 44.5, 5.3, M.water),
-        ...[[14, 40], [40, 14], [42, 36], [36, 43], [13, 22], [22, 13]].flatMap(([x, y], i) => [
-          ell(x, y, 5.4, 2.4, 2.4, 0.4, M.lily), ...(i % 2 ? [ball(x + 0.6, y + 0.6, 6, 0.9, M.flower)] : []),
-        ]),
-      ],
-    },
-    {
-      name: 'fountain', pivot: [C, C, 5], shapes: [
-        cyl(C, C, 5, 12.5, 3.4, M.stone),
-        cyl(C, C, 5, 13, 1, M.stoneDark),
-        cyl(C, C, 7.6, 11, 0.9, M.water),
-        cyl(C, C, 8.4, 3.2, 9.5, M.stoneDark),
-        cyl(C, C, 8.4, 2.6, 9.5, M.stone),
-        cyl(C, C, 17.5, 7.5, 2.4, M.stone),
-        cyl(C, C, 19.2, 6.3, 0.8, M.water),
-        cyl(C, C, 19.8, 1.9, 6, M.stone),
-        cyl(C, C, 25.6, 3.8, 1.6, M.stone),
-        cyl(C, C, 26.7, 3, 0.6, M.water),
-      ],
-    },
-    {
-      name: 'streams', parent: 'fountain', pivot: [C, C, 8], shapes: [
-        ...around(6, 7.6, 0.4).map(({ c, s }) => box(C + c - 0.6, C + s - 0.6, 8.5, C + c + 0.6, C + s + 0.6, 19, M.waterLight)),
-        ...around(8, 12.8, 0.2).map(({ c, s }) => box(C + c - 0.5, C + s - 0.5, 5.2, C + c + 0.5, C + s + 0.5, 8.4, M.waterLight)),
-        ...around(4, 3.9).map(({ c, s }) => box(C + c - 0.4, C + s - 0.4, 20, C + c + 0.4, C + s + 0.4, 26.5, M.waterLight)),
-      ],
-    },
-    { name: 'jet', parent: 'fountain', pivot: [C, C, 27], shapes: [cyl(C, C, 27, 1, 6, M.spray), ball(C, C, 33.5, 1.8, M.spray)] },
-    { name: 'surge', pivot: [C, C, 34], shapes: around(10, 6).map(({ c, s }) => ball(C + c, C + s, 34, 1.2, M.spray)) },
-    rubblePart(M.stoneDark, M.stone),
-    siteScaffold(M.stoneDark),
-  ];
-  const body = ['pool', 'fountain', 'streams', 'jet'];
-  const { base, ruined, site } = establishmentPoses(parts, body, ['surge']);
-  const ruinedDry: Pose = { ...ruined, ...hide('streams', 'jet', 'surge') };
-  const idle = withBase(base, [
-    { jet: { scale: [1, 1, 1] }, streams: { offset: [0, 0, 0] } },
-    { jet: { scale: [1, 1, 1.25] }, streams: { offset: [0, 0, -0.4] } },
-    { jet: { scale: [1, 1, 1.4] }, streams: { offset: [0, 0, 0] } },
-    { jet: { scale: [1, 1, 1.15] }, streams: { offset: [0, 0, -0.4] } },
-  ]);
-  const attack = withBase(base, [
-    { jet: { scale: [1.3, 1.3, 2] } },
-    { jet: { scale: [1.6, 1.6, 3] }, surge: { hidden: false, scale: [0.6, 0.6, 1] } },
-    { jet: { scale: [1.4, 1.4, 2.6] }, surge: { hidden: false, scale: [1.2, 1.2, 1], offset: [0, 0, 6] } },
-    { jet: { scale: [1.1, 1.1, 1.6] }, surge: { hidden: false, scale: [1.7, 1.7, 1], offset: [0, 0, 4] } },
-  ]);
-  return establishment(
-    [
-      { color: 0xd6d3d1 }, { color: 0xa8a29e }, { color: 0xe7e5e4 }, { color: 0x9ca3af }, { color: 0x38bdf8 },
-      { color: 0xbae6fd, emissive: true }, { color: 0x0369a1 }, { color: 0xf0f9ff, emissive: true }, { color: 0x16a34a },
-      { color: 0xf472b6 }, { color: 0x15803d }, { color: 0x78716c }, { color: 0xfacc15 },
-    ],
-    parts, 44, { idle, attack, ruined: ruinedDry, site }, { idle: 4, attack: 9 }
-  );
-};
-
-// ── 14. Magma Cavern (Mystic Cave) — erupting volcano cone with lava rivers ───
-
-const cave = (): StructureModel => {
-  const M = { rock: 0, rockLight: 1, rockDark: 2, lava: 3, lavaCore: 4, lavaDeep: 5, fire: 6, soot: 7, edge: 8 };
+  // Abyssal Wharf: a black-water basin under a giant rib cage, a horned idol pouring the tide, bone pilings and ghost lanterns
+  const M = { quay: 0, quayLight: 1, quayDark: 2, water: 3, waterDeep: 4, glow: 5, glowHot: 6, bone: 7, boneDark: 8, idol: 9, idolDark: 10, iron: 11, edge: 12 };
   const C = 25.5;
-  const river = (dx: number, dy: number, wiggle: number): Shape[] => {
+  const BX = C + 3, BY = C + 3; // basin centre (toward the island)
+  // One rib of the arching rib cage: a curve of bone balls over the basin
+  const rib = (t: number): Shape[] => {
     const pts: Array<[number, number, number]> = [];
-    for (let i = 0; i <= 6; i++) {
-      const t = i / 6;
-      const r = 6.5 + 16.5 * t;
-      const w = Math.sin(t * 7) * wiggle;
-      pts.push([C + dx * r - dy * w, C + dy * r + dx * w, 33 - 30 * t + 1.4]);
+    for (let i = 0; i <= 8; i++) {
+      const a = (i / 8) * Math.PI;
+      // Each rib arches across the basin (from one side of the quay to the other); t steps along the spine
+      pts.push([BX - 11 * Math.cos(a) + t, BY + 11 * Math.cos(a) + t, 4 + 15 * Math.sin(a)]);
     }
-    return [...chain(pts, 0.9, 1.2, M.lava, 4), ...chain(pts.slice(0, 3), 0.5, 0.6, M.lavaCore, 4)];
+    return chain(pts, 1.1, 1.1, M.bone, 2);
   };
   const parts: Part[] = [
     {
       name: 'ground', pivot: [25, 25, 0], shapes: [
-        ...pad(M.rockDark, M.edge),
-        ell(46, 40, 2.4, 4, 6, 0.6, M.lava), ell(40, 46, 2.4, 6, 4, 0.6, M.lava), ell(46, 46, 2.6, 3, 3, 0.6, M.lavaCore),
+        ...pad(M.quayDark, M.edge),
+        // Stone quay ring and the basin of black water
+        cyl(BX, BY, 2, 15, 2.2, M.quay),
+        cyl(BX, BY, 2.3, 12.5, 2.2, M.water),
+        cyl(BX, BY, 2.4, 8, 2.2, M.waterDeep),
+        ...around(10, 13.7, 0.15).map(({ c, s }, i) => box(BX + c - 1.2, BY + s - 1.2, 2, BX + c + 1.2, BY + s + 1.2, 5, i % 2 ? M.quayLight : M.quay)),
       ],
     },
     {
-      name: 'volcano', pivot: [C, C, 2], shapes: [
-        ...cone(C, C, 2, 23, 33, M.rock, M.rock, 14),
-        // Craggy ridges
-        ell(8, 30, 6, 5, 6, 6, M.rockLight), ell(30, 8, 6, 6, 5, 6, M.rockLight), ell(14, 14, 12, 6, 6, 9, M.rockLight),
-        ell(38, 18, 8, 4, 5, 7, M.rockDark), ell(18, 38, 8, 5, 4, 7, M.rockDark),
-        cyl(C, C, 31, 7, 3, M.rockDark),
-        cyl(C, C, 33.5, 5, 1, M.lavaDeep),
-        cyl(C, C, 34, 4.2, 0.8, M.lavaCore),
-      ],
-    },
-    { name: 'rivers', parent: 'volcano', pivot: [C, C, 2], shapes: [...river(1, 0, 1.5), ...river(0, 1, -1.5), ...river(0.72, 0.72, 2), ...river(0.95, -0.3, 1)] },
-    {
-      name: 'fires', pivot: [C, C, 2], shapes: [
-        ell(7, 44, 5, 2.6, 2.6, 4, M.fire), ell(7, 44, 4.5, 1.4, 1.4, 2.5, M.lavaCore),
-        ell(44, 7, 5, 2.6, 2.6, 4, M.fire), ell(44, 7, 4.5, 1.4, 1.4, 2.5, M.lavaCore),
+      name: 'cage', pivot: [BX, BY, 4], shapes: [
+        ...rib(-7.5), ...rib(-2.5), ...rib(2.5), ...rib(7.5),
+        // Spine along the top
+        ...chain([[BX - 8, BY - 8, 19], [BX + 8, BY + 8, 19]], 1.4, 1.4, M.boneDark, 6),
+        // The skull at the spine's end, eyes lit
+        ell(BX + 10, BY + 10, 18, 3, 3, 2.6, M.bone), box(BX + 12, BY + 11, 18, BX + 13, BY + 12, 19, M.glowHot), box(BX + 11, BY + 12, 18, BX + 12, BY + 13, 19, M.glowHot),
       ],
     },
     {
-      name: 'plume', pivot: [C, C, 35], shapes: [
-        ell(C, C, 38, 4.5, 4.5, 5, M.fire), ell(C, C, 38, 2.8, 2.8, 4, M.lavaCore),
-        ell(C - 2, C + 1.5, 42, 1.8, 1.8, 3.5, M.fire), ell(C + 1.5, C - 2, 43, 1.6, 1.6, 3.5, M.fire),
+      name: 'idol', pivot: [8, 8, 2], shapes: [
+        box(3, 3, 2, 15, 15, 8, M.quayDark),
+        ell(9, 9, 15, 5, 5, 7.5, M.idol),
+        // Horns sweeping up
+        ...chain([[6, 10, 20], [3.5, 11, 25], [4.5, 13, 29]], 1.3, 0.6, M.idolDark, 3),
+        ...chain([[10, 6, 20], [11, 3.5, 25], [13, 4.5, 29]], 1.3, 0.6, M.idolDark, 3),
+        // Glowing eyes and an open maw pouring the tide into the basin
+        box(12.6, 11, 17.5, 13.4, 12.2, 18.5, M.glowHot), box(11, 12.6, 17.5, 12.2, 13.4, 18.5, M.glowHot),
+        ell(13, 13, 13, 2.2, 2.2, 2, M.idolDark),
+        ...chain([[14, 14, 12.5], [17, 17, 9], [19, 19, 4.5]], 1.4, 1.8, M.water, 3),
       ],
     },
     {
-      name: 'bombs', parent: 'plume', pivot: [C, C, 40], shapes: [
-        ...around(6, 7).map(({ c, s }, i) => ball(C + c, C + s, 44 + (i % 3) * 3, 1.5, i % 2 ? M.lava : M.lavaCore)),
-        ball(C, C, 52, 3, M.soot), ball(C - 2, C - 2, 57, 3.5, M.soot),
+      name: 'pier', pivot: [C, C, 2], shapes: [
+        // Bone pilings and a short iron-bound jetty out over the water
+        box(BX + 9, BY - 2, 4, BX + 17, BY + 2, 5, M.quayLight),
+        ...[[BX + 10, BY - 3], [BX + 10, BY + 3], [BX + 15, BY - 3], [BX + 15, BY + 3]].map(([x, y]) => cyl(x, y, 2, 0.9, 5.5, M.bone)),
+        box(BX + 9, BY - 2.2, 5, BX + 17, BY - 1.8, 5.4, M.iron), box(BX + 9, BY + 1.8, 5, BX + 17, BY + 2.2, 5.4, M.iron),
       ],
     },
-    rubblePart(M.rockDark, M.rock),
-    siteScaffold(M.rockLight),
+    {
+      name: 'lanterns', pivot: [C, C, 2], shapes: [
+        ...[[44, 14], [14, 44], [BX + 16, BY]].flatMap(([x, y]) => [
+          box(x - 0.4, y - 0.4, 2, x + 0.4, y + 0.4, 11, M.iron),
+          box(x - 1.2, y - 1.2, 11, x + 1.2, y + 1.2, 13.6, M.iron),
+          ell(x, y, 12.3, 0.9, 0.9, 1.1, M.glow),
+        ]),
+      ],
+    },
+    {
+      name: 'wisps', pivot: [BX, BY, 4], shapes: [
+        ...around(5, 6, 0.4).map(({ c, s }, i) => ball(BX + c, BY + s, 5 + (i % 2), 0.9, i % 2 ? M.glow : M.glowHot)),
+      ],
+    },
+    {
+      name: 'surge', pivot: [BX, BY, 4], shapes: [
+        ...chain([[BX, BY, 4], [BX + 0.6, BY - 0.6, 12], [BX - 0.4, BY + 0.4, 20]], 3, 1.6, M.water, 3),
+        ...chain([[BX, BY, 6], [BX, BY, 18]], 1.4, 0.8, M.glow, 3),
+        ...around(6, 4, 0.2).map(({ c, s }) => ball(BX + c, BY + s, 18, 1.1, M.glowHot)),
+      ],
+    },
+    rubblePart(M.quayDark, M.quay),
+    siteScaffold(M.iron),
   ];
-  const body = ['volcano', 'rivers', 'plume', 'fires'];
-  const { base, ruined, site } = establishmentPoses(parts, body, ['bombs']);
-  const ruinedCold: Pose = { ...ruined, ...hide('plume', 'bombs', 'fires') };
+  const body = ['cage', 'idol', 'pier', 'lanterns', 'wisps'];
+  const { base, ruined, site } = establishmentPoses(parts, body, ['surge']);
   const idle = withBase(base, [
-    { plume: { scale: [1, 1, 1] }, fires: { scale: [1, 1, 1] } },
-    { plume: { scale: [1.1, 1.1, 1.2] }, fires: { scale: [1, 1, 1.15] } },
-    { plume: { scale: [0.95, 0.95, 0.9] }, fires: { scale: [1, 1, 0.9] } },
-    { plume: { scale: [1.05, 1.05, 1.1] }, fires: { scale: [1, 1, 1.05] } },
+    { wisps: { offset: [0, 0, 0], roll: 0 } },
+    { wisps: { offset: [0, 0, 0.8], roll: 0.4 } },
+    { wisps: { offset: [0, 0, 1.4], roll: 0.8 } },
+    { wisps: { offset: [0, 0, 0.6], roll: 1.2 } },
   ]);
   const attack = withBase(base, [
-    { plume: { scale: [1.3, 1.3, 1.6] } },
-    { plume: { scale: [1.6, 1.6, 2.2] }, bombs: { hidden: false, scale: [0.6, 0.6, 0.6] } },
-    { plume: { scale: [1.5, 1.5, 2] }, bombs: { hidden: false, scale: [1, 1, 1] } },
-    { plume: { scale: [1.2, 1.2, 1.4] }, bombs: { hidden: false, scale: [1.3, 1.3, 1.2] } },
+    { surge: { hidden: false, scale: [0.7, 0.7, 0.4] } },
+    { surge: { hidden: false, scale: [1, 1, 0.8] } },
+    { surge: { hidden: false, scale: [1.15, 1.15, 1.15] } },
+    { surge: { hidden: false, scale: [0.9, 0.9, 1.3] } },
   ]);
   return establishment(
     [
-      { color: 0x2f2a28 }, { color: 0x48423f }, { color: 0x1c1917 }, { color: 0xf97316, emissive: true },
-      { color: 0xfde047, emissive: true }, { color: 0xdc2626, emissive: true }, { color: 0xfb923c, emissive: true },
-      { color: 0x3f3f46 }, { color: 0x1a1210 },
+      { color: 0x3f3a44 }, { color: 0x5b5563 }, { color: 0x232028 }, { color: 0x115e59, emissive: true }, { color: 0x0b2b2b },
+      { color: 0x34d399, emissive: true }, { color: 0xa7f3d0, emissive: true }, { color: 0xb8b0a4 }, { color: 0x8a8278 },
+      { color: 0x44403c }, { color: 0x1c1917 }, { color: 0x27272a }, { color: 0x121016 },
     ],
-    parts, 62, { idle, attack, ruined: ruinedCold, site }, { idle: 4, attack: 10 }, true
+    parts, 44, { idle, attack, ruined, site }, { idle: 4, attack: 10 }, true
+  );
+};
+
+// ── 14. Gargoyle Grotto (Mystic Cave) — slate hill, arcane cave, crystal spines, gargoyle statues ─
+
+const cave = (): StructureModel => {
+  // Gargoyle Grotto: a hunched slate hill split by a glowing arcane cave, crystal spines and two gargoyle statues
+  const M = { slate: 0, slateLight: 1, slateDark: 2, crystal: 3, crystalCore: 4, teal: 5, stone: 6, stoneDark: 7, edge: 8, hollow: 9, rune: 10 };
+  const C = 25.5;
+  // A crystal spine: a stack of shrinking boxes leaning outward
+  const spine = (x: number, y: number, z: number, h: number, lean: [number, number], mat: number): Shape[] =>
+    Array.from({ length: 5 }, (_, i) => {
+      const k = i / 5, w = 2.8 * (1 - k * 0.65);
+      const cx = x + lean[0] * h * k, cy = y + lean[1] * h * k;
+      return box(cx - w, cy - w, z + (h / 5) * i, cx + w, cy + w, z + (h / 5) * (i + 1), i === 4 ? M.crystalCore : mat);
+    });
+  const gargoyle = (x: number, y: number, z: number, s: number): Shape[] => [
+    box(x - 2 * s, y - 2 * s, z, x + 2 * s, y + 2 * s, z + 1.2 * s, M.stoneDark),          // plinth
+    ell(x, y, z + 3.2 * s, 1.8 * s, 1.6 * s, 2.2 * s, M.stone),                           // crouched body
+    ball(x + 0.8 * s, y + 0.8 * s, z + 5.6 * s, 1.2 * s, M.stone),                          // head
+    box(x + 0.2 * s, y + 0.2 * s, z + 6.4 * s, x + 0.6 * s, y + 0.6 * s, z + 7.6 * s, M.stoneDark), // horn
+    box(x + 1.1 * s, y + 1.1 * s, z + 5.6 * s, x + 1.5 * s, y + 1.5 * s, z + 6 * s, M.teal), // lit eye
+    ell(x - 2.2 * s, y + 0.4 * s, z + 4.4 * s, 0.5 * s, 2.4 * s, 2 * s, M.stoneDark),      // folded wings
+    ell(x + 0.4 * s, y - 2.2 * s, z + 4.4 * s, 2.4 * s, 0.5 * s, 2 * s, M.stoneDark),
+  ];
+  const parts: Part[] = [
+    {
+      name: 'ground', pivot: [25, 25, 0], shapes: [
+        ...pad(M.slateDark, M.edge),
+        // A rune circle carved into the floor before the cave
+        ...around(12, 8, 0.2).map(({ c, s }) => box(C + 11 + c - 0.6, C + 11 + s - 0.6, 2.4, C + 11 + c + 0.6, C + 11 + s + 0.6, 2.8, M.rune)),
+      ],
+    },
+    {
+      name: 'hill', pivot: [C, C, 2], shapes: [
+        ell(C - 3, C - 3, 9, 19, 19, 14, M.slate),
+        ell(C - 9, C + 6, 7, 11, 10, 10, M.slateLight),
+        ell(C + 6, C - 9, 7, 10, 11, 10, M.slateLight),
+        ell(C - 6, C - 6, 18, 11, 11, 9, M.slateDark),
+        ell(C - 4, C - 4, 24, 6, 6, 5, M.slate),
+        // Cracked boulders round the foot
+        ell(8, 40, 4, 4, 3.5, 3, M.slateDark), ell(40, 8, 4, 3.5, 4, 3, M.slateDark), ell(44, 30, 3.5, 3, 2.6, 2.2, M.slate),
+        // The cave: a dark hollow facing the island, framed by a slate arch
+        ell(C + 9, C + 9, 7, 7.5, 7.5, 7.5, M.slateLight),
+        ell(C + 11, C + 11, 6.4, 5.4, 5.4, 6, M.hollow),
+        ell(C + 12.4, C + 12.4, 5.6, 3.4, 3.4, 4.2, M.crystal),
+      ],
+    },
+    {
+      name: 'crystals', parent: 'hill', pivot: [C, C, 20], shapes: [
+        ...spine(C - 6, C - 6, 26, 20, [0.05, 0.05], M.crystal),
+        ...spine(C - 13, C + 2, 15, 15, [-0.25, 0.15], M.crystal),
+        ...spine(C + 2, C - 13, 15, 15, [0.15, -0.25], M.teal),
+        ...spine(C + 8, C + 2, 12, 11, [0.3, 0.1], M.crystal),
+        ...spine(C + 2, C + 8, 12, 11, [0.1, 0.3], M.teal),
+        ...spine(10, 36, 2.5, 9, [-0.1, 0.2], M.crystal),
+        ...spine(36, 10, 2.5, 9, [0.2, -0.1], M.teal),
+        ...spine(42, 30, 2.5, 7, [0.25, 0], M.crystal),
+      ],
+    },
+    { name: 'gargoyles', parent: 'hill', pivot: [C, C, 20], shapes: [...gargoyle(C - 12, C + 10, 12, 1.7), ...gargoyle(C + 10, C - 12, 12, 1.7)] },
+    {
+      name: 'orb', pivot: [C - 6, C - 6, 44], shapes: [
+        ball(C - 6, C - 6, 44, 3, M.crystal), ball(C - 6, C - 6, 44, 1.8, M.crystalCore),
+        ...around(6, 5.5).map(({ c, s }, i) => ball(C - 6 + c, C - 6 + s, 44 + (i % 2 ? 1.5 : -1.5), 0.9, i % 2 ? M.teal : M.crystal)),
+      ],
+    },
+    rubblePart(M.slateDark, M.slate),
+    siteScaffold(M.stoneDark),
+  ];
+  const body = ['hill', 'crystals', 'gargoyles'];
+  const { base, ruined, site } = establishmentPoses(parts, body, ['orb']);
+  const idle = withBase(base, [
+    { crystals: { scale: [1, 1, 1] } },
+    { crystals: { scale: [1, 1, 1.04] } },
+    { crystals: { scale: [1, 1, 1.07] } },
+    { crystals: { scale: [1, 1, 1.03] } },
+  ]);
+  const attack = withBase(base, [
+    { orb: { hidden: false, scale: [0.5, 0.5, 0.5] }, crystals: { scale: [1, 1, 1.08] } },
+    { orb: { hidden: false, scale: [1, 1, 1] }, crystals: { scale: [1, 1, 1.12] } },
+    { orb: { hidden: false, scale: [1.35, 1.35, 1.35] }, crystals: { scale: [1, 1, 1.08] } },
+    { orb: { hidden: false, scale: [1.6, 1.6, 1.6], offset: [0, 0, 2] } },
+  ]);
+  return establishment(
+    [
+      { color: 0x2e2a3a }, { color: 0x4a4560 }, { color: 0x1b1824 }, { color: 0xa855f7, emissive: true },
+      { color: 0xf3e8ff, emissive: true }, { color: 0x2dd4bf, emissive: true }, { color: 0x6b7280 }, { color: 0x4b5563 },
+      { color: 0x15121c }, { color: 0x07060a }, { color: 0x7c3aed, emissive: true },
+    ],
+    parts, 50, { idle, attack, ruined, site }, { idle: 4, attack: 10 }, true
   );
 };
 
@@ -843,6 +881,208 @@ const spire = (): StructureModel => {
 };
 
 // ── 2. Invasion Rift Portal — gothic stone arch round a pink-blue spiral rift ──
+
+// ── Dragon Volcano: Ignara's mountain on the north corner (replaced the North Rift) ──
+
+/**
+ * Basalt cone with a smoking crater and a cave mouth facing the island (+x/+y).
+ * Its look counts the waves to the next cave opening (scene/volcano.ts picks one):
+ *   stage1 … stage4  cold → crater glow → first lava seams → cracks and heavy smoke
+ *   open             rubble gone, the mouth roars with firelight, lava pours down the face
+ *   erupt            the rumble before a magma flow: plume, lava fountain, ash
+ *   dormant          Ignara slain: cold crust, thin smoke
+ */
+const volcano = (): StructureModel => {
+  const M = {
+    rock: 0, rockMid: 1, rockLit: 2, rockDark: 3, ash: 4, magma: 5, magmaHot: 6, ember: 7,
+    crust: 8, smoke: 9, smokeLight: 10, cave: 11, glow: 12, glowDim: 13,
+  };
+  const C = 32;
+  const TOP = 46;        // crater rim height
+  const R0 = 31, RT = 8; // base / rim radius
+  // Concave volcanic profile: a broad apron at the foot, steep near the crater
+  const radiusAt = (z: number) => RT + (R0 - RT) * Math.pow(Math.max(0, 1 - z / TOP), 1.7);
+  // Deterministic crag noise
+  const n = (i: number) => { const s = Math.sin(i * 127.1) * 43758.5453; return s - Math.floor(s); };
+  // The mouth faces the island: the diagonal toward +x / +y
+  const MX = Math.SQRT1_2, MY = Math.SQRT1_2;
+  const onFace = (ang: number, z: number, out = 0) => {
+    const r = radiusAt(z) + out;
+    return [C + Math.cos(ang) * r, C + Math.sin(ang) * r, z] as [number, number, number];
+  };
+  const FRONT = Math.PI / 4;
+
+  // ── Mountain: stacked rings, strata, crags and a shoulder ridge
+  const body: Shape[] = [];
+  const steps = 23;
+  for (let i = 0; i < steps; i++) {
+    const z = (TOP / steps) * i;
+    // Wobbling rings (radius and centre drift) so no level reads as a clean stripe
+    const wob = (n(i + 900) - 0.5) * 2.2;
+    body.push(cyl(C + (n(i + 950) - 0.5) * 1.6, C + (n(i + 980) - 0.5) * 1.6, z, radiusAt(z) + wob, TOP / steps + 0.05, M.rock));
+  }
+  // Lava-rock ridges running down the slopes (darker gullies, lit spines)
+  for (let k = 0; k < 9; k++) {
+    const ang = (k / 9) * Math.PI * 2 + n(k + 40) * 0.4;
+    const pts: [number, number, number][] = [];
+    for (let i = 0; i <= 6; i++) pts.push(onFace(ang + (n(k * 7 + i) - 0.5) * 0.12, 3 + (TOP - 8) * (i / 6), -0.4));
+    body.push(...chain(pts, 2.2, 1.1, k % 2 ? M.rockLit : M.rockDark, 3));
+  }
+  for (let i = 0; i < 70; i++) {
+    const ang = n(i) * Math.PI * 2;
+    const z = 2 + n(i + 50) * (TOP - 6);
+    const [x, y] = onFace(ang, z, -0.6);
+    const r = 1.8 + n(i + 99) * 2.6;
+    body.push(ball(x, y, z, r, n(i + 7) > 0.6 ? M.rockLit : n(i + 7) > 0.3 ? M.rockMid : M.rockDark));
+  }
+  // A lower shoulder on the left flank breaks the cone's symmetry
+  body.push(ell(C - 8, C + 14, 8, 15, 11, 10, M.rock), ell(C - 9, C + 15, 13, 9, 7, 5, M.rockLit));
+  body.push(ell(C + 16, C - 6, 6, 11, 10, 7, M.rockMid));
+  // Ash on the upper slopes
+  for (const a of around(10, radiusAt(TOP - 4) - 0.4, 0.3)) body.push(ball(C + a.c, C + a.s, TOP - 4, 1.6, M.ash));
+  // Crater lip and throat
+  body.push(cyl(C, C, TOP - 1, RT + 0.6, 1.4, M.rockLit), cyl(C, C, TOP - 3, RT - 2.2, 3.4, M.cave));
+
+  // ── Cave mouth at the foot, facing the island
+  const mx = C + MX * (R0 - 3.5), my = C + MY * (R0 - 3.5);
+  const mouth: Shape[] = [
+    // A buttress of dark rock framing the opening
+    ell(mx, my, 7, 9, 9, 9.5, M.rockDark),
+    ell(mx + MX * 2.4, my + MY * 2.4, 6.4, 6.2, 6.2, 7.4, M.cave),
+    // Lintel and jamb stones
+    ...[-2, -1, 0, 1, 2].map((k) => ball(mx + MX * 3.6 + k * MY * 2.8, my + MY * 3.6 - k * MX * 2.8, 13.6 - Math.abs(k) * 1.2, 1.9, M.rockLit)),
+    ...[-1, 1].map((k) => box(mx + MX * 3.2 + k * MY * 6 - 1.2, my + MY * 3.2 - k * MX * 6 - 1.2, 0, mx + MX * 3.2 + k * MY * 6 + 1.2, my + MY * 3.2 - k * MX * 6 + 1.2, 9, M.rockMid)),
+  ];
+  const mouthGlow: Shape[] = [ell(mx + MX * 2.6, my + MY * 2.6, 4.8, 3.4, 3.4, 4.2, M.glow), ell(mx + MX * 3.4, my + MY * 3.4, 1.4, 4, 4, 1.2, M.magma)];
+  const mouthEmber: Shape[] = [ell(mx + MX * 2.6, my + MY * 2.6, 4.4, 3, 3, 3.6, M.glowDim)];
+  const rubble: Shape[] = [];
+  for (let i = 0; i < 9; i++) {
+    const k = (i % 3) - 1, row = Math.floor(i / 3);
+    rubble.push(ball(mx + MX * (3.6 + row * 0.6) + k * MY * 2.6, my + MY * (3.6 + row * 0.6) - k * MX * 2.6, 2 + row * 2.6, 2.1 - row * 0.2, n(i + 300) > 0.5 ? M.rockMid : M.rockLit));
+  }
+  // Glowing cracks between the rubble stones (stage 3+)
+  const rubbleCracks: Shape[] = [-1, 0, 1].map((k) => box(
+    mx + MX * 5.4 + k * MY * 1.3 - 0.3, my + MY * 5.4 - k * MX * 1.3 - 0.3, 1.5 + Math.abs(k) * 2,
+    mx + MX * 5.4 + k * MY * 1.3 + 0.3, my + MY * 5.4 - k * MX * 1.3 + 0.3, 3 + Math.abs(k) * 2, M.magma));
+
+  // ── Lava seams down the visible faces (they light up stage by stage)
+  const seam = (ang: number, len: number, seed: number): Shape[] => {
+    const pts: [number, number, number][] = [];
+    for (let i = 0; i <= 5; i++) {
+      const z = TOP - 1 - (len * i) / 5;
+      pts.push(onFace(ang + (n(seed + i) - 0.5) * 0.18, z, 0.5));
+    }
+    return chain(pts, 1.1, 0.7, M.magma, 3);
+  };
+  const seam1 = seam(FRONT - 0.32, 22, 11);
+  const seam2 = seam(FRONT + 0.36, 30, 23);
+  const seam3 = seam(FRONT + 0.05, 36, 37);
+  // ── Crater: a dull red glow early, a boiling lava pool later
+  const craterDim: Shape[] = [cyl(C, C, TOP - 0.6, RT - 2.6, 0.8, M.crust), ball(C, C, TOP + 0.2, 2.4, M.ember)];
+  const craterHot: Shape[] = [cyl(C, C, TOP - 0.4, RT - 2.2, 0.9, M.magma), ball(C, C, TOP + 0.6, 3, M.magmaHot), ball(C + 2.6, C - 1.8, TOP + 0.4, 1.6, M.magmaHot)];
+  // ── Open cave: lava spilling over the lip and down to the mouth
+  const flowPts: [number, number, number][] = [];
+  for (let i = 0; i <= 8; i++) {
+    const z = TOP - (TOP - 9) * (i / 8);
+    flowPts.push(onFace(FRONT + Math.sin(i * 0.9) * 0.1, z, 0.9));
+  }
+  const flow: Shape[] = [...chain(flowPts, 1.6, 2.2, M.magma, 3), ...chain(flowPts.slice(2), 0.8, 1, M.magmaHot, 2)];
+  // ── Smoke: three puffs that rise and swell (offset per frame)
+  const puff = (dx: number, dy: number, r: number, mat: number): Shape[] => [
+    ball(C + dx, C + dy, TOP + 4, r, mat), ball(C + dx + r * 0.6, C + dy - r * 0.3, TOP + 4 + r * 0.5, r * 0.75, mat), ball(C + dx - r * 0.5, C + dy + r * 0.4, TOP + 3.6, r * 0.7, mat),
+  ];
+  // ── Eruption plume and fountain
+  const plume: Shape[] = [
+    ...chain([[C, C, TOP], [C + 0.5, C - 0.5, TOP + 6], [C - 0.5, C + 0.5, TOP + 11]], 2.6, 1.6, M.magma, 3),
+    ball(C, C, TOP + 12, 2.2, M.magmaHot),
+    ...around(6, 4.5, 0.4).map((a) => ball(C + a.c, C + a.s, TOP + 7 + (a.a % 1) * 3, 1, M.ember)),
+  ];
+  const ashCloud: Shape[] = [ball(C, C, TOP + 17, 6.5, M.smoke), ball(C + 4, C - 3, TOP + 15, 4.8, M.smokeLight), ball(C - 4, C + 3, TOP + 16, 5, M.smoke)];
+  const embers: Shape[] = Array.from({ length: 8 }, (_, i) => ball(C + (n(i + 500) - 0.5) * 12, C + (n(i + 600) - 0.5) * 12, TOP + 3 + n(i + 700) * 8, 0.55, M.ember));
+
+  const parts: Part[] = [
+    { name: 'frame', pivot: [C, C, 0], shapes: [] },
+    { name: 'body', parent: 'frame', pivot: [C, C, 0], shapes: body },
+    { name: 'mouth', parent: 'frame', pivot: [mx, my, 6], shapes: mouth },
+    { name: 'mouthEmber', parent: 'frame', pivot: [mx, my, 6], shapes: mouthEmber },
+    { name: 'mouthGlow', parent: 'frame', pivot: [mx, my, 6], shapes: mouthGlow },
+    { name: 'rubble', parent: 'frame', pivot: [mx, my, 2], shapes: rubble },
+    { name: 'rubbleCracks', parent: 'frame', pivot: [mx, my, 2], shapes: rubbleCracks },
+    { name: 'seam1', parent: 'frame', pivot: [C, C, TOP], shapes: seam1 },
+    { name: 'seam2', parent: 'frame', pivot: [C, C, TOP], shapes: seam2 },
+    { name: 'seam3', parent: 'frame', pivot: [C, C, TOP], shapes: seam3 },
+    { name: 'craterDim', parent: 'frame', pivot: [C, C, TOP], shapes: craterDim },
+    { name: 'craterHot', parent: 'frame', pivot: [C, C, TOP], shapes: craterHot },
+    { name: 'flow', parent: 'frame', pivot: [C, C, TOP], shapes: flow },
+    { name: 'smokeA', parent: 'frame', pivot: [C, C, TOP + 4], shapes: puff(0, 0, 3.4, M.smoke) },
+    { name: 'smokeB', parent: 'frame', pivot: [C, C, TOP + 4], shapes: puff(2.5, -2, 2.8, M.smokeLight) },
+    { name: 'smokeC', parent: 'frame', pivot: [C, C, TOP + 4], shapes: puff(-2.5, 2, 3, M.smoke) },
+    { name: 'plume', parent: 'frame', pivot: [C, C, TOP], shapes: plume },
+    { name: 'ash', parent: 'frame', pivot: [C, C, TOP + 15], shapes: ashCloud },
+    { name: 'embers', parent: 'frame', pivot: [C, C, TOP + 4], shapes: embers },
+  ];
+
+  /** Rising smoke: each puff climbs and swells over the loop, staggered so the column never empties. */
+  const smoke = (i: number, frames: number, rise: number, swell: number, show: string[]): Pose => {
+    const pose: Pose = {};
+    show.forEach((name, k) => {
+      const t = ((i / frames) + k / show.length) % 1;
+      pose[name] = { offset: [t * 2.2, -t * 1.6, t * rise], scale: [1 + t * swell, 1 + t * swell, 1 + t * swell] };
+    });
+    for (const name of ['smokeA', 'smokeB', 'smokeC']) if (!show.includes(name)) pose[name] = { hidden: true };
+    return pose;
+  };
+  const allFx = hide('mouthGlow', 'mouthEmber', 'rubbleCracks', 'seam1', 'seam2', 'seam3', 'craterDim', 'craterHot', 'flow', 'plume', 'ash', 'embers');
+  const lit = (...names: string[]): Pose => Object.fromEntries(names.map((name) => [name, { hidden: false }]));
+  const loop = (frames: number, base: Pose, each: (i: number) => Pose): Pose[] =>
+    withBase(base, Array.from({ length: frames }, (_, i) => each(i)));
+  const pulse = (i: number, frames: number, lo: number, hi: number) => lo + (hi - lo) * (0.5 + 0.5 * Math.sin((i / frames) * Math.PI * 2));
+
+  const F = 8;
+  const stage1 = loop(F, allFx, (i) => smoke(i, F, 6, 0.4, ['smokeA']));
+  const stage2 = loop(F, { ...allFx, ...lit('craterDim') }, (i) => ({
+    ...smoke(i, F, 8, 0.5, ['smokeA', 'smokeB']),
+    craterDim: { hidden: false, scale: [1, 1, pulse(i, F, 0.8, 1.2)] },
+  }));
+  const stage3 = loop(F, { ...allFx, ...lit('craterDim', 'seam1', 'rubbleCracks', 'mouthEmber') }, (i) => ({
+    ...smoke(i, F, 9, 0.6, ['smokeA', 'smokeB']),
+    seam1: { hidden: i % 4 === 3 },
+    mouthEmber: { hidden: false, scale: [pulse(i, F, 0.8, 1), pulse(i, F, 0.8, 1), pulse(i, F, 0.8, 1)] },
+  }));
+  const stage4 = loop(F, { ...allFx, ...lit('craterHot', 'seam1', 'seam2', 'rubbleCracks', 'mouthEmber', 'embers') }, (i) => ({
+    ...smoke(i, F, 11, 0.75, ['smokeA', 'smokeB', 'smokeC']),
+    seam2: { hidden: i % 3 === 2 },
+    embers: { offset: [0, 0, (i / F) * 5] },
+    craterHot: { scale: [1, 1, pulse(i, F, 0.9, 1.3)] },
+  }));
+  const open = loop(F, { ...allFx, rubble: { hidden: true }, ...lit('craterHot', 'seam1', 'seam2', 'seam3', 'mouthGlow', 'flow', 'embers') }, (i) => ({
+    ...smoke(i, F, 13, 0.9, ['smokeA', 'smokeB', 'smokeC']),
+    mouthGlow: { scale: [pulse(i, F, 0.85, 1.15), pulse(i, F, 0.85, 1.15), pulse(i, F, 0.9, 1.1)] },
+    flow: { offset: [0, 0, -((i % 4) * 0.35)] },
+    embers: { offset: [0, 0, (i / F) * 7] },
+    craterHot: { scale: [1, 1, pulse(i, F, 0.9, 1.4)] },
+  }));
+  const erupt = loop(F, { ...allFx, ...lit('craterHot', 'seam1', 'seam2', 'seam3', 'plume', 'ash', 'embers', 'rubbleCracks', 'mouthEmber') }, (i) => ({
+    ...smoke(i, F, 14, 1, ['smokeA', 'smokeB', 'smokeC']),
+    plume: { scale: [1, 1, pulse(i, F, 0.7, 1.35)] },
+    ash: { offset: [0, 0, (i / F) * 4], scale: [1 + (i / F) * 0.5, 1 + (i / F) * 0.5, 1 + (i / F) * 0.4] },
+    embers: { offset: [0, 0, (i / F) * 10] },
+  }));
+  const dormant = loop(4, { ...allFx }, (i) => smoke(i, 4, 4, 0.25, ['smokeB']));
+  return {
+    size: [64, 64, 66], foot: [C, C, 0],
+    materials: [
+      { color: 0x3a3330 }, { color: 0x4a423d }, { color: 0x6b615a }, { color: 0x221d1b }, { color: 0x8a817a },
+      { color: 0xf97316, emissive: true }, { color: 0xfde047, emissive: true }, { color: 0xdc2626, emissive: true },
+      { color: 0x5b1d10 }, { color: 0x57534e }, { color: 0x78716c }, { color: 0x0c0a09 },
+      { color: 0xea580c, emissive: true }, { color: 0x9a3412, emissive: true },
+    ],
+    parts,
+    animations: { idle: stage1, stage1, stage2, stage3, stage4, open, erupt, dormant },
+    rates: { idle: 6, stage1: 5, stage2: 6, stage3: 7, stage4: 8, open: 9, erupt: 10, dormant: 3 },
+    loops: ['idle', 'stage1', 'stage2', 'stage3', 'stage4', 'open', 'erupt', 'dormant'],
+  };
+};
 
 const portal = (): StructureModel => {
   const M = { stone: 0, stoneDark: 1, stoneLight: 2, rune: 3, mid: 4, light: 5, core: 6, arm: 7, ember: 8, floor: 9, bone: 10, swirl: 11 };
@@ -1119,69 +1359,95 @@ const crypt = (): StructureModel => {
   );
 };
 
-// ── 6. Obsidian Spire (Brimstone Perch) — jagged black crag veined with lava ──
+// ── 6. Harpy Aerie (Brimstone Perch) — obsidian pillars crowned by a bone nest, sulfur braziers ─
 
 const perch = (): StructureModel => {
-  const M = { obs: 0, obsLight: 1, obsDark: 2, lava: 3, lavaCore: 4, lavaRed: 5, ash: 6, edge: 7, smoke: 8 };
+  // Harpy Aerie: jagged obsidian pillars crowned by a great bone-and-feather nest, sulfur braziers below
+  const M = { obsidian: 0, obsidianHi: 1, obsidianDk: 2, nest: 3, nestDk: 4, bone: 5, egg: 6, sulfur: 7, sulfurHot: 8, banner: 9, pole: 10, edge: 11, basalt: 12, feather: 13 };
   const C = 25.5;
-  const spike = (x: number, y: number, r: number, h: number, mat: number): Shape[] => cone(x, y, 2, r, h, mat, mat, Math.max(6, Math.round(h / 3)));
-  const vein = (pts: Array<[number, number, number]>) => chain(pts, 0.9, 1.3, M.lava, 4);
+  // A faceted pillar: stacked boxes that twist and narrow
+  const pillar = (x: number, y: number, h: number, w: number, twist: number): Shape[] =>
+    Array.from({ length: 7 }, (_, i) => {
+      const k = i / 7, ww = w * (1 - k * 0.45);
+      const dx = Math.sin(i * twist) * 1.2, dy = Math.cos(i * twist) * 1.2;
+      return box(x + dx - ww, y + dy - ww, 2 + (h / 7) * i, x + dx + ww, y + dy + ww, 2 + (h / 7) * (i + 1) + 0.05, i % 3 === 1 ? M.obsidianHi : M.obsidian);
+    });
+  const NZ = 38; // nest height
   const parts: Part[] = [
     {
       name: 'ground', pivot: [25, 25, 0], shapes: [
-        ...pad(M.ash, M.edge),
-        ...chain([[36, 38, 2.6], [42, 44, 2.6], [48, 47, 2.6]], 1, 1, M.lava, 3),
-        ...chain([[38, 30, 2.6], [46, 33, 2.6]], 0.9, 0.9, M.lavaRed, 3),
+        ...pad(M.basalt, M.edge),
+        ell(40, 40, 2.6, 4, 3, 0.4, M.sulfur), ell(44, 33, 2.6, 2.4, 2, 0.4, M.sulfur), ell(12, 42, 2.6, 2.6, 2.2, 0.4, M.sulfur),
       ],
     },
     {
       name: 'crag', pivot: [C, C, 2], shapes: [
-        ...cone(C, C, 2, 17, 26, M.obs, M.obs, 13),
-        ...cone(C, C, 26, 6.5, 26, M.obs, M.obsLight, 10),
-        ...spike(15, 18, 7, 30, M.obsDark), ...spike(34, 17, 6, 24, M.obs), ...spike(18, 35, 6, 26, M.obs),
-        ...spike(37, 37, 5, 15, M.obsLight), ...spike(10, 31, 4.5, 18, M.obsDark), ...spike(31, 9, 4.5, 20, M.obsDark),
-        ...spike(42, 26, 3.5, 10, M.obsLight), ...spike(26, 42, 3.5, 11, M.obsLight),
+        ell(C - 3, C - 3, 4, 14, 14, 5, M.obsidianDk),
+        ...pillar(C - 4, C - 4, NZ - 4, 5.5, 0.6),
+        ...pillar(C + 7, C - 9, 22, 3.6, 0.9),
+        ...pillar(C - 9, C + 7, 18, 3.4, 1.1),
+        ...pillar(C + 9, C + 6, 11, 2.6, 0.7),
+        // Shards jutting from the base
+        box(C + 4, C + 10, 2, C + 6, C + 12, 9, M.obsidianHi), box(C + 12, C - 1, 2, C + 14, C + 1, 7, M.obsidian),
       ],
     },
     {
-      name: 'veins', parent: 'crag', pivot: [C, C, 2], shapes: [
-        ...vein([[C + 2, C + 2, 50], [C + 4, C + 3, 40], [C + 6, C + 7, 30], [C + 10, C + 9, 20], [C + 14, C + 15, 8], [C + 17, C + 19, 3]]),
-        ...vein([[C + 3, C + 1, 38], [C + 8, C - 1, 28], [C + 13, C + 2, 16], [C + 19, C + 1, 4]]),
-        ...vein([[C + 1, C + 4, 34], [C - 1, C + 9, 24], [C + 2, C + 14, 14], [C + 1, C + 20, 4]]),
-        ...vein([[C + 11, C + 11, 13], [C + 12, C + 6, 8]]),
+      name: 'nest', parent: 'crag', pivot: [C - 4, C - 4, NZ], shapes: [
+        // Woven rim of branches and bones
+        ...around(16, 7.5, 0.1).map(({ c, s }, i) => ell(C - 4 + c, C - 4 + s, NZ + 1, 2.2, 2.2, 1.6, i % 4 === 0 ? M.bone : i % 2 ? M.nest : M.nestDk)),
+        cyl(C - 4, C - 4, NZ - 1, 7, 1.6, M.nestDk),
+        // Ribs sticking up out of the weave
+        ...around(5, 7.8, 0.5).map(({ c, s }) => box(C - 4 + c - 0.4, C - 4 + s - 0.4, NZ + 1, C - 4 + c + 0.4, C - 4 + s + 0.4, NZ + 5, M.bone)),
+        // Eggs glowing with brimstone
+        ell(C - 5, C - 3, NZ + 1.6, 1.6, 1.6, 2.1, M.egg), ell(C - 2.6, C - 5.4, NZ + 1.5, 1.4, 1.4, 1.9, M.egg),
+        // Black feathers drifting off the rim
+        ell(C + 3, C - 9, NZ + 2, 0.5, 2.4, 0.4, M.feather), ell(C - 10, C + 2, NZ + 1, 2.2, 0.5, 0.4, M.feather),
       ],
     },
-    { name: 'summit', pivot: [C, C, 52], shapes: [ell(C, C, 52.5, 1.6, 1.6, 2.4, M.lavaCore), ell(C, C, 54.5, 1, 1, 2, M.lava)] },
     {
-      name: 'spew', pivot: [C, C, 54], shapes: [
-        ...around(6, 5).map(({ c, s }, i) => ball(C + c, C + s, 57 + (i % 2) * 3, 1.3, i % 2 ? M.lava : M.lavaCore)),
-        ball(C - 2, C - 2, 62, 3, M.smoke),
+      name: 'banners', parent: 'crag', pivot: [C, C, 2], shapes: [
+        box(C + 7 - 0.4, C - 9 - 0.4, 24, C + 7 + 0.4, C - 9 + 0.4, 31, M.pole), box(C + 7.4, C - 9.2, 26, C + 7.6, C - 4.5, 30.5, M.banner),
+        box(C - 9 - 0.4, C + 7 - 0.4, 20, C - 9 + 0.4, C + 7 + 0.4, 27, M.pole), box(C - 9.2, C + 7.4, 22, C - 4.5, C + 7.6, 26.5, M.banner),
       ],
     },
-    rubblePart(M.obsDark, M.obs),
-    siteScaffold(M.obsLight),
+    {
+      name: 'braziers', pivot: [C, C, 2], shapes: [
+        ...[[42, 20], [20, 42]].flatMap(([x, y]) => [
+          cyl(x, y, 2, 1.8, 3.4, M.obsidianHi), cyl(x, y, 5.4, 2.4, 1, M.obsidianDk),
+          ell(x, y, 7.6, 1.8, 1.8, 2.6, M.sulfur), ell(x, y, 7.2, 1, 1, 1.6, M.sulfurHot),
+        ]),
+      ],
+    },
+    {
+      name: 'gust', pivot: [C - 4, C - 4, NZ + 3], shapes: [
+        ...around(8, 6, 0.3).map(({ c, s }, i) => ell(C - 4 + c, C - 4 + s, NZ + 4 + (i % 2) * 2, 0.6, 2.2, 0.5, i % 3 === 0 ? M.sulfurHot : M.feather)),
+        ...around(5, 3.5, 0.9).map(({ c, s }) => box(C - 4 + c - 0.5, C - 4 + s - 0.5, NZ + 6, C - 4 + c + 0.5, C - 4 + s + 0.5, NZ + 8, M.obsidianHi)),
+      ],
+    },
+    rubblePart(M.obsidianDk, M.basalt),
+    siteScaffold(M.pole),
   ];
-  const body = ['crag', 'veins', 'summit'];
-  const { base, ruined, site } = establishmentPoses(parts, body, ['spew']);
+  const body = ['crag', 'nest', 'banners', 'braziers'];
+  const { base, ruined, site } = establishmentPoses(parts, body, ['gust']);
   const idle = withBase(base, [
-    { summit: { scale: [1, 1, 1] }, veins: { scale: [1, 1, 1] } },
-    { summit: { scale: [1.3, 1.3, 1.3] }, veins: { scale: [1.04, 1.04, 1] } },
-    { summit: { scale: [0.9, 0.9, 0.9] }, veins: { scale: [1, 1, 1] } },
-    { summit: { scale: [1.15, 1.15, 1.15] }, veins: { scale: [1.02, 1.02, 1] } },
+    { braziers: { scale: [1, 1, 1] }, banners: { roll: 0 } },
+    { braziers: { scale: [1, 1, 1.12] }, banners: { roll: 0.015 } },
+    { braziers: { scale: [1, 1, 0.92] }, banners: { roll: 0.025 } },
+    { braziers: { scale: [1, 1, 1.06] }, banners: { roll: 0.01 } },
   ]);
   const attack = withBase(base, [
-    { summit: { scale: [1.6, 1.6, 1.6] }, veins: { scale: [1.06, 1.06, 1] } },
-    { summit: { scale: [2, 2, 2] }, spew: { hidden: false, scale: [0.6, 0.6, 0.6] } },
-    { summit: { scale: [1.7, 1.7, 1.7] }, spew: { hidden: false, scale: [1.1, 1.1, 1], offset: [0, 0, 2] } },
-    { summit: { scale: [1.2, 1.2, 1.2] }, spew: { hidden: false, scale: [1.5, 1.5, 1], offset: [0, 0, 3] } },
+    { gust: { hidden: false, scale: [0.6, 0.6, 0.6] } },
+    { gust: { hidden: false, scale: [1.1, 1.1, 1.1], offset: [0, 0, 1] } },
+    { gust: { hidden: false, scale: [1.6, 1.6, 1.4], offset: [0, 0, 2.5] } },
+    { gust: { hidden: false, scale: [2, 2, 1.6], offset: [0, 0, 4] } },
   ]);
   return establishment(
     [
-      { color: 0x231d2e }, { color: 0x3e3552 }, { color: 0x120e19 }, { color: 0xf97316, emissive: true },
-      { color: 0xfde047, emissive: true }, { color: 0xdc2626, emissive: true }, { color: 0x3a3330 }, { color: 0x1a1414 },
-      { color: 0x3f3f46 },
+      { color: 0x1e1b2e }, { color: 0x4c4566 }, { color: 0x0f0d18 }, { color: 0x6b4e2e }, { color: 0x3f2d1c },
+      { color: 0xe7e5e4 }, { color: 0xecfccb, emissive: true }, { color: 0xbef264, emissive: true }, { color: 0xfef08a, emissive: true },
+      { color: 0x7f1d1d }, { color: 0x292524 }, { color: 0x0c0a12 }, { color: 0x2a2730 }, { color: 0x18181b },
     ],
-    parts, 64, { idle, attack, ruined, site }, { idle: 3, attack: 10 }
+    parts, 58, { idle, attack, ruined, site }, { idle: 4, attack: 10 }, true
   );
 };
 
@@ -1704,13 +1970,13 @@ const sentinel = (): StructureModel => {
 export type StructureKey =
   | 'castle' | 'quarry' | 'mine' | 'grove' | 'port' | 'cave' | 'spire' | 'portal'
   | 'trench' | 'crypt' | 'perch' | 'kennel'
-  | 'foundry' | 'pavilion' | 'voidgate' | 'ossuary' | 'sentinel';
+  | 'foundry' | 'pavilion' | 'voidgate' | 'ossuary' | 'sentinel' | 'volcano';
 
 // Order = bake order: the always-visible citadel, portals and spire first
 export const STRUCTURE_MODELS: Record<StructureKey, () => StructureModel> = {
   castle, portal, sentinel, spire, quarry, mine, grove, port, cave,
   trench, crypt, perch, kennel,
-  foundry, pavilion, voidgate: voidGate, ossuary,
+  foundry, pavilion, voidgate: voidGate, ossuary, volcano,
 };
 
 /** The Codex art each structure is modelled on (public/structures/). */
@@ -1721,6 +1987,8 @@ export const STRUCTURE_ART: Record<StructureKey, string> = {
   voidgate: 'void-gate', ossuary: 'bone-crypt',
   // No Codex art of its own yet: shown beside the rift it guards
   sentinel: 'portal',
+  // Ignara's volcano: no Codex art yet, shown beside the nearest fire-themed art
+  volcano: 'magma-cavern',
 };
 
 export const BUILDING_SPRITE: Record<ResourceBuildingId, StructureKey> = {

@@ -101,6 +101,9 @@ export const INITIAL_AUTO_SETTINGS: AutoSettings = {
   autoTap: true,
   autoEvolve: true,
   autoSurvivalSkills: true,
+  autoSkills: false,
+  autoRunes: false,
+  autoFortify: false,
 };
 
 export const INITIAL_UPGRADES: UpgradesState = {

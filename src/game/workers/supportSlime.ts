@@ -1,4 +1,5 @@
 import { SUPPORT_SLIME_EVOLUTION, UNIT_CLASSES, UnitClass } from '../../types/game';
+import { slimeAutoRunes, slimeAutoSkills } from '../../state/autoCaretakers';
 import { useGameStore } from '../../state/useGameStore';
 import { getUnitSummonCost, maxUnitsOfClass, techUpgradeCost } from '../../state/economy';
 import { FIGHTER_CLASSES, summonLock } from '../../state/store/rosterSlice';
@@ -209,6 +210,11 @@ export function autoSummon(ctx: WorkerContext, slime: WorkerInstance, deltaSec: 
 
   // Slime Research Automation (Auto-Upgrade)
   handleSlimeAutoUpgrade(ctx, slime);
+  // Slime also keeps the skill points and the rune vault working (one action each per cycle)
+  if (!nextConstruction(store)) {
+    if (slimeAutoSkills()) ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0xfbbf24, 8);
+    if (slimeAutoRunes()) ctx.spawnHarvestBurst(slime.container.x, slime.container.y - 20, 0x60a5fa, 8);
+  }
 
   // Evolutions wait until the Treant has finished building: spending the starting
   // supplies on them would leave the castle unaffordable and soft-lock a new realm.

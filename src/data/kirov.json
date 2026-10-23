@@ -1,5 +1,5 @@
 {
-  "_doc": "Kirov siege airship (game/KirovAirship.ts, sheets art/skills/kirov.lua + kirov-ordnance.lua). Replaced the wave troop transport. It leads every Kirov Invasion Battle (the raids between waves, InvasionManager.spawnLootScouts; formerly \"random battles\"), never a wave. fromWave / raidChance / chancePerWave / maxChance are no longer used. It drifts in from the island edge, drops paratrooper scouts (raider role), then hovers over the castle or an establishment and attacks ONLY structures with three skills. It has heavy HP and armour (defence: share of every hit ignored) and only flyers (locomotion.json fly), long-range fighters (attackRange >= longRange), the towers and the Demon Lord's click can hurt it. It leaves after maxStayMs. HP, skill damage and troop counts scale with the wave reached.",
+  "_doc": "Kirov siege airship (game/KirovAirship.ts, sheets art/skills/kirov.lua + kirov-ordnance.lua). Replaced the wave troop transport. It leads every Kirov Invasion Battle (the raids between waves, InvasionManager.spawnLootScouts; formerly \"random battles\"), never a wave. fromWave / raidChance / chancePerWave / maxChance are no longer used. It drifts in from the island edge, drops paratrooper scouts (raider role), then hovers over the castle or an establishment and attacks ONLY structures with three skills. It has heavy HP and armour (defence: share of every hit ignored) and only flyers (locomotion.json fly), long-range fighters (attackRange >= longRange), the towers and the Demon Lord's click can hurt it. It leaves after maxStayMs. HP, skill damage and troop counts scale with the wave reached. The airship is the 8-direction voxel model 'kirov' (sprites/airshipModels.ts, drawn at voxelScale); the side-view sheet (scale) only stands in until that sheet is baked.",
   "fromWave": 6,
   "raidChance": 0.35,
   "chancePerWave": 0.004,
@@ -10,6 +10,7 @@
   "altitude": 92,
   "speed": 26,
   "scale": 1.6,
+  "voxelScale": 2.3,
   "maxStayMs": 90000,
   "descentMs": 2100,
   "troops": {

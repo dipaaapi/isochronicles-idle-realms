@@ -106,6 +106,8 @@ export interface WorkerInstance extends NavAgent {
   /** Establishment the Treant is currently patching up (undefined = castle / none). */
   treantRepairId?: TowerId;
   autoSummonTimer?: number;
+  /** Treant: seconds to its next auto-fortify check. */
+  autoFortifyTimer?: number;
   /** General looting: drop it is walking to, and drops it carries to the castle. */
   lootTargetId?: string;
   /** Closest the General got to its loot target, and for how long it has not got closer. */

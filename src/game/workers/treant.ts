@@ -12,6 +12,7 @@ import { soundFx } from '../audio/soundFx';
 import { clampLevel } from './modifiers';
 import type { EnrichableNode, WorkerContext, WorkerFrame, WorkerInstance } from './types';
 import { updateTerrainReclamation } from './reclamation';
+import { treantAutoFortify } from '../../state/autoCaretakers';
 
 const ENRICHABLE: EnrichableNode[] = ['AETHER', 'STONE', 'WOOD', 'ESSENCE'];
 
@@ -254,6 +255,13 @@ export function updateTreant(ctx: WorkerContext, worker: WorkerInstance, frame: 
   worker.cargoIcon.setVisible(false);
 
   const profile = TREANT_EVOLUTION[clampLevel(worker.treantEvolutionLevel)];
+
+  // Fortifications are the Treant's charge: every few seconds it raises the cheapest affordable one
+  worker.autoFortifyTimer = (worker.autoFortifyTimer ?? 4) - deltaSec;
+  if (worker.autoFortifyTimer <= 0) {
+    worker.autoFortifyTimer = 4 + Math.random() * 2;
+    if (treantAutoFortify()) ctx.spawnHarvestBurst(worker.container.x, worker.container.y - 24, 0x4ade80, 10);
+  }
 
   // Duties in order: castle & spire, then summon every General, then care for the realm
   if (updateConstruction(ctx, worker, store, deltaSec, effectiveSpeed)) return;

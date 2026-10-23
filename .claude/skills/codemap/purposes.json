@@ -230,5 +230,8 @@
   "src/game/sprites/lairModels.ts": "Voxel models of the Dragon's Lair creatures: giantBat, dragonKin, magmaGolem (LAIR_MODELS, baked with the other characters)",
   "src/game/lair/MatriarchRenderer.ts": "Ignara, the Ember Matriarch: arena-scale multi-part pixel-art rig (tail, wings, body, neck, head, jaw) with poses (claw, bite, gust, breath, summon, roar, dead) and a throttled hit flash",
   "src/game/scene/volcanicMagma.ts": "Demon Realm volcanic magma while Ignara lives: rumble telegraph, flows from the volcano mouth over land/flooded shore, burns units on ACTIVE tiles (game time), draws stages",
-  "src/ui/LairCodex.tsx": "Codex → Dragon's Lair tab: cave rules, Ignara (phases, abilities), her brood with portraits and relative stats, volcanic magma"
+  "src/ui/LairCodex.tsx": "Codex → Dragon's Lair tab: cave rules, Ignara (phases, abilities), her brood with portraits and relative stats, volcanic magma",
+  "src/state/autoCaretakers.ts": "Caretaker automation: Slime auto-skills / auto-runes (merge, slot strongest, sell unusable), Treant auto-fortify (castle defences, towers, spire)",
+  "src/ui/AutoToggle.tsx": "Caretaker automation switch (autoSettings key) with a one-line hint, used in the Skills, Runes and Fortifications tabs",
+  "src/game/sprites/airshipModels.ts": "Kirov airship voxel model (8-direction sheet: cruise, drop, bombs, anchor, damaged, hit, death)"
 }

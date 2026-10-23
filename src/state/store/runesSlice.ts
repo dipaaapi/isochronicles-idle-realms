@@ -4,7 +4,9 @@ import {
   MAX_TIER,
   MERGE_COUNT,
   RUNES,
+  isUnusableRune,
   newRuneId,
+  runeSellPrice,
   slottedIds,
   type Rune,
   type RuneKind,
@@ -12,6 +14,7 @@ import {
 } from '../runes';
 import type { GameStoreState } from '../../types/state';
 import type { SliceArgs } from './types';
+import { logMessage } from '../activityLog';
 
 /** Rune Vault: boss drops, slotting per target and three-into-one merges. */
 export const createRunesSlice = (...[set, get]: SliceArgs) => ({
@@ -77,5 +80,38 @@ export const createRunesSlice = (...[set, get]: SliceArgs) => ({
     });
     soundFx.playEvolve();
     return merged;
+  },
+
+  /** Sells a vault rune (never a slotted one) for coins; returns the coins paid (0 = refused). */
+  sellRune: (runeId: string): number => {
+    const state = get();
+    const rune = state.runes.find((r) => r.id === runeId);
+    if (!rune || slottedIds(state.runeSlots).has(runeId)) return 0;
+    const coins = runeSellPrice(rune.tier);
+    set((prev) => ({
+      runes: prev.runes.filter((r) => r.id !== runeId),
+      resources: { ...prev.resources, coins: prev.resources.coins + coins },
+      lastSavedTimestamp: Date.now(),
+    }));
+    soundFx.playCoin();
+    logMessage('runeSold', { rune: RUNES[rune.kind].name, tier: rune.tier, coins });
+    return coins;
+  },
+
+  /** Sells every rune that can no longer be used (see isUnusableRune). */
+  sellObsoleteRunes: (): { count: number; coins: number } => {
+    const state = get();
+    const doomed = state.runes.filter((r) => isUnusableRune(r, state.runes, state.runeSlots));
+    if (!doomed.length) return { count: 0, coins: 0 };
+    const ids = new Set(doomed.map((r) => r.id));
+    const coins = doomed.reduce((sum, r) => sum + runeSellPrice(r.tier), 0);
+    set((prev) => ({
+      runes: prev.runes.filter((r) => !ids.has(r.id)),
+      resources: { ...prev.resources, coins: prev.resources.coins + coins },
+      lastSavedTimestamp: Date.now(),
+    }));
+    soundFx.playCoin();
+    logMessage('runesSoldBulk', { count: doomed.length, coins });
+    return { count: doomed.length, coins };
   },
 }) satisfies Partial<GameStoreState>;

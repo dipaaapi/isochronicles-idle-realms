@@ -150,6 +150,12 @@ export interface AutoSettings {
   autoTap: boolean;
   autoEvolve: boolean;
   autoSurvivalSkills?: boolean;
+  /** Slime spends skill points on its own. */
+  autoSkills: boolean;
+  /** Slime merges, slots and sells runes on its own. */
+  autoRunes: boolean;
+  /** Treant raises the castle defences and every tower on its own. */
+  autoFortify: boolean;
 }
 
 export type ScreenState = 'TITLE' | 'STORY' | 'GAME';
@@ -381,6 +387,10 @@ export interface GameStoreState {
   unslotRune: (runeId: string) => boolean;
   /** Merges three unslotted runes of one kind and tier into the next tier. */
   mergeRunes: (kind: import('../state/runes').RuneKind, tier: number) => import('../state/runes').Rune | null;
+  /** Sells a vault rune for coins (0 = refused: slotted or missing). */
+  sellRune: (runeId: string) => number;
+  /** Sells every rune that can no longer be used. */
+  sellObsoleteRunes: () => { count: number; coins: number };
   /** Clash tension between pairs of Generals (key: pairKey of roster ids). */
   brawlTension: Record<string, import('../state/brawl').BrawlTension>;
   discoveredInvaders: InvaderType[];

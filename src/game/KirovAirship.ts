@@ -14,6 +14,9 @@ import type { InvasionManager } from './InvasionManager';
 import type { StructureManager, StructureTarget } from './StructureManager';
 import type { WorkerInstance } from './workers/types';
 import type { Defender } from './DefenderSystem';
+import {
+  createAirshipSprite, faceCharacterSprite, playCharacterAttack, playCharacterDeath, playCharacterHit, playCharacterSkill,
+} from './sprites/CharacterSprites';
 
 type SkillId = 'CARPET_BOMB' | 'WRECKING_ANCHOR' | 'FIREBOMB_RAIN';
 type ShipState = 'arrive' | 'siege' | 'leave' | 'down';
@@ -40,6 +43,13 @@ interface Ship {
   skillCds: number[];
   bob: number;
   smokeMs: number;
+  /** The 8-direction voxel sheet (false = the side-view fallback sheet, flipped left/right). */
+  voxel: boolean;
+  /** Last travel direction in screen space (the voxel ship keeps facing it while hovering). */
+  faceX: number;
+  faceY: number;
+  /** Paratrooper drop playing until this many ms are left of busyMs. */
+  dropUntil: number;
 }
 
 const FLYERS = new Set<string>(LOCOMOTION.fly);
@@ -93,7 +103,11 @@ export class KirovAirship {
     if (this.ship || !this.scene.textures.exists('battle-kirov')) return;
     const edge = this.edgePoint();
     const root = this.scene.add.container(edge.x, edge.y - ALT);
-    const body = this.scene.add.sprite(0, 0, 'battle-kirov').setScale(KIROV.scale).play('battle-kirov:cruise');
+    // The 8-direction voxel airship once its sheet is baked; the side-view sheet until then
+    const voxelBody = createAirshipSprite(this.scene, 'kirov');
+    const body = voxelBody
+      ? voxelBody.setScale(voxelBody.scaleX * KIROV.voxelScale)
+      : this.scene.add.sprite(0, 0, 'battle-kirov').setScale(KIROV.scale).play('battle-kirov:cruise');
     const hpBar = this.scene.add.graphics();
     root.add([body, hpBar]);
     this.air.add(root);
@@ -106,6 +120,7 @@ export class KirovAirship {
       root, body, hpBar, shadow, x: edge.x, y: edge.y, hp: maxHp, maxHp, wave, state: 'arrive',
       stayMs: KIROV.maxStayMs, busyMs: 0, hitMs: 0, dropMs: 0, dropped: false,
       skillCds: KIROV.skills.map((_, i) => 2500 + i * 2200), bob: 0, smokeMs: 0,
+      voxel: !!voxelBody, faceX: 1, faceY: 0, dropUntil: 0,
     };
     this.pickTarget();
     this.drawHp();
@@ -140,7 +155,14 @@ export class KirovAirship {
       if (d > step) { s.x += (dx / d) * step; s.y += (dy / d) * step; }
       else if (s.state === 'leave') { this.remove(); return; }
       else if (s.state === 'arrive') s.state = 'siege';
-      if (Math.abs(dx) > 4) s.body.setFlipX(dx < 0);
+      if (s.voxel) {
+        if (d > 4) { s.faceX = dx; s.faceY = dy; }
+      } else if (Math.abs(dx) > 4) s.body.setFlipX(dx < 0);
+    }
+    // Voxel ship: face the travel direction; cruise, limp when burning, or hold the drop pose
+    if (s.voxel) {
+      const gait = this.dropping(s) ? 'run' : s.hp < s.maxHp * 0.4 ? 'tired' : 'walk';
+      faceCharacterSprite(s.body, s.faceX, s.faceY, true, gait);
     }
     s.bob += dt;
     s.root.setPosition(s.x, s.y - ALT + Math.sin(s.bob * 1.3) * 3);
@@ -149,7 +171,8 @@ export class KirovAirship {
     // Low on lift gas: burning and smoking
     if (s.hp < s.maxHp * 0.4) {
       s.smokeMs -= deltaMs;
-      if (s.smokeMs <= 0) { s.smokeMs = 140; spawnSmoke(s.root.x - (s.body.flipX ? -40 : 40), s.root.y + 4, 1.6, -10); }
+      const back = s.voxel ? (s.faceX < 0 ? -1 : 1) : s.body.flipX ? -1 : 1;
+      if (s.smokeMs <= 0) { s.smokeMs = 140; spawnSmoke(s.root.x - back * 40, s.root.y + 4, 1.6, -10); }
     }
 
     // Paratroopers: a stick on the first pass over land, then every so often
@@ -200,7 +223,7 @@ export class KirovAirship {
     if (!s || s.state === 'leave') return;
     s.state = 'leave';
     s.exit = this.edgePoint();
-    s.body.play(s.hp < s.maxHp * 0.4 ? 'battle-kirov:damaged' : 'battle-kirov:cruise');
+    if (!s.voxel) s.body.play(s.hp < s.maxHp * 0.4 ? 'battle-kirov:damaged' : 'battle-kirov:cruise');
     logMessage('kirovLeave');
   }
 
@@ -252,11 +275,24 @@ export class KirovAirship {
     }
   }
 
+  /** True while the voxel ship holds its paratrooper-drop loop. */
+  private dropping(s: Ship): boolean {
+    return s.busyMs > 0 && s.dropUntil > 0 && s.busyMs > s.dropUntil;
+  }
+
   /** Plays a one-shot state on the body, then returns to cruising (or limping). */
   private playState(tag: string, busyMs: number): void {
     const s = this.ship;
     if (!s) return;
     s.busyMs = Math.max(s.busyMs, busyMs);
+    if (s.voxel) {
+      // Drop = the 'run' loop while busy; bombs and firebombs = attack; the anchor = skill; hits flinch
+      if (tag === 'drop') s.dropUntil = Math.max(1, s.busyMs - busyMs);
+      else if (tag === 'anchor') playCharacterSkill(s.body);
+      else if (tag === 'hit') playCharacterHit(s.body);
+      else playCharacterAttack(s.body);
+      return;
+    }
     s.body.play(`battle-kirov:${tag}`);
     const back = () => {
       if (!this.ship || this.ship.state === 'down' || s.body.anims.currentAnim?.key !== `battle-kirov:${tag}`) return;
@@ -412,7 +448,8 @@ export class KirovAirship {
     s.state = 'down';
     s.hpBar.clear();
     s.body.disableInteractive();
-    s.body.play('battle-kirov:destroyed');
+    if (s.voxel) playCharacterDeath(s.body, () => {});
+    else s.body.play('battle-kirov:destroyed');
     soundFx.playExplosion();
     this.scene.cameras.main.shake(500, 0.006);
     this.scene.tweens.add({ targets: s.root, y: s.y - 10, duration: 1450, ease: 'Quad.easeIn' });
