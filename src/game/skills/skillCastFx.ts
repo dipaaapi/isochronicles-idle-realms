@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { halo, sparkBurst } from './glowFx';
+import { playObsidianBarrage } from './obsidianBarrage';
 import { ESTABLISHMENT_SKILLS, type EstablishmentSkillDef } from '../../data/establishmentSkills';
 
 type Point = { x: number; y: number };
@@ -98,6 +99,11 @@ export class SkillCastFx {
     sparkBurst(this.scene, this.layer, at, color, 6, this.tilePx * 0.7, 14);
   }
 
+  /** Earth Titan Cataclysm: obsidian monoliths rise from the castle and beam the invaders. */
+  earthTitan(origin: Point, targets: Point[]): void {
+    playObsidianBarrage(this.scene, this.layer, this.tilePx, origin, targets);
+  }
+
   update(dt: number): void {
     for (const aura of [...this.auras]) {
       aura.left -= dt;
@@ -184,4 +190,5 @@ export class SkillCastFx {
     this.layer.add(g);
     this.scene.tweens.add({ targets: g, scale: 1.25, alpha: 0, duration: 650, ease: 'Sine.easeOut', onComplete: () => g.destroy() });
   }
+
 }

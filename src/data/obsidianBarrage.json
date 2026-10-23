@@ -1,0 +1,25 @@
+{
+  "_doc": "Earth Titan Cataclysm visuals: obsidian monoliths rise from the castle, hover, fly over the invaders and fire red beams down, then shatter. Times in ms, sizes in tiles.",
+  "maxCrystals": 5,
+  "crystalSize": 0.55,
+  "frameMs": 70,
+  "summon": { "stagger": 140, "duration": 520, "riseTiles": 2.6, "spreadTiles": 1.6 },
+  "hover": { "duration": 520, "bobTiles": 0.08 },
+  "charge": { "duration": 360 },
+  "fly": { "duration": 480, "heightTiles": 2.8 },
+  "lock": { "duration": 260 },
+  "fire": { "duration": 420, "widthTiles": 0.22, "gap": 90 },
+  "shatter": { "shards": 7, "duration": 620 },
+  "colors": {
+    "body": "#1c1824",
+    "facetLight": "#3a3346",
+    "facetDark": "#100d15",
+    "edge": "#6b5f7d",
+    "crack": "#ff3b2f",
+    "crackHot": "#ffb36b",
+    "beam": "#ff2a3d",
+    "beamCore": "#fff1e0",
+    "scorch": "#2a0d10",
+    "ember": "#ff7a3d"
+  }
+}

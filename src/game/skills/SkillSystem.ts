@@ -796,7 +796,8 @@ export class SkillSystem {
     // Cast visuals + log; invaders are snapshotted so the ones the skill touched get a hit spark
     const def = skillDef(id);
     const before = new Map(invaders.map((i) => [i, { hp: i.hp, frozen: i.frozenTimer ?? 0, slow: i.slowTimer ?? 0 }]));
-    this.castFx.cast(id, origin, {
+    const visualOrigin = id === 'QUARRY_EARTH_TITAN' ? castle ?? origin : origin;
+    this.castFx.cast(id, visualOrigin, {
       minions: () => this.workers.getWorkers().filter((w) => w.hp > 0 && w.container?.active).map((w) => w.container),
       structures: () => [...this.structures.getTowers(), ...(castle ? [castle] : [])],
     });
@@ -808,9 +809,11 @@ export class SkillSystem {
     try {
       this.applyStructureSkill(id, origin, castle, zoneInvaders, nearest, invaders, workers);
     } finally {
-      for (const [inv, prev] of before) {
-        if (inv.hp < prev.hp || (inv.frozenTimer ?? 0) > prev.frozen || (inv.slowTimer ?? 0) > prev.slow) {
-          this.castFx.hit(inv.container, def?.activeColor);
+      if (id !== 'QUARRY_EARTH_TITAN') {
+        for (const [inv, prev] of before) {
+          if (inv.hp < prev.hp || (inv.frozenTimer ?? 0) > prev.frozen || (inv.slowTimer ?? 0) > prev.slow) {
+            this.castFx.hit(inv.container, def?.activeColor);
+          }
         }
       }
     }
@@ -1056,11 +1059,11 @@ export class SkillSystem {
         this.ring(origin, 8, 0xec4899);
         break;
       case 'QUARRY_EARTH_TITAN':
+        this.castFx.earthTitan(castle ?? origin, invaders.map((i) => i.container));
         for (const i of invaders) {
           this.invasion.damageInvader(i, p(250), '⛰️');
           i.frozenTimer = 4;
         }
-        this.ring(origin, 6, 0xb45309);
         break;
       case 'MINE_MOLTEN_BARRAGE':
         for (const i of invaders) {
