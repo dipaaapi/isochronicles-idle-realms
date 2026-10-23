@@ -332,6 +332,24 @@ export interface GameStoreState {
   /** This raid's furthest checkpoint and solved obstacles (reset when the raid ends). */
   lairProgress: import('../state/lairExpedition').LairProgress;
   reachLairCheckpoint: (index: number) => void;
+  /** The realm's dragon (Ignara): HP only ever goes down; a new generation wakes when the cave reopens after a kill. */
+  dragon: import('../state/lairExpedition').DragonState;
+  /** Dragons slain in this run (saved, shown in the Hall of Legacy). */
+  dragonsSlain: number;
+  /** Sizes the dragon the first time her battle starts (no-op once sized). */
+  sizeDragon: (maxHp: number) => void;
+  /** Damage to the dragon (never heals); returns the HP left. */
+  damageDragon: (amount: number) => number;
+  /** She falls: hoard, record, the cave closes. Returns the resources granted. */
+  slayDragon: (fullCredit: boolean) => Record<string, number>;
+  /** Home to the Demon Realm after a victory (the cave is already sealed). */
+  returnFromLair: () => void;
+  /** Volcanic magma on the island (tile key → stage), from Ignara's volcano while she lives. */
+  volcanicMagma: Record<string, import('../state/lairExpedition').MagmaTile>;
+  /** A new flow lands on these tiles (already checked by the scene). */
+  spillMagma: (keys: string[]) => void;
+  /** Cools the magma by dt game seconds; cooled basalt on flooded shore becomes land. */
+  coolVolcanicMagma: (dt: number) => void;
   clearLairObstacle: (id: string) => void;
 
   // Auto-Enhance Prompts

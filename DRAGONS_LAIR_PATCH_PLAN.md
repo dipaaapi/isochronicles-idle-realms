@@ -1,5 +1,21 @@
 # Dragon's Lair Expedition Patch Plan
 
+## Implementation Status (2026-10-24)
+
+All eight phases are implemented. Decisions taken with the owner:
+
+- The North Rift (top corner) became the volcano; waves use the three remaining rifts. Wave tactics needed no logic change (PAIR picks the farthest partner).
+- The cave opens after every 5th repelled wave, has no timer or cooldown, and closes only when the player leaves the raid or Ignara dies. After a kill it reopens on the next 5th wave with a new Ignara (the kill is counted in the save and the Hall of Legacy).
+- Every General goes with its minions; the Treant and Slime stay. Research and runes stay active inside; blessings, timed buffs and QWERTY powers do not; the brawl + is wiped for good on entry.
+- Demon Realm time pauses while inside (only one location simulates).
+- The Matriarch is **Ignara, the Ember Matriarch** (she).
+- Humans: as many as the party's living members, drawn from the wave pool, sized to 85% of the party's average member and escalated gently by wave (capped).
+- Credit: full hoard if a demon struck her in the last 10 s, otherwise half.
+- Magma burns every unit (not buildings); existing magma cools normally after her death.
+- Checkpoints at every region start; the fallen respawn at the last one after 8 s.
+
+Everything below is the original plan, kept for reference.
+
 ## Purpose and Scope
 
 This document defines the next major patch for IsoChronicle: Idle Realms. It is a design and implementation plan only; no Dragon's Lair gameplay code is part of this planning patch.

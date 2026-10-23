@@ -35,6 +35,7 @@ export function HallOfLegacy({ highlight, limit = 50 }: { highlight?: string; li
             <th className="px-2 py-1.5">{t('legacyLord')}</th>
             <th className="px-2 py-1.5 text-right">{t('legacyWaves')}</th>
             <th className="px-2 py-1.5 text-right">{t('legacyDays')}</th>
+            <th className="px-2 py-1.5 text-right" title={t('legacyDragonsTitle')}>🐉</th>
             <th className="px-2 py-1.5 text-right">{t('legacyTime')}</th>
             <th className="px-2 py-1.5">{t('legacyMode')}</th>
             <th className="px-2 py-1.5">{t('legacyDate')}</th>
@@ -56,6 +57,7 @@ export function HallOfLegacy({ highlight, limit = 50 }: { highlight?: string; li
                 </td>
                 <td className="px-2 py-1 text-right font-mono">{e.wavesCleared}</td>
                 <td className="px-2 py-1 text-right font-mono">{e.days}</td>
+                <td className="px-2 py-1 text-right font-mono">{e.dragonsSlain ?? 0}</td>
                 <td className="px-2 py-1 text-right font-mono">{formatPlayTime(e.playSeconds)}</td>
                 <td className="px-2 py-1 whitespace-nowrap">
                   {diff.icon} <span style={{ color: biome.accentColor }}>{isTL ? biome.name : biome.nameEn}</span>

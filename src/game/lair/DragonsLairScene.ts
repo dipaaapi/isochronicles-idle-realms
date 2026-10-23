@@ -4,6 +4,7 @@ import { useLoadProgress } from '../loadProgress';
 import LAIR from '../../data/dragonsLair.json';
 import { prepareCharacterSprites } from '../sprites/CharacterSprites';
 import { LairExpedition } from './LairExpedition';
+import { soundFx } from '../audio/soundFx';
 
 const W = LAIR.map.width;
 const L = LAIR.map.length;
@@ -42,6 +43,8 @@ export class DragonsLairScene extends Phaser.Scene {
     this.drawEmbers();
     this.setupCamera();
     prepareCharacterSprites(this);
+    // Demon Realm music stops; the lair has its own dark ambience (the battle switches to the boss theme)
+    soundFx.playBackgroundMusic('NIGHT');
 
     useLoadProgress.getState().setSceneReady(true);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => useLoadProgress.getState().setSceneReady(false));

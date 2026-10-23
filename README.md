@@ -23,7 +23,7 @@ There is no build button. Construction runs on autopilot, and you steer the real
 
 ## Establishments, Generals and Minions
 
-Each realm places the thirteen establishments at random (`layoutSeed`). The castle, gate, Crystal Spire and the four corner rifts stay in fixed positions. Every establishment has one General and two minions of the General's kind:
+Each realm places the thirteen establishments at random (`layoutSeed`). The castle, gate, Crystal Spire, the three corner rifts and the northern volcano stay in fixed positions. Every establishment has one General and two minions of the General's kind:
 
 | # | Establishment | General | Minions work… | Expeditions |
 | --- | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - Minions, Generals and invaders drawn as 8-direction animated pixel-art sprites, ray-cast from jointed voxel models in background Web Workers.
 - Structures rendered from voxel models that follow the Codex art, with construction, idle, firing, hit and destroyed states.
 - Autonomous units with movement, gathering, combat, healing, construction and expedition states, plus EasyStar.js pathfinding.
-- 100 invasion waves through four corner rifts, with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel. Each rift is guarded by two **Rift Sentinel** towers and fights back with its own skills and ultimate.
+- 100 invasion waves through three corner rifts (east, west, south), with live `remaining / total` counts. **Rushers** ignore everything else and charge the citadel. Each rift is guarded by two **Rift Sentinel** towers and fights back with its own skills and ultimate.
 - **Biome:** choose the realm (Demon Citadel, Magma Caldera, Frost Spire, Astral Sanctum) at New Game or anytime in Settings. It changes the island's look, water life and music; waves keep the same strength in every biome.
 - Castle hull and shield, towers, walls and beacon, plus battle items and the Demon Lord's **sky lasers**: double-click invaders to lock up to 10 beams that burn and slow them; crit chance grows (and misses fade) the longer a beam stays on one target, and they leave burn scars that hurt and slow invaders walking over them (`holdStrike` in `src/data/defenseConfig.json`).
 - Support Slime and Ancient Treant evolution (five forms each), God Blessings and research upgrades. There is no gear: Generals grow by winning brawls.
@@ -66,7 +66,7 @@ Crews, terrains and expedition rules live in `src/data/establishmentCrews.json`.
 - Living world: grass sways and water wakes follow units, fish leap, clouds drift, and the sun and moon arc over the island.
 - **Activity log tray** that narrates days, weather, waves, construction, roster changes, achievements and skills. There is no floating text over the map, except the sky laser's damage / CRIT / MISS numbers.
 - **Atlas:** Guide, Lore, and a Structures tab that compares each structure's art with its in-game render.
-- Bestiary (Demon Lord Codex) of discovered minions and invaders, with portraits, plus a **Rifts & Sentinels** tab with the rift's and sentinels' stats, skills and ultimate.
+- Bestiary (Demon Lord Codex) of discovered minions and invaders, with portraits, plus a **Rifts & Sentinels** tab with the rift's and sentinels' stats, skills and ultimate, and a **Dragon's Lair** tab (Ignara, her brood and the volcano's magma).
 - Animated title screen (drifting camera, rising embers, mist and glow; off with reduced motion).
 - In-game music player for your own **YouTube** links (Spotify support was removed).
 - Procedural Web Audio for battle sounds, fanfares and ambience.
@@ -120,6 +120,18 @@ Runes replaced the skill tree's unlock enhancements (`src/data/runes.json`, `src
 - **Escalation:** merge 3 unslotted runes of the same kind and tier into one of the next tier (power ×1, ×2, ×3.5, ×5.5, ×8).
 - Rune bonuses add to the skill tree totals (a new realm starts with an empty vault).
 - Minions are only ever summoned by their own General (two per establishment).
+
+## The Dragon's Lair
+
+The north corner of the island is a volcano. Inside sleeps **Ignara, the Ember Matriarch**.
+
+- **Cave:** opens after every 5th repelled wave and stays open (no timer) until you leave the raid or Ignara dies. Click the volcano between waves; the Demon Realm pauses while you are away and only one location ever simulates.
+- **Expedition:** every General and its minions go in (the Treant and Slime stay home). Inside there are no blessings, timed buffs or QWERTY powers, and the brawl **+** is wiped for good on entry; research and runes still count.
+- **Route (10×80 tiles):** rockfalls, magma channels, broken bridges the party repairs, Giant Bats, Dragon Kin and a Magma Golem whose death opens the last gate. Checkpoints save progress; the fallen respawn at the last one.
+- **Ignara:** a three-way battle with a human expedition (as many raiders as your living party, from the wave pool). Her HP never heals or resets. Slaying her pays a hoard and a rune (half if the humans struck last with no demon hit in the last 10 s), is saved in your record and the Hall of Legacy, and a new Ignara wakes when the cave reopens.
+- **Magma:** while she lives the volcano spills magma onto the island. It burns every unit standing on it (never buildings), cools to crust and basalt, and turns flooded shore back into land. No new magma while she is slain.
+
+Tuning lives in `src/data/dragonsLair.json`.
 
 ## Endless waves and permadeath
 

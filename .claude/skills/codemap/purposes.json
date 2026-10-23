@@ -224,7 +224,11 @@
   "src/data/dragonsLair.json": "Dragon's Lair map size, entrance, camera limits, regions (EN/TL names, floor colours), embers, loading tips",
   "src/game/scene/volcano.ts": "VolcanoLandmark: pixel-art Dragon Volcano on the north corner (replaced the North Rift); sealed/open glow, smoke, click hit-test for the Dragon's Lair cave",
   "src/state/lairExpedition.ts": "Dragon's Lair rules (pure): party = every General + minions (no Treant/Slime), brawl + strip, lair stats (research/runes only), obstacles/phases, checkpoints, blocking rows, progress validation",
-  "src/game/lair/LairExpedition.ts": "Lair expedition runtime: formation behind an advancing front, BFS movement, rockfall/magma damage, bridge repair, gate breaking, respawn at checkpoint, obstacle drawing, HUD publish",
+  "src/game/lair/LairExpedition.ts": "Lair expedition runtime: party formation and front, obstacles, encounters, three-way DEMON/DRAGON/HUMAN combat, Ignara's battle (abilities as telegraphed zones, summons, human reinforcements), respawn, victory and return, HUD publish",
   "src/game/lair/lairNav.ts": "BFS next-step pathing over the 10×80 lair grid with a dynamic blocked predicate",
-  "src/game/lair/lairHud.ts": "Runtime zustand store the lair scene publishes for LairHud (front, party alive/respawning, holding obstacle, Hold order)"
+  "src/game/lair/lairHud.ts": "Runtime zustand store the lair scene publishes for LairHud (front, party alive/respawning, holding obstacle, Hold order)",
+  "src/game/sprites/lairModels.ts": "Voxel models of the Dragon's Lair creatures: giantBat, dragonKin, magmaGolem (LAIR_MODELS, baked with the other characters)",
+  "src/game/lair/MatriarchRenderer.ts": "Ignara, the Ember Matriarch: arena-scale multi-part pixel-art rig (tail, wings, body, neck, head, jaw) with poses (claw, bite, gust, breath, summon, roar, dead) and a throttled hit flash",
+  "src/game/scene/volcanicMagma.ts": "Demon Realm volcanic magma while Ignara lives: rumble telegraph, flows from the volcano mouth over land/flooded shore, burns units on ACTIVE tiles (game time), draws stages",
+  "src/ui/LairCodex.tsx": "Codex → Dragon's Lair tab: cave rules, Ignara (phases, abilities), her brood with portraits and relative stats, volcanic magma"
 }

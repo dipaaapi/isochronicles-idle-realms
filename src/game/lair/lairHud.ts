@@ -13,6 +13,16 @@ export interface LairHudState {
   holdingAt: string | null;
   /** 0..1 work / damage on the obstacle holding the party. */
   holdProgress: number;
+  /** Living dragon-faction creatures and human raiders. */
+  foes: number;
+  humans: number;
+  /** The Matriarch battle is on; her HP and phase (from the store). */
+  battle: boolean;
+  dragonHp: number;
+  dragonMaxHp: number;
+  dragonPhase: number;
+  /** The hoard granted when she fell (shown until the party returns). */
+  victory?: Record<string, number>;
   /** The player's Hold order: the party stops advancing (still repairs and fights). */
   hold: boolean;
   setHold: (hold: boolean) => void;
@@ -27,6 +37,13 @@ export const useLairHud = create<LairHudState>((set) => ({
   respawning: 0,
   holdingAt: null,
   holdProgress: 0,
+  foes: 0,
+  humans: 0,
+  battle: false,
+  dragonHp: 0,
+  dragonMaxHp: 0,
+  dragonPhase: 0,
+  victory: undefined,
   hold: false,
   setHold: (hold) => set({ hold }),
   publish: (s) => set(s),

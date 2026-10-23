@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { LairCodex } from './LairCodex';
+import { LAIR_CONFIG } from '../state/lairExpedition';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
 import {
@@ -26,7 +28,7 @@ interface BestiaryModalProps {
 
 export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose }) => {
   const { discoveredBeasts, discoveredInvaders, language } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'BEASTS' | 'INVADERS' | 'RIFTS'>('BEASTS');
+  const [activeTab, setActiveTab] = useState<'BEASTS' | 'INVADERS' | 'RIFTS' | 'LAIR'>('BEASTS');
 
   if (!isOpen) return null;
 
@@ -88,7 +90,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Category Tabs */}
-        <div className="grid grid-cols-3 gap-2 mb-4 bg-slate-900/70 p-1.5 rounded-2xl border border-slate-800">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 bg-slate-900/70 p-1.5 rounded-2xl border border-slate-800">
           <button
             onClick={() => {
               soundFx.playClick();
@@ -138,6 +140,21 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
           >
             <Tornado className="w-4 h-4 text-fuchsia-300" />
             <span>{tx(codex.tab)}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setActiveTab('LAIR');
+            }}
+            className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'LAIR'
+                ? 'bg-gradient-to-r from-red-700 to-orange-600 text-white shadow-lg shadow-orange-600/30 scale-[1.02]'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Flame className="w-4 h-4 text-orange-300" />
+            <span>{tx(LAIR_CONFIG.codex.tab)}</span>
           </button>
         </div>
 
@@ -348,6 +365,8 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
               })}
             </div>
           )}
+
+          {activeTab === 'LAIR' && <LairCodex />}
 
           {activeTab === 'RIFTS' && (
             <div className="space-y-3">

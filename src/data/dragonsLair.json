@@ -275,5 +275,387 @@
   "route": {
     "_doc": "Phase 4 ends at the Matriarch Chamber's threshold: the party halts at stopY until the dragon arrives (Phase 6).",
     "stopY": 70
+  },
+  "combat": {
+    "_doc": "Shared lair combat. Demon range in tiles = max(minRangeTiles, class attackRange / rangePxPerTile). Members engage foes within aggroTiles; the front halts while a foe stands within holdAheadTiles of it.",
+    "aggroTiles": 4.5,
+    "holdAheadTiles": 7,
+    "rangePxPerTile": 60,
+    "minRangeTiles": 1.2,
+    "projectileSeconds": 0.3
+  },
+  "creatures": {
+    "_doc": "Dragon-faction creatures. hp / attack are multiples of the party's average member (so the lair scales with the expedition, never one-shots it); power also grows by wavePowerPerWave past the cave's first opening, capped at wavePowerMax.",
+    "wavePowerPerWave": 0.01,
+    "wavePowerMax": 1.6,
+    "BAT": {
+      "sprite": "giantBat",
+      "hp": 0.3,
+      "attack": 0.35,
+      "range": 1.1,
+      "speed": 2.6,
+      "cooldown": 0.8,
+      "flying": true,
+      "targets": "BACKLINE",
+      "scale": 0.75,
+      "name": {
+        "en": "Giant Bat",
+        "tl": "Higanteng Paniki"
+      }
+    },
+    "KIN": {
+      "sprite": "dragonKin",
+      "hp": 0.9,
+      "attack": 0.7,
+      "range": 3.2,
+      "speed": 1.3,
+      "cooldown": 1.6,
+      "flying": false,
+      "ranged": true,
+      "scale": 0.85,
+      "name": {
+        "en": "Dragon Kin",
+        "tl": "Kadugo ng Dragon"
+      }
+    },
+    "GOLEM": {
+      "sprite": "magmaGolem",
+      "hp": 16,
+      "attack": 1.4,
+      "range": 1.6,
+      "speed": 0.6,
+      "cooldown": 2.2,
+      "flying": false,
+      "scale": 1.35,
+      "slam": {
+        "every": 7,
+        "telegraph": 1,
+        "radius": 2.2,
+        "attack": 1.8
+      },
+      "name": {
+        "en": "Magma Golem",
+        "tl": "Magma Golem"
+      }
+    }
+  },
+  "encounters": [
+    {
+      "id": "BATS_GALLERY",
+      "trigger": 6,
+      "spawnY": 14,
+      "spawn": [
+        [
+          "BAT",
+          6
+        ]
+      ]
+    },
+    {
+      "id": "BATS_DEEP",
+      "trigger": 12,
+      "spawnY": 18,
+      "spawn": [
+        [
+          "BAT",
+          8
+        ]
+      ]
+    },
+    {
+      "id": "KIN_SCOUTS",
+      "trigger": 28,
+      "spawnY": 31,
+      "spawn": [
+        [
+          "KIN",
+          2
+        ],
+        [
+          "BAT",
+          4
+        ]
+      ]
+    },
+    {
+      "id": "KIN_ROOST_A",
+      "trigger": 40,
+      "spawnY": 46,
+      "spawn": [
+        [
+          "KIN",
+          4
+        ],
+        [
+          "BAT",
+          4
+        ]
+      ]
+    },
+    {
+      "id": "KIN_ROOST_B",
+      "trigger": 46,
+      "spawnY": 51,
+      "spawn": [
+        [
+          "KIN",
+          6
+        ]
+      ]
+    },
+    {
+      "id": "GOLEM_GUARD",
+      "trigger": 52,
+      "spawnY": 56,
+      "spawn": [
+        [
+          "GOLEM",
+          1
+        ],
+        [
+          "KIN",
+          2
+        ]
+      ],
+      "guardianOf": "GOLEM_GATE"
+    },
+    {
+      "id": "HOARD_KEEPERS",
+      "trigger": 60,
+      "spawnY": 66,
+      "spawn": [
+        [
+          "KIN",
+          4
+        ],
+        [
+          "BAT",
+          6
+        ]
+      ]
+    }
+  ],
+  "encounterScale": {
+    "_doc": "Encounter head counts × clamp(party Generals / perGenerals, min, max).",
+    "perGenerals": 7,
+    "min": 0.5,
+    "max": 2
+  },
+  "matriarch": {
+    "_doc": "Ignara, the Ember Matriarch. Max HP = the party's damage per second × fightSeconds × (1 + generationGrowth × (generation − 1)), set once when the battle first starts and never raised, healed or reset after: damage persists across wipes, retreats and reloads. Phases start at the HP fractions in phaseAt. She sits in the arena centre (arenaY) and never leaves it. Her summons crumble after summonLifetime seconds. In her battle the Generals go for her while their minions hold off the summons and the humans.",
+    "name": {
+      "en": "Ignara, the Ember Matriarch",
+      "tl": "Ignara, ang Matriarka ng Baga"
+    },
+    "fightSeconds": 210,
+    "generationGrowth": 0.25,
+    "arenaX": 4.5,
+    "arenaY": 75,
+    "reachTiles": 4,
+    "creditSeconds": 10,
+    "phaseAt": [
+      1,
+      0.75,
+      0.5,
+      0.25
+    ],
+    "phaseNames": [
+      {
+        "en": "Hoard Guardian",
+        "tl": "Tagapagbantay ng Kayamanan"
+      },
+      {
+        "en": "Brood Mother",
+        "tl": "Ina ng Brood"
+      },
+      {
+        "en": "Cavern Sovereign",
+        "tl": "Soberana ng Yungib"
+      },
+      {
+        "en": "Last Stand",
+        "tl": "Huling Paninindigan"
+      }
+    ],
+    "abilities": {
+      "claw": {
+        "from": 0,
+        "every": 3.2,
+        "telegraph": 0.7,
+        "radius": 2.6,
+        "attack": 2.2
+      },
+      "bite": {
+        "from": 0,
+        "every": 5,
+        "telegraph": 0.6,
+        "attack": 4.5
+      },
+      "wingGust": {
+        "from": 0,
+        "every": 11,
+        "telegraph": 1,
+        "radius": 4.5,
+        "attack": 0.8,
+        "push": 2.5
+      },
+      "fireBreath": {
+        "from": 0,
+        "every": 9,
+        "telegraph": 1.4,
+        "width": 2,
+        "length": 9,
+        "dps": 1.6,
+        "duration": 2.2
+      },
+      "summonKin": {
+        "from": 1,
+        "every": 16,
+        "count": 3,
+        "cap": 8
+      },
+      "batSwarm": {
+        "from": 2,
+        "every": 14,
+        "count": 6,
+        "cap": 14
+      },
+      "eruption": {
+        "from": 2,
+        "every": 12,
+        "telegraph": 1.5,
+        "tiles": 6,
+        "attack": 2.5
+      },
+      "golem": {
+        "from": 3,
+        "every": 40,
+        "cap": 1
+      }
+    },
+    "summonLifetime": 35
+  },
+  "humans": {
+    "_doc": "The human expedition breaks in from the volcano's far side when the Matriarch battle starts: as many as the party's living members, drawn from the wave pool open at the realm's wave. Sized to powerShare of the party's average member (times the lair wave power) so they threaten without overpowering. Reinforcements arrive when fewer than reinforceBelow × the first count remain, until maxTotal × the first count have come.",
+    "powerShare": 0.85,
+    "reinforceBelow": 0.4,
+    "maxTotal": 2,
+    "spawnY": 79,
+    "rangePxPerTile": 60,
+    "name": {
+      "en": "Human expedition",
+      "tl": "Ekspedisyon ng mga tao"
+    }
+  },
+  "rewards": {
+    "_doc": "Slaying Ignara. Resources × (1 + generationGrowth × (generation − 1)); halfShare of everything when no demon struck her in the last creditSeconds. One rune of runeTier (capped by the runes' drop max).",
+    "generationGrowth": 0.35,
+    "halfShare": 0.5,
+    "runeTier": 4,
+    "resources": {
+      "coins": 25000,
+      "obsidianShard": 400,
+      "minerals": 600,
+      "metal": 500,
+      "arcaneEssence": 300,
+      "aetherShards": 250
+    }
+  },
+  "volcanicMagma": {
+    "_doc": "While Ignara is awake and alive, the Demon Realm's volcano spills magma: a rumble (rumbleSeconds, the path glows red) then a flow of tilesPerFlow tiles from its mouth over land and flooded shore, never onto protected tiles. ACTIVE magma burns every unit on it (dps, ticked every tickSeconds, game time); it cools to CRUST then BASALT and goes; basalt on flooded shore becomes land again. No new flows once she is slain; what is out cools normally.",
+    "everySeconds": [
+      70,
+      130
+    ],
+    "rumbleSeconds": 4,
+    "tilesPerFlow": [
+      4,
+      8
+    ],
+    "maxTiles": 28,
+    "activeSeconds": 45,
+    "crustSeconds": 35,
+    "basaltSeconds": 50,
+    "dps": 16,
+    "tickSeconds": 0.5
+  },
+  "codex": {
+    "_doc": "Codex → Dragon's Lair tab text (ui/LairCodex.tsx). Stats there are shown as multiples of the expedition's average member.",
+    "tab": {
+      "en": "Dragon's Lair",
+      "tl": "Pugad ng Dragon"
+    },
+    "intro": {
+      "en": "Where the North Rift stood, a volcano now rises. Every 5th repelled wave its cave opens and stays open until you leave the raid or Ignara falls. Every General and their minions go in; the Treant and the Slime stay home.",
+      "tl": "Kung saan dating nakatayo ang Hilagang Lagusan, may bulkan na ngayon. Tuwing ika-5 alon na natalo mo, bumubukas ang yungib nito at nananatiling bukas hanggang umalis ka sa raid o bumagsak si Ignara. Pumapasok ang lahat ng General at kanilang mga alagad; naiiwan ang Treant at ang Slime."
+    },
+    "rules": {
+      "en": "Inside: no blessings, timed buffs or QWERTY powers, and the brawl + is wiped for good on entry. Research and runes still count. The fallen return at the last checkpoint after a few seconds.",
+      "tl": "Sa loob: walang blessing, pansamantalang buff o QWERTY na kapangyarihan, at tuluyang nabubura ang brawl + pagpasok. Gumagana pa rin ang research at runes. Bumabalik ang mga bumagsak sa huling checkpoint pagkalipas ng ilang segundo."
+    },
+    "relative": {
+      "en": "× party average",
+      "tl": "× karaniwang miyembro"
+    },
+    "creatures": {
+      "BAT": {
+        "en": "Cave-dark flyers with ember eyes. They swoop past the front line for the party's rear.",
+        "tl": "Mga lumilipad na kasing-dilim ng yungib, may matang baga. Lumilipad sila lampas sa unahan para sa likuran ng pangkat."
+      },
+      "KIN": {
+        "en": "Winged drakes of Ignara's brood. They spit fire from range and nest in the roosts.",
+        "tl": "Mga may-pakpak na drake ng brood ni Ignara. Bumubuga sila ng apoy mula sa malayo at namumugad sa mga pugad."
+      },
+      "GOLEM": {
+        "en": "Basalt plates over a molten core. It guards Ignara's gate: the gate opens only when it falls. Its slam is telegraphed by a glowing ring.",
+        "tl": "Mga platong basalt sa ibabaw ng tunaw na ubod. Binabantayan nito ang tarangkahan ni Ignara: bumubukas lang ito kapag bumagsak ang Golem. May nagliliyab na singsing bago ito humampas."
+      }
+    },
+    "ignara": {
+      "en": "Mother of the brood, as old as the volcano. Her HP never heals or resets: whatever the party takes off stays off, through wipes, retreats and reloads. When the battle starts, human raiders break in from the far side, as many as your living party; all three sides fight each other. Slay her for a great hoard and a rune (half the hoard if the humans struck last with no demon hit in the last 10 seconds). A new Ignara claims the lair when the cave reopens.",
+      "tl": "Ina ng brood, kasingtanda ng bulkan. Hindi gumagaling o nare-reset ang HP niya: anumang naibawas ng pangkat ay mananatiling bawas, kahit maubos ang pangkat, umatras o mag-reload. Pagsimula ng labanan, papasok ang mga taong mananalakay mula sa kabilang panig, kasingdami ng buhay mong pangkat; naglalaban ang tatlong panig. Patayin siya para sa malaking kayamanan at isang rune (kalahati kung ang mga tao ang huling tumama at walang demonyong tumama sa huling 10 segundo). May bagong Ignara sa pugad pagbukas ulit ng yungib."
+    },
+    "abilities": {
+      "claw": {
+        "en": "Claw sweep — a wide blow in front of her",
+        "tl": "Hagupit ng kuko — malawak na hampas sa harap niya"
+      },
+      "bite": {
+        "en": "Bite — a crushing strike on one target",
+        "tl": "Kagat — malakas na tama sa isang target"
+      },
+      "wingGust": {
+        "en": "Wing gust — hurts and blows back everything around her",
+        "tl": "Hangin ng pakpak — sumasakit at nagtutulak pabalik sa lahat ng nasa paligid"
+      },
+      "fireBreath": {
+        "en": "Fire breath — a burning strip toward her target",
+        "tl": "Hininga ng apoy — nagliliyab na guhit patungo sa target"
+      },
+      "summonKin": {
+        "en": "Brood Mother: calls dragon kin",
+        "tl": "Ina ng Brood: tumatawag ng kadugo ng dragon"
+      },
+      "batSwarm": {
+        "en": "Cavern Sovereign: a bat swarm",
+        "tl": "Soberana ng Yungib: kawan ng paniki"
+      },
+      "eruption": {
+        "en": "Cavern Sovereign: magma erupts under her foes",
+        "tl": "Soberana ng Yungib: sumasabog ang magma sa ilalim ng kalaban"
+      },
+      "golem": {
+        "en": "Last Stand: summons a Magma Golem",
+        "tl": "Huling Paninindigan: tumatawag ng Magma Golem"
+      }
+    },
+    "magma": {
+      "en": "While Ignara lives, her volcano spills magma onto your island: the path glows red first, then the magma burns every unit standing on it (not buildings) and slowly cools. Basalt that settles on flooded shore becomes land again. Slay her and the volcano falls quiet until a new Ignara wakes.",
+      "tl": "Habang buhay si Ignara, umaagos ang magma ng bulkan sa iyong isla: namumula muna ang daan, saka napapaso ang bawat unit na nakatayo rito (hindi ang mga gusali) at dahan-dahang lumalamig. Ang basaltong tumigas sa binahang dalampasigan ay nagiging lupa ulit. Patayin siya at tatahimik ang bulkan hanggang may bagong Ignara na magising."
+    },
+    "slain": {
+      "en": "Dragons slain this run",
+      "tl": "Mga dragong napatay ngayong takbo"
+    }
   }
 }

@@ -3,8 +3,9 @@ import { renderSheet, SheetLayout, VoxelModel } from './VoxelSprite';
 import { ENEMY_MODELS } from './enemyModels';
 import { MINION_MODELS } from './minionModels';
 import { SEA_MODELS } from './seaModels';
+import { LAIR_MODELS } from './lairModels';
 
-export const CHARACTER_MODELS: Record<string, () => VoxelModel> = { ...MINION_MODELS, ...ENEMY_MODELS, ...SEA_MODELS };
+export const CHARACTER_MODELS: Record<string, () => VoxelModel> = { ...MINION_MODELS, ...ENEMY_MODELS, ...SEA_MODELS, ...LAIR_MODELS };
 
 /** Message posted back for every baked character sprite sheet. */
 export interface BakedSheet {

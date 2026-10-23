@@ -89,6 +89,13 @@ export class InvasionManager {
   private autoSmiteTimer: number = 0;
   private lastSmiteTime: number = 0;
   /** Sky lasers locked by double-click: each keeps burning its target (and building focus) until it dies. */
+  /**
+   * Reusable laser damage numbers. Creating a Phaser Text measures its font with
+   * getImageData (a GPU readback); ten beams ticking made that a third of every frame
+   * and froze late waves. Pooled labels only change their text and style colour.
+   */
+  private beamLabels: Phaser.GameObjects.Text[] = [];
+  private static readonly MAX_BEAM_LABELS = 32;
   private beams: { target: ActiveInvader; aimMs: number; focusMs: number; tickMs: number; scarMs: number; gfx: Phaser.GameObjects.Graphics }[] = [];
   /** Last click, to detect a double-click. */
   private lastClick = { time: 0, x: 0, y: 0 };
@@ -1194,29 +1201,34 @@ export class InvasionManager {
     const text = kind === 'miss' ? (tl ? labels.miss.tl : labels.miss.en)
       : kind === 'crit' ? `${tl ? labels.crit.tl : labels.crit.en} ${amount}!` : String(amount);
     const head = (target.container.height || 40) * 0.5 + 24;
-    const label = this.scene.add.text(
-      target.container.x + Phaser.Math.Between(-10, 10),
-      target.container.y - head,
-      text,
-      {
-        fontFamily: 'monospace',
-        fontStyle: 'bold',
-        fontSize: kind === 'crit' ? '15px' : '10px',
-        color: kind === 'crit' ? '#fb923c' : kind === 'miss' ? '#94a3b8' : '#f8fafc',
-        stroke: '#000000',
-        strokeThickness: kind === 'crit' ? 4 : 3,
-      },
-    ).setOrigin(0.5).setDepth(9600);
-    this.parentContainer?.add(label);
-    if (kind === 'crit') label.setScale(0.4);
+    // A free pooled label, or a new one while the pool is still filling; a full pool drops this number
+    let label = this.beamLabels.find((l) => l.active && !l.visible);
+    if (!label) {
+      if (this.beamLabels.length >= InvasionManager.MAX_BEAM_LABELS) return;
+      label = this.scene.add.text(0, 0, '', {
+        fontFamily: 'monospace', fontStyle: 'bold', fontSize: '15px', color: '#f8fafc', stroke: '#000000', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(9600);
+      this.parentContainer?.add(label);
+      this.beamLabels.push(label);
+    }
+    // Same font for every kind (no re-measure); size comes from scale, colour from the fill
+    const base = kind === 'crit' ? 1 : 0.68;
+    label.setText(text)
+      .setColor(kind === 'crit' ? '#fb923c' : kind === 'miss' ? '#94a3b8' : '#f8fafc')
+      .setPosition(target.container.x + Phaser.Math.Between(-10, 10), target.container.y - head)
+      .setAlpha(1)
+      .setScale(kind === 'crit' ? 0.4 : base)
+      .setVisible(true);
+    this.scene.tweens.killTweensOf(label);
+    const done = label;
     this.scene.tweens.add({
       targets: label,
       y: label.y - (kind === 'crit' ? 26 : 18),
       alpha: 0,
-      scale: kind === 'crit' ? 1.15 : 1,
+      scale: kind === 'crit' ? 1.15 : base,
       duration: kind === 'crit' ? 750 : 520,
       ease: 'Cubic.easeOut',
-      onComplete: () => label.destroy(),
+      onComplete: () => done.setVisible(false),
     });
   }
 

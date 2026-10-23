@@ -1,5 +1,6 @@
 import { waveAchievements } from '../achievements';
 import LAIR from '../../data/dragonsLair.json';
+import { MATRIARCH } from '../lairExpedition';
 import { DIFFICULTIES, normalizeDifficulty } from '../difficulty';
 import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
@@ -211,8 +212,12 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     // Every 5th repelled wave the volcano's cave opens; it stays open until the dragon raid ends
     const cleared = get().invasion.waveNumber - 1;
     if (!get().lairOpen && cleared > 0 && cleared % LAIR.cave.everyWaves === 0) {
-      set({ lairOpen: true });
+      // The first opening wakes Ignara; after a kill, a new generation claims the lair
+      const d = get().dragon;
+      const fresh = d.generation === 0 || d.slain;
+      set({ lairOpen: true, ...(fresh ? { dragon: { generation: d.generation + 1, hp: 0, maxHp: 0, slain: false } } : {}) });
       logMessage('lairOpened', { wave: cleared });
+      if (fresh) logMessage(d.generation === 0 ? 'dragonWakes' : 'dragonReturns', { name: MATRIARCH.name });
     }
     // Autosave: the save is overwritten after every repelled wave
     void saveNow().then(() => logMessage('autoSaved', { wave: get().invasion.invasionsRepelled }));
@@ -237,6 +242,7 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
       playSeconds: Math.round(s.playSeconds),
       startedAt: s.runStartedAt || s.lastSavedTimestamp,
       endedAt: Date.now(),
+      dragonsSlain: s.dragonsSlain,
     };
     logMessage('runFallen', { wave: entry.waveReached });
     void endRunSave().then(() => recordLegacy(entry));

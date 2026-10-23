@@ -1161,6 +1161,11 @@ export class DefenderSystem {
     d.hpBar.fillRect(-8, -25, 16 * Math.max(0, d.hp / d.maxHp), 2);
   }
 
+  /** Environmental damage (volcanic magma) through the usual armour and death handling. */
+  hurtFromHazard(d: Defender, damage: number): void {
+    this.hit(d, damage);
+  }
+
   private hit(d: Defender, damage: number): void {
     if (d.dead) return;
     if (useGameStore.getState().defense.forceFieldTimer > 0) damage = Math.max(1, Math.round(damage * 0.4));

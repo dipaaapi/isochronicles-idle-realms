@@ -18,7 +18,9 @@ import type {
 import type { SliceArgs } from './types';
 import { logMessage } from '../activityLog';
 import LAIR from '../../data/dragonsLair.json';
-import { CHECKPOINTS, CLEARABLE, LAIR_OBSTACLES, freshLairProgress, lairPartyOf, stripExpeditionPower } from '../lairExpedition';
+import { CHECKPOINTS, CLEARABLE, LAIR_OBSTACLES, MATRIARCH, REWARDS, dragonRewards, freshLairProgress, lairPartyOf, stripExpeditionPower } from '../lairExpedition';
+import { rollRuneKind } from '../runes';
+import { saveNow } from '../storageAdapter';
 
 export const TARGET_FPS_STORAGE_KEY = 'isochronicle_target_fps';
 
@@ -94,6 +96,46 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
     set({ lairProgress: { ...prev, cleared: [...prev.cleared, id] } });
     const o = LAIR_OBSTACLES.find((x) => x.id === id);
     if (o) logMessage(o.type === 'GATE' ? 'lairGateBroken' : 'lairBridgeRepaired', { name: o.name });
+  },
+
+  sizeDragon: (maxHp: number) => {
+    const d = get().dragon;
+    if (d.maxHp > 0 || d.slain || !(maxHp > 0)) return;
+    set({ dragon: { ...d, maxHp: Math.round(maxHp), hp: Math.round(maxHp) } });
+  },
+
+  damageDragon: (amount: number) => {
+    const d = get().dragon;
+    if (d.slain || d.maxHp <= 0 || !(amount > 0)) return d.hp;
+    const hp = Math.max(0, d.hp - amount);
+    set({ dragon: { ...d, hp } });
+    return hp;
+  },
+
+  slayDragon: (fullCredit: boolean) => {
+    const s = get();
+    if (s.dragon.slain || s.dragon.maxHp <= 0) return {};
+    const reward = dragonRewards(s.dragon.generation, fullCredit);
+    s.addResources(reward);
+    const rune = s.grantRune(rollRuneKind(), REWARDS.runeTier);
+    set((prev) => ({
+      dragon: { ...prev.dragon, hp: 0, slain: true },
+      dragonsSlain: prev.dragonsSlain + 1,
+      lairOpen: false,
+      lairProgress: freshLairProgress(),
+      lastSavedTimestamp: Date.now(),
+    }));
+    logMessage('dragonSlain', { name: MATRIARCH.name, coins: reward.coins ?? 0, count: get().dragonsSlain });
+    if (!fullCredit) logMessage('dragonHalfCredit');
+    if (rune) logMessage('dragonRune', { tier: rune.tier });
+    logMessage('magmaStilled');
+    get().unlockAchievement('dragon_slayer', 'Dragonslayer', 'Slew Ignara, the Ember Matriarch, in her lair.', '🐉');
+    void saveNow();
+    return reward;
+  },
+
+  returnFromLair: () => {
+    if (get().activeLocation === 'DRAGONS_LAIR') get().travelTo('DEMON_REALM');
   },
 
   setLanguage: (lang: Language) => {

@@ -1,3 +1,4 @@
+import { coolMagma, freshMagmaTile } from '../lairExpedition';
 import { soundFx } from '../../game/audio/soundFx';
 import { logMessage } from '../activityLog';
 import { WILD_FACTIONS, clampMeter, wildTributeCost } from '../wildFactions';
@@ -119,6 +120,42 @@ export const createWildSlice = (...[set, get]: SliceArgs) => ({
       };
     });
     if (completed) logMessage('reclamationComplete');
+  },
+
+  spillMagma: (keys: string[]) => {
+    if (!keys.length) return;
+    set((prev) => {
+      const volcanicMagma = { ...prev.volcanicMagma };
+      for (const k of keys) volcanicMagma[k] = freshMagmaTile();
+      return { volcanicMagma };
+    });
+  },
+
+  coolVolcanicMagma: (dt: number) => {
+    const prev = get();
+    if (!(dt > 0) || Object.keys(prev.volcanicMagma).length === 0) return;
+    const { tiles, done } = coolMagma(prev.volcanicMagma, dt);
+    if (!done.length) {
+      set({ volcanicMagma: tiles });
+      return;
+    }
+    // Basalt that settled on flooded shore is land again (never a tile the Sand God's reclamation is moving)
+    const job = prev.terrainReclamation;
+    const flooded = new Set(prev.terrainFlooded);
+    const restored = done.filter((k) => flooded.has(k) && k !== job?.source && k !== job?.target);
+    if (!restored.length) {
+      set({ volcanicMagma: tiles });
+      return;
+    }
+    const back = new Set(restored);
+    set({
+      volcanicMagma: tiles,
+      terrainFlooded: prev.terrainFlooded.filter((k) => !back.has(k)),
+      terrainFilled: uniq([...prev.terrainFilled, ...restored]),
+      terrainReclaimed: prev.terrainReclaimed.filter((k) => !back.has(k)),
+      lastSavedTimestamp: Date.now(),
+    });
+    logMessage('magmaLandRestored', { tiles: restored.length });
   },
 
   /** A new day: raised rock settles back into plain land. */

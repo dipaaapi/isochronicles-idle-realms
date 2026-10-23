@@ -14,6 +14,7 @@ The source is `src/data/achievements.json`: the game unlocks them through `src/s
 | ACH_WAVE_50 | Halfway to Ruin | Cleared 50 invasion waves. | No | `ACH_WAVE_50.jpg` / `…_locked.jpg` |
 | ACH_WAVE_100 | Demon Lord Ascendant | Cleared all 100 invasion waves. | No | `ACH_WAVE_100.jpg` / `…_locked.jpg` |
 | ACH_FIRST_BRAWL | Pecking Order | Two Generals settled a quarrel in a brawl. | No | `ACH_FIRST_BRAWL.jpg` / `…_locked.jpg` |
+| ACH_DRAGON_SLAYER | Dragonslayer | Slew Ignara, the Ember Matriarch, in her lair. | No | `ACH_DRAGON_SLAYER.jpg` / `…_locked.jpg` |
 | ACH_FIRST_REGRESSION | Eternal Regression | Conquered the mortal world and regressed with the memories of the Demon Citadel. | Yes (late-game) | `ACH_FIRST_REGRESSION.jpg` / `…_locked.jpg` |
 
 Icons are in `steam/store-assets/achievements/` (256×256 JPG; Steam scales them down). They're rendered from the in-game emoji on the achievement's colour; for nicer art, replace the files and keep the names.

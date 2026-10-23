@@ -1332,8 +1332,8 @@
     "tl": "Pugad ng Dragon"
   },
   "lairHudTest": {
-    "en": "All Generals and their minions push toward the Matriarch Chamber. Creatures and the Matriarch arrive in later phases.",
-    "tl": "Lahat ng General at kanilang mga alagad ay sumusulong patungo sa Silid ng Matriarka. Darating sa susunod na mga yugto ang mga nilalang at ang Matriarka."
+    "en": "All Generals and their minions push toward Ignara's chamber through her brood.",
+    "tl": "Lahat ng General at kanilang mga alagad ay sumusulong patungo sa silid ni Ignara, dumadaan sa kanyang brood."
   },
   "lairHudHint": {
     "en": "Drag to pan, scroll to zoom.",
@@ -1390,5 +1390,33 @@
   "lairHudAdvance": {
     "en": "Advance",
     "tl": "Sumulong"
+  },
+  "lairHudFoes": {
+    "en": "Brood",
+    "tl": "Brood"
+  },
+  "lairHudHumans": {
+    "en": "Humans",
+    "tl": "Mga tao"
+  },
+  "lairHudBattle": {
+    "en": "Three-way battle!",
+    "tl": "Labanan ng tatlong panig!"
+  },
+  "lairHudVictory": {
+    "en": "Ignara is slain!",
+    "tl": "Napatay si Ignara!"
+  },
+  "lairHudVictoryNote": {
+    "en": "The hoard is yours. The expedition returns home…",
+    "tl": "Sa iyo na ang kayamanan. Pauwi na ang ekspedisyon…"
+  },
+  "lairHudPhase": {
+    "en": "Phase",
+    "tl": "Yugto"
+  },
+  "legacyDragonsTitle": {
+    "en": "Dragons slain (Ignara)",
+    "tl": "Mga dragong napatay (Ignara)"
   }
 }

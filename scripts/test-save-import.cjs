@@ -46,5 +46,7 @@ assert.ok(bounded && bounded.upgrades, 'deep input is bounded without rejecting 
 
 const located = sanitizeSavePayload({ resources: {}, activeLocation: 'DRAGONS_LAIR' }, true);
 assert.equal(located.activeLocation, 'DRAGONS_LAIR', 'the active location survives export/import');
+const lairSave = sanitizeSavePayload({ resources: {}, lairOpen: true, lairProgress: { checkpoint: 3, cleared: ['BRIDGE_A'] }, dragon: { generation: 2, hp: 50, maxHp: 100, slain: false }, dragonsSlain: 1, volcanicMagma: { '5,5': { stage: 'ACTIVE', left: 10 } } }, true);
+for (const k of ['lairOpen', 'lairProgress', 'dragon', 'dragonsSlain', 'volcanicMagma']) assert.ok(Object.prototype.hasOwnProperty.call(lairSave, k), `${k} survives export/import`);
 
 console.log('save import boundary: size, shape, collection and prototype checks — ok');

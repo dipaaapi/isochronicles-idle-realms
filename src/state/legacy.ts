@@ -29,6 +29,8 @@ export interface LegacyEntry {
   playSeconds: number;
   startedAt: number;
   endedAt: number;
+  /** Ignaras slain during the run (Dragon's Lair). */
+  dragonsSlain?: number;
 }
 
 const KEY = 'isochronicle-hall-of-legacy';
@@ -42,7 +44,12 @@ export async function loadLegacy(): Promise<LegacyEntry[]> {
     const raw = await localForageStorage.getItem(KEY);
     const list = raw ? (JSON.parse(raw) as unknown) : [];
     const out = Array.isArray(list)
-      ? (list.filter((e) => e && typeof e.id === 'string') as LegacyEntry[]).map((e) => ({ ...e, lord: String(e.lord ?? '').slice(0, 32), avatar: sanitizeAvatar(e.avatar) }))
+      ? (list.filter((e) => e && typeof e.id === 'string') as LegacyEntry[]).map((e) => ({
+        ...e,
+        lord: String(e.lord ?? '').slice(0, 32),
+        avatar: sanitizeAvatar(e.avatar),
+        dragonsSlain: typeof e.dragonsSlain === 'number' && Number.isFinite(e.dragonsSlain) ? Math.max(0, Math.floor(e.dragonsSlain)) : 0,
+      }))
       : [];
     for (const e of out) fallen.add(e.runId);
     return out;

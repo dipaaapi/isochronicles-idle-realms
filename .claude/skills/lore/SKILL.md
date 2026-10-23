@@ -63,7 +63,8 @@ node $L check                    # EN/TL gaps; LORE.md vs LORE.tl.md section/par
 **The Alliance (invaders)**
 - **Rulers**, who lead the boss waves: **High Priest** (holy healer) and **Mecha Valkyrie** (steel-winged commander).
 - **Fighters**: Human Knight, Human Archer, Mecha Scout, Mecha Titan, Assassin (twin blades), Mecha Drones (laser swarms), Mecha Siege Tank, and **Chrono** the time mage (slows the battlefield).
-- Waves come through **4 corner rifts**. Minions can smash a rift: it stops spawning for that wave and pays a bounty.
+- Waves come through **3 corner rifts** (east, west, south). Minions can smash a rift: it stops spawning for that wave and pays a bounty.
+- **Dragon's Lair**: the north corner is a **volcano** (it replaced the North Rift). Inside sleeps **Ignara, the Ember Matriarch** (she), who wakes at the first 5th repelled wave. Her cave opens after every 5th repelled wave until the raid is left or she dies. Every General and its minions go in (Treant and Slime stay); the brawl + is wiped on entry, and only research and runes count inside. Her brood: **Giant Bats**, **Dragon Kin**, **Magma Golem** (gate guardian). A **human expedition** joins her battle; all three sides are hostile. Her HP never heals. Her death leaves a hoard and a rune (half if humans struck last), is recorded in the Hall of Legacy, and a new Ignara returns when the cave reopens. While she lives, the volcano spills **magma** that burns every unit (not buildings) and cools to basalt, turning flooded shore back into land.
 - **Rushers** charge the citadel. Between waves lone **scouts** wander and drop loot.
 - Slain invaders drop materials. The Demon Lord can strike any invader with lightning.
 

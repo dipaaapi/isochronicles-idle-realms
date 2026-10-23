@@ -1,4 +1,4 @@
-import { freshLairProgress } from '../lairExpedition';
+import { freshDragon, freshLairProgress } from '../lairExpedition';
 import { NODE_SPOTS, applyLayoutSeed, coastForSeed, getCoastStyle, newLayoutSeed, setCoastStyle, type BuildingPositions, type CoastStyle } from '../buildingLayout';
 import { emptyRuneSlots } from '../runes';
 import { ECONOMY_CONFIG } from '../economy';
@@ -253,6 +253,9 @@ export const createInitialProgress = () => {
     activeLocation: 'DEMON_REALM' as import('../../types/state').ActiveLocation,
     lairOpen: false,
     lairProgress: freshLairProgress(),
+    dragon: freshDragon(),
+    dragonsSlain: 0,
+    volcanicMagma: {} as Record<string, import('../lairExpedition').MagmaTile>,
 
     // Silhouette Discovery: Starting beasts are pre-discovered
     discoveredBeasts: ['DRYAD', 'MINOTAUR'] as UnitClass[],

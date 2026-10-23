@@ -16,7 +16,7 @@ function load(file) {
   }).outputText, {
     exports, console, localStorage: { getItem: () => null, setItem() {} },
     require(name) {
-      if (name === 'phaser') return { default: { Math: { Clamp: (n, min, max) => Math.max(min, Math.min(max, n)) }, Geom: { Point: class { constructor(x, y) { this.x = x; this.y = y; } } } } };
+      if (name === 'phaser') return { default: { Math: { Clamp: (n, min, max) => Math.max(min, Math.min(max, n)) }, Geom: { Point: class { constructor(x, y) { this.x = x; this.y = y; } } }, BlendModes: { ADD: 1 } } };
       if (name === 'zustand/middleware') return { persist: (fn) => fn, createJSONStorage() {} };
       if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
       if (name.includes('storageAdapter')) {
@@ -251,20 +251,90 @@ console.log('Full realm reset checks passed.');
       .map((c, i) => ({ id: `gen_${i}`, name: c, unitClass: c, assignedTask: 'IDLE' }))],
   });
   const chain = () => new Proxy(function () {}, { get: (_, k) => (k === 'x' || k === 'y' || k === 'scaleX' ? 0 : chain()), apply: () => chain() });
-  const fakeScene = { add: chain() };
+  const fakeScene = { add: chain(), tweens: chain() };
   const { LairExpedition } = load('src/game/lair/LairExpedition.ts');
   const { useLairHud } = load('src/game/lair/lairHud.ts');
   const expedition = new LairExpedition(fakeScene);
   let simSeconds = 0;
-  while (useLairHud.getState().holdingAt !== 'END' && simSeconds < 1500) { expedition.update(100); simSeconds += 0.1; }
-  assert.equal(useLairHud.getState().holdingAt, 'END', `the party reaches the chamber (front ${useLairHud.getState().frontY.toFixed(1)}, cleared ${state().lairProgress.cleared})`);
-  assert.equal(state().lairProgress.checkpoint, lair.regionIndexAt(lair.LAIR_CONFIG.route.stopY - 1), 'every checkpoint on the way is saved');
-  assert.equal(JSON.stringify([...state().lairProgress.cleared].sort()), JSON.stringify([...lair.CLEARABLE].sort()), 'bridges repaired and the gate broken');
-  console.log(`  expedition sim: chamber reached in ${Math.round(simSeconds)}s with ${lair.lairFighters(state()).length} members`);
+  assert.equal(state().dragon.generation, 1, 'the first opening woke Ignara');
+  let chamberAt = 0;
+  let lowestHp = Infinity;
+  const coinsBefore = state().resources.coins;
+  while (state().activeLocation === 'DRAGONS_LAIR' && simSeconds < 3000) {
+    expedition.update(100);
+    simSeconds += 0.1;
+    if (!chamberAt && useLairHud.getState().battle) {
+      chamberAt = simSeconds;
+      assert.equal(state().lairProgress.checkpoint, lair.regionIndexAt(lair.LAIR_CONFIG.route.stopY - 1), 'every checkpoint on the way is saved');
+      assert.equal(JSON.stringify([...state().lairProgress.cleared].sort()), JSON.stringify([...lair.CLEARABLE].sort()), 'bridges repaired, packs beaten and the gate opened');
+      assert.ok(state().dragon.maxHp > 0 && state().dragon.hp > 0.9 * state().dragon.maxHp, 'Ignara is sized when her battle starts');
+      assert.ok(useLairHud.getState().humans > 0, 'the human expedition arrives');
+    }
+    if (state().dragon.maxHp > 0) {
+      assert.ok(state().dragon.hp <= lowestHp, 'Ignara never heals');
+      lowestHp = state().dragon.hp;
+    }
+  }
+  assert.ok(chamberAt > 0, `the party reaches the chamber (front ${useLairHud.getState().frontY.toFixed(1)}, cleared ${state().lairProgress.cleared})`);
+  assert.equal(state().activeLocation, 'DEMON_REALM', `Ignara falls and the party returns (her hp ${state().dragon.hp}/${state().dragon.maxHp})`);
+  assert.equal(state().dragon.slain, true);
+  assert.equal(state().dragonsSlain, 1, 'the kill is recorded in the save');
+  assert.equal(state().lairOpen, false, 'her death seals the cave');
+  assert.ok(state().resources.coins > coinsBefore, 'the hoard pays out');
+  console.log(`  expedition sim: ${lair.lairFighters(state()).length} members, chamber at ${Math.round(chamberAt)}s, Ignara slain at ${Math.round(simSeconds)}s`);
+  // The cave reopens on the next 5th wave with a new generation
+  store.setState({ invasion: { ...state().invasion, isActive: true, waveNumber: 10 } });
+  state().resolveInvasionVictory(0);
+  assert.equal(state().lairOpen, true);
+  assert.equal(state().dragon.generation, 2, 'a new Ignara claims the lair');
+  assert.equal(state().dragon.slain, false);
+  state().enterLair();
   state().leaveLair();
   assert.equal(state().activeLocation, 'DEMON_REALM');
   assert.equal(state().lairOpen, false, 'leaving the raid seals the cave');
   assert.equal(state().lairProgress.checkpoint, 0, 'leaving the raid resets its progress');
+  // Volcanic magma: flows while Ignara lives, burns units on ACTIVE tiles, cools, and turns flooded shore back to land
+  {
+    const layout = load('src/state/buildingLayout.ts');
+    const { VolcanicMagma } = load('src/game/scene/volcanicMagma.ts');
+    let burned = 0;
+    const fakeWorker = { hp: 100, container: { active: true, x: 0, y: 0 }, name: 'Golem 1', unitClass: 'GOLEM' };
+    const magmaSys = new VolcanicMagma(
+      { add: chain() }, { add() {} }, { erupt() {} },
+      { hurtWorkerFromRift: (w, n) => { burned += n; }, getInvaders: () => [], damageInvader() {} },
+      { getWorkers: () => [fakeWorker] },
+      { getDefenders: () => [], hurtFromHazard() {} },
+      () => [],
+    );
+    store.setState({ volcanicMagma: {}, dragon: { generation: 2, hp: 100, maxHp: 100, slain: false }, activeLocation: 'DEMON_REALM' });
+    for (let i = 0; i < 2000 && Object.keys(state().volcanicMagma).length === 0; i++) magmaSys.update(100);
+    const tiles = Object.keys(state().volcanicMagma);
+    assert.ok(tiles.length > 0, 'the volcano spills magma while Ignara lives');
+    for (const k of tiles) {
+      const [x, y] = k.split(',').map(Number);
+      assert.ok(!layout.isProtectedTile(x, y) && !layout.isVolcanoTile(x, y), `magma never covers protected tiles (${k})`);
+    }
+    // A unit standing on ACTIVE magma burns (time-based)
+    const [bx, by] = tiles[0].split(',').map(Number);
+    const IsoH = load('src/game/IsometricHelper.ts').IsometricHelper;
+    const w = IsoH.gridToScreen(bx, by);
+    fakeWorker.container.x = w.x; fakeWorker.container.y = w.y;
+    burned = 0;
+    for (let i = 0; i < 10; i++) magmaSys.update(100);
+    assert.ok(Math.abs(burned - lair.MAGMA_FLOW.dps) < lair.MAGMA_FLOW.dps * 0.15, `a second on magma burns about dps (${burned.toFixed(1)})`);
+    // Cooling: flooded shore under the magma becomes land again
+    const flooded = tiles[0];
+    store.setState({ terrainFlooded: [flooded], terrainFilled: [], terrainReclamation: null });
+    state().coolVolcanicMagma(lair.MAGMA_FLOW.activeSeconds + lair.MAGMA_FLOW.crustSeconds + lair.MAGMA_FLOW.basaltSeconds + 1);
+    assert.equal(Object.keys(state().volcanicMagma).length, 0, 'every stage cools away');
+    assert.ok(state().terrainFilled.includes(flooded) && !state().terrainFlooded.includes(flooded), 'cooled basalt restores flooded land');
+    // Slain: no new flows
+    store.setState({ volcanicMagma: {}, dragon: { generation: 2, hp: 0, maxHp: 100, slain: true } });
+    for (let i = 0; i < 3000; i++) magmaSys.update(100);
+    assert.equal(Object.keys(state().volcanicMagma).length, 0, 'no magma once Ignara is slain');
+    assert.equal(JSON.stringify(lair.normalizeMagma({ '1,1': { stage: 'ACTIVE', left: 5 }, '99,1': { stage: 'ACTIVE', left: 5 }, '2,2': { stage: 'LAVA' } }, layout.GRID_SIZE)), JSON.stringify({ '1,1': { stage: 'ACTIVE', left: 5 } }), 'saved magma is validated');
+    console.log('  volcanic magma: flows, burns, cools and restores land');
+  }
   console.log("Dragon's Lair cave checks passed.");
 }
 

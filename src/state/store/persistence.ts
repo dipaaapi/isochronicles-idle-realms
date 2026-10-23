@@ -13,7 +13,7 @@ import { sanitizeSavePayload, isPlainRecord } from '../saveValidation';
 import { TASK_CONFIG } from '../../data/tasks';
 import { achievementDef } from '../achievements';
 import { WAVE_TACTICS } from '../waveTactics';
-import { normalizeLairProgress } from '../lairExpedition';
+import { normalizeDragon, normalizeLairProgress, normalizeMagma } from '../lairExpedition';
 
 const KEY_RE = /^\d{1,2},\d{1,2}$/;
 const MAX_SAFE_VALUE = Number.MAX_SAFE_INTEGER;
@@ -334,6 +334,9 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       activeLocation: state.activeLocation,
       lairOpen: state.lairOpen,
       lairProgress: state.lairProgress,
+      dragon: state.dragon,
+      dragonsSlain: state.dragonsSlain,
+      volcanicMagma: state.volcanicMagma,
       year: state.year,
       season: state.season,
       exportedAt: new Date().toISOString(),
@@ -408,6 +411,9 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         activeLocation: validLocation(data.activeLocation),
         lairOpen: data.lairOpen === true || validLocation(data.activeLocation) === 'DRAGONS_LAIR',
         lairProgress: normalizeLairProgress(data.lairProgress),
+        dragon: normalizeDragon(data.dragon),
+        dragonsSlain: integer(data.dragonsSlain, 0, 0, 1000000),
+        volcanicMagma: normalizeMagma(data.volcanicMagma, GRID_SIZE),
         platformPhase: validRealm(data.realmChoice) ?? validRealm(data.platformPhase) ?? getPhaseFromWave(invasion.waveNumber),
         year: integer(data.year, 1, 1),
         season: isSeason(data.season) ? data.season : 'SPRING',
@@ -504,6 +510,9 @@ const partialize = (state: GameStoreState) => ({
   activeLocation: state.activeLocation,
   lairOpen: state.lairOpen,
   lairProgress: state.lairProgress,
+  dragon: state.dragon,
+  dragonsSlain: state.dragonsSlain,
+  volcanicMagma: state.volcanicMagma,
   lordName: state.lordName,
   runId: state.runId,
   runStartedAt: state.runStartedAt,
@@ -579,6 +588,9 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     activeLocation: validLocation(persisted.activeLocation),
     lairOpen: persisted.lairOpen === true || validLocation(persisted.activeLocation) === 'DRAGONS_LAIR',
     lairProgress: normalizeLairProgress(persisted.lairProgress),
+    dragon: normalizeDragon(persisted.dragon),
+    dragonsSlain: integer(persisted.dragonsSlain, 0, 0, 1000000),
+    volcanicMagma: normalizeMagma(persisted.volcanicMagma, GRID_SIZE),
     lastSavedTimestamp: integer(persisted.lastSavedTimestamp, currentState.lastSavedTimestamp),
     isGoreEnabled: typeof persisted.isGoreEnabled === 'boolean' ? persisted.isGoreEnabled : currentState.isGoreEnabled,
     showWallpaper: typeof persisted.showWallpaper === 'boolean' ? persisted.showWallpaper : currentState.showWallpaper,

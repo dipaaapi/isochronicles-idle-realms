@@ -23,9 +23,11 @@ export class VolcanoLandmark {
   private open: boolean | null = null;
   private elapsed = 0;
   private puffTimer = 0;
+  /** Seconds left of a magma rumble: heavy smoke, a brighter crater. */
+  private rumbleLeft = 0;
   /** Cone size in world units (base sits on the footprint's front edge). */
-  private readonly baseW = TILE_WIDTH * 2.6;
-  private readonly height = TILE_HEIGHT * 4.6;
+  private readonly baseW = TILE_WIDTH * 3.1;
+  private readonly height = TILE_HEIGHT * 4.3;
   private readonly baseY = TILE_HEIGHT * 0.9;
 
   constructor(private scene: Phaser.Scene, layer: Phaser.GameObjects.Container) {
@@ -57,19 +59,31 @@ export class VolcanoLandmark {
     for (let h = 0; h < this.height; h += PX) {
       const y = this.baseY - h;
       const hw = Math.round(this.halfWidthAt(h) / PX) * PX;
-      const jag = ((h * 7) % 5) - 2;
-      const band = Math.floor(h / (PX * 9)) % 2 === 0;
+      // Each flank has its own crags (a lumpy shoulder low on the left), so the cone never reads as a triangle
+      const left = Math.round((Math.sin(h * 0.19) * 5 + Math.sin(h * 0.053) * 7 + (h < this.height * 0.45 ? 10 * Math.sin((h / (this.height * 0.45)) * Math.PI) : 0)) / PX) * PX;
+      const right = Math.round((Math.sin(h * 0.23 + 2) * 5 + Math.sin(h * 0.041 + 1) * 6) / PX) * PX;
+      const x0 = -hw - left, x1 = hw + right;
+      // Strata wander instead of running in straight stripes
+      const band = Math.floor((h + Math.sin(h * 0.06) * 10) / (PX * 10)) % 2 === 0;
       g.fillStyle(band ? ROCK.mid : ROCK.shade, 1);
-      g.fillRect(-hw + jag, y - PX, hw * 2, PX);
+      g.fillRect(x0, y - PX, x1 - x0, PX);
       g.fillStyle(band ? ROCK.lit : ROCK.mid, 1);
-      g.fillRect(-hw + jag, y - PX, Math.round(hw * 0.55 / PX) * PX, PX);
+      g.fillRect(x0, y - PX, Math.round(((x1 - x0) * 0.32) / PX) * PX, PX);
       g.fillStyle(ROCK.deep, 1);
-      g.fillRect(hw - Math.round(hw * 0.25 / PX) * PX + jag, y - PX, Math.round(hw * 0.25 / PX) * PX, PX);
+      g.fillRect(x1 - Math.round(((x1 - x0) * 0.16) / PX) * PX, y - PX, Math.round(((x1 - x0) * 0.16) / PX) * PX, PX);
       // Snow-pale ash near the rim
       if (h > this.height * 0.82) {
         g.fillStyle(ROCK.ash, 1);
-        g.fillRect(-hw + jag, y - PX, PX * 2, PX);
+        g.fillRect(x0, y - PX, PX * 2, PX);
       }
+    }
+    // Boulders around the foot
+    for (const [bx, by, bw] of [[-0.46, -2, 7], [-0.36, 2, 5], [0.42, -1, 6], [0.3, 3, 4], [-0.15, 4, 4]] as const) {
+      const x = Math.round((bx * this.baseW) / PX) * PX;
+      g.fillStyle(ROCK.shade, 1);
+      g.fillRect(x, this.baseY + by * PX - bw * PX, bw * PX, bw * PX * 0.7);
+      g.fillStyle(ROCK.lit, 1);
+      g.fillRect(x, this.baseY + by * PX - bw * PX, bw * PX * 0.6, PX);
     }
     // Crater rim
     const topY = this.baseY - this.height;
@@ -166,17 +180,24 @@ export class VolcanoLandmark {
     this.smoke = this.smoke.filter((p) => p.life < p.max);
   }
 
+  /** The volcano heaves before a magma flow (scene/volcanicMagma.ts). */
+  erupt(seconds: number): void {
+    this.rumbleLeft = Math.max(this.rumbleLeft, seconds + 2);
+  }
+
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
     this.elapsed += dt;
+    this.rumbleLeft = Math.max(0, this.rumbleLeft - dt);
     const open = useGameStore.getState().lairOpen;
     if (open !== this.open) {
       this.open = open;
       this.drawBody();
       this.drawSeal(open);
     }
-    this.drawGlow(open);
-    this.updateSmoke(dt, open);
+    // A rumble roars like an open cave even while it is sealed
+    this.drawGlow(open || this.rumbleLeft > 0);
+    this.updateSmoke(dt, open || this.rumbleLeft > 0);
   }
 
   /** True when an island-local point falls on the mountain (clicks enter the cave). */

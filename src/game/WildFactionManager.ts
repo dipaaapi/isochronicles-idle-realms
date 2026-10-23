@@ -410,6 +410,14 @@ export class WildFactionManager {
     }));
   }
 
+  /** Fighting creatures that environmental hazards (volcanic magma) can burn. */
+  hazardTargets(): { x: number; y: number; name: { en: string; tl: string }; hurt: (dmg: number) => void }[] {
+    return this.creatures.filter((c) => c.state === 'fighting').map((c) => ({
+      x: c.container.x, y: c.container.y, name: c.def.name,
+      hurt: (dmg: number) => { if (c.state === 'fighting') this.hurt(c, dmg); },
+    }));
+  }
+
   /** A rival creature hit one of ours; true when it died. */
   hurtByRival(c: Creature, dmg: number): boolean {
     this.hurt(c, dmg);

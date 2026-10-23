@@ -47,6 +47,7 @@ import { SkillSystem } from './skills/SkillSystem';
 import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_CLIFF, WALK_WATER } from './Navigation';
 import { StructureManager } from './StructureManager';
 import { VolcanoLandmark } from './scene/volcano';
+import { VolcanicMagma } from './scene/volcanicMagma';
 import { PortalManager } from './PortalManager';
 import { ForceFieldSystem } from './ForceFieldSystem';
 import { LiveFocusCamera } from './scene/liveFocusCamera';
@@ -151,6 +152,7 @@ export class MainScene extends Phaser.Scene {
   private structures!: StructureManager;
   private portals!: PortalManager;
   private volcano!: VolcanoLandmark;
+  private magma?: VolcanicMagma;
   private towers!: TowerSystem;
   private portalDefense!: PortalDefenseSystem;
   private waterFx?: WaterFx;
@@ -917,6 +919,8 @@ export class MainScene extends Phaser.Scene {
       onDayChange: () => { store().settleSand(); store().liftRaised(); },
     }, this, burrows, this.entityLayer, this.invasionManager, this.workerManager, this.defenders, this.groundLoot);
     this.wild = [seaFolk, sandBrood];
+    // Ignara's volcano spills magma onto the island while she lives
+    this.magma = new VolcanicMagma(this, this.groundFxLayer, this.volcano, this.invasionManager, this.workerManager, this.defenders, () => this.wild);
     battleTargets.wild = { SEA: () => seaFolk.orderTargets(), BROOD: () => sandBrood.orderTargets() };
     // Stop listening to the store as soon as this scene goes away (a new realm remounts the scene)
     const stop = () => { this.terrainUnsub?.(); this.terrainUnsub = undefined; this.terrainTimer?.remove(); };
@@ -1750,6 +1754,7 @@ export class MainScene extends Phaser.Scene {
     this.structures.update(effectiveDelta);
     this.portals.update(effectiveDelta);
     this.volcano.update(delta);
+    this.magma?.update(effectiveDelta);
     this.forageNodes?.update(effectiveDelta);
     this.forceFields?.update(effectiveDelta);
     this.liveFocus?.update(effectiveDelta);

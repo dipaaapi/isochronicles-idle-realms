@@ -643,6 +643,32 @@ class SoundFxManager {
     this.playNoise(2.4, 420, 0.4 * intensity, 0.12);
   }
 
+  /** Ignara's roar: a falling sawtooth growl over a low rumble (Dragon's Lair). */
+  public playDragonRoar(): void {
+    if (this.isMuted || this.isSfxDisabled) return;
+    const ctx = this.initContext();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(55, now + 1.1);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 1.25);
+    this.playNoise(1.2, 300, 0.25, 0.08);
+  }
+
+  /** The volcano heaving before a magma flow: a long, low rumble. */
+  public playRumble(): void {
+    this.playNoise(2.8, 160, 0.35, 0.4);
+  }
+
   public playSplash(): void {
     this.playNoise(0.22, 2600, 0.08);
   }
