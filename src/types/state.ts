@@ -153,6 +153,8 @@ export interface AutoSettings {
 }
 
 export type ScreenState = 'TITLE' | 'STORY' | 'GAME';
+/** Which map is simulating: only one location runs at a time (Dragon's Lair patch). */
+export type ActiveLocation = 'DEMON_REALM' | 'DRAGONS_LAIR';
 export type Language = 'EN' | 'TL';
 
 export type TimeOfDayPhase = 'DAWN' | 'DAY' | 'DUSK' | 'NIGHT';
@@ -317,6 +319,20 @@ export interface GameStoreState {
   /** Biome picked by the player at New Game or in Settings (mirrors platformPhase; waves no longer change it). */
   realmChoice: PlatformPhase | null;
   setRealmChoice: (phase: PlatformPhase | null) => void;
+  /** The map being played; the other location is unloaded and does not simulate. */
+  activeLocation: ActiveLocation;
+  /** Switches location (the scene remounts behind the loading screen). Demon Realm time stays paused while away. */
+  travelTo: (location: ActiveLocation) => void;
+  /** The volcano's cave is open (every 5th repelled wave) until the dragon raid ends. */
+  lairOpen: boolean;
+  /** Enters the Dragon's Lair through the open cave; false (with a log line) when it can't. */
+  enterLair: () => boolean;
+  /** Quits the dragon raid: home to the Demon Realm, and the cave closes. */
+  leaveLair: () => void;
+  /** This raid's furthest checkpoint and solved obstacles (reset when the raid ends). */
+  lairProgress: import('../state/lairExpedition').LairProgress;
+  reachLairCheckpoint: (index: number) => void;
+  clearLairObstacle: (id: string) => void;
 
   // Auto-Enhance Prompts
   promptedUpgrades: Record<string, number>;

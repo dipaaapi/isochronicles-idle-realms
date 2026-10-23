@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isLoadComplete, loadFraction, useLoadProgress } from '../game/loadProgress';
-import { useTranslation } from '../i18n/translations';
+import { useTranslation, type TranslationKey } from '../i18n/translations';
+import type { ActiveLocation } from '../types/state';
+import LAIR from '../data/dragonsLair.json';
 
 /** Longest the screen may hold the realm back, in case a bake worker never answers. */
 const FAILSAFE_MS = 45000;
@@ -13,14 +15,23 @@ const TIP_KEYS = ['loadingTip1', 'loadingTip2', 'loadingTip3', 'loadingTip4'] as
  * structure art load in the background, then fades out. The canvas and HUD
  * mount underneath so their work happens behind this screen, not in play.
  */
-export function LoadingScreen() {
+export function LoadingScreen({ location = 'DEMON_REALM', returning = false }: { location?: ActiveLocation; returning?: boolean }) {
   const { t } = useTranslation();
   const progress = useLoadProgress();
-  const complete = isLoadComplete(progress);
-  const fraction = complete ? 1 : loadFraction(progress);
+  const inLair = location === 'DRAGONS_LAIR';
+  // The lair needs its scene and the character sheets (no structure art)
+  const chars = progress.tasks.characters;
+  const complete = inLair ? progress.sceneReady && chars.total > 0 && chars.done >= chars.total : isLoadComplete(progress);
+  const fraction = complete ? 1 : inLair
+    ? (progress.sceneReady ? 0.1 : 0) + 0.9 * (chars.total > 0 ? chars.done / chars.total : 0)
+    : loadFraction(progress);
   const [hidden, setHidden] = useState(false);
   const [fading, setFading] = useState(false);
-  const [tip] = useState(() => TIP_KEYS[Math.floor(Math.random() * TIP_KEYS.length)]);
+  const [tip] = useState(() => {
+    const keys: readonly string[] = inLair ? LAIR.loadingTips : TIP_KEYS;
+    return keys[Math.floor(Math.random() * keys.length)];
+  });
+  const title = inLair ? t('lairLoadingTitle') : returning ? t('realmReturnLoadingTitle') : t('loadingTitle');
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -39,11 +50,12 @@ export function LoadingScreen() {
   }, [complete, timedOut]);
 
   const step = useMemo(() => {
-    if (!progress.sceneReady) return t('loadingStepWorld');
+    if (!progress.sceneReady) return t(inLair ? 'lairLoadingStepCavern' : 'loadingStepWorld');
+    if (inLair) return chars.done < chars.total ? t('loadingStepCharacters') : t('loadingStepReady');
     if (progress.tasks.structures.done < progress.tasks.structures.total) return t('loadingStepStructures');
     if (progress.tasks.characters.done < progress.tasks.characters.total) return t('loadingStepCharacters');
     return t('loadingStepReady');
-  }, [progress, t]);
+  }, [progress, t, inLair, chars]);
 
   if (hidden) return null;
   const pct = Math.round(fraction * 100);
@@ -57,10 +69,10 @@ export function LoadingScreen() {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
-      aria-label={t('loadingTitle')}
+      aria-label={title}
     >
       <div className="w-full max-w-md px-4 pb-16 flex flex-col items-center gap-3 text-center">
-        <h2 className="text-lg font-bold tracking-widest uppercase text-purple-200">{t('loadingTitle')}</h2>
+        <h2 className="text-lg font-bold tracking-widest uppercase text-purple-200">{title}</h2>
         <div className="w-full h-3 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
           <div className="h-full bg-gradient-to-r from-purple-600 to-cyan-400 transition-[width] duration-300" style={{ width: `${pct}%` }} />
         </div>
@@ -68,7 +80,7 @@ export function LoadingScreen() {
           <span>{step}</span>
           <span>{pct}%</span>
         </div>
-        <p className="text-xs text-slate-400 italic mt-2">{t(tip)}</p>
+        <p className="text-xs text-slate-400 italic mt-2">{t(tip as TranslationKey)}</p>
       </div>
     </div>
   );

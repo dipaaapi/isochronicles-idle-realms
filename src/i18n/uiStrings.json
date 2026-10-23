@@ -1302,5 +1302,93 @@
   "settingsDifficultyCantAfford": {
     "en": "Not enough resources.",
     "tl": "Kulang ang yaman."
+  },
+  "lairLoadingTitle": {
+    "en": "Descending into the Dragon's Lair",
+    "tl": "Bumababa sa Pugad ng Dragon"
+  },
+  "lairLoadingStepCavern": {
+    "en": "Carving the cavern…",
+    "tl": "Inuukit ang yungib…"
+  },
+  "realmReturnLoadingTitle": {
+    "en": "Returning to the Demon Realm",
+    "tl": "Bumabalik sa Kaharian ng Demonyo"
+  },
+  "lairLoadingTip1": {
+    "en": "Only one location lives at a time: the Demon Realm waits, frozen, while you are in the lair.",
+    "tl": "Isang lugar lang ang buhay sa bawat sandali: nakahinto ang Kaharian ng Demonyo habang nasa pugad ka."
+  },
+  "lairLoadingTip2": {
+    "en": "The lair is a long, narrow route: ten tiles wide, eighty tiles deep.",
+    "tl": "Mahaba at makitid ang pugad: sampung tile ang lapad, walumpung tile ang lalim."
+  },
+  "lairLoadingTip3": {
+    "en": "No sun or moon reaches the lair. Its only light is magma, embers and fire.",
+    "tl": "Walang araw o buwan na umaabot sa pugad. Magma, baga at apoy lang ang ilaw dito."
+  },
+  "lairHudTitle": {
+    "en": "Dragon's Lair",
+    "tl": "Pugad ng Dragon"
+  },
+  "lairHudTest": {
+    "en": "All Generals and their minions push toward the Matriarch Chamber. Creatures and the Matriarch arrive in later phases.",
+    "tl": "Lahat ng General at kanilang mga alagad ay sumusulong patungo sa Silid ng Matriarka. Darating sa susunod na mga yugto ang mga nilalang at ang Matriarka."
+  },
+  "lairHudHint": {
+    "en": "Drag to pan, scroll to zoom.",
+    "tl": "I-drag para gumalaw, i-scroll para mag-zoom."
+  },
+  "lairReturn": {
+    "en": "Leave the Dragon Raid",
+    "tl": "Umalis sa Dragon Raid"
+  },
+  "lairEnterConfirm": {
+    "en": "Enter the Dragon's Lair? The Demon Realm pauses while you are inside. The cave closes when you leave the raid and reopens after the next 5th wave.",
+    "tl": "Pumasok sa Pugad ng Dragon? Hihinto ang Kaharian ng Demonyo habang nasa loob ka. Magsasara ang yungib pag-alis mo sa raid at bubukas ulit pagkatapos ng susunod na ika-5 alon."
+  },
+  "lairLeaveConfirm": {
+    "en": "Leave the dragon raid? The cave will seal until the next 5th wave.",
+    "tl": "Umalis sa dragon raid? Magsasara ang yungib hanggang sa susunod na ika-5 alon."
+  },
+  "lairHudRules": {
+    "en": "Inside the lair: no blessings, timed buffs or QWERTY powers, and the brawl + is gone for good. Research and runes still count.",
+    "tl": "Sa loob ng pugad: walang blessing, pansamantalang buff o QWERTY na kapangyarihan, at tuluyang nawala ang brawl +. Gumagana pa rin ang research at runes."
+  },
+  "lairHudRoute": {
+    "en": "Route",
+    "tl": "Ruta"
+  },
+  "lairHudParty": {
+    "en": "Party",
+    "tl": "Pangkat"
+  },
+  "lairHudRespawn": {
+    "en": "{n} returning in {s}s",
+    "tl": "{n} babalik sa loob ng {s}s"
+  },
+  "lairHudCheckpoint": {
+    "en": "Checkpoint",
+    "tl": "Checkpoint"
+  },
+  "lairHudAdvancing": {
+    "en": "Advancing…",
+    "tl": "Sumusulong…"
+  },
+  "lairHudHolding": {
+    "en": "Holding position",
+    "tl": "Nananatili sa puwesto"
+  },
+  "lairHudEnd": {
+    "en": "At the Matriarch Chamber's threshold",
+    "tl": "Nasa bungad ng Silid ng Matriarka"
+  },
+  "lairHudHold": {
+    "en": "Hold",
+    "tl": "Tumigil"
+  },
+  "lairHudAdvance": {
+    "en": "Advance",
+    "tl": "Sumulong"
   }
 }

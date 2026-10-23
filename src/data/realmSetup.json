@@ -4,7 +4,7 @@
     {
       "id": "CLASSIC", "icon": "🏰", "available": true,
       "name": { "en": "Classic Siege", "tl": "Klasikong Pagkubkob" },
-      "desc": { "en": "Invaders pour in from the four corner rifts to storm your citadel in the centre.", "tl": "Dumadagsa ang mga kalaban mula sa apat na lagusan sa sulok para salakayin ang kuta sa gitna." }
+      "desc": { "en": "Invaders pour in from three corner rifts to storm your citadel in the centre; the northern corner holds the Dragon Volcano.", "tl": "Dumadagsa ang mga kalaban mula sa tatlong lagusan sa sulok para salakayin ang kuta sa gitna; nasa hilagang sulok ang Bulkan ng Dragon." }
     },
     {
       "id": "DUEL", "icon": "⚔️", "available": false,

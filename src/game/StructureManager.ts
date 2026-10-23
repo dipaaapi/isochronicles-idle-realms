@@ -8,6 +8,7 @@ import {
   BUILDING_SITES,
   CASTLE_FOOTPRINT,
   PORTAL_SITES,
+  VOLCANO_SITE,
   SPIRE_FOOTPRINT,
   TileRect,
   expandRect,
@@ -37,7 +38,7 @@ import { isHacked } from './hackState';
 /** Tint of an establishment a Technician has turned. */
 const HACK_TINT = 0xf0abfc;
 import { createStructureSprite, hasStructureAnim, playStructureAnim, playStructureSequence, showStructureStage, structureHeadroom } from './sprites/StructureSprites';
-import { hitReaction } from './hitReaction';
+import { fixedHitFlash } from './hitReaction';
 
 export type StructureId = 'CASTLE' | TowerId;
 
@@ -337,25 +338,6 @@ export class StructureManager {
 
   // ── Damage ──────────────────────────────────────────────────────────────────
 
-  /** Local shudder effect for this structure only (no whole-game screen shake). */
-  private shakeContainer(view: StructureView, intensity: number = 3): void {
-    const container = view.container;
-    this.scene.tweens.killTweensOf(container);
-    container.setPosition(view.x, view.y);
-
-    this.scene.tweens.add({
-      targets: container,
-      x: view.x + (Math.random() > 0.5 ? intensity : -intensity),
-      y: view.y + (Math.random() > 0.5 ? intensity : -intensity),
-      duration: 35,
-      yoyo: true,
-      repeat: 3,
-      onComplete: () => {
-        if (container.active) container.setPosition(view.x, view.y);
-      },
-    });
-  }
-
   /** Applies invader damage to a structure; returns false if it was already down. */
   damage(target: StructureTarget, amount: number): boolean {
     const store = useGameStore.getState();
@@ -366,7 +348,6 @@ export class StructureManager {
       logMessage('castleDamage', {}, { mergeKey: 'castle-dmg', amount });
       if (view) {
         this.flash(view);
-        this.shakeContainer(view, 4);
         if (Math.random() < 0.5) this.debris(view, 4);
       }
       return true;
@@ -388,7 +369,6 @@ export class StructureManager {
       logMessage('buildingHit', { building: name }, { mergeKey: `bhit:${target.id}`, amount: 0, icon: '🛡️' });
       if (view) {
         this.flash(view);
-        this.shakeContainer(view, 2);
       }
       return true;
     }
@@ -403,7 +383,6 @@ export class StructureManager {
       soundFx.playExplosion();
       if (view) {
         this.flash(view);
-        this.shakeContainer(view, 6);
         this.debris(view, 18);
       }
       return true;
@@ -411,7 +390,6 @@ export class StructureManager {
 
     if (view) {
       this.flash(view);
-      this.shakeContainer(view, 3);
       if (Math.random() < 0.5) this.debris(view, 4);
     }
     return true;
@@ -448,10 +426,8 @@ export class StructureManager {
   private flash(view: StructureView): void {
     const sprite = view.sprite;
     if (!sprite) return;
-    hitReaction(this.scene, sprite, {
-      knock: 1.5,
-      restoreTint: () => (isHacked(view.id) ? sprite.setTint(HACK_TINT) : sprite.clearTint()),
-    });
+    // Tint-only: structures never leave their tile anchor on a hit
+    fixedHitFlash(this.scene, sprite, () => (isHacked(view.id) ? sprite.setTint(HACK_TINT) : sprite.clearTint()));
   }
 
   /** Idle look for the current HP: scorched and smouldering below half. */
@@ -855,7 +831,7 @@ export class StructureManager {
   /** Built structures (plus the spire and portal pads) are solid for every walker. */
   private syncSolids(): void {
     const store = useGameStore.getState();
-    const solids: SolidArea[] = [{ id: 'SPIRE', rect: SPIRE_FOOTPRINT }];
+    const solids: SolidArea[] = [{ id: 'SPIRE', rect: SPIRE_FOOTPRINT }, { id: VOLCANO_SITE.id, rect: { ...VOLCANO_SITE.footprint } }];
     for (const portal of PORTAL_SITES) {
       solids.push({ id: `PORTAL_${portal.id}`, rect: { ...portal.footprint } });
       // Rift Sentinel tower tiles are solid too (minions strike them from the side)

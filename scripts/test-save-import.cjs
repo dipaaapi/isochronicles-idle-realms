@@ -44,4 +44,7 @@ for (let i = 0; i < 20; i += 1) cursor = cursor.next = {};
 const bounded = sanitizeSavePayload(deeplyNested, true);
 assert.ok(bounded && bounded.upgrades, 'deep input is bounded without rejecting the whole save');
 
+const located = sanitizeSavePayload({ resources: {}, activeLocation: 'DRAGONS_LAIR' }, true);
+assert.equal(located.activeLocation, 'DRAGONS_LAIR', 'the active location survives export/import');
+
 console.log('save import boundary: size, shape, collection and prototype checks — ok');

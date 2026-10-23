@@ -13,7 +13,7 @@ import { soundFx } from './audio/soundFx';
 import { RiftWorks, type RiftJob } from './riftWorks';
 import { RiftMist } from './riftMist';
 import { STRUCTURE_PIXEL, createStructureSprite, hasStructureAnim, isStructureReady, playStructureAnim, playStructureSequence, structureHeadroom } from './sprites/StructureSprites';
-import { hitReaction } from './hitReaction';
+import { fixedHitFlash } from './hitReaction';
 import {
   PORTAL_DEFENSE, PortalSkillId, RiftEnv, portalSkillName, riftBoltDamage, riftDamageScale, riftEnv,
   riftLashDamage, sentinelBounty, sentinelDamage, sentinelMaxHp, surgeDamage,
@@ -465,7 +465,7 @@ export class PortalDefenseSystem {
     if (s.portal.wardTimer > 0) damage *= CFG.skills.warpWard.damageTaken;
     s.hp -= damage;
     this.drawHp(s);
-    if (s.sprite) hitReaction(this.scene, s.sprite, { knock: 1.5 });
+    if (s.sprite) fixedHitFlash(this.scene, s.sprite);
     soundFx.playWallBang();
     if (s.hp <= 0) this.topple(s, true);
   }

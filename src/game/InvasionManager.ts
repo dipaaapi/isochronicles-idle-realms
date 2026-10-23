@@ -29,7 +29,7 @@ import { BRAWL_CONFIG, MIRROR_TINT, brawlLevelOf, generalStatsOf, mirrorChance }
 import type { UnitRosterItem } from '../types/state';
 import { createEnemySprite, enemySpriteHeadroom, faceEnemySprite, playEnemyAttack } from './sprites/CharacterSprites';
 import { applyLocomotion, locomotionOf } from './locomotion';
-import { Navigation, TILES_FOR } from './Navigation';
+import { Navigation, TILES_FOR, type MoveMode } from './Navigation';
 import { invaderMoveMode } from './terrain';
 import { TECHNICIANS, chooseHackTarget, escortType, escortsFor, hackSeconds, hackersForWave } from './invaders/hacking';
 import { clearHacks, hackedIds, setHacked } from './hackState';
@@ -1543,6 +1543,11 @@ export class InvasionManager {
 
   /** Called whenever an invader dies (Necromancer reanimation, Corpse Explosion). */
   public onInvaderKilled?: (invader: ActiveInvader) => void;
+
+  /** Clamps a skill dash/leap destination onto walkable platform for this mover (no-op without a nav grid). */
+  public keepOnPlatform(x: number, y: number, mode: MoveMode = 'land'): { x: number; y: number } {
+    return this.nav ? this.nav.pushOut(x, y, 0.2, mode) : { x, y };
+  }
 
   /** Pushes an invader `distance` px away from a point, staying off solid tiles. */
   public knockback(invader: ActiveInvader, fromX: number, fromY: number, distance: number): void {

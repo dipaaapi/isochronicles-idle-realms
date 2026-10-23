@@ -118,6 +118,7 @@ export const DevPanel: React.FC = () => {
             <button type="button" className={btn} onClick={() => game.startInvasion()} disabled={inv.isActive}>Start now</button>
             <button type="button" className={btn} onClick={() => devBridge.invasion?.devKillAll()}>Kill all invaders</button>
             <button type="button" className={btn} onClick={() => devBridge.kirov?.launch()}>Send Kirov airship</button>
+            <button type="button" className={btn} onClick={() => useGameStore.setState({ lairOpen: true })}>Open volcano cave</button>
             <button type="button" className={btn} onClick={() => jumpToWave(inv.waveNumber + 1)} disabled={inv.isActive}>Wave +1</button>
             <button type="button" className={btn} onClick={() => jumpToWave(inv.waveNumber + 5)} disabled={inv.isActive}>Wave +5</button>
           </div>

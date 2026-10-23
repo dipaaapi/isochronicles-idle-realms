@@ -46,6 +46,7 @@ import { DefenderSystem } from './DefenderSystem';
 import { SkillSystem } from './skills/SkillSystem';
 import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_CLIFF, WALK_WATER } from './Navigation';
 import { StructureManager } from './StructureManager';
+import { VolcanoLandmark } from './scene/volcano';
 import { PortalManager } from './PortalManager';
 import { ForceFieldSystem } from './ForceFieldSystem';
 import { LiveFocusCamera } from './scene/liveFocusCamera';
@@ -68,6 +69,7 @@ import {
   ROAD_TILES,
   isBridgeTile,
   isPortalTile,
+  isVolcanoTile,
   isRiftTowerTile,
   isCanalTile,
   isWaterTile,
@@ -148,6 +150,7 @@ export class MainScene extends Phaser.Scene {
   private nav!: Navigation;
   private structures!: StructureManager;
   private portals!: PortalManager;
+  private volcano!: VolcanoLandmark;
   private towers!: TowerSystem;
   private portalDefense!: PortalDefenseSystem;
   private waterFx?: WaterFx;
@@ -289,6 +292,7 @@ export class MainScene extends Phaser.Scene {
     this.initPathfinding();
     this.structures = new StructureManager(this, this.entityLayer, this.groundFxLayer, this.nav);
     this.portals = new PortalManager(this, this.entityLayer);
+    this.volcano = new VolcanoLandmark(this, this.entityLayer);
 
     // 6. Initialize Worker Automaton Manager (minions live in the entity layer)
     this.workerManager = new WorkerManager(
@@ -566,7 +570,10 @@ export class MainScene extends Phaser.Scene {
         let type: TileType = 'AETHER_GRASS';
         let walkable = true;
 
-        if (isPortalTile(x, y)) {
+        if (isVolcanoTile(x, y)) {
+          type = 'ANCIENT_STONE'; // volcano base (the mountain is drawn by VolcanoLandmark)
+          walkable = false;
+        } else if (isPortalTile(x, y)) {
           type = 'SPAWN_BLOCK'; // the 2Ã—2 rift dais
         } else if (isRiftTowerTile(x, y)) {
           type = 'ANCIENT_STONE'; // Rift Sentinel plinths
@@ -970,7 +977,7 @@ export class MainScene extends Phaser.Scene {
       const x = center.x + dx, y = center.y + dy;
       const a = Math.atan2(dy, dx);
       const edge = radius * (0.75 + 0.25 * Math.sin(a * 3 + seed) + 0.12 * Math.sin(a * 5 - seed * 2));
-      if (Math.hypot(dx, dy) > edge || isProtectedTile(x, y) || isPortalTile(x, y)) continue;
+      if (Math.hypot(dx, dy) > edge || isProtectedTile(x, y) || isPortalTile(x, y) || isVolcanoTile(x, y)) continue;
       const k = `${x},${y}`;
       if (isFillableTile(x, y)) carve.filled.push(k);
       else if (!isLandTile(x, y) || s.terrainRaised[k] !== undefined || s.terrainFlooding.includes(k)) continue;
@@ -1591,6 +1598,11 @@ export class MainScene extends Phaser.Scene {
       if (dragDist < 10 && this.structures) {
         const localX = pointer.worldX - this.islandContainer.x;
         const localY = pointer.worldY - this.islandContainer.y;
+        // The volcano's cave: the UI confirms before the expedition leaves (App listens)
+        if (this.volcano.contains(localX, localY)) {
+          window.dispatchEvent(new CustomEvent('isochronicle:lair-cave'));
+          return;
+        }
         const structureId = this.structures.getStructureAt(localX, localY);
         if (structureId) {
           useGameStore.getState().openEstablishmentModal(structureId);
@@ -1737,6 +1749,7 @@ export class MainScene extends Phaser.Scene {
 
     this.structures.update(effectiveDelta);
     this.portals.update(effectiveDelta);
+    this.volcano.update(delta);
     this.forageNodes?.update(effectiveDelta);
     this.forceFields?.update(effectiveDelta);
     this.liveFocus?.update(effectiveDelta);

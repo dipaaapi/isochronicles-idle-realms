@@ -17,6 +17,9 @@ import { GameCursor } from './ui/GameCursor';
 import { loadLegacy } from './state/legacy';
 import { PhaserGame } from './game/PhaserGame';
 import { LoadingScreen } from './ui/LoadingScreen';
+import { LairHud } from './ui/LairHud';
+import { gameConfirm } from './ui/GameDialog';
+import { t as translate } from './i18n/translations';
 import { BiomeFrame } from './ui/BiomeFrame';
 import { BattleStatusHud } from './ui/BattleStatusHud';
 import { EstablishmentModal } from './ui/EstablishmentModal';
@@ -28,6 +31,11 @@ import { startActivityWatcher } from './state/activityWatcher';
 
 export const App: React.FC = () => {
   const difficulty = useGameStore((s) => s.difficulty);
+  const activeLocation = useGameStore((s) => s.activeLocation);
+  const inLair = activeLocation === 'DRAGONS_LAIR';
+  // Set once the player has left the realm this session, so coming home says "Returning"
+  const [hasTravelled, setHasTravelled] = useState(false);
+  useEffect(() => { if (inLair) setHasTravelled(true); }, [inLair]);
   const {
     screen,
     layoutSeed,
@@ -55,6 +63,17 @@ export const App: React.FC = () => {
     }
   }, [screen]);
 
+  // Clicking the volcano: confirm, then enter the Dragon's Lair (enterLair logs why it can't)
+  useEffect(() => {
+    const onCave = async () => {
+      const s = useGameStore.getState();
+      if (!s.lairOpen || s.invasion.isActive) { s.enterLair(); return; }
+      if (await gameConfirm(translate('lairEnterConfirm', s.language))) useGameStore.getState().enterLair();
+    };
+    window.addEventListener('isochronicle:lair-cave', onCave);
+    return () => window.removeEventListener('isochronicle:lair-cave', onCave);
+  }, []);
+
   // Narrate realm events into the activity log tray
   useEffect(() => startActivityWatcher(), []);
 
@@ -76,7 +95,8 @@ export const App: React.FC = () => {
 
   // Process offline progression when entering game simulation
   useEffect(() => {
-    if (screen === 'GAME') {
+    // Demon Realm time is paused while the lair is active, so no idle payout there
+    if (screen === 'GAME' && useGameStore.getState().activeLocation === 'DEMON_REALM') {
       checkOfflineProgress();
     }
   }, [screen, checkOfflineProgress]);
@@ -121,14 +141,17 @@ export const App: React.FC = () => {
       {screen === 'GAME' && (
         <div className="flex w-full h-full overflow-hidden">
           {/* Covers canvas + HUD while the scene and baked art load behind it */}
-          <LoadingScreen key={`load-${layoutSeed}`} />
+          <LoadingScreen key={`load-${layoutSeed}-${activeLocation}`} location={activeLocation} returning={hasTravelled && !inLair} />
           {/* Main Game Screen (Phaser Canvas) */}
           <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
-            <PhaserGame key={layoutSeed} />
-            {/* Frame around the map only, in the biome's style; status + difficulty at its lower right */}
-            <BiomeFrame />
-            <BattleStatusHud onOpenSettings={() => setIsSettingsOpen(true)} />
-            <LiveStreamOverlay />
+            {/* Keyed on the location too: switching disposes one world and boots the other */}
+            <PhaserGame key={`${layoutSeed}-${activeLocation}`} location={activeLocation} />
+            {inLair ? <LairHud /> : <>
+              {/* Frame around the map only, in the biome's style; status + difficulty at its lower right */}
+              <BiomeFrame />
+              <BattleStatusHud onOpenSettings={() => setIsSettingsOpen(true)} />
+              <LiveStreamOverlay />
+            </>}
             <ActivityLogTray />
             {DEV_TOOLS && <DevPanel />}
             <MusicPlayer placement="FLOAT" />
@@ -136,8 +159,8 @@ export const App: React.FC = () => {
             <MusicPlayerHost />
           </div>
 
-          {/* Dedicated Right Sidebar HUD */}
-          <GameHUD
+          {/* Dedicated Right Sidebar HUD (Demon Realm only: its actions drive that world) */}
+          {!inLair && <GameHUD
             onOpenCitadel={(tab) => setCitadelTab(tab || 'MINIONS')}
             onOpenAtlas={(section = 'GUIDE') => {
               setAtlasInitialSection(section);
@@ -150,7 +173,7 @@ export const App: React.FC = () => {
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenSkillTree={() => setCitadelTab('SKILLS')}
             onOpenQuickTrade={(res) => setQuickTradeResource(res)}
-          />
+          />}
 
           {/* Modal & Popover Layers */}
           <WelcomeBackModal />

@@ -1,3 +1,4 @@
+import { freshLairProgress } from '../lairExpedition';
 import { NODE_SPOTS, applyLayoutSeed, coastForSeed, getCoastStyle, newLayoutSeed, setCoastStyle, type BuildingPositions, type CoastStyle } from '../buildingLayout';
 import { emptyRuneSlots } from '../runes';
 import { ECONOMY_CONFIG } from '../economy';
@@ -249,6 +250,9 @@ export const createInitialProgress = () => {
     pendingBattleEffects: [] as import('../../types/state').BattleEffect[],
     platformPhase: 1 as const,
     realmChoice: null as PlatformPhase | null,
+    activeLocation: 'DEMON_REALM' as import('../../types/state').ActiveLocation,
+    lairOpen: false,
+    lairProgress: freshLairProgress(),
 
     // Silhouette Discovery: Starting beasts are pre-discovered
     discoveredBeasts: ['DRYAD', 'MINOTAUR'] as UnitClass[],

@@ -16,7 +16,7 @@ function load(file) {
   }).outputText, {
     exports, console, localStorage: { getItem: () => null, setItem() {} },
     require(name) {
-      if (name === 'phaser') return { default: { Math: { Clamp: (n, min, max) => Math.max(min, Math.min(max, n)) } } };
+      if (name === 'phaser') return { default: { Math: { Clamp: (n, min, max) => Math.max(min, Math.min(max, n)) }, Geom: { Point: class { constructor(x, y) { this.x = x; this.y = y; } } } } };
       if (name === 'zustand/middleware') return { persist: (fn) => fn, createJSONStorage() {} };
       if (name.includes('soundFx')) return { soundFx: new Proxy({}, { get: () => () => {} }) };
       if (name.includes('storageAdapter')) {
@@ -186,6 +186,87 @@ assert.equal(state().targetFps, 30);
 assert.ok(state().lastSavedTimestamp > 0, 'reset must not award old offline progress');
 assert.ok(state().layoutSeed > 0 && state().layoutSeed !== 99, 'reset rolls a new establishment layout');
 console.log('Full realm reset checks passed.');
+
+// Dragon's Lair cave: opens on every 5th repelled wave, closes only when the raid is left
+{
+  const { VOLCANO_SITE, PORTAL_SITES, isWaterTile } = load('src/state/buildingLayout.ts');
+  assert.equal(PORTAL_SITES.length, 3, 'three invasion rifts remain');
+  assert.ok(!PORTAL_SITES.some((p) => p.id === 'NORTH'), 'the North Rift became the volcano');
+  assert.deepEqual(VOLCANO_SITE.tile, { x: 0, y: 0 });
+  assert.equal(isWaterTile(1, 1), false, 'the volcano corner is not ocean');
+  store.setState({ lairOpen: false, activeLocation: 'DEMON_REALM', invasion: { ...state().invasion, isActive: true, waveNumber: 4 } });
+  state().resolveInvasionVictory(0);
+  assert.equal(state().lairOpen, false, 'wave 4 keeps the cave sealed');
+  assert.equal(state().enterLair(), false, 'a sealed cave cannot be entered');
+  store.setState({ invasion: { ...state().invasion, isActive: true } });
+  state().resolveInvasionVictory(0);
+  assert.equal(state().lairOpen, true, 'repelling wave 5 opens the cave');
+  store.setState({ invasion: { ...state().invasion, isActive: true } });
+  state().resolveInvasionVictory(0);
+  assert.equal(state().lairOpen, true, 'no timer: the cave stays open through later waves');
+  store.setState({ invasion: { ...state().invasion, isActive: true } });
+  assert.equal(state().enterLair(), false, 'no entry during a wave');
+  store.setState({ invasion: { ...state().invasion, isActive: false } });
+  assert.equal(state().enterLair(), false, 'no General, no expedition');
+  const slime = state().roster.find((u) => u.unitClass !== 'MINOTAUR');
+  store.setState({ roster: [
+    ...state().roster,
+    { id: 'gen_minotaur', name: 'Minotaur 1', unitClass: 'MINOTAUR', assignedTask: 'IDLE', brawlLevel: 3, brawlAttack: 40, brawlHp: 200 },
+    { id: 'tenant_x', name: 'Minotaur', unitClass: 'MINOTAUR', assignedTask: 'IDLE' },
+  ] });
+  const lair = load('src/state/lairExpedition.ts');
+  assert.equal(JSON.stringify(lair.lairPartyOf(state().roster).map((u) => u.id)), JSON.stringify(['gen_minotaur']), 'Generals go; Slime, Treant and tenants stay');
+  assert.equal(lair.lairFighters(state()).length, 1 + lair.PARTY.minionsPerGeneral, 'each General brings its minions');
+  assert.equal(state().enterLair(), true);
+  assert.equal(state().activeLocation, 'DRAGONS_LAIR');
+  const minotaur = state().roster.find((u) => u.id === 'gen_minotaur');
+  assert.equal(minotaur.brawlLevel, 0, 'entry wipes the brawl + for good');
+  assert.equal(minotaur.brawlAttack, 0);
+  assert.equal(minotaur.brawlHp, 0);
+  assert.ok(slime, 'the Slime is still home');
+  // Checkpoints and obstacles
+  state().reachLairCheckpoint(2);
+  state().reachLairCheckpoint(1);
+  assert.equal(state().lairProgress.checkpoint, 2, 'checkpoints only move forward');
+  state().clearLairObstacle('BRIDGE_A');
+  state().clearLairObstacle('ROCKFALL_GALLERY_A');
+  assert.equal(JSON.stringify(state().lairProgress.cleared), JSON.stringify(['BRIDGE_A']), 'only bridges and gates stay solved');
+  assert.equal(JSON.stringify(lair.normalizeLairProgress({ checkpoint: 99, cleared: ['NOPE', 'GOLEM_GATE', 'GOLEM_GATE'] })), JSON.stringify({ checkpoint: lair.CHECKPOINTS.length - 1, cleared: ['GOLEM_GATE'] }));
+  // Route sanity: with every bridge and gate solved, the static route is passable end to end
+  const all = [...lair.CLEARABLE];
+  const { nextStep } = load('src/game/lair/lairNav.ts');
+  let pos = { x: 4, y: 0 };
+  for (let i = 0; i < 400 && pos.y < lair.LAIR_CONFIG.route.stopY; i++) {
+    const n = nextStep(pos.x, pos.y, 4, lair.LAIR_CONFIG.route.stopY, (x, y) => lair.isStaticBlocked(x, y, all));
+    assert.ok(n, `route blocked at ${pos.x},${pos.y}`);
+    pos = n;
+  }
+  assert.equal(lair.blockingRow([]), 32, 'the first broken bridge holds the party');
+  assert.equal(lair.blockingRow(all), lair.LAIR_CONFIG.route.stopY);
+  // Headless expedition: a fake scene, then simulated time until the party stands at the chamber
+  store.setState({
+    lairProgress: { checkpoint: 0, cleared: [] },
+    // The full party: every General (42 members with minions) must still get through the narrow bridges
+    roster: [...state().roster, ...['GOLEM', 'LAVA_GARGOYLE', 'SUCCUBUS', 'MERMAN', 'NECROMANCER', 'KRAKEN', 'DEMON_HOUND', 'HARPY', 'DRYAD', 'EMBER_IMP', 'VOID_WRAITH', 'BONE_KNIGHT', 'PRISM_WARDEN']
+      .map((c, i) => ({ id: `gen_${i}`, name: c, unitClass: c, assignedTask: 'IDLE' }))],
+  });
+  const chain = () => new Proxy(function () {}, { get: (_, k) => (k === 'x' || k === 'y' || k === 'scaleX' ? 0 : chain()), apply: () => chain() });
+  const fakeScene = { add: chain() };
+  const { LairExpedition } = load('src/game/lair/LairExpedition.ts');
+  const { useLairHud } = load('src/game/lair/lairHud.ts');
+  const expedition = new LairExpedition(fakeScene);
+  let simSeconds = 0;
+  while (useLairHud.getState().holdingAt !== 'END' && simSeconds < 1500) { expedition.update(100); simSeconds += 0.1; }
+  assert.equal(useLairHud.getState().holdingAt, 'END', `the party reaches the chamber (front ${useLairHud.getState().frontY.toFixed(1)}, cleared ${state().lairProgress.cleared})`);
+  assert.equal(state().lairProgress.checkpoint, lair.regionIndexAt(lair.LAIR_CONFIG.route.stopY - 1), 'every checkpoint on the way is saved');
+  assert.equal(JSON.stringify([...state().lairProgress.cleared].sort()), JSON.stringify([...lair.CLEARABLE].sort()), 'bridges repaired and the gate broken');
+  console.log(`  expedition sim: chamber reached in ${Math.round(simSeconds)}s with ${lair.lairFighters(state()).length} members`);
+  state().leaveLair();
+  assert.equal(state().activeLocation, 'DEMON_REALM');
+  assert.equal(state().lairOpen, false, 'leaving the raid seals the cave');
+  assert.equal(state().lairProgress.checkpoint, 0, 'leaving the raid resets its progress');
+  console.log("Dragon's Lair cave checks passed.");
+}
 
 // Store refactor regressions: late-game resources, Treant links, breach roster, skill trigger.
 state().resetRealm();

@@ -3,6 +3,7 @@ import { UNIT_CLASSES } from '../../types/game';
 import Phaser from 'phaser';
 import { IsometricHelper } from '../IsometricHelper';
 import { Navigation } from '../Navigation';
+import { invaderMoveMode, minionMoveMode } from '../terrain';
 import type { InvasionManager } from '../InvasionManager';
 import type { ActiveInvader } from '../invaders/types';
 import type { WorkerManager } from '../WorkerManager';
@@ -337,7 +338,7 @@ export class SkillSystem {
         }
         if (target && this.ready(key1, 8)) {
           const tx = target.container.x - 14, ty = target.container.y + 6;
-          const pos = {x: tx, y: ty};
+          const pos = this.invasion.keepOnPlatform(tx, ty, minionMoveMode(w.unitClass));
           this.scene.tweens.add({ targets: w.container, x: pos.x, y: pos.y, duration: 220, ease: 'Quad.easeOut' });
           this.invasion.damageInvader(target, atk, 'BURN');
           this.invasion.applyBurn(target, Math.max(2, Math.round(target.maxHp * 0.05)), 4);
@@ -381,7 +382,7 @@ export class SkillSystem {
            return;
         }
         if (target && this.ready(key1, 16)) {
-          const at = { x: target.container.x, y: target.container.y };
+          const at = this.invasion.keepOnPlatform(target.container.x, target.container.y + 4, minionMoveMode(w.unitClass));
           this.scene.tweens.add({ targets: w.container, x: at.x, y: at.y - 4, duration: 420, ease: 'Cubic.easeIn' });
           this.scene.time.delayedCall(420, () => {
             for (const o of this.invasion.getInvaders()) {
@@ -456,7 +457,8 @@ export class SkillSystem {
           return;
         }
         if (target && this.ready(key1, 13)) {
-          this.scene.tweens.add({ targets: w.container, x: target.container.x - 12, y: target.container.y + 6, duration: 240, ease: 'Quad.easeIn' });
+          const gore = this.invasion.keepOnPlatform(target.container.x - 12, target.container.y + 6, minionMoveMode(w.unitClass));
+          this.scene.tweens.add({ targets: w.container, x: gore.x, y: gore.y, duration: 240, ease: 'Quad.easeIn' });
           this.invasion.damageInvader(target, atk * 3, 'GORE');
           this.invasion.knockback(target, w.container.x, w.container.y, TILE_PX * 2);
           this.shout(w, 'Gore Charge');
@@ -652,7 +654,7 @@ export class SkillSystem {
         if (trySkill2 && targets(2).length > 0 && this.ready(key2, 15)) {
           const nx = inv.container.x + (Math.random() - 0.5) * 100;
           const ny = inv.container.y + (Math.random() - 0.5) * 100;
-          const pos = {x: nx, y: ny};
+          const pos = this.invasion.keepOnPlatform(nx, ny, invaderMoveMode(inv.type));
           this.scene.tweens.add({ targets: inv.container, x: pos.x, y: pos.y, duration: 200 });
           this.shoutAt(inv.container, 'Evasive Maneuver', '#fca5a5');
           return;
@@ -704,7 +706,7 @@ export class SkillSystem {
            return;
         }
         if (target && this.ready(key1, 12)) {
-          const behind = { x: target.container.x + 12, y: target.container.y - 6 };
+          const behind = this.invasion.keepOnPlatform(target.container.x + 12, target.container.y - 6, invaderMoveMode(inv.type));
           const pos = behind;
           inv.container.setAlpha(0.2);
           this.scene.tweens.add({ targets: inv.container, x: pos.x, y: pos.y, alpha: 1, duration: 260 });

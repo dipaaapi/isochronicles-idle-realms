@@ -1,4 +1,5 @@
 import { waveAchievements } from '../achievements';
+import LAIR from '../../data/dragonsLair.json';
 import { DIFFICULTIES, normalizeDifficulty } from '../difficulty';
 import { soundFx } from '../../game/audio/soundFx';
 import { isConstructionReady } from '../constructionProgress';
@@ -206,6 +207,12 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
     );
     for (const a of waveAchievements(get().invasion.invasionsRepelled)) {
       get().unlockAchievement(a.id, a.en.title, a.en.desc, a.icon);
+    }
+    // Every 5th repelled wave the volcano's cave opens; it stays open until the dragon raid ends
+    const cleared = get().invasion.waveNumber - 1;
+    if (!get().lairOpen && cleared > 0 && cleared % LAIR.cave.everyWaves === 0) {
+      set({ lairOpen: true });
+      logMessage('lairOpened', { wave: cleared });
     }
     // Autosave: the save is overwritten after every repelled wave
     void saveNow().then(() => logMessage('autoSaved', { wave: get().invasion.invasionsRepelled }));

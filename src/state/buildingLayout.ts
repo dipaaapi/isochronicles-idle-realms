@@ -120,6 +120,16 @@ export const PORTAL_SITES: PortalSite[] = layout.portals.map((p) => {
     zone: rectFrom(z.size),
   };
 });
+/** The northern volcano (Dragon's Lair entrance) that replaced the North Rift: solid corner footprint, reserved zone, cave mouth tile. */
+export const VOLCANO_SITE = (() => {
+  const v = layout.volcano;
+  const rect = (n: number): TileRect => ({ x: v.tile.x, y: v.tile.y, w: n, h: n });
+  return { id: v.id, name: v.name, tile: v.tile, footprint: rect(v.footprintSize), zone: rect(v.zoneSize), mouth: v.mouth };
+})();
+export const isVolcanoTile = (x: number, y: number): boolean => rectContainsTile(VOLCANO_SITE.footprint, x, y);
+/** Every corner zone nothing may be built in or drowned: the rifts' and the volcano's. */
+const RESERVED_ZONES: TileRect[] = [...PORTAL_SITES.map((p) => p.zone), VOLCANO_SITE.zone];
+
 /** Visual scale of a rift sprite filling its 2×2 footprint. */
 export const PORTAL_SCALE: number = layout.portalZone.portalScale;
 export const isPortalTile = (x: number, y: number): boolean => PORTAL_SITES.some((p) => rectContainsTile(p.footprint, x, y));
@@ -187,7 +197,7 @@ export function carveCoast(seed: number, style: CoastStyle = activeCoast, shrink
   const cfg = { ...base, maxDepth: Math.round(base.maxDepth * shrink), maxShare: base.maxShare * shrink };
   if (cfg.maxDepth <= 0) return;
   const rand = seededRandom((seed ^ 0x5eedc0a5) >>> 0);
-  const keep = [expandRect(CASTLE_FOOTPRINT, cfg.keepCastle), ...PORTAL_SITES.map((p) => expandRect(p.zone, cfg.keepRift))];
+  const keep = [expandRect(CASTLE_FOOTPRINT, cfg.keepCastle), ...RESERVED_ZONES.map((z) => expandRect(z, cfg.keepRift))];
   const kept = (x: number, y: number) => keep.some((r) => rectContainsTile(r, x, y));
   const last = GRID_SIZE - 1;
   const sides = Array.from({ length: 4 }, () => ({
@@ -216,7 +226,7 @@ export function carveCoast(seed: number, style: CoastStyle = activeCoast, shrink
   for (let pass = 0; pass < cfg.smoothPasses; pass++) {
     const drown: string[] = [];
     for (let y = 1; y < last; y++) for (let x = 1; x < last; x++) {
-      if (wet(x, y) || kept(x, y) || isPortalTile(x, y)) continue;
+      if (wet(x, y) || kept(x, y) || isPortalTile(x, y) || isVolcanoTile(x, y)) continue;
       const sides = +wet(x + 1, y) + +wet(x - 1, y) + +wet(x, y + 1) + +wet(x, y - 1);
       if (sides >= 3) drown.push(`${x},${y}`);
     }
@@ -267,7 +277,7 @@ export const isLandTile = (x: number, y: number): boolean =>
 /** Ocean ring (minus the corner rifts), its coves and canal tiles. */
 export const isWaterTile = (x: number, y: number): boolean => {
   if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return false;
-  if (isPortalTile(x, y)) return false;
+  if (isPortalTile(x, y) || isVolcanoTile(x, y)) return false;
   if (FILLED_KEYS.has(`${x},${y}`)) return false;
   return x === 0 || y === 0 || x === GRID_SIZE - 1 || y === GRID_SIZE - 1 || isCanalTile(x, y) || isCoveTile(x, y) || FLOODED_KEYS.has(`${x},${y}`);
 };
@@ -398,7 +408,7 @@ function tryLayout(
     block(expandRect(SPIRE_FOOTPRINT, gap));
     block(expandRect({ ...SPIRE_WORK_SPOT, w: 1, h: 1 }, 1));
     // Each rift's 4×4 invasion zone stays clear
-    for (const portal of PORTAL_SITES) block(portal.zone);
+    for (const zone of RESERVED_ZONES) block(zone);
     return { blocked, block };
   };
 
@@ -564,7 +574,7 @@ function tryLayout(
 export function randomSpireSpot(seed: number): GridPoint {
   const { w, h } = layout.spire.footprint;
   const random = seededRandom((seed ^ 0x5f1e3d) >>> 0);
-  const blocked = [expandRect(CASTLE_FOOTPRINT, 2), ...PORTAL_SITES.map((p) => expandRect(p.zone, 1))];
+  const blocked = [expandRect(CASTLE_FOOTPRINT, 2), ...RESERVED_ZONES.map((z) => expandRect(z, 1))];
   const hits = (r: TileRect, x: number, y: number) => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y;
   const candidates: GridPoint[] = [];
   for (let y = 3; y <= GRID_SIZE - 4 - (h - 1); y++) {
@@ -628,7 +638,7 @@ function placeLayout(seed: number, positions: BuildingPositions): void {
     const rect: TileRect = { x: p.x, y: p.y, w: size.w, h: size.h };
     const hits = (o: TileRect) => rect.x < o.x + o.w && rect.x + rect.w > o.x && rect.y < o.y + o.h && rect.y + rect.h > o.y;
     for (let y = p.y; y < p.y + size.h; y++) for (let x = p.x; x < p.x + size.w; x++) if (!isLandTile(x, y)) return true;
-    return PORTAL_SITES.some((ps) => hits(ps.zone)) || hits(expandRect(CASTLE_FOOTPRINT, 1));
+    return RESERVED_ZONES.some((z) => hits(z)) || hits(expandRect(CASTLE_FOOTPRINT, 1));
   };
   positions = Object.fromEntries(Object.entries(positions).filter(([id, p]) => p && !overCanal(id as MovableId, p))) as BuildingPositions;
   // The spire moves first so establishments are placed (and roads routed) around it
@@ -695,12 +705,12 @@ export const NODE_SPOTS = {
 /**
  * Tiles the living terrain may never change: the citadel and its ring road,
  * the spire, every establishment footprint and work spot, roads and bridges,
- * the rift zones, and a margin around the castle.
+ * the rift and volcano zones, and a margin around the castle.
  */
 export function isProtectedTile(x: number, y: number): boolean {
   if (rectContainsTile(expandRect(CASTLE_FOOTPRINT, 2), x, y)) return true;
   if (rectContainsTile(expandRect(SPIRE_FOOTPRINT, 1), x, y)) return true;
-  if (PORTAL_SITES.some((p) => rectContainsTile(expandRect(p.zone, 1), x, y))) return true;
+  if (RESERVED_ZONES.some((z) => rectContainsTile(expandRect(z, 1), x, y))) return true;
   for (const id of BUILDING_IDS) {
     const site = BUILDING_SITES[id];
     if (rectContainsTile(expandRect(site.footprint, 1), x, y)) return true;

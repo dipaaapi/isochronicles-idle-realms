@@ -13,6 +13,7 @@ import { sanitizeSavePayload, isPlainRecord } from '../saveValidation';
 import { TASK_CONFIG } from '../../data/tasks';
 import { achievementDef } from '../achievements';
 import { WAVE_TACTICS } from '../waveTactics';
+import { normalizeLairProgress } from '../lairExpedition';
 
 const KEY_RE = /^\d{1,2},\d{1,2}$/;
 const MAX_SAFE_VALUE = Number.MAX_SAFE_INTEGER;
@@ -301,6 +302,10 @@ const normalizeMunitions = (raw: unknown): GameStoreState['munitions'] => saniti
   voidFlak: 0,
 }, raw) as GameStoreState['munitions'];
 
+/** Unknown or missing locations recover to the Demon Realm (the lair re-enters at its entrance). */
+const validLocation = (value: unknown): GameStoreState['activeLocation'] =>
+  value === 'DRAGONS_LAIR' ? 'DRAGONS_LAIR' : 'DEMON_REALM';
+
 const isSeason = (value: unknown): value is GameStoreState['season'] =>
   value === 'SPRING' || value === 'SUMMER' || value === 'AUTUMN' || value === 'WINTER';
 
@@ -326,6 +331,9 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
       munitions: state.munitions,
       platformPhase: state.platformPhase,
       realmChoice: state.realmChoice,
+      activeLocation: state.activeLocation,
+      lairOpen: state.lairOpen,
+      lairProgress: state.lairProgress,
       year: state.year,
       season: state.season,
       exportedAt: new Date().toISOString(),
@@ -397,6 +405,9 @@ export const createPersistenceSlice = (...[set, get]: SliceArgs) => ({
         runStartedAt: integer(data.runStartedAt, Date.now()),
         playSeconds: integer(data.playSeconds),
         realmChoice: validRealm(data.realmChoice),
+        activeLocation: validLocation(data.activeLocation),
+        lairOpen: data.lairOpen === true || validLocation(data.activeLocation) === 'DRAGONS_LAIR',
+        lairProgress: normalizeLairProgress(data.lairProgress),
         platformPhase: validRealm(data.realmChoice) ?? validRealm(data.platformPhase) ?? getPhaseFromWave(invasion.waveNumber),
         year: integer(data.year, 1, 1),
         season: isSeason(data.season) ? data.season : 'SPRING',
@@ -490,6 +501,9 @@ const partialize = (state: GameStoreState) => ({
   season: state.season,
   platformPhase: state.platformPhase,
   realmChoice: state.realmChoice,
+  activeLocation: state.activeLocation,
+  lairOpen: state.lairOpen,
+  lairProgress: state.lairProgress,
   lordName: state.lordName,
   runId: state.runId,
   runStartedAt: state.runStartedAt,
@@ -562,6 +576,9 @@ const merge = (persistedState: unknown, currentState: GameStoreState): GameStore
     season: isSeason(persisted.season) ? persisted.season : currentState.season,
     platformPhase: validRealm(persisted.platformPhase) ?? currentState.platformPhase,
     realmChoice: validRealm(persisted.realmChoice),
+    activeLocation: validLocation(persisted.activeLocation),
+    lairOpen: persisted.lairOpen === true || validLocation(persisted.activeLocation) === 'DRAGONS_LAIR',
+    lairProgress: normalizeLairProgress(persisted.lairProgress),
     lastSavedTimestamp: integer(persisted.lastSavedTimestamp, currentState.lastSavedTimestamp),
     isGoreEnabled: typeof persisted.isGoreEnabled === 'boolean' ? persisted.isGoreEnabled : currentState.isGoreEnabled,
     showWallpaper: typeof persisted.showWallpaper === 'boolean' ? persisted.showWallpaper : currentState.showWallpaper,

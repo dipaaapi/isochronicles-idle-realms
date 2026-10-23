@@ -54,7 +54,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌀 Where do invaders come from?',
-        answer: 'From the four rifts at the island\'s corners. Minions can smash an open rift: it stops spawning for the rest of the wave and pays a bounty. Seal all four and no more invaders arrive that wave. Some invaders are rushers that ignore everything and charge the citadel — the activity log warns you when one appears.',
+        answer: 'From the three rifts at the east, west and south corners of the island (the north corner is the Dragon Volcano). Minions can smash an open rift: it stops spawning for the rest of the wave and pays a bounty. Seal all three and no more invaders arrive that wave. Some invaders are rushers that ignore everything and charge the citadel — the activity log warns you when one appears.',
       },
       {
         question: '🗼 Do the rifts fight back?',
@@ -152,7 +152,7 @@ export const faqTranslations: Record<Language, FAQContent> = {
       },
       {
         question: '🌀 Saan nanggagaling ang mga kalaban?',
-        answer: 'Sa apat na lagusan sa mga sulok ng isla. Kayang wasakin ng mga alagad ang bukas na lagusan: titigil ito sa paglalabas ng kalaban sa natitirang bahagi ng alon at magbibigay ng gantimpala. Isara ang apat at wala nang darating sa alon na iyon. May mga rusher na hindi pumapansin sa iba at diretsong sumusugod sa kuta — babalaan ka ng activity log kapag may lumitaw.',
+        answer: 'Sa tatlong lagusan sa silangan, kanluran at timog na sulok ng isla (nasa hilagang sulok ang Bulkan ng Dragon). Kayang wasakin ng mga alagad ang bukas na lagusan: titigil ito sa paglalabas ng kalaban sa natitirang bahagi ng alon at magbibigay ng gantimpala. Isara ang tatlo at wala nang darating sa alon na iyon. May mga rusher na hindi pumapansin sa iba at diretsong sumusugod sa kuta — babalaan ka ng activity log kapag may lumitaw.',
       },
       {
         question: '🗼 Lumalaban ba ang mga lagusan?',

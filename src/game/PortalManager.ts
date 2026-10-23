@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { hitReaction } from './hitReaction';
+import { fixedHitFlash } from './hitReaction';
 import { IsometricHelper } from './IsometricHelper';
 import { PORTAL_SCALE, PORTAL_SITES, PortalSite, rectCenter } from '../state/buildingLayout';
 import { riftHpScale } from '../state/portalDefense';
@@ -312,8 +312,7 @@ export class PortalManager {
     if (amount <= 0) return false;
     p.hp = Math.max(0, p.hp - amount);
     if (p.sprite) {
-      const sprite = p.sprite;
-      hitReaction(this.scene, sprite);
+      fixedHitFlash(this.scene, p.sprite);
     }
     if (p.hp > 0) return false;
 
@@ -326,19 +325,6 @@ export class PortalManager {
     logMessage('portalDestroyed', { portal: name, coins: bounty.coins ?? 0 });
     if (this.allSealed()) logMessage('portalsSealed');
     soundFx.playExplosion();
-    const origX = p.container.x;
-    const origY = p.container.y;
-    this.scene.tweens.add({
-      targets: p.container,
-      x: origX + 4,
-      y: origY - 4,
-      duration: 40,
-      yoyo: true,
-      repeat: 4,
-      onComplete: () => {
-        if (p.container.active) p.container.setPosition(origX, origY);
-      },
-    });
     for (let i = 0; i < 16; i++) {
       const shard = this.scene.add.rectangle(p.x, p.y - 26, 4, 4, i % 2 ? 0x3b82f6 : 0xfbbf24);
       shard.setDepth(9990);

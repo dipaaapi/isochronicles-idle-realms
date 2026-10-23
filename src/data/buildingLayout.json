@@ -94,21 +94,6 @@
   },
   "portals": [
     {
-      "id": "NORTH",
-      "name": {
-        "en": "North Rift",
-        "tl": "Hilagang Lagusan"
-      },
-      "tile": {
-        "x": 0,
-        "y": 0
-      },
-      "exit": {
-        "x": 2,
-        "y": 2
-      }
-    },
-    {
       "id": "EAST",
       "name": {
         "en": "East Rift",
@@ -219,6 +204,24 @@
         },
         "maxShare": 0.1
       }
+    }
+  },
+  "volcano": {
+    "_doc": "The northern corner (where the North Rift stood) holds the volcano: a solid footprint in the corner inside a reserved zone the same size as a rift's. Its cave mouth faces the island on the mouth tile; clicking it enters the Dragon's Lair while the cave is open.",
+    "id": "VOLCANO",
+    "name": {
+      "en": "Dragon Volcano",
+      "tl": "Bulkan ng Dragon"
+    },
+    "tile": {
+      "x": 0,
+      "y": 0
+    },
+    "footprintSize": 3,
+    "zoneSize": 4,
+    "mouth": {
+      "x": 3,
+      "y": 3
     }
   }
 }

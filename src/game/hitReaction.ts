@@ -18,7 +18,7 @@ export function hitReaction(
   if (sprite.getData('hitTint') === undefined) sprite.setData('hitTint', sprite.isTinted ? sprite.tintTopLeft : null);
   sprite.setTint(opts.tint ?? 0xffb3a7);
   const knock = opts.knock ?? 2;
-  scene.tweens.add({
+  if (knock !== 0) scene.tweens.add({
     targets: sprite,
     x: { from: baseX + knock, to: baseX },
     duration: ms,
@@ -37,4 +37,17 @@ export function hitReaction(
     else if (typeof own === 'number') sprite.setTint(own);
     else sprite.clearTint();
   });
+}
+
+/**
+ * Hit feedback for map fixtures (castle, establishments, towers, portals, sentinels):
+ * a brief light-red tint only. Never moves, scales or rotates the sprite, so fixed
+ * structures stay exactly on their tile anchor no matter how many hits land.
+ */
+export function fixedHitFlash(
+  scene: Phaser.Scene,
+  sprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image,
+  restoreTint?: () => void
+): void {
+  hitReaction(scene, sprite, { knock: 0, ms: 150, tint: 0xff9a9a, restoreTint });
 }

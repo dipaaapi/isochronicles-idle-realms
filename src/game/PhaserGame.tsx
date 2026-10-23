@@ -2,9 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { renderProfile, useGraphicsSettings, type FpsPreset } from '../state/graphicsSettings';
 import Phaser from 'phaser';
 import { MainScene } from './MainScene';
+import { DragonsLairScene } from './lair/DragonsLairScene';
+import type { ActiveLocation } from '../types/state';
 import { useGameStore } from '../state/useGameStore';
 
-export const PhaserGame: React.FC = () => {
+/** Mounts one location's scene; App keys it on the location so a switch disposes the old world. */
+export const PhaserGame: React.FC<{ location?: ActiveLocation }> = ({ location = 'DEMON_REALM' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const targetFps = useGameStore((state) => state.targetFps);
@@ -53,7 +56,7 @@ export const PhaserGame: React.FC = () => {
       callbacks: {
         preBoot: (game) => game.registry.set('dpr', dpr),
       },
-      scene: [MainScene],
+      scene: [location === 'DRAGONS_LAIR' ? DragonsLairScene : MainScene],
       render: {
         antialias: true,
         // Keep WebGL available even when the browser flags an adapter as slow;
@@ -135,7 +138,7 @@ export const PhaserGame: React.FC = () => {
       style={brightness !== 1 ? { filter: `brightness(${brightness})` } : undefined}
     >
       {/* 1. Base Pixel Art Wallpaper (can be switched off in Settings) */}
-      {showWallpaper && <div
+      {showWallpaper && location === 'DEMON_REALM' && <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none bg-cover bg-center transition-all duration-700"
         style={{
@@ -146,7 +149,7 @@ export const PhaserGame: React.FC = () => {
       {/* 2. Fullscreen Ambient Day/Night & Weather Tint (Walang kanto, sasakop sa buong viewport) */}
       <div
         aria-hidden="true"
-        className={`absolute inset-0 pointer-events-none transition-colors duration-1000 z-1 ${getAmbientTintStyle()}`}
+        className={`absolute inset-0 pointer-events-none transition-colors duration-1000 z-1 ${location === 'DEMON_REALM' ? getAmbientTintStyle() : 'bg-transparent'}`}
       />
 
       {/* 3. Phaser Isometric Canvas */}

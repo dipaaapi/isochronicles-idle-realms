@@ -5,6 +5,7 @@ import { teamBonuses } from '../skillTree';
 import { GOD_BLESSINGS } from '../../types/game';
 import type { GodBlessingId } from '../../types/game';
 import type {
+  ActiveLocation,
   AutoSettings,
   GameSpeed,
   GameStoreState,
@@ -15,6 +16,9 @@ import type {
   WeatherType,
 } from '../../types/state';
 import type { SliceArgs } from './types';
+import { logMessage } from '../activityLog';
+import LAIR from '../../data/dragonsLair.json';
+import { CHECKPOINTS, CLEARABLE, LAIR_OBSTACLES, freshLairProgress, lairPartyOf, stripExpeditionPower } from '../lairExpedition';
 
 export const TARGET_FPS_STORAGE_KEY = 'isochronicle_target_fps';
 
@@ -43,6 +47,53 @@ const rollWeather = (season: Season): WeatherType => {
 export const createWorldSlice = (...[set, get]: SliceArgs) => ({
   setScreen: (screen: ScreenState) => {
     set({ screen, lastSavedTimestamp: Date.now() });
+  },
+
+  travelTo: (location: ActiveLocation) => {
+    if (get().activeLocation === location) return;
+    // Demon Realm time is paused while away: restarting the save clock on return keeps
+    // offline progression from paying out the expedition as idle time
+    set({ activeLocation: location, lastSavedTimestamp: Date.now() });
+  },
+
+  enterLair: () => {
+    const s = get();
+    if (s.activeLocation === 'DRAGONS_LAIR') return true;
+    if (!s.lairOpen) { logMessage('lairSealed', { every: LAIR.cave.everyWaves }); return false; }
+    if (s.invasion.isActive) { logMessage('lairWaitWave'); return false; }
+    const party = lairPartyOf(s.roster);
+    if (party.length === 0) { logMessage('lairNoParty'); return false; }
+    // Entry strips every participant's brawl + for good; blessings and QWERTY powers don't reach the lair
+    const stripped = party.filter((u) => (u.brawlLevel ?? 0) > 0 || (u.brawlAttack ?? 0) > 0 || (u.brawlHp ?? 0) > 0).length;
+    set({ roster: stripExpeditionPower(s.roster) });
+    logMessage('lairEntered', { count: party.length });
+    if (stripped > 0) logMessage('lairPowerStripped', { count: stripped });
+    get().travelTo('DRAGONS_LAIR');
+    return true;
+  },
+
+  leaveLair: () => {
+    if (get().activeLocation !== 'DRAGONS_LAIR') return;
+    // Quitting the raid seals the cave until the next 5th wave
+    set({ lairOpen: false, lairProgress: freshLairProgress() });
+    logMessage('lairClosed', { every: LAIR.cave.everyWaves });
+    get().travelTo('DEMON_REALM');
+  },
+
+  reachLairCheckpoint: (index: number) => {
+    const prev = get().lairProgress;
+    if (index <= prev.checkpoint || index >= CHECKPOINTS.length) return;
+    set({ lairProgress: { ...prev, checkpoint: index } });
+    const region = LAIR.regions[index];
+    logMessage('lairCheckpoint', { region: region.name });
+  },
+
+  clearLairObstacle: (id: string) => {
+    const prev = get().lairProgress;
+    if (!CLEARABLE.has(id) || prev.cleared.includes(id)) return;
+    set({ lairProgress: { ...prev, cleared: [...prev.cleared, id] } });
+    const o = LAIR_OBSTACLES.find((x) => x.id === id);
+    if (o) logMessage(o.type === 'GATE' ? 'lairGateBroken' : 'lairBridgeRepaired', { name: o.name });
   },
 
   setLanguage: (lang: Language) => {

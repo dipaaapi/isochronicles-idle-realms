@@ -1,0 +1,279 @@
+{
+  "map": {
+    "width": 10,
+    "length": 80
+  },
+  "cave": {
+    "_doc": "The volcano's cave opens when every `everyWaves`-th wave is repelled and stays open (no timer, no cooldown) until the player leaves the dragon raid or the dragon dies.",
+    "everyWaves": 5
+  },
+  "entrance": {
+    "x": 4.5,
+    "y": 1
+  },
+  "camera": {
+    "startZoom": 1.1,
+    "minZoom": 0.45,
+    "maxZoom": 2.2
+  },
+  "regions": [
+    {
+      "id": "ENTRANCE_SHELF",
+      "from": 0,
+      "to": 5,
+      "floor": "0x3f3a36",
+      "accent": "0x57534e",
+      "name": {
+        "en": "Entrance Shelf",
+        "tl": "Pasilyo ng Bungad"
+      }
+    },
+    {
+      "id": "BAT_GALLERIES",
+      "from": 6,
+      "to": 17,
+      "floor": "0x2e2a33",
+      "accent": "0x3f3a4a",
+      "name": {
+        "en": "Bat Galleries",
+        "tl": "Galerya ng mga Paniki"
+      }
+    },
+    {
+      "id": "MAGMA_CHANNELS",
+      "from": 18,
+      "to": 29,
+      "floor": "0x3a2a24",
+      "accent": "0x7c2d12",
+      "name": {
+        "en": "Magma Channels",
+        "tl": "Mga Daluyan ng Magma"
+      }
+    },
+    {
+      "id": "BROKEN_BRIDGES",
+      "from": 30,
+      "to": 39,
+      "floor": "0x34302c",
+      "accent": "0x1c1917",
+      "name": {
+        "en": "Broken Stone Bridges",
+        "tl": "Mga Sirang Tulay na Bato"
+      }
+    },
+    {
+      "id": "KIN_ROOSTS",
+      "from": 40,
+      "to": 51,
+      "floor": "0x3b2f2a",
+      "accent": "0x5b3b2a",
+      "name": {
+        "en": "Dragon-Kin Roosts",
+        "tl": "Pugad ng mga Kadugo ng Dragon"
+      }
+    },
+    {
+      "id": "GOLEM_GATE",
+      "from": 52,
+      "to": 59,
+      "floor": "0x40291f",
+      "accent": "0x9a3412",
+      "name": {
+        "en": "Magma Golem Gate",
+        "tl": "Tarangkahan ng Magma Golem"
+      }
+    },
+    {
+      "id": "HOARD_ANTECHAMBER",
+      "from": 60,
+      "to": 67,
+      "floor": "0x3d3527",
+      "accent": "0xa16207",
+      "name": {
+        "en": "Hoard Antechamber",
+        "tl": "Silid-Bungad ng Kayamanan"
+      }
+    },
+    {
+      "id": "MATRIARCH_CHAMBER",
+      "from": 68,
+      "to": 79,
+      "floor": "0x44261c",
+      "accent": "0xb45309",
+      "name": {
+        "en": "Matriarch Chamber",
+        "tl": "Silid ng Matriarka"
+      }
+    }
+  ],
+  "embers": {
+    "count": 60,
+    "colors": [
+      "0xf97316",
+      "0xfbbf24",
+      "0xef4444"
+    ]
+  },
+  "loadingTips": [
+    "lairLoadingTip1",
+    "lairLoadingTip2",
+    "lairLoadingTip3"
+  ],
+  "party": {
+    "_doc": "Every summoned General enters with its minions (the Treant and Slime stay home). Inside, stats are base × research/runes only: blessings, timed buffs and the brawl + are gone (the + is wiped for good on entry). Slain members respawn after respawnSeconds at the last checkpoint.",
+    "minionsPerGeneral": 2,
+    "minionHpShare": 0.45,
+    "minionAttackShare": 0.4,
+    "speedTilesPerSec": 1.6,
+    "advanceTilesPerSec": 1.1,
+    "regroupTiles": 3,
+    "respawnSeconds": 8,
+    "attackRangeTiles": 1.3,
+    "attackCooldown": 0.9,
+    "repairPerUnitPerSec": 1
+  },
+  "obstacles": [
+    {
+      "id": "ROCKFALL_GALLERY_A",
+      "type": "ROCKFALL",
+      "x": 1,
+      "y": 9,
+      "w": 4,
+      "h": 2,
+      "every": 7,
+      "offset": 0,
+      "warn": 1.6,
+      "block": 4,
+      "damage": 45,
+      "name": {
+        "en": "Rockfall",
+        "tl": "Pagguho ng Bato"
+      }
+    },
+    {
+      "id": "ROCKFALL_GALLERY_B",
+      "type": "ROCKFALL",
+      "x": 5,
+      "y": 13,
+      "w": 4,
+      "h": 2,
+      "every": 7,
+      "offset": 3.5,
+      "warn": 1.6,
+      "block": 4,
+      "damage": 45,
+      "name": {
+        "en": "Rockfall",
+        "tl": "Pagguho ng Bato"
+      }
+    },
+    {
+      "id": "MAGMA_CHANNEL_A",
+      "type": "MAGMA",
+      "x": 0,
+      "y": 20,
+      "w": 10,
+      "h": 2,
+      "safe": 4,
+      "warn": 1.4,
+      "active": 2.6,
+      "offset": 0,
+      "dps": 35,
+      "gap": [
+        4,
+        5
+      ],
+      "name": {
+        "en": "Magma Channel",
+        "tl": "Daluyan ng Magma"
+      }
+    },
+    {
+      "id": "MAGMA_CHANNEL_B",
+      "type": "MAGMA",
+      "x": 0,
+      "y": 25,
+      "w": 10,
+      "h": 2,
+      "safe": 4,
+      "warn": 1.4,
+      "active": 2.6,
+      "offset": 2,
+      "dps": 35,
+      "gap": [],
+      "name": {
+        "en": "Magma Channel",
+        "tl": "Daluyan ng Magma"
+      }
+    },
+    {
+      "id": "BRIDGE_A",
+      "type": "BRIDGE",
+      "x": 0,
+      "y": 32,
+      "w": 10,
+      "h": 3,
+      "bridge": [
+        4,
+        5
+      ],
+      "work": 60,
+      "name": {
+        "en": "Broken Stone Bridge",
+        "tl": "Sirang Tulay na Bato"
+      }
+    },
+    {
+      "id": "BRIDGE_B",
+      "type": "BRIDGE",
+      "x": 0,
+      "y": 36,
+      "w": 10,
+      "h": 2,
+      "bridge": [
+        2,
+        3
+      ],
+      "work": 50,
+      "name": {
+        "en": "Broken Stone Bridge",
+        "tl": "Sirang Tulay na Bato"
+      }
+    },
+    {
+      "id": "VENTS_ROOST",
+      "type": "MAGMA",
+      "x": 2,
+      "y": 45,
+      "w": 6,
+      "h": 1,
+      "safe": 3,
+      "warn": 1,
+      "active": 2,
+      "offset": 1,
+      "dps": 25,
+      "gap": [],
+      "name": {
+        "en": "Magma Vents",
+        "tl": "Mga Butas ng Magma"
+      }
+    },
+    {
+      "id": "GOLEM_GATE",
+      "type": "GATE",
+      "x": 0,
+      "y": 57,
+      "w": 10,
+      "h": 1,
+      "hp": 2500,
+      "name": {
+        "en": "Magma Golem Gate",
+        "tl": "Tarangkahan ng Magma Golem"
+      }
+    }
+  ],
+  "route": {
+    "_doc": "Phase 4 ends at the Matriarch Chamber's threshold: the party halts at stopY until the dragon arrives (Phase 6).",
+    "stopY": 70
+  }
+}
