@@ -14,6 +14,24 @@ export const RAGE = config.rage;
 
 export const isGeneralOrder = (v: unknown): v is GeneralOrder => typeof v === 'string' && (ORDER_IDS as string[]).includes(v);
 
+/** Who an order goes to: the General, its minions, or both. */
+export type OrderScope = 'GENERAL' | 'MINIONS' | 'BOTH';
+/** Most priorities one unit can stack (followed first to last, falling back to AUTO). */
+export const MAX_ORDERS = 3;
+
+/** Clean priority list: known, non-AUTO, no repeats, at most MAX_ORDERS. */
+export const normalizeOrders = (raw: unknown): GeneralOrder[] => {
+  if (!Array.isArray(raw)) return [];
+  const out: GeneralOrder[] = [];
+  for (const o of raw) if (isGeneralOrder(o) && o !== 'AUTO' && !out.includes(o) && out.length < MAX_ORDERS) out.push(o);
+  return out;
+};
+
+/** A General's priority list (reads the legacy single order too). */
+export const ordersOf = (u: { order?: GeneralOrder; orders?: GeneralOrder[] } | undefined): GeneralOrder[] =>
+  !u ? [] : u.orders ? normalizeOrders(u.orders) : u.order && u.order !== 'AUTO' ? [u.order] : [];
+export const minionOrdersOf = (u: { minionOrders?: GeneralOrder[] } | undefined): GeneralOrder[] => normalizeOrders(u?.minionOrders);
+
 export const orderInfo = (id: GeneralOrder) => config.priorities.find((p) => p.id === id) ?? config.priorities[0];
 
 /** Extra establishment max HP bought by spending a General's brawl bonus. */

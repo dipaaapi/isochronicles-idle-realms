@@ -196,8 +196,12 @@ export interface UnitRosterItem {
   /** Attack / max HP absorbed from beaten rival Generals. */
   brawlAttack?: number;
   brawlHp?: number;
-  /** Battle priority set from the Generals panel (src/state/generalOrders.ts); unset = AUTO. */
+  /** Legacy single battle priority (saves before 2026-10-24); read through ordersOf(). */
   order?: import('../state/generalOrders').GeneralOrder;
+  /** Battle priorities in order (first = highest); empty / unset = AUTO. Followed by the General. */
+  orders?: import('../state/generalOrders').GeneralOrder[];
+  /** The same for this General's minions (DefenderSystem); unset = AUTO. */
+  minionOrders?: import('../state/generalOrders').GeneralOrder[];
 }
 
 /** 0 = paused, 1 = normal, 2 = 2×, 3 = 3×. */
@@ -391,6 +395,8 @@ export interface GameStoreState {
   sellRune: (runeId: string) => number;
   /** Sells every rune that can no longer be used. */
   sellObsoleteRunes: () => { count: number; coins: number };
+  /** Sells many vault runes at once (ticked, or a whole tier); slotted ones are skipped. */
+  sellRunes: (runeIds: string[]) => { count: number; coins: number };
   /** Clash tension between pairs of Generals (key: pairKey of roster ids). */
   brawlTension: Record<string, import('../state/brawl').BrawlTension>;
   discoveredInvaders: InvaderType[];
@@ -419,6 +425,8 @@ export interface GameStoreState {
   resolveBrawl: (winnerId: string, loserId: string) => void;
   /** Sets the battle priority of these Generals (roster ids). */
   setGeneralOrder: (unitIds: string[], order: import('../state/generalOrders').GeneralOrder) => void;
+  /** Sets the ordered battle priorities of these Generals, their minions, or both ([] = AUTO). */
+  setGeneralOrders: (unitIds: string[], orders: import('../state/generalOrders').GeneralOrder[], scope: import('../state/generalOrders').OrderScope) => void;
   /** Spends a General's brawl bonus on its establishment's sturdiness; returns the HP added (0 = nothing to spend). */
   investBrawlPower: (unitId: string) => number;
   /** Converts a maxed General's + levels into tier-one runes. */

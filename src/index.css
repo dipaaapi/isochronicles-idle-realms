@@ -228,6 +228,26 @@
   .wx-rain, .wx-snow, .wx-heat, .wx-rays, .wx-lightning { animation: none; }
 }
 .wx-rays-slow { animation: wx-rays 40s linear infinite; }
+/* Sidebar timeline (SkyStatusPanel): flowing lanes, alarms, war stripes; .tl-frozen stops it all while paused/held */
+@keyframes tl-flow { to { background-position: -24px 0; } }
+@keyframes tl-war { to { background-position: 32px 0; } }
+@keyframes tl-pulse { 50% { transform: scale(1.12); filter: brightness(1.45); } }
+@keyframes tl-bob { 50% { transform: translateY(-2px); } }
+@keyframes tl-now { 50% { box-shadow: 0 0 8px 2px rgba(255,255,255,0.85); opacity: 0.7; } }
+@keyframes tl-alarm { 50% { box-shadow: inset 0 0 14px rgba(244,63,94,0.55); } }
+@keyframes tl-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1px); } 75% { transform: translateX(1px); } }
+@keyframes tl-shimmer { to { background-position: 60px 0; } }
+.tl-flow { background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 12px); animation: tl-flow 1.6s linear infinite; }
+.tl-war { background-color: rgba(69,10,10,0.75); background-image: repeating-linear-gradient(135deg, rgba(244,63,94,0.32) 0 8px, rgba(127,29,29,0.2) 8px 16px); background-size: 32px 32px; animation: tl-war 0.7s linear infinite; }
+.tl-sealed { background-image: repeating-linear-gradient(45deg, rgba(148,163,184,0.12) 0 6px, transparent 6px 12px); }
+.tl-alarm { animation: tl-alarm 1s ease-in-out infinite; }
+.tl-shake { animation: tl-shake 0.3s linear infinite, tl-alarm 0.5s ease-in-out infinite; }
+.tl-pulse { display: inline-block; animation: tl-pulse 0.9s ease-in-out infinite; }
+.tl-bob { display: inline-block; animation: tl-bob 1.4s ease-in-out infinite; }
+.tl-now { animation: tl-now 1.2s ease-in-out infinite; }
+.tl-shimmer { background-image: linear-gradient(90deg, rgba(100,116,139,0.25), rgba(203,213,225,0.35), rgba(100,116,139,0.25)); background-size: 60px 100%; animation: tl-shimmer 1.8s linear infinite; }
+/* Entrance pops (.sky-pop) still finish, or they would freeze invisible */
+.tl-frozen, .tl-frozen *:not(.sky-pop) { animation-play-state: paused !important; }
 .wx-rays, .wx-rays-slow { transform-box: fill-box; }
 @media (prefers-reduced-motion: reduce) { .wx-rays-slow { animation: none; } }
 

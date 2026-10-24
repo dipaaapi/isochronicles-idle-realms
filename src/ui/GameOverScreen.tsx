@@ -1,17 +1,39 @@
+import { useEffect, useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
+import { startRealm } from '../state/newRealm';
 import { useTranslation } from '../i18n/translations';
 import { formatPlayTime } from '../state/legacy';
 import { soundFx } from '../game/audio/soundFx';
 import { HallOfLegacy } from './HallOfLegacy';
 
+/** Seconds before a new realm starts on its own (same lord, difficulty and biome). */
+const AUTO_RESTART_S = 10;
+
 /**
  * Game Over: the castle fell. Permadeath, so the run is already in the Hall of
  * Legacy and its save is gone; the player can only start a new realm.
  */
-export function GameOverScreen({ onNewRealm }: { onNewRealm: () => void }) {
+export function GameOverScreen({ onNewRealm, onAutoRestart }: { onNewRealm: () => void; onAutoRestart: () => void }) {
   const run = useGameStore((s) => s.gameOverRun);
   const dismiss = useGameStore((s) => s.dismissGameOver);
   const { t } = useTranslation();
+  const [left, setLeft] = useState(AUTO_RESTART_S);
+
+  // No choice within the countdown: rise again at once under the fallen run's lord, difficulty and biome
+  useEffect(() => {
+    if (!run) return;
+    setLeft(AUTO_RESTART_S);
+    const id = window.setInterval(() => setLeft((n) => n - 1), 1000);
+    return () => window.clearInterval(id);
+  }, [run]);
+  useEffect(() => {
+    if (!run || left > 0) return;
+    soundFx.playFanfare();
+    dismiss();
+    startRealm(run.difficulty, run.biome, run.lord);
+    onAutoRestart();
+  }, [left, run, dismiss, onAutoRestart]);
+
   if (!run) return null;
 
   const stats: Array<[string, string]> = [
@@ -40,6 +62,12 @@ export function GameOverScreen({ onNewRealm }: { onNewRealm: () => void }) {
         <div>
           <h2 className="mb-2 text-sm font-bold text-amber-200">🏛️ {t('legacyTitle')}</h2>
           <HallOfLegacy highlight={run.runId} limit={10} />
+        </div>
+        <div>
+          <p className="mb-1 text-center text-[11px] text-stone-300">{t('gameOverAutoRestart').replace('{n}', String(Math.max(0, left)))}</p>
+          <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full bg-rose-500 transition-[width] duration-1000 ease-linear" style={{ width: `${(Math.max(0, left) / AUTO_RESTART_S) * 100}%` }} />
+          </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button

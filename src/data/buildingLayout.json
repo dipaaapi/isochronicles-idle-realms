@@ -122,21 +122,6 @@
         "x": 2,
         "y": 27
       }
-    },
-    {
-      "id": "SOUTH",
-      "name": {
-        "en": "South Rift",
-        "tl": "Timog na Lagusan"
-      },
-      "tile": {
-        "x": 29,
-        "y": 29
-      },
-      "exit": {
-        "x": 27,
-        "y": 27
-      }
     }
   ],
   "coast": {
@@ -223,5 +208,18 @@
       "x": 3,
       "y": 3
     }
+  },
+  "vortex": {
+    "_doc": "The southern corner (where the South Rift stood) is open sea: a size×size patch of ocean with a spinning whirlpool at its centre, where the Ocean God's water dragon (the Leviathan) surfaces. Nothing is built, drowned or covered by magma there.",
+    "id": "VORTEX",
+    "name": {
+      "en": "Abyssal Vortex",
+      "tl": "Ipuipo ng Kailaliman"
+    },
+    "tile": {
+      "x": 25,
+      "y": 25
+    },
+    "size": 5
   }
 }

@@ -1,0 +1,151 @@
+{
+  "ui": {
+    "next": { "en": "Next", "tl": "Susunod" },
+    "back": { "en": "Back", "tl": "Bumalik" },
+    "skip": { "en": "Skip tutorial", "tl": "Laktawan ang tutorial" },
+    "finish": { "en": "Begin the reign", "tl": "Simulan ang paghahari" },
+    "doIt": { "en": "Open it for me", "tl": "Buksan para sa akin" },
+    "clickHint": { "en": "Click the highlighted spot (or the button below) to continue", "tl": "I-click ang naka-highlight (o ang button sa ibaba) para magpatuloy" },
+    "step": { "en": "Step {n} of {total}", "tl": "Hakbang {n} ng {total}" },
+    "frozen": { "en": "Time is frozen", "tl": "Nakahinto ang oras" },
+    "replay": { "en": "Replay tutorial", "tl": "Ulitin ang tutorial" },
+    "replayDesc": { "en": "Walk through the basics again (time freezes)", "tl": "Balikan ang mga pangunahing kaalaman (hihinto ang oras)" }
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "target": null,
+      "advance": "next",
+      "titleEn": "Welcome, Demon Lord",
+      "titleTl": "Maligayang pagdating, Panginoong Demonyo",
+      "bodyEn": "Your citadel lies in ruins, but it is yours. **Time is frozen** until you finish or skip this guide, so nothing will attack while you learn.",
+      "bodyTl": "Guho ang iyong kuta, pero iyo ito. **Nakahinto ang oras** hanggang matapos o laktawan mo ang gabay na ito, kaya walang sasalakay habang natututo ka."
+    },
+    {
+      "id": "map",
+      "target": "map",
+      "advance": "next",
+      "titleEn": "Your realm",
+      "titleTl": "Ang iyong kaharian",
+      "bodyEn": "The island is your realm. **Drag** to pan, **scroll** to zoom and **click** a building to manage it. The Ancient Treant builds the castle first, then summons a General for every establishment.",
+      "bodyTl": "Ang isla ang iyong kaharian. **I-drag** para gumalaw, **i-scroll** para mag-zoom at **i-click** ang gusali para pamahalaan ito. Ang Sinaunang Treant ang unang magtatayo ng kastilyo, saka magpapatawag ng Heneral sa bawat establisimyento."
+    },
+    {
+      "id": "sky",
+      "target": "sky",
+      "tab": "command",
+      "advance": "next",
+      "titleEn": "Battle and weather timeline",
+      "titleTl": "Timeline ng labanan at panahon",
+      "bodyEn": "This timeline flows toward the **Now** line. The top lane shows the next wave and Kirov raid with the time left; the bottom lane shows today's weather, tomorrow's forecast and the day phases. Weather changes how your minions work and fight.",
+      "bodyTl": "Dumadaloy ang timeline na ito papunta sa linyang **Ngayon**. Nasa itaas ang susunod na wave at salakay ng Kirov kasama ang natitirang oras; nasa ibaba ang panahon ngayon, ang hula para bukas at ang mga yugto ng araw. Binabago ng panahon kung paano magtrabaho at lumaban ang iyong mga alagad."
+    },
+    {
+      "id": "tabStatus",
+      "target": "tab-status",
+      "tab": "command",
+      "advance": "click",
+      "titleEn": "Open the Status tab",
+      "titleTl": "Buksan ang Status tab",
+      "bodyEn": "Click **Status** to see the coming invasion.",
+      "bodyTl": "I-click ang **Status** para makita ang paparating na pagsalakay."
+    },
+    {
+      "id": "wave",
+      "target": "wave",
+      "tab": "status",
+      "advance": "next",
+      "titleEn": "Invasion waves",
+      "titleTl": "Mga wave ng pagsalakay",
+      "bodyEn": "Waves of heroes come on a countdown, and they never end. Once the castle stands you can call the next wave early here. **If the castle falls, the run is over for good.**",
+      "bodyTl": "Dumarating ang mga wave ng bayani ayon sa countdown, at walang katapusan ang mga ito. Kapag nakatayo na ang kastilyo, maaari mong tawagin nang maaga ang susunod na wave dito. **Kapag bumagsak ang kastilyo, tapos na ang laro magpakailanman.**"
+    },
+    {
+      "id": "tabResources",
+      "target": "tab-resources",
+      "tab": "status",
+      "advance": "click",
+      "titleEn": "Open the Resources tab",
+      "titleTl": "Buksan ang Resources tab",
+      "bodyEn": "Click **Resources** to see your stores.",
+      "bodyTl": "I-click ang **Resources** para makita ang iyong imbakan."
+    },
+    {
+      "id": "resources",
+      "target": "resources",
+      "tab": "resources",
+      "advance": "next",
+      "titleEn": "Resources",
+      "titleTl": "Mga yaman",
+      "bodyEn": "Minions gather these on their own. Click a resource to trade it at the market.",
+      "bodyTl": "Kusang kinokolekta ito ng mga alagad. I-click ang isang yaman para ipagpalit ito sa pamilihan."
+    },
+    {
+      "id": "tabCommand",
+      "target": "tab-command",
+      "tab": "resources",
+      "advance": "click",
+      "titleEn": "Back to Command",
+      "titleTl": "Bumalik sa Command",
+      "bodyEn": "Click **Command** to return to your main controls.",
+      "bodyTl": "I-click ang **Command** para bumalik sa pangunahing kontrol."
+    },
+    {
+      "id": "citadel",
+      "target": "citadel",
+      "tab": "command",
+      "advance": "next",
+      "titleEn": "Citadel Command",
+      "titleTl": "Sentro ng Kuta",
+      "bodyEn": "Research, runes, the market and the arsenal live here. This is where your realm grows stronger.",
+      "bodyTl": "Narito ang pananaliksik, runa, pamilihan at arsenal. Dito lumalakas ang iyong kaharian."
+    },
+    {
+      "id": "hub",
+      "target": "hub",
+      "tab": "command",
+      "advance": "next",
+      "titleEn": "Laboratory and Atlas",
+      "titleTl": "Laboratoryo at Atlas",
+      "bodyEn": "Spend skill points in the **Laboratory**. The **Atlas** holds the full guide, bestiary, FAQ and lore whenever you need them.",
+      "bodyTl": "Gamitin ang skill points sa **Laboratoryo**. Nasa **Atlas** ang buong gabay, bestiary, FAQ at lore kapag kailangan mo."
+    },
+    {
+      "id": "keys",
+      "target": "keys",
+      "tab": "command",
+      "advance": "next",
+      "titleEn": "Battle items and shortcuts",
+      "titleTl": "Battle items at shortcut",
+      "bodyEn": "Battle items (Q W E R T Y), pause, game speed and audio, each with its keyboard key. In battle, **double-click** an invader to strike it with your sky laser.",
+      "bodyTl": "Battle items (Q W E R T Y), pause, bilis ng laro at tunog, bawat isa may sariling key. Sa labanan, **i-double-click** ang kalaban para tamaan ng iyong sky laser."
+    },
+    {
+      "id": "dock",
+      "target": "dock",
+      "advance": "next",
+      "titleEn": "Generals",
+      "titleTl": "Mga Heneral",
+      "bodyEn": "Give your Generals and their minions battle priorities here, or switch to your own music.",
+      "bodyTl": "Bigyan dito ng prayoridad sa labanan ang iyong mga Heneral at kanilang alagad, o lumipat sa sarili mong musika."
+    },
+    {
+      "id": "log",
+      "target": "log",
+      "advance": "next",
+      "titleEn": "Activity log",
+      "titleTl": "Talaan ng aktibidad",
+      "bodyEn": "Everything that happens in your realm is told here: builds, battles, loot and more.",
+      "bodyTl": "Isinasalaysay dito ang lahat ng nangyayari sa iyong kaharian: pagtatayo, labanan, nasamsam at iba pa."
+    },
+    {
+      "id": "done",
+      "target": null,
+      "advance": "next",
+      "titleEn": "The realm awakens",
+      "titleTl": "Gumigising ang kaharian",
+      "bodyEn": "Time starts when you close this. You can replay the tutorial from **Settings**. Rebuild, and endure.",
+      "bodyTl": "Magsisimula ang oras kapag isinara mo ito. Maaari mong ulitin ang tutorial sa **Settings**. Muling magtayo, at magtiis."
+    }
+  ]
+}

@@ -190,7 +190,7 @@ console.log('Full realm reset checks passed.');
 // Dragon's Lair cave: opens on every 5th repelled wave, closes only when the raid is left
 {
   const { VOLCANO_SITE, PORTAL_SITES, isWaterTile } = load('src/state/buildingLayout.ts');
-  assert.equal(PORTAL_SITES.length, 3, 'three invasion rifts remain');
+  assert.equal(PORTAL_SITES.length, 2, 'two invasion rifts remain (east and west); the south corner is the Abyssal Vortex');
   assert.ok(!PORTAL_SITES.some((p) => p.id === 'NORTH'), 'the North Rift became the volcano');
   assert.deepEqual(VOLCANO_SITE.tile, { x: 0, y: 0 });
   assert.equal(isWaterTile(1, 1), false, 'the volcano corner is not ocean');
@@ -251,7 +251,7 @@ console.log('Full realm reset checks passed.');
       .map((c, i) => ({ id: `gen_${i}`, name: c, unitClass: c, assignedTask: 'IDLE' }))],
   });
   const chain = () => new Proxy(function () {}, { get: (_, k) => (k === 'x' || k === 'y' || k === 'scaleX' ? 0 : chain()), apply: () => chain() });
-  const fakeScene = { add: chain(), tweens: chain() };
+  const fakeScene = { add: chain(), tweens: chain(), textures: chain() };
   const { LairExpedition } = load('src/game/lair/LairExpedition.ts');
   const { useLairHud } = load('src/game/lair/lairHud.ts');
   const expedition = new LairExpedition(fakeScene);
@@ -278,6 +278,10 @@ console.log('Full realm reset checks passed.');
   assert.ok(chamberAt > 0, `the party reaches the chamber (front ${useLairHud.getState().frontY.toFixed(1)}, cleared ${state().lairProgress.cleared})`);
   assert.equal(state().activeLocation, 'DEMON_REALM', `Ignara falls and the party returns (her hp ${state().dragon.hp}/${state().dragon.maxHp})`);
   assert.equal(state().dragon.slain, true);
+  // A true three-way battle: every side fights both others
+  for (const pair of ['DEMON>DRAGON', 'DEMON>HUMAN', 'HUMAN>DEMON', 'HUMAN>DRAGON', 'DRAGON>DEMON', 'DRAGON>HUMAN']) {
+    assert.ok((expedition.dealt[pair] ?? 0) > 0, `three-way: ${pair} deals damage (${JSON.stringify(expedition.dealt)})`);
+  }
   assert.equal(state().dragonsSlain, 1, 'the kill is recorded in the save');
   assert.equal(state().lairOpen, false, 'her death seals the cave');
   assert.ok(state().resources.coins > coinsBefore, 'the hoard pays out');
@@ -300,7 +304,7 @@ console.log('Full realm reset checks passed.');
     let burned = 0;
     const fakeWorker = { hp: 100, container: { active: true, x: 0, y: 0 }, name: 'Golem 1', unitClass: 'GOLEM' };
     const magmaSys = new VolcanicMagma(
-      { add: chain() }, { add() {} }, { erupt() {} },
+      { add: chain(), textures: chain() }, { add() {} }, { erupt() {} },
       { hurtWorkerFromRift: (w, n) => { burned += n; }, getInvaders: () => [], damageInvader() {} },
       { getWorkers: () => [fakeWorker] },
       { getDefenders: () => [], hurtFromHazard() {} },
@@ -324,10 +328,12 @@ console.log('Full realm reset checks passed.');
     assert.ok(Math.abs(burned - lair.MAGMA_FLOW.dps) < lair.MAGMA_FLOW.dps * 0.15, `a second on magma burns about dps (${burned.toFixed(1)})`);
     // Cooling: flooded shore under the magma becomes land again
     const flooded = tiles[0];
-    store.setState({ terrainFlooded: [flooded], terrainFilled: [], terrainReclamation: null });
+    const sandy = tiles[1] ?? null;
+    store.setState({ terrainFlooded: [flooded], terrainFilled: [], terrainReclamation: null, terrainSand: sandy ? { [sandy]: 1 } : {} });
     state().coolVolcanicMagma(lair.MAGMA_FLOW.activeSeconds + lair.MAGMA_FLOW.crustSeconds + lair.MAGMA_FLOW.basaltSeconds + 1);
     assert.equal(Object.keys(state().volcanicMagma).length, 0, 'every stage cools away');
     assert.ok(state().terrainFilled.includes(flooded) && !state().terrainFlooded.includes(flooded), 'cooled basalt restores flooded land');
+    if (sandy) assert.ok(!(sandy in state().terrainSand), 'cooled basalt settles dug sand back into land');
     // Slain: no new flows
     store.setState({ volcanicMagma: {}, dragon: { generation: 2, hp: 0, maxHp: 100, slain: true } });
     for (let i = 0; i < 3000; i++) magmaSys.update(100);

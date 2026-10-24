@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { useGameStore } from '../state/useGameStore';
-import { GRID_SIZE, isBridgeTile, isLandTile, isProtectedTile, isRaisedTile, isWaterTile } from '../state/buildingLayout';
+import { GRID_SIZE, isBridgeTile, isLandTile, isProtectedTile, isRaisedTile, isWaterTile, VORTEX_SITE } from '../state/buildingLayout';
 import { INVADER_CONFIGS, UNIT_CLASSES } from '../types/game';
 import type { GridPoint } from '../types/game';
 import { RUNES, bossRuneTier, rollRuneKind, tierColor, tierName, type RuneKind } from '../state/runes';
@@ -329,7 +329,11 @@ export class WildFactionManager {
     // Water: from a shore tile; land: out of the ground (dug sand first, if any)
     const sand = this.spec.habitat === 'land' ? this.spawnTiles.filter((t) => useGameStore.getState().terrainSand[`${t.x},${t.y}`] !== undefined) : [];
     const pool = sand.length && Math.random() < 0.7 ? sand : this.spawnTiles;
-    const tile = pool[Math.floor(Math.random() * pool.length)];
+    // The Ocean God's water dragon always surfaces from the Abyssal Vortex in the southern corner
+    const fromVortex = !!def.boss && this.spec.habitat !== 'land';
+    const tile = fromVortex
+      ? { x: Math.round(VORTEX_SITE.center.x), y: Math.round(VORTEX_SITE.center.y) }
+      : pool[Math.floor(Math.random() * pool.length)];
     const at = def.waterOnly || def.landOnly ? this.tilePoint(tile) : this.tileWorld(tile);
     const container = this.scene.add.container(at.x, at.y);
     sprite.setScale(def.boss ? 1.25 : 1);
@@ -407,6 +411,7 @@ export class WildFactionManager {
     return this.creatures.filter((c) => c.state === 'fighting').map((c) => ({
       x: c.container.x, y: c.container.y, boss: !!c.def.boss,
       strike: (dmg: number, by: WorkerInstance) => { if (c.state === 'fighting') this.hurt(c, dmg, { kind: 'worker', ref: by }); },
+      strikeBy: (dmg: number, minion: unknown) => { if (c.state === 'fighting') this.hurt(c, dmg, { kind: 'defender', ref: minion as Defender }); },
     }));
   }
 
@@ -642,10 +647,31 @@ export class WildFactionManager {
       const r = sk.radius as number;
       const inReach = foes.filter((f) => Math.hypot(pointOf(f).x - x, pointOf(f).y - y) <= r);
       if (!inReach.length) continue;
-      if (sk.id === 'TIDAL_WAVE') {
-        for (let k = 0; k < 12; k++) {
-          const a = (k / 12) * Math.PI * 2;
-          this.scene.time.delayedCall(k * 25, () => spawnImpact(x + Math.cos(a) * r * 0.7, y + Math.sin(a) * r * 0.35, 'burst', 0x38bdf8, 2.2));
+      if (sk.id === 'HYDRO_BREATH') {
+        // A pressurised jet from the jaws to the farthest foe in reach, hitting everyone along the line
+        const far = [...inReach].sort((a, b) => Math.hypot(pointOf(b).x - x, pointOf(b).y - y) - Math.hypot(pointOf(a).x - x, pointOf(a).y - y))[0];
+        const to = { x: pointOf(far).x, y: pointOf(far).y };
+        const mouthY = y + ((c.container.getData('headY') as number | undefined) ?? -40) + 8;
+        this.hydroBreath(x, mouthY, to.x, to.y - 6);
+        const len = Math.hypot(to.x - x, to.y - y) || 1;
+        const ux = (to.x - x) / len, uy = (to.y - y) / len;
+        for (const f of this.foes()) {
+          const q = pointOf(f);
+          const along = (q.x - x) * ux + (q.y - y) * uy;
+          const across = Math.abs(-(q.x - x) * uy + (q.y - y) * ux);
+          if (along > 0 && along <= len + 10 && across <= (sk.width as number)) this.strike(c, f, sk.damage as number);
+        }
+        soundFx.playLaser();
+      } else if (sk.id === 'TIDAL_WAVE') {
+        // A real wave: a foam-crested ring of water rolling outward, then spray where it breaks
+        for (let k = 0; k < 2; k++) {
+          const wave = this.scene.add.ellipse(x, y, 16, 8).setStrokeStyle(10 - k * 4, k ? 0xe0f2fe : 0x0ea5e9, k ? 0.9 : 0.6).setFillStyle(0x38bdf8, k ? 0 : 0.18);
+          this.entities.add(wave);
+          this.scene.tweens.add({ targets: wave, scaleX: (r * 2) / 16, scaleY: (r * 2) / 16, alpha: 0, duration: 650, delay: k * 70, ease: 'Cubic.easeOut', onComplete: () => wave.destroy() });
+        }
+        for (let k = 0; k < 14; k++) {
+          const a = (k / 14) * Math.PI * 2;
+          this.scene.time.delayedCall(380 + k * 12, () => spawnImpact(x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.42, 'burst', 0x7dd3fc, 1.8));
         }
         this.scene.cameras.main.shake(280, 0.005);
         soundFx.playExplosion();
@@ -717,6 +743,37 @@ export class WildFactionManager {
       logMessage(this.spec.logs.skill, { name: c.def.name[lang], skill: sk.name[lang] });
       return;
     }
+  }
+
+  /** Hydro Breath art: a layered water jet (wide translucent sheath, bright core) with spray, then a splash. */
+  private hydroBreath(x0: number, y0: number, x1: number, y1: number): void {
+    const g = this.scene.add.graphics();
+    this.entities.add(g);
+    const state = { k: 0 };
+    const draw = () => {
+      g.clear();
+      const k = state.k;
+      const reach = Math.min(1, k * 2.2);                 // the jet shoots out, holds, then thins away
+      const fade = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      const ex = x0 + (x1 - x0) * reach, ey = y0 + (y1 - y0) * reach;
+      g.lineStyle(18, 0x0ea5e9, 0.25 * fade); g.lineBetween(x0, y0, ex, ey);
+      g.lineStyle(10, 0x38bdf8, 0.6 * fade); g.lineBetween(x0, y0, ex, ey);
+      g.lineStyle(4, 0xe0f2fe, 0.95 * fade); g.lineBetween(x0, y0, ex, ey);
+      // Spray droplets peeling off the jet
+      for (let i = 0; i < 10; i++) {
+        const t = Math.random() * reach;
+        const px = x0 + (x1 - x0) * t + (Math.random() - 0.5) * 14, py = y0 + (y1 - y0) * t + (Math.random() - 0.5) * 10;
+        g.fillStyle(0xe0f2fe, 0.8 * fade);
+        g.fillCircle(px, py, 1 + Math.random() * 1.8);
+      }
+      g.fillStyle(0xbae6fd, 0.7 * fade);
+      g.fillCircle(x0, y0, 6);
+    };
+    this.scene.tweens.add({ targets: state, k: 1, duration: 950, onUpdate: draw, onComplete: () => g.destroy() });
+    this.scene.time.delayedCall(430, () => {
+      for (let i = 0; i < 3; i++) spawnImpact(x1 + (Math.random() - 0.5) * 18, y1 + (Math.random() - 0.5) * 8, 'burst', 0x7dd3fc, 1.6 + i * 0.3);
+      this.scene.cameras.main.shake(180, 0.003);
+    });
   }
 
   private hurt(c: Creature, dmg: number, by?: Foe): void {

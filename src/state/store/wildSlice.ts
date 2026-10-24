@@ -1,3 +1,4 @@
+import { isCoveTile } from '../buildingLayout';
 import { coolMagma, freshMagmaTile } from '../lairExpedition';
 import { soundFx } from '../../game/audio/soundFx';
 import { logMessage } from '../activityLog';
@@ -139,19 +140,26 @@ export const createWildSlice = (...[set, get]: SliceArgs) => ({
       set({ volcanicMagma: tiles });
       return;
     }
-    // Basalt that settled on flooded shore is land again (never a tile the Sand God's reclamation is moving)
+    // Cooled basalt becomes plain land: flooded shore and coves are filled, dug / eaten sand settles
+    // (never a tile the Sand God's reclamation is moving)
     const job = prev.terrainReclamation;
     const flooded = new Set(prev.terrainFlooded);
-    const restored = done.filter((k) => flooded.has(k) && k !== job?.source && k !== job?.target);
+    const free = done.filter((k) => k !== job?.source && k !== job?.target);
+    const restored = free.filter((k) => {
+      const [x, y] = k.split(',').map(Number);
+      return flooded.has(k) || isCoveTile(x, y) || k in prev.terrainSand;
+    });
     if (!restored.length) {
       set({ volcanicMagma: tiles });
       return;
     }
     const back = new Set(restored);
+    const filled = restored.filter((k) => !(k in prev.terrainSand) || flooded.has(k));
     set({
       volcanicMagma: tiles,
       terrainFlooded: prev.terrainFlooded.filter((k) => !back.has(k)),
-      terrainFilled: uniq([...prev.terrainFilled, ...restored]),
+      terrainFilled: uniq([...prev.terrainFilled, ...filled]),
+      terrainSand: Object.fromEntries(Object.entries(prev.terrainSand).filter(([k]) => !back.has(k))),
       terrainReclaimed: prev.terrainReclaimed.filter((k) => !back.has(k)),
       lastSavedTimestamp: Date.now(),
     });

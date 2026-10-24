@@ -21,6 +21,10 @@ export interface LairHudState {
   dragonHp: number;
   dragonMaxHp: number;
   dragonPhase: number;
+  /** Three-way battle: each side's remaining strength share (0..1), the side Ignara hunts and the side everyone gangs up on. */
+  shares: Record<'DEMON' | 'DRAGON' | 'HUMAN', number>;
+  dragonFocus: 'DEMON' | 'HUMAN';
+  leader: 'DEMON' | 'DRAGON' | 'HUMAN' | null;
   /** The hoard granted when she fell (shown until the party returns). */
   victory?: Record<string, number>;
   /** The player's Hold order: the party stops advancing (still repairs and fights). */
@@ -43,6 +47,9 @@ export const useLairHud = create<LairHudState>((set) => ({
   dragonHp: 0,
   dragonMaxHp: 0,
   dragonPhase: 0,
+  shares: { DEMON: 1, DRAGON: 1, HUMAN: 1 },
+  dragonFocus: 'DEMON',
+  leader: null,
   victory: undefined,
   hold: false,
   setHold: (hold) => set({ hold }),

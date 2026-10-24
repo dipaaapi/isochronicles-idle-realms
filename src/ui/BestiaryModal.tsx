@@ -3,6 +3,7 @@ import { LairCodex } from './LairCodex';
 import { LAIR_CONFIG } from '../state/lairExpedition';
 import { useGameStore } from '../state/useGameStore';
 import { soundFx } from '../game/audio/soundFx';
+import { StructureThumb } from './StructureThumb';
 import {
   X,
   Sparkles,
@@ -46,7 +47,6 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
   const tx = (t: { en: string; tl: string }) => (language === 'TL' ? t.tl : t.en);
   const codex = portalDefense.codex;
   const towers = portalDefense.towers;
-  const riftArt = `${import.meta.env.BASE_URL}structures/portal.jpg`;
   const riftHp = defenseConfig.portal.hp * portalDefense.scaling.riftHp;
 
   const totalBeasts = beastKeys.length;
@@ -398,7 +398,7 @@ export const BestiaryModal: React.FC<BestiaryModalProps> = ({ isOpen, onClose })
                 <div key={entry.key} className="p-4 rounded-2xl border bg-slate-900/80 border-fuchsia-500/30 shadow-md">
                   <div className="flex items-start gap-3">
                     <div className="w-20 h-20 shrink-0 rounded-2xl overflow-hidden border border-fuchsia-500/40">
-                      <img src={riftArt} alt={entry.name} className="w-full h-full object-cover" draggable={false} />
+                      <StructureThumb structure={entry.key === 'rift' ? 'portal' : 'sentinel'} width={80} height={80} fallback={<span className="flex h-full items-center justify-center text-2xl">🌀</span>} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-sm tracking-wide text-white">{entry.name}</h3>

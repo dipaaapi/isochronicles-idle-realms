@@ -41,12 +41,14 @@ import { pickPavementFxStyle, spawnPavementBurst, spawnPavementTileFx } from './
 import { prepareCharacterSprites } from './sprites/CharacterSprites';
 import { prepareStructureSprites } from './sprites/StructureSprites';
 import { isLoadComplete, useLoadProgress } from './loadProgress';
+import { isWorldHeld } from '../state/worldHold';
 import { WorldEffects } from './WorldEffects';
 import { DefenderSystem } from './DefenderSystem';
 import { SkillSystem } from './skills/SkillSystem';
 import { Navigation, WALK_BRIDGE, WALK_LAND, WALK_CLIFF, WALK_WATER } from './Navigation';
 import { StructureManager } from './StructureManager';
 import { VolcanoLandmark } from './scene/volcano';
+import { AbyssalVortex } from './scene/abyssalVortex';
 import { VolcanicMagma } from './scene/volcanicMagma';
 import { PortalManager } from './PortalManager';
 import { ForceFieldSystem } from './ForceFieldSystem';
@@ -153,6 +155,8 @@ export class MainScene extends Phaser.Scene {
   private portals!: PortalManager;
   private volcano!: VolcanoLandmark;
   private magma?: VolcanicMagma;
+  /** Whirlpool in the southern corner where the Leviathan surfaces. */
+  private vortex?: AbyssalVortex;
   private towers!: TowerSystem;
   private portalDefense!: PortalDefenseSystem;
   private waterFx?: WaterFx;
@@ -357,7 +361,23 @@ export class MainScene extends Phaser.Scene {
     battleTargets.kirov = () => this.kirov?.groundPoint() ?? null;
     const raiders = () => !!this.kirov?.isActive() || this.invasionManager.getInvaders().some((i) => i.isScout && !i.isDead && !i.isRetreating);
     battleTargets.kirovInvasion = raiders;
+    battleTargets.nextKirovIn = () => Math.max(0, (this._nextScoutInterval - this._scoutSpawnAccum) / 1000);
     battleTargets.brawl = () => this.workerManager.isBrawlActive();
+    // Order targets for the Generals panel (Generals and minions): open rifts behind their sentinels, ground loot
+    battleTargets.rifts = () => this.portals.getOpen().map((p) => {
+      const guard = this.portals.guardOf(p);
+      return {
+        x: guard ? guard.x : p.x, y: guard ? guard.y : p.y, boss: false,
+        strike: (damage: number) => { const g = this.portals.guardOf(p); if (g) g.hit(damage); else this.portals.damage(p, damage); },
+      };
+    });
+    battleTargets.loot = {
+      nearest: (x, y, maxDist) => {
+        const item = this.groundLoot.getNearestLoot(x, y, maxDist, 'tenant');
+        return item ? { id: item.id, x: item.container.x, y: item.container.y } : null;
+      },
+      collect: (id, by) => this.groundLoot.collectLoot(id, by),
+    };
     this.forceFields = new ForceFieldSystem(this, this.airFxLayer, this.structures, this.portals, raiders);
     this.castleAlarm = new CastleAlarm(this, this.airFxLayer, this.structures, raiders);
     this.fires = new FireSystem(this, this.airFxLayer, this.structures, this.invasionManager, (x, y) => this.nav.allows(x, y, 'land'));
@@ -920,6 +940,7 @@ export class MainScene extends Phaser.Scene {
     }, this, burrows, this.entityLayer, this.invasionManager, this.workerManager, this.defenders, this.groundLoot);
     this.wild = [seaFolk, sandBrood];
     // Ignara's volcano spills magma onto the island while she lives
+    this.vortex = new AbyssalVortex(this, this.groundFxLayer);
     this.magma = new VolcanicMagma(this, this.groundFxLayer, this.volcano, this.invasionManager, this.workerManager, this.defenders, () => this.wild);
     battleTargets.wild = { SEA: () => seaFolk.orderTargets(), BROOD: () => sandBrood.orderTargets() };
     // Stop listening to the store as soon as this scene goes away (a new realm remounts the scene)
@@ -1703,8 +1724,13 @@ export class MainScene extends Phaser.Scene {
     const store = useGameStore.getState();
 
     const gameSpeed = store.gameSpeed ?? 1;
-    if (gameSpeed === 0) {
+    // Frozen while paused, behind the loading screen and during the tutorial
+    if (gameSpeed === 0 || isWorldHeld()) {
       this.islandContainer.y = Math.sin(time / 2200) * 4.5;
+      // Time stands still, but baked art still swaps in (no boxes left behind while frozen)
+      this.structures.update(0);
+      this.portals.update(0);
+      this.volcano.update(0);
       return;
     }
     const effectiveDelta = delta * gameSpeed;
@@ -1755,6 +1781,7 @@ export class MainScene extends Phaser.Scene {
     this.portals.update(effectiveDelta);
     this.volcano.update(delta);
     this.magma?.update(effectiveDelta);
+    this.vortex?.update(delta);
     this.forageNodes?.update(effectiveDelta);
     this.forceFields?.update(effectiveDelta);
     this.liveFocus?.update(effectiveDelta);

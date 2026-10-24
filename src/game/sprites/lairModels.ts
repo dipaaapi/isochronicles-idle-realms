@@ -121,7 +121,13 @@ const dragonKin = (): VoxelModel => {
       name: 'arms', parent: 'body', pivot: [c, c + 1, 11], shapes: [
         ...[-1, 1].flatMap((sx) => [
           ...chain([[c + sx * 3.5, c + 1, 11], [c + sx * 9, c - 1, 15], [c + sx * 14, c - 3, 13]], 0.8, 0.5, M.scaleDark, 3),
-          ell(c + sx * 9, c - 2.5, 12.5, 5.5, 3.5, 0.6, M.wing),
+          // Finger spars fanning back from the wrist, with a scalloped membrane between them
+          ...chain([[c + sx * 9, c - 1, 15], [c + sx * 11.5, c - 6, 11]], 0.5, 0.3, M.scaleDark, 2),
+          ...chain([[c + sx * 9, c - 1, 15], [c + sx * 6.5, c - 6, 11.5]], 0.5, 0.3, M.scaleDark, 2),
+          ell(c + sx * 5.5, c - 2.5, 13, 2.6, 3.4, 0.5, M.wing),
+          ell(c + sx * 9, c - 3.5, 13, 2.8, 3.8, 0.5, M.wing),
+          ell(c + sx * 12.5, c - 3.5, 12.5, 2.2, 3, 0.5, M.wing),
+          ball(c + sx * 9, c - 0.8, 15.4, 0.6, M.claw),
         ]),
       ],
     },

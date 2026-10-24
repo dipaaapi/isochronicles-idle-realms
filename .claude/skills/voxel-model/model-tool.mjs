@@ -59,7 +59,7 @@ export { ENEMY_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.enemy))};
 export { SEA_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.sea))};
 export { LAIR_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.lair))};
 export { AIRSHIP_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.airship))};
-export { STRUCTURE_MODELS, STRUCTURE_ART } from ${JSON.stringify(path.join(SPRITES, FILES.structure))};
+export { STRUCTURE_MODELS } from ${JSON.stringify(path.join(SPRITES, FILES.structure))};
 export { expandStructure } from ${JSON.stringify(path.join(SPRITES, 'structureStates.ts'))};
 `);
   const outfile = path.join(SCRATCH, 'models.bundle.mjs');
@@ -79,9 +79,9 @@ function findModel(mods, key) {
 }
 
 function referenceArt(mods, kind, key) {
-  const file = kind === 'structure'
-    ? `public/structures/${mods.STRUCTURE_ART[key]}.jpg`
-    : `public/portraits/${PORTRAIT_OVERRIDES[key] ?? kebab(key)}.png`;
+  // Structures have no reference art: their models are the design source
+  if (kind === 'structure') return null;
+  const file = `public/portraits/${PORTRAIT_OVERRIDES[key] ?? kebab(key)}.png`;
   return fs.existsSync(path.join(ROOT, file)) ? file : null;
 }
 

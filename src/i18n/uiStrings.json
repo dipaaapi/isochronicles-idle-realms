@@ -220,8 +220,8 @@
     "tl": "Kuta"
   },
   "hudWave": {
-    "en": "Wave {n}/100",
-    "tl": "Alon {n}/100"
+    "en": "Wave {n}",
+    "tl": "Alon {n}"
   },
   "hudPlay": {
     "en": "Play ( ` )",
@@ -1183,6 +1183,10 @@
     "en": "Title screen",
     "tl": "Pangunahing screen"
   },
+  "gameOverAutoRestart": {
+    "en": "A new realm rises on its own in {n}s. Choose below to decide yourself.",
+    "tl": "Kusang babangon ang bagong kaharian sa loob ng {n}s. Pumili sa ibaba kung ikaw ang magpapasya."
+  },
   "gameOverNewRealm": {
     "en": "Rise again (new realm)",
     "tl": "Bumangon muli (bagong kaharian)"
@@ -1454,5 +1458,69 @@
   "runeSellHint": {
     "en": "Runes are rare, so they sell dear. Unusable = weaker than every rune in its slots and no merge partners.",
     "tl": "Bihira ang mga rune kaya mahal ang bentahan. Hindi magagamit = mas mahina sa lahat ng nakalagay at walang kapares na mapagsasamahan."
+  },
+  "lairSideDemon": {
+    "en": "Demons",
+    "tl": "Demonyo"
+  },
+  "lairSideDragon": {
+    "en": "Ignara",
+    "tl": "Ignara"
+  },
+  "lairSideHuman": {
+    "en": "Humans",
+    "tl": "Tao"
+  },
+  "lairHunted": {
+    "en": "Ignara hunts",
+    "tl": "Hinahabol ni Ignara"
+  },
+  "lairGanged": {
+    "en": "Ganged up on",
+    "tl": "Pinagtutulungan"
+  },
+  "runeBulkSell": {
+    "en": "Bulk sell:",
+    "tl": "Maramihang benta:"
+  },
+  "runeSellTier": {
+    "en": "All {tier} ({count}) · {coins}🪙",
+    "tl": "Lahat ng {tier} ({count}) · {coins}🪙"
+  },
+  "runeTickAll": {
+    "en": "Tick all",
+    "tl": "Markahan lahat"
+  },
+  "runeTickNone": {
+    "en": "Clear",
+    "tl": "Alisin"
+  },
+  "runeSellTicked": {
+    "en": "Sell ticked ({count}) · {coins}🪙",
+    "tl": "Ibenta ang minarkahan ({count}) · {coins}🪙"
+  },
+  "genPriorityMixed": {
+    "en": "The picked Generals have different priorities: tap an order to give them all the same list",
+    "tl": "Magkakaiba ang prayoridad ng mga napili: pindutin ang isang utos para pareho na ang listahan nila"
+  },
+  "genPriorityAuto": {
+    "en": "Auto: fights whatever threat is nearest",
+    "tl": "Auto: nilalabanan ang pinakamalapit na banta"
+  },
+  "genPriorityRemove": {
+    "en": "Remove this priority",
+    "tl": "Alisin ang prayoridad na ito"
+  },
+  "genPriorityHint": {
+    "en": "Tap orders to stack up to 3 priorities; each is followed while its target is on the island, then the next, then Auto.",
+    "tl": "Pindutin ang mga utos para magpatong ng hanggang 3 prayoridad; sinusunod ang bawat isa habang nasa isla ang target nito, saka ang susunod, saka Auto."
+  },
+  "genKirovMelee": {
+    "en": "None of the picked Generals can hit the Kirov (only flyers and long-range fighters can)",
+    "tl": "Walang napiling General na kayang tamaan ang Kirov (mga lumilipad at malayuang mandirigma lang)"
+  },
+  "genNowAuto": {
+    "en": "Auto",
+    "tl": "Auto"
   }
 }

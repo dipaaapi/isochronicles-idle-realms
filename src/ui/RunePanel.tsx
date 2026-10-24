@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AutoToggle } from './AutoToggle';
 import { t as tr, type TranslationKey } from '../i18n/translations';
 import { useGameStore } from '../state/useGameStore';
@@ -48,7 +48,14 @@ const RuneChip: React.FC<{ rune: Rune; t: (s: Localized) => string; action?: Rea
 
 /** Rune Vault: slots per target, unslotted runes and merges. Lives as a Citadel Command tab. */
 export const RunePanel: React.FC = () => {
-  const { runes, runeSlots, slotRune, unslotRune, mergeRunes, sellRune, sellObsoleteRunes, language } = useGameStore();
+  const { runes, runeSlots, slotRune, unslotRune, mergeRunes, sellRune, sellRunes, sellObsoleteRunes, language } = useGameStore();
+  // Bulk sale: ticked vault runes, or every vault rune of one tier
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const toggleTick = (id: string) => setTicked((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const unusable = runes.filter((r) => isUnusableRune(r, runes, runeSlots));
   const unusableCoins = unusable.reduce((sum, r) => sum + runeSellPrice(r.tier), 0);
   const ui = (key: TranslationKey) => tr(key, language);
@@ -56,6 +63,14 @@ export const RunePanel: React.FC = () => {
   const byId = new Map(runes.map((r) => [r.id, r]));
   const slotted = slottedIds(runeSlots);
   const loose = runes.filter((r) => !slotted.has(r.id)).sort((a, b) => b.tier - a.tier || a.kind.localeCompare(b.kind));
+  const tickedLoose = loose.filter((r) => ticked.has(r.id));
+  const tickedCoins = tickedLoose.reduce((sum, r) => sum + runeSellPrice(r.tier), 0);
+  const tiers = [...new Set(loose.map((r) => r.tier))].sort((a, b) => a - b);
+  const sellTier = (tier: number) => sellRunes(loose.filter((r) => r.tier === tier).map((r) => r.id));
+  const sellTicked = () => {
+    sellRunes(tickedLoose.map((r) => r.id));
+    setTicked(new Set());
+  };
 
   // Groups of mergeable runes (same kind and tier; slotted ones upgrade in their slot)
   const groups = new Map<string, { kind: RuneKind; tier: number; count: number }>();
@@ -174,6 +189,37 @@ export const RunePanel: React.FC = () => {
             </button>
           )}
         </div>
+        {loose.length > 0 && (
+          /* Bulk sale: tick runes below, or sell a whole tier at once (slotted runes are never sold) */
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-700/40 bg-amber-950/20 p-1.5 text-[10px]">
+            <span className="font-bold text-amber-200">🪙 {ui('runeBulkSell')}</span>
+            {tiers.map((tier) => {
+              const group = loose.filter((r) => r.tier === tier);
+              const coins = group.reduce((sum, r) => sum + runeSellPrice(r.tier), 0);
+              return (
+                <button key={tier} type="button" onClick={() => sellTier(tier)}
+                  className="rounded-md border px-2 py-0.5 font-bold text-white hover:brightness-125"
+                  style={{ borderColor: tierColor(tier), background: `${tierColor(tier)}33` }}>
+                  {ui('runeSellTier').replace('{tier}', tierName(tier)).replace('{count}', String(group.length)).replace('{coins}', coins.toLocaleString())}
+                </button>
+              );
+            })}
+            <span className="ml-auto flex gap-1">
+              <button type="button" onClick={() => setTicked(new Set(loose.map((r) => r.id)))}
+                className="rounded-md bg-slate-700 px-2 py-0.5 font-bold text-white hover:bg-slate-600">{ui('runeTickAll')}</button>
+              {tickedLoose.length > 0 && (
+                <>
+                  <button type="button" onClick={() => setTicked(new Set())}
+                    className="rounded-md bg-slate-700 px-2 py-0.5 font-bold text-white hover:bg-slate-600">{ui('runeTickNone')}</button>
+                  <button type="button" onClick={sellTicked}
+                    className="rounded-md bg-amber-600 px-2 py-0.5 font-bold text-white hover:bg-amber-500">
+                    {ui('runeSellTicked').replace('{count}', String(tickedLoose.length)).replace('{coins}', tickedCoins.toLocaleString())}
+                  </button>
+                </>
+              )}
+            </span>
+          </div>
+        )}
         {loose.length === 0 ? (
           <p className="text-[11px] text-slate-500">{t(RUNE_TEXT.noRunes)}</p>
         ) : (
@@ -182,8 +228,16 @@ export const RunePanel: React.FC = () => {
               const target = RUNES[rune.kind].target;
               const full = !runeSlots[target].includes(null);
               return (
+                <div key={rune.id} className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={ticked.has(rune.id)}
+                  onChange={() => toggleTick(rune.id)}
+                  aria-label={`${ui('runeSell')} ${t(RUNES[rune.kind].name)} ${tierName(rune.tier)}`}
+                  className="h-4 w-4 shrink-0 accent-amber-500"
+                />
+                <div className="min-w-0 flex-1">
                 <RuneChip
-                  key={rune.id}
                   rune={rune}
                   t={t}
                   upgrade={upgradeButton(rune)}
@@ -210,6 +264,8 @@ export const RunePanel: React.FC = () => {
                     </div>
                   }
                 />
+                </div>
+                </div>
               );
             })}
           </div>

@@ -14,6 +14,25 @@ All eight phases are implemented. Decisions taken with the owner:
 - Magma burns every unit (not buildings); existing magma cools normally after her death.
 - Checkpoints at every region start; the fallen respawn at the last one after 8 s.
 
+### Update 1.1 (2026-10-24): true three-way battle and art pass
+
+- **Three-way battle rebuilt.** It used to play as 2 vs 1 (humans spawned behind Ignara, Generals were locked onto her). Now no side is allied: humans breach from side tunnels between the party and the dragon and hunt demons first; every unit scores foes by distance, grudges (who hit it or its General) and who is winning; the side ahead gets ganged up on; Ignara hunts the side that hurts her most and sends new summons after it. The HUD shows each side's strength, who she hunts and who is being ganged up on. Tuning: `dragonsLair.json` `threeWay`. The headless test asserts all six attacker→target pairs deal damage.
+- **Art.** Ignara is a rig of Canvas2D-painted parts (scales, belly plates, horns, veined wings, glowing eyes, maw and furnace). The cavern floor is one painted texture (region decor, lava fissures, crystals, hoard gold, jagged walls, side tunnels) under coloured light; obstacles and FX were redrawn (bubbling lava, boulders, chasms, obsidian rune gate, glowing bolts, embers). Dragon-kin wings became scalloped membranes.
+
+**Status: the patch is complete.** Anything further ships as a future update (below).
+
+### Future update backlog (proposed)
+
+1. **Party loadout.** Pick which Generals go in instead of all of them, so a raid can be planned and the rest keep defending.
+2. **Generation scaling.** Each new Ignara generation adds one ability (e.g. Molten Shell that only breaks on hits from two sides at once, or a Tail Sweep across the strip behind her), so repeat kills stay fresh.
+3. **Human expedition commander.** An elite human leader with a war banner that buffs nearby raiders; killing it scatters them and drops human loot (coins, supplies).
+4. **Dragon trophies.** Ignara's skull or scales displayed on the island after a kill, plus a dragon-scale rune line that only drops from her.
+5. **Side objective: brood eggs.** Smash eggs in the Kin Roosts before reaching the chamber, so fewer dragon-kin join her summons.
+6. **Demon Lord's sky laser in the lair**, on a longer cooldown, so the player has a direct hand in the three-way fight.
+7. **Retreat mid-battle with partial loot** (based on the HP taken off this visit) instead of leaving empty-handed.
+8. **Painted art for the bat and Magma Golem**, matching Ignara's painted style.
+9. **Lair music and SFX pass**: a distinct cave ambience, Ignara's roar layers per phase, a human war horn when they breach (part of the game-wide audio refresh).
+
 Everything below is the original plan, kept for reference.
 
 ## Purpose and Scope

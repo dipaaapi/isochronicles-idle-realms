@@ -248,74 +248,145 @@ const kappa = (): VoxelModel => {
 // ── Leviathan: the abyssal sea dragon (boss, only one) ──────────────────────
 
 const leviathan = (): VoxelModel => {
-  const M = { scale: 0, scaleDark: 1, belly: 2, fin: 3, horn: 4, eye: 5, glow: 6, tooth: 7, spine: 8, water: 9 };
-  const c = 32;
+  // A sea dragon, not a pole: coils arching out of the water behind it, an S-curved neck with a
+  // dorsal sail, a long-snouted dragon head (separate jaw, horns, whiskers, ear fins) and webbed claws
+  const M = {
+    scale: 0, scaleDark: 1, belly: 2, fin: 3, horn: 4, eye: 5, glow: 6, tooth: 7, spine: 8, water: 9,
+    finDark: 10, whisker: 11, maw: 12,
+  };
+  const c = 40;
+  // Neck spine from the water up to the back of the skull (S-curve: up, back, then forward)
+  const NECK: Array<[number, number, number]> = [[c, c - 1, 2], [c, c + 1, 12], [c, c - 2, 22], [c, c - 1.5, 31], [c, c + 3, 39], [c, c + 6, 43]];
+  // The head is modelled at z ≈ 37 and lifted onto the taller neck
+  const LIFT = 8;
+  const lift = (shapes: Shape[]): Shape[] => shapes.map((sh): Shape => sh.kind === 'box'
+    ? { ...sh, min: [sh.min[0], sh.min[1], sh.min[2] + LIFT], max: [sh.max[0], sh.max[1], sh.max[2] + LIFT] }
+    : sh.kind === 'ellipsoid'
+      ? { ...sh, center: [sh.center[0], sh.center[1], sh.center[2] + LIFT] }
+      : { ...sh, center: [sh.center[0], sh.center[1], sh.center[2] + LIFT] });
+  const HEAD: [number, number, number] = [c, c + 9, 37 + LIFT];
   const parts: Part[] = [
     {
-      // Coils breaking the water surface around its base
-      name: 'legs', pivot: [c, c, 4], shapes: [
-        ...chain([[c - 16, c - 6, 3], [c - 10, c - 12, 6], [c - 2, c - 13, 4], [c + 6, c - 10, 6], [c + 13, c - 4, 3]], 4.6, 3.2, M.scale, 3),
-        ...chain([[c + 13, c - 4, 3], [c + 17, c + 4, 5], [c + 20, c + 10, 2]], 3.2, 1.4, M.scaleDark, 3),
-        ell(c + 21, c + 12, 3, 4, 2, 1, M.fin),
-        ...[[c - 10, c - 12, 10], [c - 2, c - 13, 8.5], [c + 6, c - 10, 10]].map(([x, y, z]) => ell(x, y, z, 1, 2.6, 2.4, M.spine)),
-        ell(c, c, 1, 22, 18, 1.2, M.water),                           // churned foam ring
+      // Coils breaking the surface behind it, ending in a fanned tail fin; foam where they cut the water
+      name: 'legs', pivot: [c, c, 3], shapes: [
+        ell(c, c - 6, 0.6, 17, 15, 0.7, M.water),
+        ...chain([[c - 2, c - 4, 1], [c - 6, c - 9, 9], [c - 10, c - 14, 1]], 5.6, 5, M.scale, 4),
+        ...chain([[c - 10, c - 14, 1], [c - 6, c - 19, 8], [c + 1, c - 22, 1]], 5, 4.2, M.scale, 4),
+        ...chain([[c + 1, c - 22, 1], [c + 8, c - 22, 6.5], [c + 14, c - 19, 1]], 4.2, 3, M.scaleDark, 4),
+        ...chain([[c + 14, c - 19, 1], [c + 19, c - 14, 3.5], [c + 22, c - 9, 2]], 3, 1.6, M.scaleDark, 3),
+        // Tail fan
+        ell(c + 24, c - 7, 5, 1, 4.5, 4.2, M.fin), ell(c + 24, c - 7, 5, 1.2, 2.6, 2.6, M.finDark),
+        // Belly stripe and dorsal spikes along the coils
+        ...[[c - 6, c - 8.2, 7.4], [c - 6, c - 18.2, 6.6], [c + 8, c - 21, 5]].map(([x, y, z]) => ell(x, y + 2.6, z - 1.6, 2.6, 1.6, 2.6, M.belly)),
+        ...[[c - 6, c - 10, 14.5], [c - 6, c - 20, 13], [c + 8, c - 23, 10.5], [c + 18.5, c - 15.5, 7]].map(([x, y, z]) => ell(x, y, z, 0.9, 2.2, 3, M.spine)),
+        // Foam rings where each coil enters the water
+        ...[[c - 10, c - 14], [c + 1, c - 22], [c + 14, c - 19], [c - 2, c - 3]].map(([x, y]) => ell(x, y, 1.4, 6.5, 6.5, 0.8, M.water)),
       ],
     },
     {
-      // Rising neck and chest
-      name: 'body', pivot: [c, c, 6], shapes: [
-        ...chain([[c, c, 4], [c, c + 1, 12], [c, c + 2.5, 20], [c, c + 3, 28], [c, c + 4.5, 35]], 7, 4.6, M.scale, 3),
-        ...chain([[c, c + 5.6, 6], [c, c + 6.4, 14], [c, c + 7, 22], [c, c + 7.2, 30]], 4, 2.8, M.belly, 3),
-        ...[10, 16, 22, 28, 34].map((z) => ell(c, c - 4.5 + z * 0.08, z, 1.2, 2.6, 2.6, M.spine)),
-        ell(c - 8, c + 1, 16, 6, 1.4, 4, M.fin), ell(c + 8, c + 1, 16, 6, 1.4, 4, M.fin), // side fins
+      name: 'body', pivot: [c, c, 3], shapes: [
+        ...chain(NECK, 6, 3.8, M.scale, 5),
+        // Pale belly plates down the front of the neck
+        ...chain(NECK.slice(0, 5).map(([x, y, z]) => [x, y + 3.6, z] as [number, number, number]), 3.6, 2.4, M.belly, 5),
+        ...[5, 11, 17, 23, 29].map((z) => box(c - 2.8, c + 3.6 + (z > 16 ? -1.6 : 0.6), z, c + 2.8, c + 4.8 + (z > 16 ? -1.6 : 0.6), z + 0.5, M.scaleDark)),
+        // Dorsal sail: a webbed fin along the back of the neck, tallest at the shoulders
+        ...[[c - 4.6, 10, 4.5], [c - 6.4, 16, 5.6], [c - 6.6, 22, 5.6], [c - 6, 28, 5], [c - 4.4, 34, 4], [c - 1.4, 39, 3]].map(([y, z, h]) => ell(c, y, z, 0.8, 2.6, h, M.fin)),
+        ...[[c - 7, 11], [c - 9, 17], [c - 9.4, 23], [c - 8.8, 29], [c - 7, 35]].map(([y, z]) => ell(c, y, z, 0.5, 0.9, 2.2, M.finDark)),
+        // Glowing scale rows on the flanks
+        ...[8, 16, 24, 32].flatMap((z) => [-1, 1].map((sx) => ell(c + sx * (5.6 - z * 0.05), c, z, 0.6, 1.8, 0.9, M.glow))),
       ],
     },
     {
-      name: 'head', parent: 'body', pivot: [c, c + 5, 37], shapes: [
-        ell(c, c + 7, 40, 6, 7.5, 5, M.scale),
-        ell(c, c + 12.5, 38.2, 4, 4.6, 2.8, M.scaleDark),              // snout
-        ell(c, c + 12, 35.6, 3.6, 4, 1.4, M.belly),                    // lower jaw
-        ...[-2.6, -1, 1, 2.6].map((x) => box(c + x - 0.4, c + 15.4, 35.8, c + x + 0.4, c + 16.2, 37.6, M.tooth)),
-        ball(c - 4, c + 9.5, 42, 1.5, M.eye), ball(c + 4, c + 9.5, 42, 1.5, M.eye),
-        ...chain([[c - 4, c + 4, 44], [c - 7, c + 1, 48], [c - 8, c - 3, 50]], 1.6, 0.6, M.horn, 3),
-        ...chain([[c + 4, c + 4, 44], [c + 7, c + 1, 48], [c + 8, c - 3, 50]], 1.6, 0.6, M.horn, 3),
-        ell(c, c + 3, 45, 1, 3.4, 2.6, M.spine),
-        ...[[-6, 38], [6, 38]].map(([x, z]) => ell(c + x, c + 4, z, 0.8, 3, 2, M.fin)), // gill frills
-        ball(c, c + 7, 45.6, 0.9, M.glow),                             // abyssal crest gem
-      ],
+      name: 'arms', parent: 'body', pivot: [c, c + 3, 16], shapes: [-1, 1].flatMap((sx) => [
+        ...chain([[c + sx * 4.6, c + 2, 17], [c + sx * 9, c + 6, 13.5], [c + sx * 9, c + 10.5, 9.5]], 2, 1.5, M.scaleDark, 3),
+        // Webbed hand: three claws with membrane between
+        ell(c + sx * 9, c + 12, 8.6, 2.4, 2, 1, M.fin),
+        ...[-1.4, 0, 1.4].map((d) => box(c + sx * 9 + d - 0.35, c + 13.4, 7, c + sx * 9 + d + 0.35, c + 14.6, 8.6, M.tooth)),
+      ]),
     },
     {
-      name: 'arms', parent: 'body', pivot: [c, c + 3, 24], shapes: [
-        ...[-1, 1].map((sx) => ell(c + sx * 7.5, c + 5, 22, 1.6, 3.2, 1.4, M.scaleDark)),
-        ...[-1, 1].flatMap((sx) => [-1, 0, 1].map((d) => box(c + sx * 7.5 + d - 0.3, c + 8, 21, c + sx * 7.5 + d + 0.3, c + 9.4, 22, M.tooth))),
-      ],
+      name: 'head', parent: 'body', pivot: HEAD, shapes: lift([
+        // Skull and long snout with a bony ridge and nostrils
+        ell(c, c + 9, 37.4, 5.4, 6.4, 4.4, M.scale),
+        ell(c, c + 15.5, 36.4, 3.6, 5.6, 2.6, M.scale),
+        ell(c, c + 14, 38.6, 1.4, 6, 1.2, M.scaleDark),
+        ...[-1.4, 1.4].map((x) => ball(c + x, c + 20.4, 37.4, 0.6, M.maw)),
+        // Upper teeth along the lip
+        ...[-2.6, -1.3, 0, 1.3, 2.6].map((x) => box(c + x - 0.35, c + 17 + Math.abs(x) * -0.6, 33.6, c + x + 0.35, c + 18 + Math.abs(x) * -0.6, 34.8, M.tooth)),
+        // Eyes under heavy brows, with a glow
+        ...[-1, 1].flatMap((sx) => [
+          ell(c + sx * 4.6, c + 11, 39.6, 1.6, 2.8, 0.9, M.scaleDark),
+          ell(c + sx * 4.4, c + 11.4, 38.6, 1, 1.5, 1, M.eye),
+        ]),
+        // Pearl horns swept back, a crest of spines and a glowing crest gem
+        ...[-1, 1].flatMap((sx) => [
+          ...chain([[c + sx * 3, c + 6, 41], [c + sx * 5, c + 2, 44.5], [c + sx * 5.8, c - 3, 46.5]], 1.4, 0.5, M.horn, 3),
+          ...chain([[c + sx * 2, c + 9, 41.4], [c + sx * 2.6, c + 6, 44]], 0.8, 0.4, M.horn, 2),
+        ]),
+        ...[[c + 6, 42.5], [c + 3, 42], [c, 41]].map(([y, z]) => ell(c, y, z, 0.7, 1.6, 2, M.spine)),
+        ball(c, c + 10.5, 41.8, 1, M.glow),
+        // Ear fins (frills) and whisker barbels trailing back from the snout
+        ...[-1, 1].flatMap((sx) => [
+          ell(c + sx * 6.2, c + 5.5, 38.5, 0.8, 4, 3.4, M.fin), ell(c + sx * 6.4, c + 4.5, 38.5, 0.5, 2.2, 1.8, M.finDark),
+          ...chain([[c + sx * 3.2, c + 18, 35.8], [c + sx * 6.5, c + 15, 32.5], [c + sx * 9.5, c + 10, 31.5], [c + sx * 10.5, c + 6, 33]], 0.55, 0.3, M.whisker, 3),
+        ]),
+      ]),
+    },
+    {
+      // Lower jaw: opens for the bite and the breath
+      name: 'jaw', parent: 'head', pivot: [c, c + 9, 34.5 + LIFT], shapes: lift([
+        ell(c, c + 14.6, 33.2, 3.2, 5.2, 1.4, M.belly),
+        ell(c, c + 13.6, 34.2, 2.4, 4.2, 0.6, M.maw),
+        ...[-2.2, -1, 1, 2.2].map((x) => box(c + x - 0.35, c + 16.6 + Math.abs(x) * -0.6, 34.2, c + x + 0.35, c + 17.4 + Math.abs(x) * -0.6, 35.4, M.tooth)),
+      ]),
     },
   ];
-  const walk: Pose[] = SWIM.map((s) => ({
-    body: { roll: 0.08 * s, pitch: 0.05 * s },
-    head: { yaw: -0.12 * s, pitch: 0.06 * Math.abs(s) },
-    legs: { yaw: 0.06 * s, offset: [0, 0, Math.abs(s) * 0.6] },
+  const walk: Pose[] = SWIM.map((s, i) => ({
+    body: { roll: 0.07 * s, pitch: 0.05 * s },
+    head: { yaw: -0.1 * s, pitch: 0.05 * Math.abs(s) },
+    arms: { pitch: 0.25 * s },
+    jaw: { pitch: 0.04 * (i % 2) },
+    legs: { yaw: 0.05 * s, offset: [0, 0, Math.abs(s) * 0.9] },
   }));
+  // Bite: rear back, then lunge with the jaw wide open
   const attack: Pose[] = [
-    { body: { pitch: -0.25 }, head: { pitch: -0.3 } },
-    { body: { pitch: -0.35, offset: [0, -2, 1] }, head: { pitch: -0.45 } },
-    { body: { pitch: 0.45, offset: [0, 5, -2] }, head: { pitch: 0.6 } },
-    { body: { pitch: 0.35, offset: [0, 4, -2] }, head: { pitch: 0.4 } },
-    { body: { pitch: 0.1 }, head: { pitch: 0.1 } },
+    { body: { pitch: -0.18 }, head: { pitch: -0.25 }, jaw: { pitch: 0.2 } },
+    { body: { pitch: -0.32, offset: [0, -2, 1] }, head: { pitch: -0.4 }, jaw: { pitch: 0.55 }, arms: { pitch: -0.4 } },
+    { body: { pitch: 0.4, offset: [0, 5, -2] }, head: { pitch: 0.5 }, jaw: { pitch: 0.7 }, arms: { pitch: 0.5 } },
+    { body: { pitch: 0.45, offset: [0, 6, -2] }, head: { pitch: 0.45 }, jaw: { pitch: 0 } },
+    { body: { pitch: 0.25, offset: [0, 3, -1] }, head: { pitch: 0.2 }, jaw: { pitch: 0.05 } },
+    { body: { pitch: 0.06 }, head: { pitch: 0.05 } },
   ];
-  const idle: Pose[] = [0, 1, 2, 3, 4, 5].map((i) => {
-    const a = (i / 6) * Math.PI * 2;
-    return { body: { roll: Math.sin(a) * 0.05, offset: [0, 0, Math.sin(a) * 1] }, head: { yaw: Math.sin(a) * 0.15 }, legs: { yaw: Math.sin(a) * 0.04 } };
+  const idle: Pose[] = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+    const a = (i / 8) * Math.PI * 2;
+    return {
+      body: { roll: Math.sin(a) * 0.05, offset: [0, 0, Math.sin(a) * 1.1] },
+      head: { yaw: Math.sin(a) * 0.14, pitch: Math.cos(a) * 0.04 },
+      jaw: { pitch: Math.max(0, Math.sin(a * 2)) * 0.12 },
+      arms: { pitch: Math.sin(a + 1) * 0.15 },
+      legs: { yaw: Math.sin(a) * 0.04, offset: [0, 0, Math.cos(a) * 0.6] },
+    };
   });
+  // Skill: rears up high, throat swelling, then the jaw gapes wide for the breath / roar
+  const skill: Pose[] = [
+    { body: { pitch: -0.15, offset: [0, -1, 1] }, head: { pitch: -0.2 } },
+    { body: { pitch: -0.3, offset: [0, -2, 3] }, head: { pitch: -0.45 }, jaw: { pitch: 0.3 }, arms: { pitch: -0.6 } },
+    { body: { pitch: -0.38, offset: [0, -2, 4] }, head: { pitch: -0.55, scale: [1.04, 1.04, 1.04] }, jaw: { pitch: 0.75 }, arms: { pitch: -0.7 } },
+    { body: { pitch: 0.1, offset: [0, 2, 2] }, head: { pitch: 0.15 }, jaw: { pitch: 0.85 }, arms: { pitch: 0.2 } },
+    { body: { pitch: 0.14, offset: [0, 3, 2] }, head: { pitch: 0.2 }, jaw: { pitch: 0.85 } },
+    { body: { pitch: 0.1, offset: [0, 2, 1] }, head: { pitch: 0.12 }, jaw: { pitch: 0.7 } },
+    { body: { pitch: 0.04 }, head: { pitch: 0.04 }, jaw: { pitch: 0.3 } },
+    { body: { pitch: 0 }, head: { pitch: 0 }, jaw: { pitch: 0.05 } },
+  ];
   return {
-    size: [64, 64, 54], foot: [c, c, 0], pixelsPerVoxel: 1.1,
+    size: [80, 80, 60], foot: [c, c, 0], pixelsPerVoxel: 1.1,
     materials: [
-      { color: 0x0e7490 }, { color: 0x164e63 }, { color: 0x67e8f9 }, { color: 0x2dd4bf }, { color: 0xe0f2fe },
-      { color: 0xfde047, emissive: true }, { color: 0xa78bfa, emissive: true }, { color: 0xf8fafc }, { color: 0x0c4a6e },
-      { color: 0xe0f2fe },
+      { color: 0x0e7490 }, { color: 0x134e5e }, { color: 0x99f6e4 }, { color: 0x22d3ee }, { color: 0xe2e8f0 },
+      { color: 0xfde047, emissive: true }, { color: 0x67e8f9, emissive: true }, { color: 0xf8fafc }, { color: 0x0c4a6e },
+      { color: 0xbae6fd }, { color: 0x0891b2 }, { color: 0xa5f3fc }, { color: 0x450a0a },
     ],
     parts,
-    animations: { walk, attack, idle },
+    animations: { walk, attack, idle, skill },
   };
 };
 

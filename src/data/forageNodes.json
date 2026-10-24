@@ -1,5 +1,5 @@
 {
-  "_doc": "Renewable wild bushes and trees. Nodes are click/tap harvested for wood, then regrow on another valid land tile. Population rises slowly with completed waves while remaining capped.",
+  "_doc": "Renewable wild bushes and trees (game/scene/ForageNodeManager.ts, art in foliageArt.ts, one look per realm). Nodes are click/tap harvested for wood (and arcane essence from the essence-bearing ones, which shimmer), then regrow on another valid land tile. Population rises slowly with completed waves while remaining capped.",
   "baseNodes": 4,
   "maxNodes": 10,
   "extraNodeEveryWaves": 15,
@@ -8,7 +8,23 @@
   "respawnAccelerationPerWave": 0.012,
   "treeChance": 0.45,
   "wood": {
-    "bush": [4, 9],
-    "tree": [12, 24]
+    "bush": [
+      4,
+      9
+    ],
+    "tree": [
+      12,
+      24
+    ]
+  },
+  "essence": {
+    "chance": {
+      "tree": 0.3,
+      "bush": 0.18
+    },
+    "amount": [
+      2,
+      6
+    ]
   }
 }

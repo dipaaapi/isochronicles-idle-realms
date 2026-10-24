@@ -1,4 +1,5 @@
-import { BUILDING_SPRITE, STRUCTURE_ART } from '../game/sprites/structureModels';
+import { BUILDING_SPRITE } from '../game/sprites/structureModels';
+import { StructureThumb } from './StructureThumb';
 import React, { useState } from 'react';
 import { useGameStore } from '../state/useGameStore';
 import { RESOURCE_BUILDING_CONFIG, RESOURCE_PRICES } from '../state/useGameStore';
@@ -263,7 +264,6 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
             const active = id === activeEstab;
             const isBuilt = id === 'CASTLE' ? castleBuilt : id === 'SPIRE' ? spireBuilt : (resourceBuildings[id]?.level ?? 0) >= 1;
             const artKey = id === 'CASTLE' ? 'castle' : id === 'SPIRE' ? 'spire' : BUILDING_SPRITE[id as ResourceBuildingId];
-            const art = artKey ? STRUCTURE_ART[artKey] : undefined;
             const name = isTL ? label : labelEn;
             return (
               <button
@@ -279,11 +279,14 @@ export const EstablishmentModal: React.FC<EstablishmentModalProps> = ({
                     : 'border-slate-800 bg-slate-900/80 hover:border-slate-500'
                 } ${!isBuilt ? 'opacity-45 grayscale' : ''}`}
               >
-                {art ? (
-                  <img src={`/structures/${art}.jpg`} alt="" loading="lazy" className="w-full h-11 object-cover object-center" />
-                ) : (
-                  <span className="h-11 flex items-center justify-center text-xl">{icon}</span>
-                )}
+                {/* The establishment as it stands in the game (its idle model), not old concept art */}
+                <span className="h-11 flex items-center justify-center bg-gradient-to-b from-slate-800/60 to-slate-950">
+                  {artKey ? (
+                    <StructureThumb structure={artKey} width={72} height={44} fallback={<span className="text-xl">{icon}</span>} />
+                  ) : (
+                    <span className="text-xl">{icon}</span>
+                  )}
+                </span>
                 <span
                   className={`px-1 py-0.5 text-[9px] leading-tight truncate text-center ${
                     active ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950/90 text-slate-400 group-hover:text-slate-200'

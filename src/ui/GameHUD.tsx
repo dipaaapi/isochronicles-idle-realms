@@ -249,6 +249,17 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'command' | 'status' | 'resources'>('command');
+
+  // The tutorial opens the sidebar on the tab its step points at
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab?: 'command' | 'status' | 'resources' }>).detail?.tab;
+      setIsSidebarOpen(true);
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('isochronicle:tutorial-focus', onFocus);
+    return () => window.removeEventListener('isochronicle:tutorial-focus', onFocus);
+  }, []);
   const [confirmAction, setConfirmAction] = useState<'SKIP_DAY' | 'SUMMON_WAVE' | null>(null);
   const [hoveredBattleItem, setHoveredBattleItem] = useState<BattleItemId | null>(null);
   const [battleItemAnchor, setBattleItemAnchor] = useState<HTMLElement | null>(null);
@@ -530,12 +541,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <div ref={scrollRef} className="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
           
           {/* SECTION A: ANIMATED TIME OF DAY & WEATHER */}
+          <div data-tutorial="sky">
           <SkyStatusPanel
             timeOfDayConfig={timeOfDayConfig}
             weatherConfig={weatherConfig}
             onSkipDay={() => { soundFx.playClick(); setConfirmAction('SKIP_DAY'); }}
             onOpenWeather={() => { soundFx.playClick(); setIsWeatherModalOpen(true); }}
           />
+          </div>
 
 
           {/* Followed General (← / →): its skills, castable with F / G / H */}
@@ -544,6 +557,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           {/* SECTION C: NAVIGATION TABS */}
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900 p-1 border border-slate-800">
             <button
+              data-tutorial="tab-command"
               onClick={() => { soundFx.playClick(); setActiveTab('command'); }}
               className={`relative py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
                 activeTab === 'command' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
@@ -553,6 +567,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               <KeyBadge k="Z" />
             </button>
             <button
+              data-tutorial="tab-status"
               onClick={() => { soundFx.playClick(); setActiveTab('status'); }}
               className={`relative py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
                 activeTab === 'status' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
@@ -562,6 +577,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               <KeyBadge k="X" />
             </button>
             <button
+              data-tutorial="tab-resources"
               onClick={() => { soundFx.playClick(); setActiveTab('resources'); }}
               className={`relative py-1.5 rounded-lg text-[10px] font-bold uppercase transition cursor-pointer ${
                 activeTab === 'resources' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
@@ -579,6 +595,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div className="space-y-2">
               {/* Main Citadel Command Opener */}
               <button
+                data-tutorial="citadel"
                 onClick={() => { soundFx.playClick(); onOpenCitadel('OVERVIEW'); }}
                 className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 border border-purple-500/40 hover:border-purple-400 flex items-center justify-between transition cursor-pointer shadow-md"
               >
@@ -593,7 +610,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               </button>
 
               {/* 2 Quick Hub Buttons (Laboratory & Atlas); S opens the Laboratory's Skills */}
-              <div className="grid grid-cols-2 gap-2">
+              <div data-tutorial="hub" className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => { soundFx.playClick(); onOpenSkillTree(); }}
                   className="relative p-2.5 rounded-2xl bg-slate-900/80 border border-purple-500/30 text-purple-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-900/40 transition"
@@ -636,7 +653,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               </div>
 
               {/* Every keyboard shortcut as a button: QWERTY battle items, then time, wave, audio and window keys */}
-              <div className="grid grid-cols-7 gap-1 rounded-xl border border-purple-500/30 bg-slate-900/60 p-1.5">
+              <div data-tutorial="keys" className="grid grid-cols-7 gap-1 rounded-xl border border-purple-500/30 bg-slate-900/60 p-1.5">
               {BATTLE_ITEMS.map((item) => {
                 const cost = (ECONOMY_CONFIG.battleItems[item.id]?.cost ?? {}) as Partial<Record<string, number>>;
                 const canAfford = Object.entries(cost).every(
@@ -755,6 +772,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           {activeTab === 'status' && (
             <div className="space-y-2.5">
               <button
+                data-tutorial="wave"
                 disabled={invasion.isActive}
                 onClick={() => {
                   if (invasion.isActive) return;
@@ -806,7 +824,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* TAB 3: RESOURCES */}
           {activeTab === 'resources' && (
-            <div className="space-y-2">
+            <div data-tutorial="resources" className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 {resourceGauges.map((resource) => (
                   <button
@@ -847,7 +865,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* Generals command panel / docked music player share one slot (tabs). The player stays
           mounted (hidden) on the Generals tab and while the side menu is collapsed so it keeps playing */}
-      <div className={isSidebarOpen ? 'pl-3 pb-2' : ''} style={isSidebarOpen ? { paddingRight: 12 + scrollGutter } : undefined}>
+      <div data-tutorial="dock" className={isSidebarOpen ? 'pl-3 pb-2' : ''} style={isSidebarOpen ? { paddingRight: 12 + scrollGutter } : undefined}>
         {isSidebarOpen && (
           <div className="flex gap-1 mb-1.5">
             {(['GENERALS', 'MUSIC'] as const).map((tab) => (

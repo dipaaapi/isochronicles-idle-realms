@@ -3,9 +3,9 @@ import type { Part, Pose, Shape, VoxelGeometry } from './VoxelSprite';
 
 /**
  * Voxel models for the citadel, the establishments, the Crystal Spire and the
- * invader portals. Each one follows its Codex art in public/structures/
- * (silhouette, colours, props) — compare the image and the Atlas "Structures"
- * tab side by side before changing a model.
+ * invader portals. These models are the design source (the old Codex
+ * pictures were removed on 2026-10-24); check every state in the Atlas
+ * "Structures" tab before changing a model.
  *
  * They are baked from one fixed camera (STRUCTURE_DIRECTION) where model +y
  * runs along grid +x (screen right-down) and model +x along grid +y (screen
@@ -943,27 +943,54 @@ const volcano = (): StructureModel => {
   // Crater lip and throat
   body.push(cyl(C, C, TOP - 1, RT + 0.6, 1.4, M.rockLit), cyl(C, C, TOP - 3, RT - 2.2, 3.4, M.cave));
 
-  // ── Cave mouth at the foot, facing the island
-  const mx = C + MX * (R0 - 3.5), my = C + MY * (R0 - 3.5);
+  // ── Cave mouth at the foot, facing the island: a tunnel CUT INTO the slope
+  // (material -1 carves voxels out of the mountain), not a dome stuck on it.
+  // Dark rock lines the tunnel, arch stones sit flush with the slope, the
+  // firelight burns deep inside and the rubble seal fills the opening.
+  const CARVE = -1;
+  const MD = 25.5;                                   // tunnel centre, a little inside the slope
+  const mx = C + MX * MD, my = C + MY * MD;
+  const PX = MY, PY = -MX;                           // across the opening
+  const at = (out: number, across: number, z: number): [number, number, number] =>
+    [mx + MX * out + PX * across, my + MY * out + PY * across, z];
+  const ARCH_W = 6.2, ARCH_H = 9;
+  const archStones: Shape[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = Math.PI * (i / 10);                     // 0 → π: one jamb, over the top, the other jamb
+    const across = Math.cos(t) * (ARCH_W + 1.4);
+    const z = Math.sin(t) * (ARCH_H + 1.2);
+    // Each stone sits on the slope surface at its height
+    const out = radiusAt(z) - MD + 0.2;
+    archStones.push(ball(...at(out, across, Math.max(1, z)), i === 5 ? 2.3 : 1.9, i % 2 ? M.rockLit : M.rockMid));
+  }
   const mouth: Shape[] = [
-    // A buttress of dark rock framing the opening
-    ell(mx, my, 7, 9, 9, 9.5, M.rockDark),
-    ell(mx + MX * 2.4, my + MY * 2.4, 6.4, 6.2, 6.2, 7.4, M.cave),
-    // Lintel and jamb stones
-    ...[-2, -1, 0, 1, 2].map((k) => ball(mx + MX * 3.6 + k * MY * 2.8, my + MY * 3.6 - k * MX * 2.8, 13.6 - Math.abs(k) * 1.2, 1.9, M.rockLit)),
-    ...[-1, 1].map((k) => box(mx + MX * 3.2 + k * MY * 6 - 1.2, my + MY * 3.2 - k * MX * 6 - 1.2, 0, mx + MX * 3.2 + k * MY * 6 + 1.2, my + MY * 3.2 - k * MX * 6 + 1.2, 9, M.rockMid)),
+    // Dark rock shell inside the mountain (becomes the tunnel walls once carved)
+    ell(...at(-1.5, 0, 3), ARCH_W + 2.4, ARCH_W + 2.4, ARCH_H + 2.2, M.cave),
+    ell(...at(-4, 0, 3), ARCH_W + 1.2, ARCH_W + 1.2, ARCH_H + 1, M.rockDark),
+    // The opening itself, carved through to the outside
+    ell(...at(3.5, 0, 0), ARCH_W, ARCH_W + 3, ARCH_H, CARVE),
+    ell(...at(-0.5, 0, 0), ARCH_W - 1, ARCH_W - 1, ARCH_H - 1.2, CARVE),
+    ...archStones,
+    // Threshold slab worn flat by the brood's comings and goings
+    ell(...at(5.5, 0, 0.3), 4.5, 4.5, 0.6, M.rockMid),
   ];
-  const mouthGlow: Shape[] = [ell(mx + MX * 2.6, my + MY * 2.6, 4.8, 3.4, 3.4, 4.2, M.glow), ell(mx + MX * 3.4, my + MY * 3.4, 1.4, 4, 4, 1.2, M.magma)];
-  const mouthEmber: Shape[] = [ell(mx + MX * 2.6, my + MY * 2.6, 4.4, 3, 3, 3.6, M.glowDim)];
+  // Fire deep inside the tunnel: a hot core at the back and a lit floor running out
+  const mouthGlow: Shape[] = [
+    ell(...at(-3.5, 0, 3.5), 2.6, 2.6, 3.4, M.glow),
+    ell(...at(-1, 0, 0.6), 1.8, 1.8, 0.7, M.magma), ell(...at(1.5, 0, 0.5), 1.4, 1.4, 0.5, M.magma),
+  ];
+  const mouthEmber: Shape[] = [ell(...at(-3.5, 0, 3), 2.2, 2.2, 2.6, M.glowDim)];
+  // Sealed: rubble piled inside the arch
   const rubble: Shape[] = [];
-  for (let i = 0; i < 9; i++) {
-    const k = (i % 3) - 1, row = Math.floor(i / 3);
-    rubble.push(ball(mx + MX * (3.6 + row * 0.6) + k * MY * 2.6, my + MY * (3.6 + row * 0.6) - k * MX * 2.6, 2 + row * 2.6, 2.1 - row * 0.2, n(i + 300) > 0.5 ? M.rockMid : M.rockLit));
+  for (let i = 0; i < 12; i++) {
+    const k = (i % 4) - 1.5, row = Math.floor(i / 4);
+    rubble.push(ball(...at(1.2 + row * 0.4, k * 2.9, 1.8 + row * 2.8), 2.2 - row * 0.2, n(i + 300) > 0.5 ? M.rockMid : M.rockLit));
   }
   // Glowing cracks between the rubble stones (stage 3+)
-  const rubbleCracks: Shape[] = [-1, 0, 1].map((k) => box(
-    mx + MX * 5.4 + k * MY * 1.3 - 0.3, my + MY * 5.4 - k * MX * 1.3 - 0.3, 1.5 + Math.abs(k) * 2,
-    mx + MX * 5.4 + k * MY * 1.3 + 0.3, my + MY * 5.4 - k * MX * 1.3 + 0.3, 3 + Math.abs(k) * 2, M.magma));
+  const rubbleCracks: Shape[] = [-1, 0, 1].map((k) => {
+    const [x, y, z] = at(3.4, k * 2.9, 2 + Math.abs(k) * 2.4);
+    return box(x - 0.35, y - 0.35, z, x + 0.35, y + 0.35, z + 1.6, M.magma);
+  });
 
   // ── Lava seams down the visible faces (they light up stage by stage)
   const seam = (ang: number, len: number, seed: number): Shape[] => {
@@ -1553,93 +1580,148 @@ const kennel = (): StructureModel => {
 const foundry = (): StructureModel => {
   const M = {
     floor: 0, floorLight: 1, iron: 2, ironLight: 3, ironDark: 4, rune: 5, runeCore: 6, fire: 7, fireCore: 8,
-    golem: 9, golemLight: 10, golemDark: 11, wood: 12, edge: 13,
+    golem: 9, golemLight: 10, golemDark: 11, wood: 12, edge: 13, obsidian: 14, obsidianLight: 15, brick: 16, moss: 17,
   };
+  // Golem stands in the middle on a rune circle; the four power pillars hold the corners
+  const gx = 25, gy = 24;
+  const PILLARS: Array<[number, number]> = [[7, 7], [7, 43], [43, 7], [43, 43]];
+  const CROWN_Z = 22.5;
+  const CORE: [number, number, number] = [gx, gy + 5.2, 19];
   const parts: Part[] = [
     {
       name: 'ground', pivot: [25, 25, 0], shapes: [
         ...pad(M.floor, M.edge),
+        // Flagstones
         ...[10, 20, 30, 40].flatMap((t) => [box(t, 1, 2.4, t + 0.5, 50, 2.6, M.floorLight), box(1, t, 2.4, 50, t + 0.5, 2.6, M.floorLight)]),
-        // Tools on the floor
-        box(40, 7, 2.5, 41.4, 18, 3.4, M.wood), box(38.5, 16, 2.5, 43, 19.5, 5.4, M.ironDark),
-        box(44, 30, 2.5, 45, 40, 3.2, M.iron), box(45.5, 30, 2.5, 46.5, 40, 3.2, M.iron),
-        ...[[30, 44], [34, 46], [26, 47]].map(([x, y]) => ball(x, y, 2.8, 0.5, M.fire)),
+        // Rune circle under the golem and the molten channel feeding it from the furnace
+        ...around(16, 11, 0).map(({ c, s }) => ball(gx + c, gy + s, 2.6, 0.7, M.rune)),
+        ...around(8, 7.5, 0.4).map(({ c, s }) => ball(gx + c, gy + s, 2.6, 0.5, M.runeCore)),
+        box(24, 12, 2.3, 26, 14, 2.8, M.fire), box(24.4, 12, 2.6, 25.6, 14, 2.9, M.fireCore),
+        // Pillar plinths
+        ...PILLARS.flatMap(([x, y]) => [box(x - 4, y - 4, 2, x + 4, y + 4, 4, M.ironDark), box(x - 3.4, y - 3.4, 4, x + 3.4, y + 3.4, 5, M.obsidianLight)]),
+        // Scattered embers and a slag heap
+        ...[[33, 44], [36, 47], [15, 46]].map(([x, y]) => ball(x, y, 2.8, 0.5, M.fire)),
+        ell(44, 26, 2.5, 3, 2.4, 1.6, M.ironDark), ball(44.5, 26, 3.6, 0.7, M.fire),
       ],
     },
     {
-      name: 'anvil', pivot: [28, 28, 2], shapes: [
-        box(23, 23, 2, 33, 33, 8, M.ironDark),
-        box(25, 25, 8, 31, 31, 12, M.iron),
-        box(20, 22, 12, 36, 34, 17, M.ironLight),
-        ell(28, 37.5, 14.5, 3, 5, 2.2, M.ironLight),                // horn
-        box(35.8, 25, 13, 36.6, 31, 16, M.rune), box(26, 33.8, 13, 30, 34.6, 16, M.rune),
-        box(36.6, 27, 14, 37, 29, 15, M.runeCore),
+      // The four power pillars: obsidian shafts banded with runes, crowned by crystals that feed the golem
+      name: 'pillars', pivot: [25, 25, 5], shapes: PILLARS.flatMap(([x, y]) => [
+        cyl(x, y, 5, 2.2, 13.5, M.obsidian),
+        box(x - 2.6, y - 2.6, 5, x + 2.6, y + 2.6, 6.5, M.obsidianLight),
+        ...[9, 13, 17].map((z) => cyl(x, y, z, 2.4, 0.8, M.rune)),
+        box(x - 2.8, y - 2.8, 18.5, x + 2.8, y + 2.8, 20, M.obsidianLight),   // capital
+        ...cone(x, y, 20, 1.7, 5, M.rune, M.runeCore, 4),              // crystal crown
+        ball(x, y, 21.2, 1, M.runeCore),
+      ]),
+    },
+    {
+      // Arcs of power from each crown down into the golem's core
+      name: 'beams', pivot: [CORE[0], CORE[1], CORE[2]], shapes: PILLARS.flatMap(([x, y]) => {
+        const mid: [number, number, number] = [(x + CORE[0]) / 2, (y + CORE[1]) / 2, CROWN_Z + 1];
+        return chain([[x, y, CROWN_Z], mid, CORE], 0.7, 0.55, M.runeCore, 12);
+      }),
+    },
+    {
+      // A brick furnace at the back with a chimney and a fire mouth
+      name: 'furnace', pivot: [25, 8, 2], shapes: [
+        box(18, 3, 2, 32, 12, 15, M.brick),
+        ...[5, 8, 11, 14].map((z) => box(17.8, 2.8, z, 32.2, 12.2, z + 0.4, M.golemDark)),
+        box(21, 11.6, 4, 29, 12.4, 11, M.fire), box(23, 11.8, 5, 27, 12.6, 9, M.fireCore),
+        box(22, 5, 15, 28, 10, 27, M.brick), box(21.5, 4.5, 26, 28.5, 10.5, 27.5, M.ironDark),
       ],
     },
     {
-      name: 'anvil2', pivot: [10, 12, 2], shapes: [
-        box(4, 6, 2, 16, 18, 9, M.iron), box(3, 5, 9, 17, 19, 13, M.ironLight),
-        box(16.8, 9, 3.5, 17.6, 15, 11.5, M.rune), box(17, 11, 5, 17.8, 13, 10, M.runeCore),
+      // The stone golem: rounded boulders, not boards
+      name: 'golem', pivot: [gx, gy, 2], shapes: [
+        // Legs and feet
+        ell(gx - 4.5, gy, 6, 3.4, 3.4, 4.6, M.golemDark), ell(gx + 4.5, gy, 6, 3.4, 3.4, 4.6, M.golemDark),
+        ell(gx - 4.5, gy + 1, 2.8, 3.8, 4.4, 1.6, M.golem), ell(gx + 4.5, gy + 1, 2.8, 3.8, 4.4, 1.6, M.golem),
+        // Hips, a barrel torso and a lighter chest slab
+        ell(gx, gy, 11, 6.5, 4.6, 3, M.golemDark),
+        ell(gx, gy, 17.5, 8, 5.8, 6.8, M.golem),
+        ell(gx, gy + 2.4, 18.5, 5.6, 3.4, 4.6, M.golemLight),
+        // Glowing cracks spreading from the core
+        box(gx - 0.3, gy + 5.4, 13.5, gx + 0.3, gy + 5.8, 17, M.rune),
+        box(gx - 4, gy + 5, 19.6, gx - 1.5, gy + 5.6, 20, M.rune), box(gx + 1.5, gy + 5, 18, gx + 4.2, gy + 5.6, 18.4, M.rune),
+        // Massive shoulders with crystal growths and moss
+        ell(gx - 8.5, gy, 21.5, 4.4, 4.4, 3.8, M.golemDark), ell(gx + 8.5, gy, 21.5, 4.4, 4.4, 3.8, M.golemDark),
+        ...cone(gx - 9, gy - 1, 24, 1.2, 4, M.rune, M.runeCore, 3), ...cone(gx + 9.5, gy, 24, 1, 3.4, M.rune, M.runeCore, 3),
+        ell(gx - 7.5, gy - 1.5, 24.6, 2.4, 2.2, 0.8, M.moss), ell(gx + 7, gy + 1, 24.6, 2, 2, 0.7, M.moss),
+        // Sunken head between the shoulders, brow ridge over glowing eyes
+        ell(gx + 0.6, gy + 1, 28, 4.2, 4, 3.4, M.golemLight),
+        box(gx - 3.2, gy + 3.6, 29.6, gx + 4.6, gy + 5.2, 30.8, M.golemDark),     // brow
+        box(gx - 2.4, gy + 4.6, 27.6, gx - 0.8, gy + 5.2, 28.8, M.runeCore), box(gx + 1.2, gy + 4.6, 27.6, gx + 2.8, gy + 5.2, 28.8, M.runeCore),
+        // Eyes also on the face the camera sees
+        box(gx + 4.2, gy - 1.2, 27.6, gx + 4.9, gy + 0.2, 28.8, M.runeCore), box(gx + 4.2, gy + 1.6, 27.6, gx + 4.9, gy + 3, 28.8, M.runeCore),
+        box(gx + 4.1, gy - 2, 29.4, gx + 5, gy + 4, 30.4, M.golemDark),
       ],
     },
     {
-      name: 'forge', parent: 'anvil', pivot: [28, 28, 17], shapes: [
-        ell(28, 28, 19.5, 3.2, 3.2, 3.2, M.fire), ell(28, 28, 21, 1.8, 1.8, 2.6, M.fireCore),
-        ell(26, 30, 23, 1, 1, 2.4, M.fire), ell(30, 27, 23.5, 1, 1, 2.4, M.fire),
+      name: 'core', parent: 'golem', pivot: CORE, shapes: [ball(CORE[0], CORE[1], CORE[2], 2.2, M.rune), ball(CORE[0], CORE[1] + 0.6, CORE[2], 1.2, M.runeCore)],
+    },
+    {
+      // Both arms hang to boulder fists; the attack slams them down
+      name: 'arm', parent: 'golem', pivot: [gx, gy, 21], shapes: [-1, 1].flatMap((sx) => [
+        ell(gx + sx * 10.5, gy, 16.5, 2.8, 2.8, 4.4, M.golem),
+        ell(gx + sx * 11, gy + 0.5, 11.5, 2.6, 2.6, 2.4, M.golemDark),
+        ell(gx + sx * 11.2, gy + 1, 7.5, 3.6, 3.6, 3.2, M.golemLight),
+        box(gx + sx * 11.2 - 0.3, gy + 4.2, 7, gx + sx * 11.2 + 0.3, gy + 4.6, 9, M.rune),
+      ]),
+    },
+    {
+      // A real anvil: wide foot, narrow waist, flat face with a heel and a tapering horn
+      name: 'anvil', pivot: [25, 41, 2], shapes: [
+        box(20, 38, 2, 30, 44, 4, M.ironDark),
+        box(21.5, 38.8, 4, 28.5, 43.2, 5, M.iron),
+        box(23, 39.5, 5, 27, 42.5, 8.5, M.ironDark),
+        box(19, 38.2, 8.5, 31, 43.8, 11.5, M.iron),
+        box(19, 38.2, 11.2, 31, 43.8, 11.8, M.ironLight),
+        box(17, 38.8, 9, 19, 43.2, 11.5, M.iron),                     // heel
+        ell(33, 41, 10.2, 2.4, 2.4, 1.3, M.iron), ell(35.4, 41, 10.4, 1.4, 1.5, 0.9, M.iron), ball(37, 41, 10.6, 0.6, M.ironLight), // horn
+        box(28.5, 40, 11.8, 29.5, 41, 12, M.ironDark),               // hardy hole
+        // Red-hot ingot and a hammer resting on the face
+        box(21, 39.5, 11.8, 25, 42, 12.8, M.fire), box(22, 40.2, 12.6, 24, 41.3, 13, M.fireCore),
+        box(26, 40.5, 11.8, 30, 41.5, 12.6, M.wood), box(25.2, 39.6, 11.8, 26.8, 42.4, 14, M.ironDark),
       ],
     },
     {
-      name: 'sparks', pivot: [28, 28, 22], shapes: around(9, 6, 0.2).map(({ c, s }, i) => ball(28 + c, 28 + s, 20 + (i % 3) * 3, 0.6, i % 2 ? M.fireCore : M.fire)),
-    },
-    {
-      name: 'golem', pivot: [12, 38, 2], shapes: [
-        box(8, 34, 2, 12, 38, 14, M.golemDark), box(8, 40, 2, 12, 44, 14, M.golem),                 // legs
-        box(7, 33, 14, 17, 45, 29, M.golem),                                                          // torso
-        box(16.6, 36, 18, 17.4, 42, 25, M.golemLight),
-        box(17, 37.5, 20, 17.8, 40.5, 23, M.rune),                                                     // chest rune
-        box(9, 36, 29, 16, 42, 35, M.golemLight),                                                      // head
-        box(15.8, 37, 31, 16.6, 38.6, 32.6, M.rune), box(15.8, 39.4, 31, 16.6, 41, 32.6, M.rune),     // eyes
-        box(8, 31, 24, 14, 33.5, 29, M.golemDark),                                                     // left shoulder + arm
-        box(9, 31, 14, 13, 33, 24, M.golem),
-        box(13, 32, 17, 14, 33, 19, M.rune),
+      name: 'forge', parent: 'anvil', pivot: [23, 41, 13], shapes: [
+        ell(23, 41, 13.5, 1.6, 1.4, 1, M.fire), ell(23, 41, 14.2, 0.8, 0.8, 0.8, M.fireCore),
       ],
     },
     {
-      name: 'arm', parent: 'golem', pivot: [12, 46, 27], shapes: [
-        box(9, 45, 24, 15, 48, 29, M.golemDark),
-        box(10, 45.5, 15, 14, 48, 24, M.golem),
-        box(11.4, 46, 11, 12.6, 47.4, 16, M.wood),                  // hammer haft
-        box(10, 44, 7.5, 14, 49.5, 11.5, M.ironDark),                // hammer head
-        box(14, 45, 8.5, 14.6, 48.5, 10.5, M.rune),
-      ],
+      name: 'sparks', pivot: [23, 41, 14], shapes: around(9, 5, 0.2).map(({ c, s }, i) => ball(23 + c, 41 + s, 13 + (i % 3) * 2.5, 0.6, i % 2 ? M.fireCore : M.fire)),
     },
     rubblePart(M.floorLight, M.golemDark),
     siteScaffold(M.wood),
   ];
-  const body = ['anvil', 'anvil2', 'golem', 'arm', 'forge'];
+  const body = ['pillars', 'furnace', 'golem', 'core', 'arm', 'anvil', 'forge', 'beams'];
   const { base, ruined, site } = establishmentPoses(parts, body, ['sparks']);
-  const ruinedOut: Pose = { ...ruined, ...hide('forge', 'sparks') };
+  const ruinedOut: Pose = { ...ruined, ...hide('forge', 'sparks', 'beams') };
+  // Idle: the pillars pulse power into the golem, its core throbs and the ingot glows
   const idle = withBase(base, [
-    { arm: { pitch: 0 }, forge: { scale: [1, 1, 1] } },
-    { arm: { pitch: 0.06 }, forge: { scale: [1.1, 1.1, 1.2] } },
-    { arm: { pitch: 0.1 }, forge: { scale: [0.95, 0.95, 0.9] } },
-    { arm: { pitch: 0.05 }, forge: { scale: [1.05, 1.05, 1.1] } },
+    { beams: { scale: [1, 1, 1] }, core: { scale: [1, 1, 1] }, forge: { scale: [1, 1, 1] }, arm: { pitch: 0 } },
+    { beams: { scale: [1.04, 1.04, 1.04] }, core: { scale: [1.2, 1.2, 1.2] }, forge: { scale: [1.2, 1.2, 1.3] }, arm: { pitch: 0.03 } },
+    { beams: { hidden: true }, core: { scale: [0.9, 0.9, 0.9] }, forge: { scale: [0.9, 0.9, 0.9] }, arm: { pitch: 0.05 } },
+    { beams: { scale: [0.97, 0.97, 0.97] }, core: { scale: [1.1, 1.1, 1.1] }, forge: { scale: [1.1, 1.1, 1.15] }, arm: { pitch: 0.02 } },
   ]);
+  // Attack: the golem raises both fists and slams them down in a burst of sparks
   const attack = withBase(base, [
-    { arm: { roll: -0.5 } },
-    { arm: { roll: -1.1 } },
-    { arm: { roll: 0.35 }, sparks: { hidden: false, scale: [0.6, 0.6, 0.6] }, forge: { scale: [1.4, 1.4, 1.5] } },
-    { arm: { roll: 0.2 }, sparks: { hidden: false, scale: [1.3, 1.3, 1.2] } },
-    { arm: { roll: 0 } },
+    { arm: { pitch: -0.6 }, core: { scale: [1.3, 1.3, 1.3] } },
+    { arm: { pitch: -1.2 }, golem: { offset: [0, 0, 0.6] }, core: { scale: [1.5, 1.5, 1.5] } },
+    { arm: { pitch: 0.35 }, golem: { offset: [0, 0, -0.4] }, sparks: { hidden: false, scale: [0.6, 0.6, 0.6] }, forge: { scale: [1.5, 1.5, 1.6] } },
+    { arm: { pitch: 0.2 }, sparks: { hidden: false, scale: [1.3, 1.3, 1.2] } },
+    { arm: { pitch: 0 } },
   ]);
   return establishment(
     [
       { color: 0x3a3a42 }, { color: 0x4a4a55 }, { color: 0x4b5563 }, { color: 0x6b7280 }, { color: 0x27272f },
       { color: 0x38bdf8, emissive: true }, { color: 0xe0f2fe, emissive: true }, { color: 0xf97316, emissive: true },
-      { color: 0xfde047, emissive: true }, { color: 0x8a6a55 }, { color: 0xa5856e }, { color: 0x5e463a },
-      { color: 0x6b4423 }, { color: 0x1f1f24 },
+      { color: 0xfde047, emissive: true }, { color: 0x7d6a5c }, { color: 0x9c8876 }, { color: 0x4f4038 },
+      { color: 0x6b4423 }, { color: 0x1f1f24 }, { color: 0x1c1626 }, { color: 0x3b2f4a }, { color: 0x7f2f1d }, { color: 0x4d6b2f },
     ],
-    parts, 40, { idle, attack, ruined: ruinedOut, site }, { idle: 2, attack: 10 }
+    parts, 40, { idle, attack, ruined: ruinedOut, site }, { idle: 4, attack: 10 }
   );
 };
 
@@ -1977,18 +2059,6 @@ export const STRUCTURE_MODELS: Record<StructureKey, () => StructureModel> = {
   castle, portal, sentinel, spire, quarry, mine, grove, port, cave,
   trench, crypt, perch, kennel,
   foundry, pavilion, voidgate: voidGate, ossuary, volcano,
-};
-
-/** The Codex art each structure is modelled on (public/structures/). */
-export const STRUCTURE_ART: Record<StructureKey, string> = {
-  castle: 'nexus-castle', portal: 'portal', spire: 'aether-spire', quarry: 'watchtower', mine: 'ore-furnace',
-  grove: 'tree-of-life', port: 'wellspring', cave: 'magma-cavern', trench: 'deepwater-basin', crypt: 'bone-mausoleum',
-  perch: 'obsidian-spire', kennel: 'infernal-kennel', foundry: 'golem-foundry', pavilion: 'shadow-pavilion',
-  voidgate: 'void-gate', ossuary: 'bone-crypt',
-  // No Codex art of its own yet: shown beside the rift it guards
-  sentinel: 'portal',
-  // Ignara's volcano: no Codex art yet, shown beside the nearest fire-themed art
-  volcano: 'magma-cavern',
 };
 
 export const BUILDING_SPRITE: Record<ResourceBuildingId, StructureKey> = {

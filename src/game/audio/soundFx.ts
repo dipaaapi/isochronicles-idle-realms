@@ -3,6 +3,8 @@ class SoundFxManager {
   private isMuted: boolean = false;
   private isBgmDisabled: boolean = false;
   private isSfxDisabled: boolean = false;
+  /** Silences effects while the world is held behind the loading screen. */
+  private isSfxHeld = false;
   // SFX bus (every sound effect connects here); music has its own bus so the
   // two toggles cut audio at the node level, not only when a sound starts.
   private masterGain: GainNode | null = null;
@@ -75,9 +77,14 @@ class SoundFxManager {
     this.outGain.gain.cancelScheduledValues(now);
     this.outGain.gain.setValueAtTime(this.isMuted ? 0 : 0.35, now);
     this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setValueAtTime(this.isSfxDisabled ? 0 : this.sfxVolume, now);
+    this.masterGain.gain.setValueAtTime(this.isSfxDisabled || this.isSfxHeld ? 0 : this.sfxVolume, now);
     this.musicBus.gain.cancelScheduledValues(now);
     this.musicBus.gain.setValueAtTime(this.isBgmDisabled || this.isExternalMusicActive ? 0 : this.musicVolume, now);
+  }
+
+  public setSfxHeld(held: boolean): void {
+    this.isSfxHeld = held;
+    this.applyBusGains();
   }
 
   public setExternalMusicActive(active: boolean): void {
@@ -662,6 +669,178 @@ class SoundFxManager {
     osc.start(now);
     osc.stop(now + 1.25);
     this.playNoise(1.2, 300, 0.25, 0.08);
+  }
+
+  private caveNodes: AudioNode[] = [];
+  private caveSources: AudioScheduledSourceNode[] = [];
+  private caveDripTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Dragon's Lair ambience on the SFX bus: a low cavern rumble, wind moaning
+   * through the tunnels (slow LFO on a band-pass) and water drips that ring
+   * off the walls through a feedback echo. Runs until stopCaveAmbience.
+   */
+  public startCaveAmbience(): void {
+    this.stopCaveAmbience();
+    const ctx = this.initContext();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+    // Brown noise loop shared by the rumble and the wind
+    const len = ctx.sampleRate * 4;
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      data[i] = last * 3.5;
+    }
+    const bus = ctx.createGain();
+    bus.gain.setValueAtTime(0.0001, now);
+    bus.gain.exponentialRampToValueAtTime(1, now + 2.5);
+    bus.connect(this.masterGain);
+    const loop = (filterType: BiquadFilterType, freq: number, q: number, vol: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      src.playbackRate.value = 0.9 + Math.random() * 0.2;
+      const f = ctx.createBiquadFilter();
+      f.type = filterType;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = vol;
+      src.connect(f);
+      f.connect(g);
+      g.connect(bus);
+      src.start(now);
+      this.caveSources.push(src);
+      this.caveNodes.push(f, g);
+      return { f, g };
+    };
+    loop('lowpass', 90, 0.7, 0.55);
+    const wind = loop('bandpass', 420, 4, 0.22);
+    // The wind swells and shifts pitch slowly
+    for (const [param, depth, rate] of [[wind.f.frequency, 180, 0.07], [wind.g.gain, 0.16, 0.11]] as const) {
+      const lfo = ctx.createOscillator();
+      const amt = ctx.createGain();
+      lfo.frequency.value = rate;
+      amt.gain.value = depth;
+      lfo.connect(amt);
+      amt.connect(param);
+      lfo.start(now);
+      this.caveSources.push(lfo);
+      this.caveNodes.push(amt);
+    }
+    // Echo for the drips: the cavern walls answer each one
+    const echo = ctx.createDelay(1.5);
+    echo.delayTime.value = 0.37;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.42;
+    const damp = ctx.createBiquadFilter();
+    damp.type = 'lowpass';
+    damp.frequency.value = 2200;
+    echo.connect(damp);
+    damp.connect(feedback);
+    feedback.connect(echo);
+    damp.connect(bus);
+    this.caveNodes.push(bus, echo, feedback, damp);
+    const drip = () => {
+      if (!this.ctx || this.isMuted) return;
+      const t0 = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      const pitch = 900 + Math.random() * 1400;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(pitch, t0);
+      osc.frequency.exponentialRampToValueAtTime(pitch * 2.2, t0 + 0.05);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.09 + Math.random() * 0.06, t0 + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+      osc.connect(g);
+      g.connect(bus);
+      g.connect(echo);
+      osc.start(t0);
+      osc.stop(t0 + 0.2);
+      // Drips come in little clusters, then a pause
+      this.caveDripTimer = setTimeout(drip, Math.random() < 0.3 ? 250 + Math.random() * 400 : 1400 + Math.random() * 3200);
+    };
+    this.caveDripTimer = setTimeout(drip, 800);
+  }
+
+  public stopCaveAmbience(): void {
+    if (this.caveDripTimer) clearTimeout(this.caveDripTimer);
+    this.caveDripTimer = null;
+    for (const s of this.caveSources) {
+      try { s.stop(); } catch { /* already stopped */ }
+    }
+    for (const n of this.caveNodes) n.disconnect();
+    this.caveSources = [];
+    this.caveNodes = [];
+  }
+
+  /** Shaped noise starting `delay` s from now: filter sweep `from`→`to` Hz, attack then exponential fade. */
+  private noiseAt(delay: number, duration: number, type: BiquadFilterType, from: number, to: number, volume: number, attack = 0.005, q = 1): void {
+    const ctx = this.initContext();
+    if (!ctx || !this.masterGain) return;
+    const t0 = ctx.currentTime + delay;
+    const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = type;
+    filter.Q.value = q;
+    filter.frequency.setValueAtTime(from, t0);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(40, to), t0 + duration);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(volume, t0 + attack);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    source.start(t0);
+  }
+
+  /** Ignara's Dragon Claw: three raking swishes, then a wet, heavy tear. */
+  public playClawSlash(): void {
+    const ctx = this.battleReady('dragonClaw', 250);
+    if (!ctx) return;
+    for (let i = 0; i < 3; i++) this.noiseAt(i * 0.055, 0.13, 'bandpass', 1800 + i * 500, 6500, 0.22, 0.01, 2.5);
+    this.noiseAt(0.17, 0.22, 'lowpass', 900, 120, 0.3, 0.004);
+    const now = ctx.currentTime + 0.17;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110, now);
+    osc.frequency.exponentialRampToValueAtTime(38, now + 0.2);
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+    osc.connect(gain);
+    gain.connect(this.masterGain!);
+    osc.start(now);
+    osc.stop(now + 0.26);
+  }
+
+  /** Tail Whip: a rising whoosh as the tail sweeps, then the whip's supersonic crack. */
+  public playWhipCrack(): void {
+    const ctx = this.battleReady('tailWhip', 300);
+    if (!ctx) return;
+    this.noiseAt(0, 0.34, 'bandpass', 380, 3200, 0.2, 0.28, 1.4);
+    this.noiseAt(0.33, 0.035, 'highpass', 2500, 5000, 0.55, 0.001);
+    this.noiseAt(0.335, 0.09, 'bandpass', 3800, 1600, 0.22, 0.002, 4);
+    this.noiseAt(0.36, 0.3, 'lowpass', 700, 90, 0.12, 0.01);
+  }
+
+  /** Dragon's Breath: a furnace roar for `duration` seconds with crackling flame. */
+  public playFireBreath(duration = 2.5): void {
+    const ctx = this.battleReady('dragonBreath', 600);
+    if (!ctx) return;
+    this.noiseAt(0, duration, 'lowpass', 1400, 500, 0.32, 0.15);
+    this.noiseAt(0, duration, 'bandpass', 260, 180, 0.22, 0.25, 0.8);
+    const crackles = Math.round(duration * 14);
+    for (let i = 0; i < crackles; i++) this.noiseAt(Math.random() * duration, 0.03, 'highpass', 3000, 6000, 0.05 + Math.random() * 0.08, 0.001);
   }
 
   /** The volcano heaving before a magma flow: a long, low rumble. */

@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useWorldHold } from '../state/worldHold';
+import { isTutorialDone, useTutorial } from '../state/tutorial';
+import { soundFx } from '../game/audio/soundFx';
 import { isLoadComplete, loadFraction, useLoadProgress } from '../game/loadProgress';
 import { useTranslation, type TranslationKey } from '../i18n/translations';
 import type { ActiveLocation } from '../types/state';
@@ -33,6 +36,22 @@ export function LoadingScreen({ location = 'DEMON_REALM', returning = false }: {
   });
   const title = inLair ? t('lairLoadingTitle') : returning ? t('realmReturnLoadingTitle') : t('loadingTitle');
   const [timedOut, setTimedOut] = useState(false);
+
+  // Freeze the world (and mute its effects) until the screen is gone, so nothing plays out unseen
+  useLayoutEffect(() => {
+    if (hidden) return;
+    useWorldHold.getState().setLoading(true);
+    soundFx.setSfxHeld(true);
+    return () => {
+      useWorldHold.getState().setLoading(false);
+      soundFx.setSfxHeld(false);
+    };
+  }, [hidden]);
+
+  // First time in the realm: the tutorial takes over once the screen is gone
+  useEffect(() => {
+    if (hidden && !inLair && !isTutorialDone() && !useTutorial.getState().active) useTutorial.getState().start();
+  }, [hidden, inLair]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setTimedOut(true), FAILSAFE_MS);

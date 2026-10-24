@@ -28,6 +28,9 @@ import { LiveStreamOverlay } from './ui/LiveStreamOverlay';
 import { MusicManagerModal, MusicPlayer, MusicPlayerHost } from './ui/MusicPlayer';
 import { BattleItemsToolbar } from './ui/BattleItemsToolbar';
 import { startActivityWatcher } from './state/activityWatcher';
+import { isWorldHeld, useWorldHold } from './state/worldHold';
+import { useTutorial } from './state/tutorial';
+import { TutorialOverlay } from './ui/TutorialOverlay';
 
 export const App: React.FC = () => {
   const difficulty = useGameStore((s) => s.difficulty);
@@ -60,6 +63,8 @@ export const App: React.FC = () => {
       setIsAtlasOpen(false);
       setIsBestiaryOpen(false);
       setQuickTradeResource(null);
+      // Leaving mid-tutorial: drop it (it shows again next time) and unfreeze
+      if (useTutorial.getState().active) { useTutorial.setState({ active: false, step: 0 }); useWorldHold.getState().setTutorial(false); }
     }
   }, [screen]);
 
@@ -88,7 +93,7 @@ export const App: React.FC = () => {
     if (!s.runId) s.beginRun(s.lordName);
     const id = window.setInterval(() => {
       const st = useGameStore.getState();
-      if (st.gameSpeed > 0 && document.visibilityState === 'visible') st.addPlayTime(5);
+      if (st.gameSpeed > 0 && !isWorldHeld() && document.visibilityState === 'visible') st.addPlayTime(5);
     }, 5000);
     return () => window.clearInterval(id);
   }, [screen]);
@@ -118,7 +123,7 @@ export const App: React.FC = () => {
       {/* The Demon Lord's animated pixel cursor (Settings → Game can turn it off) */}
       <GameCursor />
       {/* Permadeath: the run that just fell, over the title screen */}
-      <GameOverScreen onNewRealm={() => setScreen('STORY')} />
+      <GameOverScreen onNewRealm={() => setScreen('STORY')} onAutoRestart={() => setScreen('GAME')} />
 
       {/* Screen 1: Title Screen (No Atlas button here) */}
       {screen === 'TITLE' && (
@@ -143,7 +148,7 @@ export const App: React.FC = () => {
           {/* Covers canvas + HUD while the scene and baked art load behind it */}
           <LoadingScreen key={`load-${layoutSeed}-${activeLocation}`} location={activeLocation} returning={hasTravelled && !inLair} />
           {/* Main Game Screen (Phaser Canvas) */}
-          <div className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
+          <div data-tutorial="map" className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
             {/* Keyed on the location too: switching disposes one world and boots the other */}
             <PhaserGame key={`${layoutSeed}-${activeLocation}`} location={activeLocation} />
             {inLair ? <LairHud /> : <>
@@ -174,6 +179,9 @@ export const App: React.FC = () => {
             onOpenSkillTree={() => setCitadelTab('SKILLS')}
             onOpenQuickTrade={(res) => setQuickTradeResource(res)}
           />}
+
+          {/* First-run guide: spotlights the HUD step by step while the world is frozen */}
+          <TutorialOverlay />
 
           {/* Modal & Popover Layers */}
           <WelcomeBackModal />

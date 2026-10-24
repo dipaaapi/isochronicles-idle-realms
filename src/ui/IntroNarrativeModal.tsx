@@ -9,8 +9,7 @@ import { useGameStore } from '../state/useGameStore';
 import { DIFFICULTIES, Difficulty } from '../state/difficulty';
 import { useTranslation } from '../i18n/translations';
 import INTRO from '../i18n/introDialogue.json';
-import type { Resources } from '../types/state';
-import { INITIAL_RESOURCES } from '../state/store/initialState';
+import { startRealm } from '../state/newRealm';
 
 interface IntroNarrativeModalProps {
   onBegin: () => void;
@@ -118,24 +117,7 @@ export const IntroNarrativeModal: React.FC<IntroNarrativeModalProps> = ({ onBegi
 
   const begin = () => {
     soundFx.playFanfare();
-    // Scale the new-game stockpile, but only on a fresh realm (Start New Realm keeps an existing save)
-    const supplies = DIFFICULTIES[difficulty].startingSupplies;
-    useGameStore.setState((s) => {
-      const untouched = (Object.keys(INITIAL_RESOURCES) as (keyof Resources)[]).every(
-        (k) => (s.resources[k] ?? 0) === (INITIAL_RESOURCES[k] ?? 0)
-      );
-      if (s.castleBuilt || !untouched) return { difficulty };
-      const resources = { ...s.resources };
-      (Object.keys(INITIAL_RESOURCES) as (keyof Resources)[]).forEach((k) => {
-        const base = INITIAL_RESOURCES[k] ?? 0;
-        resources[k] = Math.max(0, (resources[k] ?? 0) + Math.round(base * (supplies - 1)));
-      });
-      return { difficulty, resources };
-    });
-    // A brand-new realm starts a new permadeath run under this name, in the chosen biome
-    const st = useGameStore.getState();
-    st.setRealmChoice(biome);
-    if (!st.castleBuilt || !st.runId) st.beginRun(lordName);
+    startRealm(difficulty, biome, lordName);
     if (!getProfile().name && lordName.trim()) useProfile.getState().save({ name: lordName });
     onBegin();
   };

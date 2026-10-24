@@ -763,8 +763,16 @@ export class WorkerManager implements WorkerContext {
       const isGeneral = !isTenant && !isSupportSlime && !isTreant && !isHealer;
       if (isGeneral) {
         tickRage(worker, frame.deltaSec);
+        // Generals panel: a live order pulls the General into battle mode at once (it no longer waits
+        // for an invader to come near), unless it is too hurt to fight
+        const live = orderOf(worker);
+        if (live !== 'AUTO' && worker.status !== 'COMBAT' && worker.hp >= worker.maxHp * 0.25) {
+          worker.status = 'COMBAT';
+          worker.overrideEmote = '📯';
+          worker.overrideEmoteTimer = 900;
+        }
         // Generals panel → Looting: drops come before the fight
-        const lootFirst = worker.status === 'COMBAT' && orderOf(worker) === 'LOOT'
+        const lootFirst = worker.status === 'COMBAT' && live === 'LOOT'
           && updateGeneralLooting(this, this.groundLoot, worker, frame.deltaSec, frame.effectiveSpeed);
         // Generals loot the platform's drops and haul them to the castle (credited on delivery)
         if (lootFirst) {

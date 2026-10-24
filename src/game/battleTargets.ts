@@ -11,6 +11,8 @@ export interface OrderTarget {
   boss: boolean;
   /** Hits it as this General (only called within reach). */
   strike(damage: number, by: WorkerInstance): void;
+  /** Hits it as a minion (DefenderSystem defender), so it retaliates against that minion. */
+  strikeBy?(damage: number, minion: unknown): void;
 }
 
 export const battleTargets: {
@@ -19,8 +21,17 @@ export const battleTargets: {
   wild: Record<string, () => OrderTarget[]>;
   /** A Kirov Invasion Battle is on (the airship or its raiders are on the island). */
   kirovInvasion?: () => boolean;
+  /** Game seconds until the next Kirov Invasion Battle rolls in (raids tick only between waves). */
+  nextKirovIn?: () => number;
   /** Two Generals are brawling. */
   brawl?: () => boolean;
+  /** Open rifts (each strike hits its standing sentinel first, then the rift). */
+  rifts?: () => OrderTarget[];
+  /** Ground loot: the nearest drop to a point, and collecting it (credits it at once). */
+  loot?: {
+    nearest: (x: number, y: number, maxDist: number) => { id: string; x: number; y: number } | null;
+    collect: (id: string, by: string) => boolean;
+  };
 } = { wild: {} };
 
 /** Brawls may start only while the realm has no hostile battle underway. */

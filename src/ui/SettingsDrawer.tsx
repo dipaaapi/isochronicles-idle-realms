@@ -10,6 +10,8 @@ import { useGameStore } from '../state/useGameStore';
 import { isSaveFileSizeAllowed } from '../state/saveValidation';
 import { wipeAllSaveData } from '../state/storageAdapter';
 import { soundFx } from '../game/audio/soundFx';
+import { useTutorial } from '../state/tutorial';
+import TUTORIAL from '../data/tutorial.json';
 import { AudioVolumeBlock, GraphicsSettingsBlock } from './GraphicsAudioSettings';
 import { gameAlert, gameConfirm } from './GameDialog';
 import { t as translate } from '../i18n/translations';
@@ -759,6 +761,21 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
               {onReturnToTitle && (
                 <section className="border-t border-slate-800 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      onClose();
+                      useTutorial.getState().start();
+                    }}
+                    className="mb-2 flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-left transition-all hover:bg-slate-800 cursor-pointer"
+                  >
+                    <div className="rounded-lg bg-slate-800 p-2 text-sm leading-none">🎓</div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">{isTL ? TUTORIAL.ui.replay.tl : TUTORIAL.ui.replay.en}</div>
+                      <div className="mt-0.5 text-[10px] text-slate-500">{isTL ? TUTORIAL.ui.replayDesc.tl : TUTORIAL.ui.replayDesc.en}</div>
+                    </div>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

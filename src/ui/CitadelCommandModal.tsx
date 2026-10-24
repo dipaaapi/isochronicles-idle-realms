@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 
 /** Sub-tabs of the Laboratory (one sidebar entry). */
-const LAB_TABS: CitadelTab[] = ['RESEARCH', 'SKILLS', 'CASTLE'];
+const LAB_TABS: CitadelTab[] = ['RESEARCH', 'SKILLS', 'CASTLE', 'RUNES'];
 
 export type CitadelTab = 'OVERVIEW' | 'MINIONS' | 'SKILLS' | 'RUNES' | 'MARKET' | 'FORGE' | 'RESEARCH' | 'CASTLE';
 
@@ -285,12 +285,11 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
               {[
                 { id: 'OVERVIEW' as CitadelTab, label: tr('hubTabOverview'), icon: <LayoutDashboard className="w-4 h-4" /> },
                 { id: 'LAB' as const, label: tr('hubTabLab'), icon: <FlaskConical className="w-4 h-4" /> },
-                { id: 'RUNES' as CitadelTab, label: isTL ? 'Mga Runa' : 'Runes', icon: <Gem className="w-4 h-4" /> },
                 { id: 'MINIONS' as CitadelTab, label: isTL ? 'Mga Heneral' : 'Generals', icon: <Users className="w-4 h-4" /> },
                 { id: 'MARKET' as CitadelTab, label: isTL ? 'Pamilihan' : 'Market', icon: <Store className="w-4 h-4" /> },
                 { id: 'FORGE' as CitadelTab, label: isTL ? 'Arsenal' : 'Arsenal', icon: <Hammer className="w-4 h-4" /> },
               ].map((tab) => {
-                // Laboratory = Research + Skills + Fortifications (sub-tabs inside)
+                // Laboratory = Research + Skills + Fortifications + Runes (sub-tabs inside, each with its auto switch)
                 const isLab = tab.id === 'LAB';
                 const isActive = isLab ? LAB_TABS.includes(activeTab) : activeTab === tab.id;
                 const badge = isLab ? LAB_TABS.reduce((n, id) => n + (readyByTab[id] ?? 0), 0) : readyByTab[tab.id as CitadelTab];
@@ -677,8 +676,8 @@ export const CitadelCommandModal: React.FC<CitadelCommandModalProps> = ({
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border ${
                       activeTab === id ? 'bg-purple-600/20 text-purple-300 border-purple-500/40' : 'text-slate-400 border-slate-800 hover:bg-slate-800/50'
                     }`}>
-                    {id === 'RESEARCH' ? <Zap className="w-3.5 h-3.5" /> : id === 'SKILLS' ? <Sparkles className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-                    <span>{id === 'RESEARCH' ? tr('labResearch') : id === 'SKILLS' ? tr('hubTabSkills') : tr('labFortifications')}</span>
+                    {id === 'RESEARCH' ? <Zap className="w-3.5 h-3.5" /> : id === 'SKILLS' ? <Sparkles className="w-3.5 h-3.5" /> : id === 'RUNES' ? <Gem className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                    <span>{id === 'RESEARCH' ? tr('labResearch') : id === 'SKILLS' ? tr('hubTabSkills') : id === 'RUNES' ? (isTL ? 'Mga Runa' : 'Runes') : tr('labFortifications')}</span>
                     {readyByTab[id] ? <span className="px-1 text-[10px] font-mono bg-emerald-500 text-slate-950">{readyByTab[id]}</span> : null}
                   </button>
                 ))}

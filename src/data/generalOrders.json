@@ -1,5 +1,5 @@
 {
-  "_doc": "General command orders (ui/GeneralsPanel.tsx, game/workers/generalOrders.ts). Each General carries one priority; in a battle it goes for that target first and falls back to the normal combat AI when the target is not on the map. Rage fills from combat (dealing / taking damage, clashes); two Generals at full rage can be ordered to brawl. 'invest' turns a General's brawl bonus (+attack / +HP) into extra max HP (sturdiness) for its own establishment and resets the bonus.",
+  "_doc": "General command orders (ui/GeneralsPanel.tsx, game/workers/generalOrders.ts, DefenderSystem.followMinionOrder). Each General carries an ordered list of up to 3 priorities (roster orders) and one for its minions (minionOrders); scopes pick who an order goes to. Every frame a unit follows the first priority whose target is on the island (the Kirov only for flyers / long-range fighters) and falls back to AUTO; a live order pulls a General into battle at once. Rage fills from combat (dealing / taking damage, clashes); two Generals at full rage can be ordered to brawl. 'invest' turns a General's brawl bonus (+attack / +HP) into extra max HP (sturdiness) for its own establishment and resets the bonus.",
   "priorities": [
     {
       "id": "AUTO",
@@ -101,6 +101,23 @@
     "plus": {
       "en": "+Power",
       "tl": "+Lakas"
+    }
+  },
+  "scopes": {
+    "GENERAL": {
+      "icon": "👑",
+      "en": "General",
+      "tl": "Heneral"
+    },
+    "MINIONS": {
+      "icon": "⚔️",
+      "en": "Minions",
+      "tl": "Alagad"
+    },
+    "BOTH": {
+      "icon": "🤝",
+      "en": "Both",
+      "tl": "Pareho"
     }
   }
 }

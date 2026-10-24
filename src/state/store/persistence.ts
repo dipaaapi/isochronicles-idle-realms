@@ -1,4 +1,4 @@
-import { isGeneralOrder } from '../generalOrders';
+import { isGeneralOrder, normalizeOrders } from '../generalOrders';
 import { isFallenRunSync } from '../legacy';
 import type { PersistOptions } from 'zustand/middleware';
 import { BUILDING_IDS, GRID_SIZE, isCoastStyle } from '../buildingLayout';
@@ -148,6 +148,8 @@ const migrateRoster = (rawRoster: unknown): UnitRosterItem[] => {
       unit.brawlAttack = integer(raw.brawlAttack, 0);
       unit.brawlHp = integer(raw.brawlHp, 0);
       if (isGeneralOrder(raw.order)) unit.order = raw.order;
+      if (Array.isArray(raw.orders)) unit.orders = normalizeOrders(raw.orders);
+      if (Array.isArray(raw.minionOrders)) unit.minionOrders = normalizeOrders(raw.minionOrders);
       return unit;
     })
     .filter((unit): unit is UnitRosterItem => unit !== null)
@@ -168,6 +170,8 @@ const migrateRoster = (rawRoster: unknown): UnitRosterItem[] => {
       brawlAttack: Math.max(0, Math.round(Number(unit.brawlAttack) || 0)),
       brawlHp: Math.max(0, Math.round(Number(unit.brawlHp) || 0)),
       order: isGeneralOrder(unit.order) ? unit.order : undefined,
+      orders: unit.orders ? normalizeOrders(unit.orders) : undefined,
+      minionOrders: unit.minionOrders ? normalizeOrders(unit.minionOrders) : undefined,
     }));
 };
 
@@ -281,7 +285,11 @@ const normalizeInvasion = (raw: unknown): GameStoreState['invasion'] => {
   if (isPlainRecord(raw) && typeof raw.tactic === 'string' && WAVE_TACTICS.some((tactic) => tactic.id === raw.tactic)) {
     result.tactic = raw.tactic;
   }
-  result.waveNumber = integer(result.waveNumber, 1, 1, 100);
+  // Waves are endless: no upper cap (the old 100 cap pulled long runs back to wave 100 on every reload)
+  result.waveNumber = integer(result.waveNumber, 1, 1);
+  // Saves pinned at 100 by that cap get their real wave back: the next one after every wave repelled
+  result.invasionsRepelled = integer(result.invasionsRepelled);
+  result.waveNumber = Math.max(result.waveNumber, result.invasionsRepelled + 1);
   result.enemiesRemaining = integer(result.enemiesRemaining);
   result.totalEnemiesInWave = integer(result.totalEnemiesInWave);
   return result;

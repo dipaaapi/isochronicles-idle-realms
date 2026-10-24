@@ -456,7 +456,7 @@ export const ActivityLogTray: React.FC = () => {
 
   if (!open) {
     return (
-      <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[min(360px,calc(100%-1.5rem))]">
+      <div data-tutorial="log" className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[min(360px,calc(100%-1.5rem))]">
         <button
           type="button"
           onClick={toggle}
@@ -486,7 +486,7 @@ export const ActivityLogTray: React.FC = () => {
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-1.5rem))]">
+    <div data-tutorial="log" className="pointer-events-none absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-1.5rem))]">
       <section className="pixel-frame pointer-events-auto flex max-h-[min(340px,60vh)] flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/90 shadow-2xl shadow-black/50 backdrop-blur-md">
         <header className="flex items-center gap-2 border-b border-slate-800 px-3 py-2">
           <ScrollText className="h-4 w-4 text-violet-300" />

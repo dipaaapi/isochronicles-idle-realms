@@ -127,8 +127,18 @@ export const VOLCANO_SITE = (() => {
   return { id: v.id, name: v.name, tile: v.tile, footprint: rect(v.footprintSize), zone: rect(v.zoneSize), mouth: v.mouth };
 })();
 export const isVolcanoTile = (x: number, y: number): boolean => rectContainsTile(VOLCANO_SITE.footprint, x, y);
-/** Every corner zone nothing may be built in or drowned: the rifts' and the volcano's. */
-const RESERVED_ZONES: TileRect[] = [...PORTAL_SITES.map((p) => p.zone), VOLCANO_SITE.zone];
+/**
+ * The southern corner (where the South Rift stood): a size×size patch of open
+ * sea with a whirlpool at its centre, where the Leviathan (water dragon) surfaces.
+ */
+export const VORTEX_SITE = (() => {
+  const v = layout.vortex;
+  const area: TileRect = { x: v.tile.x, y: v.tile.y, w: v.size, h: v.size };
+  return { id: v.id, name: v.name, area, center: { x: area.x + (area.w - 1) / 2, y: area.y + (area.h - 1) / 2 } };
+})();
+export const isVortexTile = (x: number, y: number): boolean => rectContainsTile(VORTEX_SITE.area, x, y);
+/** Every corner zone nothing may be built in or drowned: the rifts', the volcano's and the vortex sea. */
+const RESERVED_ZONES: TileRect[] = [...PORTAL_SITES.map((p) => p.zone), VOLCANO_SITE.zone, VORTEX_SITE.area];
 
 /** Visual scale of a rift sprite filling its 2×2 footprint. */
 export const PORTAL_SCALE: number = layout.portalZone.portalScale;
@@ -271,7 +281,7 @@ export const isFillableTile = (x: number, y: number): boolean => isWaterTile(x, 
 
 /** True for tiles on the platform's land (inside the ocean ring, off the canals, coves and flooded shore). */
 export const isLandTile = (x: number, y: number): boolean =>
-  x >= 1 && y >= 1 && x <= GRID_SIZE - 2 && y <= GRID_SIZE - 2 && !isCanalTile(x, y)
+  x >= 1 && y >= 1 && x <= GRID_SIZE - 2 && y <= GRID_SIZE - 2 && !isCanalTile(x, y) && !isVortexTile(x, y)
   && (FILLED_KEYS.has(`${x},${y}`) || (!isCoveTile(x, y) && !FLOODED_KEYS.has(`${x},${y}`)));
 
 /** Ocean ring (minus the corner rifts), its coves and canal tiles. */
@@ -279,7 +289,7 @@ export const isWaterTile = (x: number, y: number): boolean => {
   if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return false;
   if (isPortalTile(x, y) || isVolcanoTile(x, y)) return false;
   if (FILLED_KEYS.has(`${x},${y}`)) return false;
-  return x === 0 || y === 0 || x === GRID_SIZE - 1 || y === GRID_SIZE - 1 || isCanalTile(x, y) || isCoveTile(x, y) || FLOODED_KEYS.has(`${x},${y}`);
+  return x === 0 || y === 0 || x === GRID_SIZE - 1 || y === GRID_SIZE - 1 || isCanalTile(x, y) || isCoveTile(x, y) || isVortexTile(x, y) || FLOODED_KEYS.has(`${x},${y}`);
 };
 
 /**
@@ -291,7 +301,7 @@ export const waterRegionOf = (x: number, y: number): CanalDirection | null => {
   if (!isWaterTile(x, y)) return null;
   const canal = CANALS.find((c) => c.tiles.some((t) => t.x === x && t.y === y));
   if (canal) return canal.dir;
-  if (isCoveTile(x, y) || isFloodedTile(x, y)) {
+  if (isCoveTile(x, y) || isFloodedTile(x, y) || isVortexTile(x, y)) {
     // A cove (or flooded shore) belongs to the ocean side it opens onto
     const last = GRID_SIZE - 1;
     const d = { NORTH: y, SOUTH: last - y, WEST: x, EAST: last - x };

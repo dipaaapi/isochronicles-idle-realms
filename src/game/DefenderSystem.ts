@@ -32,6 +32,9 @@ import { BUILDING_IDS } from '../state/buildingLayout';
 import type { ConstructionStatus } from '../state/constructionProgress';
 import reclamation from '../data/terrainReclamation.json';
 import { ensureTerrainReclamation, reclamationPoint } from './workers/reclamation';
+import { battleTargets } from './battleTargets';
+import { LOOT_REACH, liveOrderOf } from './workers/generalOrders';
+import { minionOrdersOf } from '../state/generalOrders';
 
 export type DefenderState =
   | 'HARVESTING' | 'HAULING_TO_CASTLE' | 'RETREAT_TO_GARRISON' | 'GARRISONED' | 'DETACHED_COMBAT'
@@ -175,6 +178,63 @@ export class DefenderSystem {
   }
 
   /** The establishment's General, if it is alive in the world. */
+  /**
+   * A minion's battle priority from the Generals panel: the first order on its General's minion list
+   * whose target is on the island (Caterpillar / Leviathan / Kirov / Rifts / Loot). Walks to it and
+   * strikes (or, for the Kirov, holds under the airship so the anti-air fires; for Loot, picks it up).
+   * Returns false to let the normal tenant logic run (AUTO, or nothing live).
+   */
+  private followMinionOrder(d: Defender, dt: number, damage: number, speedMult: number): boolean {
+    const store = useGameStore.getState();
+    const general = store.roster.find((u) => UNIT_CLASSES[u.unitClass]?.requiredBuilding === d.home);
+    const orders = minionOrdersOf(general);
+    if (!orders.length) return false;
+    const x = d.container.x, y = d.container.y;
+    const order = liveOrderOf(orders, d.unitClass, x, y);
+    if (order === 'AUTO') return false;
+    this.updateGarrisonVisuals(d, false, true);
+    const speed = DEFENDER_SPEED * 1.2 * speedMult;
+    if (order === 'KIROV') {
+      const ship = battleTargets.kirov?.();
+      if (!ship) return false;
+      if (Math.hypot(ship.x - x, ship.y - y) > 110) this.step(d, ship.x, ship.y, dt, speed);
+      return true;
+    }
+    if (order === 'LOOT') {
+      const loot = battleTargets.loot?.nearest(x, y, LOOT_REACH);
+      if (!loot) return false;
+      if (Math.hypot(loot.x - x, loot.y - y) > 14) this.step(d, loot.x, loot.y, dt, speed);
+      else battleTargets.loot?.collect(loot.id, d.unitClass);
+      return true;
+    }
+    const list = order === 'RIFTS' ? battleTargets.rifts?.() ?? [] : battleTargets.wild[order === 'CATERPILLAR' ? 'BROOD' : 'SEA']?.() ?? [];
+    let target = null as (typeof list)[number] | null;
+    let best = Infinity;
+    for (const t of list) {
+      const score = Math.hypot(t.x - x, t.y - y) - (t.boss ? 300 : 0);
+      if (score < best) { best = score; target = t; }
+    }
+    if (!target) return false;
+    const reach = DEFENDER_REACH + (order === 'RIFTS' ? 30 : 14);
+    const dist = Math.hypot(target.x - x, target.y - y);
+    if (dist > reach) {
+      this.step(d, target.x, target.y, dt, speed);
+      return true;
+    }
+    if (d.sprite) faceCharacterSprite(d.sprite, target.x - x, target.y - y, false);
+    d.cooldown -= dt;
+    if (d.cooldown <= 0) {
+      d.cooldown = 0.95;
+      if (d.sprite) playCharacterAttack(d.sprite);
+      if (target.strikeBy) target.strikeBy(damage, d);
+      else {
+        const gw = this.generalOf(d.home as TowerId);
+        if (gw) target.strike(damage, gw);
+      }
+    }
+    return true;
+  }
+
   private generalOf(home: TowerId): import('./workers/types').WorkerInstance | undefined {
     return this.workerProvider().find(
       (w) => w.container.active && w.hp > 0 && UNIT_CLASSES[w.unitClass]?.requiredBuilding === home
@@ -535,6 +595,9 @@ export class DefenderSystem {
         }
         continue;
       }
+
+      // ── Generals panel: minion orders (their General's priority list) take over while a target is live
+      if (this.followMinionOrder(d, dt, this.outgoingDamage(d, researchAtkBonus * slimeAtkMult), slimeSpdMult)) continue;
 
       // ── Establishment Tenant Logic ──
       const homeTower = this.structures.getTowers().find((t) => t.id === d.home);

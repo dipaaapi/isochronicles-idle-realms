@@ -17,7 +17,7 @@ node $T render <key> [options]       # PNG of selected frames
 
 Render options: `--anim walk|attack|idle|<structure anim>|all` (default idle), `--frames 0,2`, `--dirs 0,2,4,6` (characters; 0 faces the viewer, steps 45° clockwise), `--scale 1-4` (default 3), `--ref` (reference art beside the render; needs `python3` + Pillow), `--out file.png`. Output defaults to `$MODEL_TOOL_OUT` or `/tmp/iso-model-tool/`; point `MODEL_TOOL_OUT` at the session scratchpad. Needs `npm install` (uses the repo's esbuild). Each run takes about a second.
 
-Keys are the names in `MINION_MODELS` / `ENEMY_MODELS` / `STRUCTURE_MODELS` (`harpy`, `knight`, `voidgate`, …). Reference art lives in `public/portraits/<kebab-name>.png` (characters) and `public/structures/<STRUCTURE_ART name>.jpg` (buildings); the tool resolves it for you.
+Keys are the names in `MINION_MODELS` / `ENEMY_MODELS` / `STRUCTURE_MODELS` (`harpy`, `knight`, `voidgate`, …). Reference art lives in `public/portraits/<kebab-name>.png` (characters; the tool resolves it for you). Buildings have none: their models are the design source.
 
 ## Token rules
 

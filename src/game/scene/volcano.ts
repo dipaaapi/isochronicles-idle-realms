@@ -15,7 +15,8 @@ const ROCK = { lit: 0x57534e, mid: 0x44403c, shade: 0x292524, deep: 0x1c1917, as
  * structureModels.ts) once it is ready (the vector drawing below stands in
  * until then). Its state counts the waves to the next cave opening
  * (stage1…stage4), roars 'open' while the cave is open, 'erupt's before a
- * magma flow and goes 'dormant' while Ignara is slain. Its cave mouth faces the
+ * magma flow and goes 'dormant' right after Ignara is slain (until the next
+ * repelled wave). Its cave mouth faces the
  * island; while the cave is open (every 5th repelled wave, until the dragon
  * raid ends) the crater and mouth glow and smoke pours out. Fixed in place:
  * nothing here ever moves the container.
@@ -197,9 +198,10 @@ export class VolcanoLandmark {
     const s = useGameStore.getState();
     if (this.rumbleLeft > 0) return 'erupt';
     if (s.lairOpen) return 'open';
-    if (s.dragon.slain) return 'dormant';
     // Waves cleared since the last opening: 1 → stage1 … 4 → stage4
     const since = Math.max(0, s.invasion.waveNumber - 1) % LAIR.cave.everyWaves;
+    // Slain: cold until the next wave is repelled, then the countdown to the new generation starts
+    if (s.dragon.slain && since === 0) return 'dormant';
     return `stage${Math.max(1, Math.min(4, since))}`;
   }
 

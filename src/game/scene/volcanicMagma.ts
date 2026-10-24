@@ -5,7 +5,7 @@ import { useGameStore } from '../../state/useGameStore';
 import { logMessage } from '../../state/activityLog';
 import { unitName } from '../../i18n/translations';
 import { soundFx } from '../audio/soundFx';
-import { GRID_SIZE, PORTAL_SITES, VOLCANO_SITE, isFloodedTile, isLandTile, isProtectedTile, isVolcanoTile } from '../../state/buildingLayout';
+import { GRID_SIZE, PORTAL_SITES, VOLCANO_SITE, isFillableTile, isLandTile, isProtectedTile, isVolcanoTile } from '../../state/buildingLayout';
 import { MAGMA_FLOW, dragonAwake } from '../../state/lairExpedition';
 import { INVADER_CONFIGS } from '../../types/game';
 import type { InvasionManager } from '../InvasionManager';
@@ -13,6 +13,9 @@ import type { WorkerManager } from '../WorkerManager';
 import type { DefenderSystem } from '../DefenderSystem';
 import type { WildFactionManager } from '../WildFactionManager';
 import type { VolcanoLandmark } from './volcano';
+import { MAGMA_SS, magmaGlowTexture, magmaMask, magmaTexture, type MagmaLook } from './magmaArt';
+
+interface MagmaSprite { look: MagmaLook; mask: number; base: Phaser.GameObjects.Image; shimmer?: Phaser.GameObjects.Image; glow?: Phaser.GameObjects.Image }
 
 const key = (x: number, y: number) => `${x},${y}`;
 const between = ([lo, hi]: number[]) => lo + Math.random() * (hi - lo);
@@ -27,6 +30,9 @@ const between = ([lo, hi]: number[]) => lo + Math.random() * (hi - lo);
  */
 export class VolcanicMagma {
   private gfx: Phaser.GameObjects.Graphics;
+  private layer: Phaser.GameObjects.Container;
+  /** One painted sprite (plus shimmer and glow while ACTIVE) per magma tile. */
+  private sprites = new Map<string, MagmaSprite>();
   private nextFlowIn = between(MAGMA_FLOW.everySeconds);
   private rumble: { path: string[]; left: number } | null = null;
   private tick = 0;
@@ -42,16 +48,22 @@ export class VolcanicMagma {
     private defenders: DefenderSystem,
     private wild: () => WildFactionManager[],
   ) {
+    this.layer = layer;
     this.gfx = scene.add.graphics();
     layer.add(this.gfx);
   }
 
-  /** Land or flooded shore that magma may cover: never protected tiles, rift exits or the volcano itself. */
+  /**
+   * Land (dug / eaten sand included) and inner sea (coves, flooded shore) that
+   * magma may cover; cooled basalt turns all of it into plain land. Never the
+   * outer ocean ring or canals (water paths), protected tiles, rift exits or
+   * the volcano itself.
+   */
   private canFlow(x: number, y: number): boolean {
     if (x < 1 || y < 1 || x >= GRID_SIZE - 1 || y >= GRID_SIZE - 1) return false;
     if (isVolcanoTile(x, y) || isProtectedTile(x, y)) return false;
     if (PORTAL_SITES.some((p) => p.exit.x === x && p.exit.y === y)) return false;
-    return isLandTile(x, y) || isFloodedTile(x, y);
+    return isLandTile(x, y) || isFillableTile(x, y);
   }
 
   /** The flow's path: the nearest open tile to the mouth, then a downhill walk away from the volcano. */
@@ -170,38 +182,68 @@ export class VolcanicMagma {
     if (victim) logMessage('magmaBurn', { name: victim }, { mergeKey: 'magma-burn' });
   }
 
-  /** Rumble path in red, then glowing ACTIVE magma, dark crust with embers, grey basalt. */
+  /**
+   * The rumble path pulses red; magma tiles are painted sprites (magmaArt.ts):
+   * ACTIVE is molten lava with drifting crust plates (two variants crossfaded)
+   * under an additive glow, CRUST is dark rock with glowing cracks, BASALT is
+   * grey jointed stone. Edges join toward neighbouring magma so a flow reads
+   * as one river.
+   */
   private draw(): void {
     const g = this.gfx;
     g.clear();
     const pulse = 0.5 + 0.5 * Math.sin(this.t * 6);
-    const diamond = (x: number, y: number, color: number, alpha: number, inset = 0) => {
-      const c = IsometricHelper.gridToScreen(x, y);
-      const hw = TILE_WIDTH / 2 - inset * 2, hh = TILE_HEIGHT / 2 - inset;
-      g.fillStyle(color, alpha);
-      g.fillPoints([
-        new Phaser.Geom.Point(c.x, c.y - hh), new Phaser.Geom.Point(c.x + hw, c.y),
-        new Phaser.Geom.Point(c.x, c.y + hh), new Phaser.Geom.Point(c.x - hw, c.y),
-      ], true);
-    };
     if (this.rumble) {
       for (const k of this.rumble.path) {
         const [x, y] = k.split(',').map(Number);
-        diamond(x, y, 0xdc2626, 0.15 + 0.3 * pulse, 4);
+        const c = IsometricHelper.gridToScreen(x, y);
+        g.fillStyle(0xdc2626, 0.12 + 0.25 * pulse);
+        g.fillEllipse(c.x, c.y, TILE_WIDTH * 0.8, TILE_HEIGHT * 0.8);
+        g.lineStyle(1.5, 0xf97316, 0.3 + 0.4 * pulse);
+        g.strokeEllipse(c.x, c.y, TILE_WIDTH * 0.55, TILE_HEIGHT * 0.55);
       }
     }
-    for (const [k, t] of Object.entries(useGameStore.getState().volcanicMagma)) {
+    const magma = useGameStore.getState().volcanicMagma;
+    // Drop sprites for tiles that are gone
+    for (const [k, sp] of this.sprites) {
+      if (magma[k]) continue;
+      sp.base.destroy(); sp.shimmer?.destroy(); sp.glow?.destroy();
+      this.sprites.delete(k);
+    }
+    for (const [k, t] of Object.entries(magma)) {
       const [x, y] = k.split(',').map(Number);
-      if (t.stage === 'ACTIVE') {
-        diamond(x, y, 0xea580c, 0.95);
-        diamond(x, y, 0xfbbf24, 0.35 + 0.35 * Math.sin(this.t * 3 + x * 1.7 + y), 7);
-      } else if (t.stage === 'CRUST') {
-        diamond(x, y, 0x3f1d12, 0.95);
-        diamond(x, y, 0xc2410c, 0.25 + 0.2 * pulse, 10);
-      } else {
-        diamond(x, y, 0x3f3f46, 0.85, 1);
-        diamond(x, y, 0x52525b, 0.6, 9);
+      const look: MagmaLook = t.stage === 'ACTIVE' ? 'ACTIVE' : t.stage === 'CRUST' ? 'CRUST' : 'BASALT';
+      // Edges join only toward magma of the same look
+      const mask = magmaMask((dx, dy) => {
+        const n = magma[`${x + dx},${y + dy}`];
+        return !!n && (n.stage === 'ACTIVE' ? 'ACTIVE' : n.stage === 'CRUST' ? 'CRUST' : 'BASALT') === look;
+      });
+      let sp = this.sprites.get(k);
+      if (!sp || sp.look !== look || sp.mask !== mask) {
+        if (sp) { sp.base.destroy(); sp.shimmer?.destroy(); sp.glow?.destroy(); }
+        const c = IsometricHelper.gridToScreen(x, y);
+        const base = this.scene.add.image(c.x, c.y, magmaTexture(this.scene, look, mask, 0)).setScale(1 / MAGMA_SS);
+        sp = { look, mask, base };
+        this.layer.add(base);
+        if (look === 'ACTIVE') {
+          sp.shimmer = this.scene.add.image(c.x, c.y, magmaTexture(this.scene, look, mask, 1)).setScale(1 / MAGMA_SS);
+          sp.glow = this.scene.add.image(c.x, c.y - 4, magmaGlowTexture(this.scene))
+            .setBlendMode(Phaser.BlendModes.ADD).setScale(TILE_WIDTH / 40, TILE_HEIGHT / 34);
+          this.layer.add([sp.shimmer, sp.glow]);
+        }
+        this.sprites.set(k, sp);
+      }
+      if (sp.shimmer && sp.glow) {
+        const phase = this.t * 1.6 + x * 0.9 + y * 0.6;
+        sp.shimmer.setAlpha(0.5 + 0.5 * Math.sin(phase));
+        sp.glow.setAlpha(0.35 + 0.25 * Math.sin(phase * 1.3 + 1));
       }
     }
+  }
+
+  destroy(): void {
+    for (const sp of this.sprites.values()) { sp.base.destroy(); sp.shimmer?.destroy(); sp.glow?.destroy(); }
+    this.sprites.clear();
+    this.gfx.destroy();
   }
 }

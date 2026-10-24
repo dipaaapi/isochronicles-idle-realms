@@ -2,7 +2,10 @@ import { projectileFor, shootProjectile } from '../battleFx';
 import { soundFx } from '../audio/soundFx';
 import { battleTargets, type OrderTarget } from '../battleTargets';
 import { useGameStore } from '../../state/useGameStore';
-import { RAGE, type GeneralOrder } from '../../state/generalOrders';
+import { RAGE, ordersOf, type GeneralOrder } from '../../state/generalOrders';
+import { UNIT_CLASSES } from '../../types/game';
+import KIROV from '../../data/kirov.json';
+import LOCOMOTION from '../../data/locomotion.json';
 import type { WorkerContext, WorkerFrame, WorkerInstance } from './types';
 
 /**
@@ -11,9 +14,35 @@ import type { WorkerContext, WorkerFrame, WorkerInstance } from './types';
  * src/data/generalOrders.json.
  */
 
-/** This General's current battle priority (from its roster entry). */
+const FLYERS = new Set<string>(LOCOMOTION.fly);
+/** Units that can hurt the Kirov: flyers and long-range fighters (same rule as KirovAirship's anti-air). */
+export const canHitAir = (cls: string): boolean =>
+  FLYERS.has(cls) || (UNIT_CLASSES[cls as keyof typeof UNIT_CLASSES]?.attackRange ?? 0) >= KIROV.antiAir.longRange;
+
+/** How far a looter looks for drops under a Loot order. */
+export const LOOT_REACH = 600;
+
+/** Whether an order's target is on the island right now for this unit (the Kirov only counts for anti-air units). */
+export function orderLive(order: GeneralOrder, cls: string, x: number, y: number, anywhere = false): boolean {
+  switch (order) {
+    case 'CATERPILLAR': return (battleTargets.wild.BROOD?.() ?? []).length > 0;
+    case 'LEVIATHAN': return (battleTargets.wild.SEA?.() ?? []).length > 0;
+    case 'KIROV': return !!battleTargets.kirov?.() && canHitAir(cls);
+    case 'RIFTS': return (battleTargets.rifts?.() ?? []).length > 0;
+    case 'LOOT': return !!battleTargets.loot?.nearest(x, y, anywhere ? 1e6 : LOOT_REACH);
+    default: return false;
+  }
+}
+
+/** The first of a priority list whose target is present now; AUTO when none is (or the list is empty). */
+export function liveOrderOf(orders: GeneralOrder[], cls: string, x: number, y: number, anywhere = false): GeneralOrder {
+  return orders.find((o) => orderLive(o, cls, x, y, anywhere)) ?? 'AUTO';
+}
+
+/** The order this General follows this frame: its highest priority whose target is on the island. */
 export function orderOf(worker: WorkerInstance): GeneralOrder {
-  return useGameStore.getState().roster.find((u) => u.id === worker.id)?.order ?? 'AUTO';
+  const u = useGameStore.getState().roster.find((r) => r.id === worker.id);
+  return liveOrderOf(ordersOf(u), String(worker.unitClass ?? ''), worker.container.x, worker.container.y);
 }
 
 export function addRage(worker: WorkerInstance, amount: number): void {
@@ -52,12 +81,14 @@ export function followHuntOrder(ctx: WorkerContext, worker: WorkerInstance, fram
   const wy = worker.container.y;
 
   if (order === 'KIROV') {
+    // Anti-air units close in and HOLD under the airship (KirovAirship's anti-air fires while they are within
+    // its reach); they used to hand back to the normal AI here and wander off after invaders
     const ship = battleTargets.kirov?.();
-    if (!ship) return false;
-    if (Math.hypot(ship.x - wx, ship.y - wy) <= 90) return false;
+    if (!ship || !canHitAir(String(worker.unitClass ?? ''))) return false;
     worker.overrideEmote = '🎈';
     worker.overrideEmoteTimer = 600;
-    ctx.moveToward(worker, ship.x, ship.y, effectiveSpeed * 1.35 * deltaSec, deltaSec);
+    const d = Math.hypot(ship.x - wx, ship.y - wy);
+    if (d > KIROV.antiAir.reach * 0.6) ctx.moveToward(worker, ship.x, ship.y, effectiveSpeed * 1.35 * deltaSec, deltaSec);
     return true;
   }
 

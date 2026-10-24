@@ -255,7 +255,6 @@ Phaser owns the world canvas and React owns the HUD and modals. They communicate
 public/
 ├── backgrounds/           Phase, title, victory/defeat art and bestiary icons
 ├── portraits/             General portraits rendered from their voxel models
-├── structures/            Codex art for every structure (design source for structure models)
 └── pwa-*.png, robots.txt
 scripts/
 ├── test-construction.cjs  Construction, economy, reset, difficulty, permadeath, crew checks
@@ -305,7 +304,7 @@ src/
   - Data tables use `name` / `nameEn` pairs.
 - Put repeated text and lookup tables in JSON and reference them by key; don't hardcode them inline.
 - Never draw floating text over the map; narrate events in the activity log with `logMessage(key, vars)`.
-- Character sprites follow `public/backgrounds/bestiary-icons/`, and structure models follow `public/structures/`.
+- Character sprites follow `public/backgrounds/bestiary-icons/`, and structure models are their own design source.
 - When mechanics change, update the Atlas Guide, the FAQ, [LORE.md](LORE.md) and [LORE.tl.md](LORE.tl.md).
 - Commit messages use the `ft:` prefix followed by the areas touched.
 

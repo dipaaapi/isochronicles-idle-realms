@@ -234,7 +234,9 @@ function castChampionSkills(ctx: WorkerContext, worker: WorkerInstance, frame: W
 export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: WorkerFrame): void {
   const { config, deltaSec, effectiveSpeed, effectiveAttack } = frame;
   const openPortals = ctx.portals?.getOpen() ?? [];
-  if (!frame.isInvasionActive && frame.aliveInvaders.length === 0 && openPortals.length === 0) {
+  // The order this General follows now (its highest priority whose target is on the island)
+  const order = orderOf(worker);
+  if (!frame.isInvasionActive && frame.aliveInvaders.length === 0 && openPortals.length === 0 && order === 'AUTO') {
     // Threat eliminated: celebrate and return to peaceful routine
     worker.status = 'IDLE';
     worker.stateTimer = 400;
@@ -253,7 +255,6 @@ export function updateCombat(ctx: WorkerContext, worker: WorkerInstance, frame: 
   castChampionSkills(ctx, worker, frame);
 
   // Generals panel: hunt orders take over while their target is on the map
-  const order = orderOf(worker);
   if ((order === 'CATERPILLAR' || order === 'LEVIATHAN' || order === 'KIROV') && followHuntOrder(ctx, worker, frame, order)) return;
   const riftsFirst = order === 'RIFTS';
 

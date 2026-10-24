@@ -101,7 +101,15 @@ export const createRunesSlice = (...[set, get]: SliceArgs) => ({
   /** Sells every rune that can no longer be used (see isUnusableRune). */
   sellObsoleteRunes: (): { count: number; coins: number } => {
     const state = get();
-    const doomed = state.runes.filter((r) => isUnusableRune(r, state.runes, state.runeSlots));
+    return get().sellRunes(state.runes.filter((r) => isUnusableRune(r, state.runes, state.runeSlots)).map((r) => r.id));
+  },
+
+  /** Sells many vault runes at once (ticked ones, or a whole tier); slotted runes are never sold. */
+  sellRunes: (runeIds: string[]): { count: number; coins: number } => {
+    const state = get();
+    const slotted = slottedIds(state.runeSlots);
+    const wanted = new Set(runeIds);
+    const doomed = state.runes.filter((r) => wanted.has(r.id) && !slotted.has(r.id));
     if (!doomed.length) return { count: 0, coins: 0 };
     const ids = new Set(doomed.map((r) => r.id));
     const coins = doomed.reduce((sum, r) => sum + runeSellPrice(r.tier), 0);

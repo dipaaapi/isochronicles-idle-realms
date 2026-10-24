@@ -442,13 +442,19 @@
     "max": 2
   },
   "matriarch": {
-    "_doc": "Ignara, the Ember Matriarch. Max HP = the party's damage per second × fightSeconds × (1 + generationGrowth × (generation − 1)), set once when the battle first starts and never raised, healed or reset after: damage persists across wipes, retreats and reloads. Phases start at the HP fractions in phaseAt. She sits in the arena centre (arenaY) and never leaves it. Her summons crumble after summonLifetime seconds. In her battle the Generals go for her while their minions hold off the summons and the humans.",
+    "_doc": "Ignara, the Ember Matriarch. Max HP = the party's damage per second × fightSeconds × (1 + generationGrowth × (generation − 1)), set once when the battle first starts and never raised, healed or reset after: damage persists across wipes, retreats and reloads. Phases start at the HP fractions in phaseAt. She sits in the arena centre (arenaY) and never leaves it. Her summons crumble after summonLifetime seconds. Her battle is a true three-way fight (see threeWay): nobody is allied.",
     "name": {
       "en": "Ignara, the Ember Matriarch",
       "tl": "Ignara, ang Matriarka ng Baga"
     },
     "fightSeconds": 210,
     "generationGrowth": 0.25,
+    "art": {
+      "_doc": "On-screen size of her rig (1 = the old arena-scale painting) and its pixel-art pass: texels per world unit follow scale, colour channels band in colorStep steps, soft edges under alphaCut drop out.",
+      "scale": 0.42,
+      "colorStep": 24,
+      "alphaCut": 110
+    },
     "arenaX": 4.5,
     "arenaY": 75,
     "reachTiles": 4,
@@ -478,35 +484,36 @@
       }
     ],
     "abilities": {
-      "claw": {
+      "dragonClaw": {
         "from": 0,
-        "every": 3.2,
-        "telegraph": 0.7,
-        "radius": 2.6,
-        "attack": 2.2
+        "every": 3.4,
+        "telegraph": 0.65,
+        "radius": 2.4,
+        "attack": 2.8,
+        "bleedDps": 0.35,
+        "bleedSeconds": 4
       },
-      "bite": {
+      "tailWhip": {
         "from": 0,
-        "every": 5,
-        "telegraph": 0.6,
-        "attack": 4.5
+        "every": 7.5,
+        "telegraph": 0.8,
+        "radius": 5.5,
+        "attack": 1.8,
+        "push": 2.2,
+        "minTargets": 2
       },
-      "wingGust": {
+      "dragonBreath": {
         "from": 0,
-        "every": 11,
-        "telegraph": 1,
-        "radius": 4.5,
-        "attack": 0.8,
-        "push": 2.5
-      },
-      "fireBreath": {
-        "from": 0,
-        "every": 9,
-        "telegraph": 1.4,
-        "width": 2,
+        "every": 10,
+        "telegraph": 1.5,
         "length": 9,
-        "dps": 1.6,
-        "duration": 2.2
+        "halfAngle": 22,
+        "crowdAngle": 12,
+        "dps": 1.9,
+        "duration": 2.6,
+        "burnDps": 0.25,
+        "burnSeconds": 3,
+        "scorchSeconds": 7
       },
       "summonKin": {
         "from": 1,
@@ -533,12 +540,18 @@
         "cap": 1
       }
     },
-    "summonLifetime": 35
+    "summonLifetime": 35,
+    "death": {
+      "_doc": "After the killing blow she collapses (collapseSeconds), dissolves into embers (dissolveSeconds), then the hoard chest stays chestSeconds before the party heads home.",
+      "collapseSeconds": 1.6,
+      "dissolveSeconds": 5,
+      "chestSeconds": 3.5
+    }
   },
   "humans": {
-    "_doc": "The human expedition breaks in from the volcano's far side when the Matriarch battle starts: as many as the party's living members, drawn from the wave pool open at the realm's wave. Sized to powerShare of the party's average member (times the lair wave power) so they threaten without overpowering. Reinforcements arrive when fewer than reinforceBelow × the first count remain, until maxTotal × the first count have come.",
+    "_doc": "The human expedition breaks in through the side tunnels (threeWay.breaches) when the Matriarch battle starts: as many as the party's living members, drawn from the wave pool open at the realm's wave. Sized to powerShare of the party's average member (times the lair wave power) so they threaten without overpowering. Every raider who falls breaks back in through a side tunnel after respawnSeconds while Ignara lives, up to the first count plus the phase breach waves alive at once.",
+    "respawnSeconds": 6,
     "powerShare": 0.85,
-    "reinforceBelow": 0.4,
     "maxTotal": 2,
     "spawnY": 79,
     "rangePxPerTile": 60,
@@ -616,21 +629,17 @@
       "tl": "Ina ng brood, kasingtanda ng bulkan. Hindi gumagaling o nare-reset ang HP niya: anumang naibawas ng pangkat ay mananatiling bawas, kahit maubos ang pangkat, umatras o mag-reload. Pagsimula ng labanan, papasok ang mga taong mananalakay mula sa kabilang panig, kasingdami ng buhay mong pangkat; naglalaban ang tatlong panig. Patayin siya para sa malaking kayamanan at isang rune (kalahati kung ang mga tao ang huling tumama at walang demonyong tumama sa huling 10 segundo). May bagong Ignara sa pugad pagbukas ulit ng yungib."
     },
     "abilities": {
-      "claw": {
-        "en": "Claw sweep — a wide blow in front of her",
-        "tl": "Hagupit ng kuko — malawak na hampas sa harap niya"
+      "dragonClaw": {
+        "en": "Dragon Claw: she rears and rakes the ground in front of her; the torn keep bleeding for a few seconds",
+        "tl": "Kuko ng Dragon: tumataas siya at kinakalmot ang lupa sa harap niya; patuloy na dumudugo ang mga nasugatan nang ilang segundo"
       },
-      "bite": {
-        "en": "Bite — a crushing strike on one target",
-        "tl": "Kagat — malakas na tama sa isang target"
+      "tailWhip": {
+        "en": "Tail Whip: her tail coils, then cracks like a whip around her, knocking everyone close away",
+        "tl": "Hagupit ng Buntot: pumupulupot ang buntot, saka pumapalo na parang latigo sa paligid niya, tumatalsik ang lahat ng malapit"
       },
-      "wingGust": {
-        "en": "Wing gust — hurts and blows back everything around her",
-        "tl": "Hangin ng pakpak — sumasakit at nagtutulak pabalik sa lahat ng nasa paligid"
-      },
-      "fireBreath": {
-        "en": "Fire breath — a burning strip toward her target",
-        "tl": "Hininga ng apoy — nagliliyab na guhit patungo sa target"
+      "dragonBreath": {
+        "en": "Dragon's Breath: she inhales (her belly glows), then pours a cone of fire at the thickest crowd; the burned keep burning",
+        "tl": "Hininga ng Dragon: humihinga siya nang malalim (umiilaw ang tiyan), saka bumubuga ng apoy na pa-kono sa pinakasiksik na pulutong; patuloy na nasusunog ang natamaan"
       },
       "summonKin": {
         "en": "Brood Mother: calls dragon kin",
@@ -656,6 +665,67 @@
     "slain": {
       "en": "Dragons slain this run",
       "tl": "Mga dragong napatay ngayong takbo"
+    }
+  },
+  "threeWay": {
+    "_doc": "True three-way battle in the Matriarch Chamber: no side is allied. Every unit scores each foe (lower wins): distance in tiles − bias[faction][target] − grudge (that faction hit it, or its General, within grudgeSeconds) − leaderPull × lead (the faction whose remaining strength share leads the others gets ganged up on, so whoever is winning draws both other sides). Ignara keeps a threat meter per faction (share of her max HP each side took off, decaying by threatDecay per second); her aimed abilities and every new summon hunt the top-threat side. Humans breach from the side tunnels (breaches), between the party and her, and come for the Demons first.",
+    "retargetSeconds": 0.8,
+    "stickTiles": 1.2,
+    "grudgeSeconds": 6,
+    "grudgeTiles": 3,
+    "leaderPull": 6,
+    "leaderMargin": 0.08,
+    "bias": {
+      "DEMON": {
+        "DRAGON": 1,
+        "HUMAN": 1.5
+      },
+      "HUMAN": {
+        "DEMON": 2,
+        "DRAGON": 0.5
+      },
+      "DRAGON": {
+        "DEMON": 0.5,
+        "HUMAN": 0.5
+      }
+    },
+    "huntTiles": 4,
+    "threatDecay": 0.04,
+    "focusLogSeconds": 10,
+    "shiftLogSeconds": 12,
+    "breaches": [
+      {
+        "x": 0,
+        "y": 72
+      },
+      {
+        "x": 9,
+        "y": 72
+      },
+      {
+        "x": 0,
+        "y": 74
+      },
+      {
+        "x": 9,
+        "y": 74
+      }
+    ],
+    "scaling": {
+      "_doc": "Keeps the three-way fight three-way at any party size. Each new Ignara phase sends a human breach wave of phaseWaveShare[phase] x living Demons (on top of the reinforcement cap). Her crowd skills grow with the hostiles around her up to crowdRef: eruption tiles = hostiles x eruptionPerHostile (min..max), the breath cone widens by crowdAngle, and summons count as if there were hostiles / summonPerHostiles Generals. She aims the breath at the densest cluster among breathCandidates foes of the side she hunts. No new unit spawns past maxUnits.",
+      "phaseWaveShare": [
+        0,
+        0.5,
+        0.6,
+        0.75
+      ],
+      "crowdRef": 24,
+      "eruptionPerHostile": 0.3,
+      "eruptionTilesMin": 4,
+      "eruptionTilesMax": 14,
+      "summonPerHostiles": 4,
+      "breathCandidates": 8,
+      "maxUnits": 150
     }
   }
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import localforage from 'localforage';
 import { STRUCTURE_MODELS, StructureKey } from './structureModels';
 import { useLoadProgress } from '../loadProgress';
 import type { BakedStrip } from './structureBake.worker';
@@ -70,10 +71,59 @@ export function prepareStructureSprites(scene: Phaser.Scene, onReady?: (key: Str
   startStructureBake();
 }
 
+/**
+ * Baked strips are cached in IndexedDB keyed by a fingerprint of the model (as
+ * the character sheets are), so after a browser restart every structure, the
+ * volcano's wave-stage looks included, shows at once instead of falling back
+ * to its stand-in until a fresh bake lands. Bump CACHE_VERSION when the baker
+ * or structureStates change without a model change; dev builds skip the cache.
+ */
+const stripCache = localforage.createInstance({ name: 'IsoChronicle_IdleRealms', storeName: 'structure_cache' });
+const CACHE_VERSION = 1;
+const useCache = !import.meta.env?.DEV;
+/** Baked first: the citadel, rifts and spire are on screen at once, and the volcano shows the wave count. */
+const BAKE_FIRST: StructureKey[] = ['castle', 'portal', 'spire', 'volcano'];
+
+function fingerprint(key: StructureKey): string {
+  const text = `${CACHE_VERSION}|${DETAIL}|${JSON.stringify(STRUCTURE_MODELS[key]())}`;
+  let h = 0x811c9dc5; // FNV-1a
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36);
+}
+
+const publishStrip = (strip: BakedStrip) => {
+  baked.set(strip.key, strip);
+  useLoadProgress.getState().setDone('structures', baked.size);
+  listeners.forEach((listener) => listener(strip));
+};
+
 /** Starts the background bake once per page (also used by the Atlas, which has no scene). */
 function startStructureBake(): void {
-  if (workers.length > 0) return;
-  const missing = (Object.keys(STRUCTURE_MODELS) as StructureKey[]).filter((k) => !baked.has(k));
+  if (workers.length > 0 || bakeClaimed) return;
+  bakeClaimed = true;
+  void loadCachedThenBake();
+}
+let bakeClaimed = false;
+
+async function loadCachedThenBake(): Promise<void> {
+  const keys = Object.keys(STRUCTURE_MODELS) as StructureKey[];
+  const prints = new Map<StructureKey, string>();
+  if (useCache) {
+    for (const key of keys) {
+      if (baked.has(key)) continue;
+      const print = fingerprint(key);
+      prints.set(key, print);
+      try {
+        const cached = await stripCache.getItem<BakedStrip>(`${key}:${print}`);
+        if (cached) publishStrip(cached);
+      } catch {
+        /* no cache (private window, quota) — bake instead */
+      }
+    }
+  }
+  const ordered = [...BAKE_FIRST, ...keys.filter((k) => !BAKE_FIRST.includes(k))];
+  const missing = ordered.filter((k) => !baked.has(k));
+  if (!missing.length) return;
   // Two workers, alternating keys, so the first few (citadel, portals, spire) land together
   workers = [0, 1]
     .map((w) => missing.filter((_, i) => i % 2 === w))
@@ -81,9 +131,10 @@ function startStructureBake(): void {
     .map((batch) => {
       const worker = new Worker(new URL('./structureBake.worker.ts', import.meta.url), { type: 'module' });
       worker.onmessage = (event: MessageEvent<BakedStrip>) => {
-        baked.set(event.data.key, event.data);
-        useLoadProgress.getState().setDone('structures', baked.size);
-        listeners.forEach((listener) => listener(event.data));
+        const strip = event.data;
+        publishStrip(strip);
+        const print = prints.get(strip.key);
+        if (print) void stripCache.setItem(`${strip.key}:${print}`, strip).catch(() => undefined);
       };
       worker.postMessage(batch);
       return worker;

@@ -12,7 +12,7 @@ import {
 import { addResourceDelta, canAfford, subtractCost } from '../resources';
 import { BRAWL_CONFIG, addClash, applyBrawlResult, baseStatsOf, brawlLevelOf, pairKey } from '../brawl';
 import { newRuneId, rollRuneKind } from '../runes';
-import { clampSturdy, sturdyFromBonus, type GeneralOrder } from '../generalOrders';
+import { clampSturdy, normalizeOrders, sturdyFromBonus, type GeneralOrder, type OrderScope } from '../generalOrders';
 import { TREANT_EVOLUTION, UNIT_CLASSES } from '../../types/game';
 import type { HarvestTask, InvaderType, UnitClass } from '../../types/game';
 import type { GameStoreState, ResourceBuildingId, Resources, UnitRosterItem } from '../../types/state';
@@ -98,9 +98,20 @@ export const createRosterSlice = (...[set, get]: SliceArgs) => ({
   },
 
   setGeneralOrder: (unitIds: string[], order: GeneralOrder) => {
+    get().setGeneralOrders(unitIds, order === 'AUTO' ? [] : [order], 'GENERAL');
+  },
+
+  setGeneralOrders: (unitIds: string[], orders: GeneralOrder[], scope: OrderScope) => {
     const ids = new Set(unitIds);
+    const list = normalizeOrders(orders);
     set((prev) => ({
-      roster: prev.roster.map((u) => (ids.has(u.id) ? { ...u, order: order === 'AUTO' ? undefined : order } : u)),
+      roster: prev.roster.map((u) => {
+        if (!ids.has(u.id)) return u;
+        const next = { ...u, order: undefined };
+        if (scope !== 'MINIONS') next.orders = list;
+        if (scope !== 'GENERAL') next.minionOrders = list;
+        return next;
+      }),
       lastSavedTimestamp: Date.now(),
     }));
   },

@@ -5,6 +5,12 @@ import { gameConfirm } from './GameDialog';
 import { useLairHud } from '../game/lair/lairHud';
 import { CHECKPOINTS, LAIR_CONFIG, LAIR_OBSTACLES, MATRIARCH, regionIndexAt } from '../state/lairExpedition';
 
+const SIDES = [
+  { id: 'DEMON', label: 'lairSideDemon', text: 'text-purple-300', bar: 'bg-purple-500' },
+  { id: 'DRAGON', label: 'lairSideDragon', text: 'text-orange-300', bar: 'bg-orange-500' },
+  { id: 'HUMAN', label: 'lairSideHuman', text: 'text-sky-300', bar: 'bg-sky-500' },
+] as const;
+
 /**
  * Dragon's Lair overlay: route progress, party status, the rules inside,
  * Ignara's HP and phase once her battle starts, the hoard when she falls,
@@ -60,6 +66,25 @@ export function LairHud() {
           </div>
           <div className="mt-0.5 text-right font-mono text-[10px] text-stone-400">
             {Math.ceil(hud.dragonHp).toLocaleString()} / {hud.dragonMaxHp.toLocaleString()}
+          </div>
+          {/* Three sides, no allies: who is left, who Ignara hunts, who is being ganged up on */}
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-[10px]">
+            {SIDES.map((s) => {
+              const share = Math.min(1, Math.max(0, hud.shares[s.id]));
+              return (
+                <div key={s.id} className={`rounded border px-1.5 py-1 ${hud.leader === s.id ? 'border-amber-400 bg-amber-950/40' : 'border-stone-700 bg-stone-900/60'}`}>
+                  <div className={`flex justify-between font-bold ${s.text}`}>
+                    <span>{t(s.label)}</span>
+                    <span className="font-mono">{Math.round(share * 100)}%</span>
+                  </div>
+                  <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-stone-800">
+                    <div className={`h-full ${s.bar}`} style={{ width: `${share * 100}%` }} />
+                  </div>
+                  {hud.dragonFocus === s.id && <div className="mt-0.5 text-red-300">🔥 {t('lairHunted')}</div>}
+                  {hud.leader === s.id && <div className="mt-0.5 text-amber-300">⚔️ {t('lairGanged')}</div>}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (

@@ -1,0 +1,32 @@
+{
+  "_doc": "Sidebar timeline (ui/SkyStatusPanel.tsx): battle lane on top, weather lane below, both scrolling toward the NOW line. windowSeconds = game seconds shown across a lane; imminentSeconds = when the next wave starts to pulse.",
+  "windowSeconds": 300,
+  "imminentSeconds": 30,
+  "criticalSeconds": 10,
+  "text": {
+    "battle": { "en": "Battle", "tl": "Labanan" },
+    "weather": { "en": "Weather", "tl": "Panahon" },
+    "now": { "en": "Now", "tl": "Ngayon" },
+    "wave": { "en": "Wave {n}", "tl": "Wave {n}" },
+    "bossWave": { "en": "Boss wave {n}", "tl": "Boss wave {n}" },
+    "kirov": { "en": "Kirov raid", "tl": "Salakay ng Kirov" },
+    "nextWaveIn": { "en": "{what} in {t}", "tl": "{what} sa loob ng {t}" },
+    "waveLive": { "en": "Wave {n} raging", "tl": "Nagaganap ang Wave {n}" },
+    "remaining": { "en": "{a}/{b} left", "tl": "{a}/{b} natitira" },
+    "kirovLive": { "en": "Kirov overhead", "tl": "Nasa itaas ang Kirov" },
+    "brawlLive": { "en": "Brawl", "tl": "Bakbakan" },
+    "wildLive": { "en": "Wild beasts", "tl": "Mababangis" },
+    "lairOpen": { "en": "Lair open", "tl": "Bukas ang Lungga" },
+    "lairAt": { "en": "Lair opens after wave {n}", "tl": "Bubukas ang Lungga pagkatapos ng wave {n}" },
+    "sealed": { "en": "Waves sealed until the citadel stands", "tl": "Sarado ang mga wave hanggang tumayo ang kuta" },
+    "imminent": { "en": "Incoming!", "tl": "Paparating na!" },
+    "paused": { "en": "Paused", "tl": "Nakahinto" },
+    "frozen": { "en": "Frozen", "tl": "Nakapirmi" },
+    "weatherTurns": { "en": "{w} in {t}", "tl": "{w} sa loob ng {t}" },
+    "weatherShift": { "en": "Weather shifts in {t}", "tl": "Magbabago ang panahon sa loob ng {t}" },
+    "weatherStays": { "en": "Fixed weather", "tl": "Nakapirming panahon" },
+    "phaseIn": { "en": "{p} in {t}", "tl": "{p} sa loob ng {t}" },
+    "unknown": { "en": "Unknown", "tl": "Di alam" },
+    "daysSurvived": { "en": "{n} days survived", "tl": "{n} araw na nakaligtas" }
+  }
+}
