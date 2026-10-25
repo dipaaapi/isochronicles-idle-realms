@@ -11,8 +11,9 @@ import KIROV from '../data/kirov.json';
 import LOCOMOTION from '../data/locomotion.json';
 import { battleTargets, hasNonBrawlBattle } from '../game/battleTargets';
 import { BRAWL_CONFIG } from '../state/brawl';
+import { useFocusGeneral } from '../state/focusGeneral';
 
-interface Gauge { id: string; hp: number; maxHp: number; rage: number; brawling: boolean }
+interface Gauge { id: string; hp: number; maxHp: number; rage: number; brawling: boolean; power: number }
 type Priority = (typeof GENERAL_ORDERS.priorities)[number];
 
 const FLYERS = new Set<string>(LOCOMOTION.fly);
@@ -38,6 +39,134 @@ function PixelBar({ value, color, glow }: { value: number; color: string; glow?:
   );
 }
 
+/** Starts an ordered brawl; true, or the uiStrings key of why not. */
+function startBrawl(): true | 'genBrawlWave' | 'genBrawlBusy' | 'genBrawlMissing' {
+  if (hasNonBrawlBattle(useGameStore.getState().invasion.isActive)) return 'genBrawlWave';
+  if (askScene<boolean>('brawl')) return true;
+  return battleTargets.brawl?.() ? 'genBrawlBusy' : 'genBrawlMissing';
+}
+
+/** Spends these Generals' + power on their establishments (Fortify); returns the HP added. */
+function fortifyGenerals(ids: string[], lang: 'EN' | 'TL'): number {
+  const { roster, investBrawlPower } = useGameStore.getState();
+  let total = 0;
+  for (const id of ids) {
+    const added = investBrawlPower(id);
+    if (added <= 0) continue;
+    total += added;
+    const u = roster.find((x) => x.id === id);
+    if (u) logMessage('generalFortify', { name: unitName(u.name, u.unitClass, lang), hp: added });
+  }
+  if (total > 0) soundFx.playFanfare();
+  return total;
+}
+
+/**
+ * Keyboard: B = Brawl, V = Fortify (the ticked Generals, else the focused one).
+ * Mounted by GameHUD so the keys work whichever sidebar tab is open.
+ */
+export function useGeneralHotkeys() {
+  const { t, language: lang } = useTranslation();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+      if (e.code === 'KeyB') {
+        e.preventDefault();
+        const r = startBrawl();
+        if (r === true) useFocusGeneral.getState().setPicked([]);
+        else { soundFx.playClick(); logMessage('generalHotkeyNote', { text: t(r) }); }
+      } else if (e.code === 'KeyV') {
+        e.preventDefault();
+        const { picked, generalId } = useFocusGeneral.getState();
+        const ids = picked.length ? picked : generalId ? [generalId] : [];
+        if (!ids.length) { soundFx.playClick(); logMessage('generalHotkeyNote', { text: t('genPickFirst') }); return; }
+        if (fortifyGenerals(ids, lang) <= 0) { soundFx.playClick(); logMessage('generalHotkeyNote', { text: t('genFortifyNone') }); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [t, lang]);
+}
+
+/**
+ * Always-on sidebar carousel of every General (living first, strongest first). The slide
+ * follows the camera focus (← / → on the map, or ◀ / ▶ here); fallen Generals stay as
+ * grey slides and are skipped when cycling.
+ */
+export function GeneralsCarousel() {
+  const { t, language: lang } = useTranslation();
+  const roster = useGameStore((s) => s.roster);
+  const focusId = useFocusGeneral((s) => s.generalId);
+  const [gauges, setGauges] = useState<Gauge[]>([]);
+  const [shownId, setShownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const poll = () => { const list = askScene<Gauge[]>('generalGauges'); if (list) setGauges(list); };
+    poll();
+    const id = window.setInterval(poll, 500);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => { if (focusId) setShownId(focusId); }, [focusId]);
+
+  const slides = useMemo(() => gauges
+    .map((g) => ({ g, u: roster.find((x) => x.id === g.id) }))
+    .filter((x): x is { g: Gauge; u: (typeof roster)[number] } => !!x.u)
+    .sort((a, b) => (b.g.hp > 0 ? 1 : 0) - (a.g.hp > 0 ? 1 : 0) || b.g.power - a.g.power), [gauges, roster]);
+  if (!slides.length) return null;
+
+  const idx = Math.max(0, slides.findIndex((s) => s.g.id === shownId));
+  const { g, u } = slides[idx];
+  const dead = g.hp <= 0;
+  const focused = focusId === g.id;
+  const plus = u.brawlLevel ?? 0;
+  const nav = (step: 1 | -1) => {
+    soundFx.playClick();
+    // The scene skips fallen Generals; with none alive, just flip the slide
+    if (slides.some((s) => s.g.hp > 0)) useFocusGeneral.getState().requestCycle(step);
+    else setShownId(slides[(idx + step + slides.length) % slides.length].g.id);
+  };
+
+  return (
+    <div data-tutorial="generals-carousel" className="pixel-frame bg-slate-900 p-1.5 mb-1.5 select-none">
+      <div className="flex items-center gap-1.5">
+        <button onClick={() => nav(-1)} title="←" className="pixel-btn bg-slate-800 px-1.5 py-3 text-[11px] text-slate-200 cursor-pointer">◀</button>
+        <button onClick={() => { if (!dead) { soundFx.playClick(); useFocusGeneral.getState().requestFocusId(g.id); } }}
+          disabled={dead} className="no-bevel flex flex-1 min-w-0 items-center gap-2 cursor-pointer disabled:cursor-not-allowed text-left">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden bg-slate-950"
+            style={{ outline: focused ? '2px solid #fbbf24' : '2px solid #0b0f1a', outlineOffset: -2 }}>
+            <img src={BEAST_PORTRAITS[u.unitClass] ?? ''} alt="" draggable={false}
+              className={`h-full w-full object-cover ${dead ? 'grayscale opacity-60' : ''}`} />
+            {plus > 0 && !dead && <span className="absolute top-0 right-0 px-0.5 text-[9px] font-bold leading-none bg-amber-400 text-slate-950">+{plus}</span>}
+            {dead && <span className="absolute inset-0 flex items-center justify-center text-lg">💀</span>}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className={`truncate text-[11px] font-bold ${dead ? 'text-slate-500' : 'text-amber-200'}`}>
+              {unitName(u.name, u.unitClass, lang)}
+            </div>
+            <div className="text-[9px] text-slate-400">
+              {dead ? `💀 ${t('genCarouselDead')}` : focused ? `🎯 ${t('genCarouselFocus')}` : `❤️ ${g.hp}/${g.maxHp}`}
+              <span className="ml-1 text-slate-600">{idx + 1}/{slides.length}</span>
+            </div>
+            <div className={`mt-0.5 flex flex-col gap-px ${dead ? 'grayscale opacity-50' : ''}`}>
+              <PixelBar value={g.maxHp ? g.hp / g.maxHp : 0} color="#34d399" />
+              <PixelBar value={g.rage / RAGE.max} color={g.rage >= RAGE.brawlCost ? '#f43f5e' : '#f97316'} glow={!dead && g.rage >= RAGE.brawlCost} />
+            </div>
+          </div>
+        </button>
+        <button onClick={() => nav(1)} title="→" className="pixel-btn bg-slate-800 px-1.5 py-3 text-[11px] text-slate-200 cursor-pointer">▶</button>
+      </div>
+      <div className="mt-1 flex justify-center gap-0.5">
+        {slides.map((s) => (
+          <span key={s.g.id} className="h-1 w-1.5"
+            style={{ background: s.g.id === g.id ? '#fbbf24' : s.g.hp <= 0 ? '#334155' : '#64748b' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Sidebar Generals command panel: pick Generals (tap, or quick picks: all, full
  * rage, anti-air, + power), give them a battle priority, order a brawl between
@@ -52,7 +181,8 @@ export function GeneralsPanel() {
   const investBrawlPower = useGameStore((s) => s.investBrawlPower);
   const sellBrawlPlus = useGameStore((s) => s.sellBrawlPlus);
   const [gauges, setGauges] = useState<Record<string, Gauge>>({});
-  const [picked, setPicked] = useState<string[]>([]);
+  const picked = useFocusGeneral((s) => s.picked);
+  const setPicked = useFocusGeneral((s) => s.setPicked);
   const [hoverOrder, setHoverOrder] = useState<Priority | null>(null);
   const [note, setNote] = useState<{ text: string; good?: boolean } | null>(null);
 
@@ -110,24 +240,14 @@ export function GeneralsPanel() {
   };
 
   const brawl = () => {
-    if (otherBattleActive) return setNote({ text: t('genBrawlWave') });
-    const started = askScene<boolean>('brawl');
-    if (started) { setPicked([]); setNote(null); }
-    else setNote({ text: battleTargets.brawl?.() ? t('genBrawlBusy') : t('genBrawlMissing') });
+    const r = startBrawl();
+    if (r === true) { setPicked([]); setNote(null); } else setNote({ text: t(r) });
   };
 
   const fortify = () => {
     if (!sel.length) return setNote({ text: t('genPickFirst') });
-    let total = 0;
-    for (const u of sel) {
-      const added = investBrawlPower(u.id);
-      if (added > 0) {
-        total += added;
-        logMessage('generalFortify', { name: nameOf(u), hp: added });
-      }
-    }
-    if (total > 0) { soundFx.playFanfare(); setNote({ text: `🏰 +${total.toLocaleString()} HP`, good: true }); }
-    else setNote({ text: t('genFortifyNone') });
+    const total = fortifyGenerals(sel.map((u) => u.id), lang);
+    setNote(total > 0 ? { text: `🏰 +${total.toLocaleString()} HP`, good: true } : { text: t('genFortifyNone') });
   };
 
   const sellPlus = () => {
@@ -286,13 +406,15 @@ export function GeneralsPanel() {
 
       {/* Commands */}
       <div className="grid grid-cols-2 gap-1">
-        <button onClick={brawl} title={t('genBrawlHint')}
-          className={`pixel-btn px-1 py-1.5 text-[10px] font-bold cursor-pointer ${canBrawl ? 'bg-rose-600 text-white animate-pulse' : 'bg-rose-950 text-rose-300/70'}`}>
+        <button onClick={brawl} title={`${t('genBrawlHint')} (B)`}
+          className={`pixel-btn relative px-1 py-1.5 text-[10px] font-bold cursor-pointer ${canBrawl ? 'bg-rose-600 text-white animate-pulse' : 'bg-rose-950 text-rose-300/70'}`}>
           🥊 {t('genBrawl')}
+          <span className="pointer-events-none absolute top-0.5 right-1 text-[8px] font-mono font-black leading-none text-amber-300">B</span>
         </button>
-        <button onClick={maxed.length ? sellPlus : fortify} title={maxed.length ? t('genSellPlusHint') : t('genFortifyHint')}
-          className={`pixel-btn px-1 py-1.5 text-[10px] font-bold cursor-pointer ${fortifyHp > 0 ? 'bg-amber-500 text-slate-950' : 'bg-amber-950 text-amber-300/70'}`}>
+        <button onClick={maxed.length ? sellPlus : fortify} title={maxed.length ? t('genSellPlusHint') : `${t('genFortifyHint')} (V)`}
+          className={`pixel-btn relative px-1 py-1.5 text-[10px] font-bold cursor-pointer ${fortifyHp > 0 ? 'bg-amber-500 text-slate-950' : 'bg-amber-950 text-amber-300/70'}`}>
           {maxed.length ? `🔷 ${t('genSellPlus')}` : `🏰 ${t('genFortify')}${fortifyHp > 0 ? ` +${fortifyHp.toLocaleString()}` : ''}`}
+          {!maxed.length && <span className="pointer-events-none absolute top-0.5 right-1 text-[8px] font-mono font-black leading-none text-amber-300">V</span>}
         </button>
       </div>
       {note && <div className={`text-[10px] ${note.good ? 'text-emerald-300' : 'text-amber-300'}`}>{note.text}</div>}

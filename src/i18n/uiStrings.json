@@ -1000,8 +1000,8 @@
     "tl": "Sinusundang Heneral"
   },
   "focusSkillsHint": {
-    "en": "F / G / H cast. ← / → next General, drag or Esc to stop following.",
-    "tl": "F / G / H para gumamit. ← / → susunod na Heneral, i-drag o Esc para tumigil sa pagsunod."
+    "en": "F / G / H cast. ← / → next General, drag or Esc to stop following. B brawl, V fortify.",
+    "tl": "F / G / H para gumamit. ← / → susunod na Heneral, i-drag o Esc para tumigil sa pagsunod. B rambulan, V patibayin."
   },
   "genTabGenerals": {
     "en": "Generals",
@@ -1419,6 +1419,12 @@
     "en": "Phase",
     "tl": "Yugto"
   },
+  "lairLootLog": { "en": "Loot", "tl": "Samsam" },
+  "lairLootEmpty": { "en": "Kill lair creatures and human raiders to loot them.", "tl": "Patayin ang mga nilalang ng pugad at mga tao para masamsam sila." },
+  "lairHoard": { "en": "Treasure hoard", "tl": "Kayamanan" },
+  "lairStarsHint": { "en": "Rating: the bigger the demons' share of the damage on Ignara (vs the humans'), the more stars (up to 5) and the bigger the hoard.", "tl": "Marka: habang mas malaki ang bahagi ng mga demonyo sa pinsala kay Ignara (laban sa mga tao), mas maraming bituin (hanggang 5) at mas malaking kayamanan." },
+  "lairStarsNote": { "en": "Saved to your run and the Hall of Legacy.", "tl": "Naitala sa iyong takbo at sa Bulwagan ng Pamana." },
+  "legacyStarsTitle": { "en": "Best dragon kill rating (stars)", "tl": "Pinakamataas na marka sa pagpatay sa dragon (bituin)" },
   "legacyDragonsTitle": {
     "en": "Dragons slain (Ignara)",
     "tl": "Mga dragong napatay (Ignara)"
@@ -1522,5 +1528,13 @@
   "genNowAuto": {
     "en": "Auto",
     "tl": "Auto"
+  },
+  "genCarouselDead": {
+    "en": "Fallen",
+    "tl": "Nasawi"
+  },
+  "genCarouselFocus": {
+    "en": "Camera focus",
+    "tl": "Nakatutok ang camera"
   }
 }

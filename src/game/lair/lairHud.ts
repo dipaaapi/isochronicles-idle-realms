@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 
+/** One kill's drop in the lair loot log. */
+export interface LairLootEntry { id: number; kind: string; name: { en: string; tl: string }; loot: Record<string, number> }
+
 /** Live expedition readout the lair scene publishes for the React HUD (runtime only, never saved). */
 export interface LairHudState {
   /** Furthest row the party front has reached (0..length-1). */
@@ -27,6 +30,13 @@ export interface LairHudState {
   leader: 'DEMON' | 'DRAGON' | 'HUMAN' | null;
   /** The hoard granted when she fell (shown until the party returns). */
   victory?: Record<string, number>;
+  /** Ignara kill rating (1–5) and the damage behind it (demons vs humans on her). */
+  stars: number;
+  demonDamage: number;
+  humanDamage: number;
+  /** Kill drops this entry: newest first, and the running total. */
+  lootLog: LairLootEntry[];
+  lootTotals: Record<string, number>;
   /** The player's Hold order: the party stops advancing (still repairs and fights). */
   hold: boolean;
   setHold: (hold: boolean) => void;
@@ -51,6 +61,11 @@ export const useLairHud = create<LairHudState>((set) => ({
   dragonFocus: 'DEMON',
   leader: null,
   victory: undefined,
+  stars: 0,
+  demonDamage: 0,
+  humanDamage: 0,
+  lootLog: [],
+  lootTotals: {},
   hold: false,
   setHold: (hold) => set({ hold }),
   publish: (s) => set(s),

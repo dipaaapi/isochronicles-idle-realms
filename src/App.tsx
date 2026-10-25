@@ -151,7 +151,7 @@ export const App: React.FC = () => {
           <div data-tutorial="map" className="relative flex-1 h-full min-w-0 overflow-hidden bg-slate-950">
             {/* Keyed on the location too: switching disposes one world and boots the other */}
             <PhaserGame key={`${layoutSeed}-${activeLocation}`} location={activeLocation} />
-            {inLair ? <LairHud /> : <>
+            {!inLair && <>
               {/* Frame around the map only, in the biome's style; status + difficulty at its lower right */}
               <BiomeFrame />
               <BattleStatusHud onOpenSettings={() => setIsSettingsOpen(true)} />
@@ -164,7 +164,8 @@ export const App: React.FC = () => {
             <MusicPlayerHost />
           </div>
 
-          {/* Dedicated Right Sidebar HUD (Demon Realm only: its actions drive that world) */}
+          {/* Dedicated Right Sidebar HUD (Demon Realm only: its actions drive that world); the lair has its own */}
+          {inLair && <LairHud />}
           {!inLair && <GameHUD
             onOpenCitadel={(tab) => setCitadelTab(tab || 'MINIONS')}
             onOpenAtlas={(section = 'GUIDE') => {

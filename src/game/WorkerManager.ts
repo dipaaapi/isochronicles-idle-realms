@@ -89,9 +89,10 @@ export class WorkerManager implements WorkerContext {
   }
 
   /** Live gauges of the field Generals for the Generals panel. */
-  public getGeneralGauges(): Array<{ id: string; hp: number; maxHp: number; rage: number; brawling: boolean }> {
+  public getGeneralGauges(): Array<{ id: string; hp: number; maxHp: number; rage: number; brawling: boolean; power: number }> {
     return this.workers.filter((w) => this.isFieldGeneral(w)).map((w) => ({
       id: w.id, hp: Math.max(0, Math.round(w.hp)), maxHp: Math.round(w.maxHp), rage: Math.round(w.rage ?? 0), brawling: !!w.isBrawling,
+      power: w.attackPower * 3 + w.maxHp,
     }));
   }
 

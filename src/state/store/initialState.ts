@@ -258,6 +258,8 @@ export const createInitialProgress = () => {
     lairProgress: freshLairProgress(),
     dragon: freshDragon(),
     dragonsSlain: 0,
+    dragonBestStars: 0,
+    dragonStarsTotal: 0,
     volcanicMagma: {} as Record<string, import('../lairExpedition').MagmaTile>,
 
     // Silhouette Discovery: Starting beasts are pre-discovered

@@ -51,7 +51,7 @@ import { HoverTooltip } from './HoverTooltip';
 import { useTranslation } from '../i18n/translations';
 import { useExternalMusic } from '../state/externalMusic';
 import { MusicPlayer } from './MusicPlayer';
-import { GeneralsPanel } from './GeneralsPanel';
+import { GeneralsCarousel, GeneralsPanel, useGeneralHotkeys } from './GeneralsPanel';
 import { SeaFolkPanel } from './SeaFolkPanel';
 import { GeneralSkillPanel } from './GeneralSkillPanel';
 
@@ -159,15 +159,15 @@ const BATTLE_ITEMS: ItemMeta[] = [
   },
   {
     id: 'POISON_SMOKE', icon: '☠️', nameEn: 'Poison Smoke', nameTl: 'Usok na Lason', keyBinding: 't', maxDuration: 0,
-    color: '#84cc16', glowColor: 'rgba(132,204,22,0.6)', descEn: 'Poison clouds spread around the Castle and several Establishments.',
-    descTl: 'Kumakalat ang ulap na lason sa paligid ng Kastilyo at ilang gusali.',
-    buffEffectEn: 'Poisons nearby invaders for 8s.', buffEffectTl: 'Nilalason ang mga kalapit na kalaban sa loob ng 8s.',
+    color: '#84cc16', glowColor: 'rgba(132,204,22,0.6)', descEn: 'Poison chains from invader to invader, each one wrapped in a burning cloud.',
+    descTl: 'Tumatalon ang lason mula sa isang kalaban papunta sa iba, at bawat isa ay binabalot ng nakasusunog na ulap.',
+    buffEffectEn: 'Chains to up to 8 invaders: a burst, then poison for 8s.', buffEffectTl: 'Tumatalon sa hanggang 8 kalaban: biglang tama, saka lason sa loob ng 8s.',
   },
   {
     id: 'BONE_CAGE', icon: '🦇', nameEn: 'Bone Cage', nameTl: 'Kulungan ng Buto', keyBinding: 'y', maxDuration: 0,
-    color: '#c4b5fd', glowColor: 'rgba(196,181,253,0.6)', descEn: 'A bone cage traps the nearest invader as a dark pit swallows it.',
-    descTl: 'Kinukulong ng hawla ng buto ang pinakamalapit na kalaban habang nilulunok ito ng madilim na hukay.',
-    buffEffectEn: 'Stuns the nearest invader for 6s.', buffEffectTl: 'Pinatitigil ang pinakamalapit na kalaban sa loob ng 6s.',
+    color: '#c4b5fd', glowColor: 'rgba(196,181,253,0.6)', descEn: 'A bone cage traps the invader nearest the castle and those beside it, then the earth swallows them.',
+    descTl: 'Kinukulong ng hawla ng buto ang kalabang pinakamalapit sa kastilyo at ang mga katabi nito, saka sila nilulunok ng lupa.',
+    buffEffectEn: 'Everyone in the cage dies after 1.5s.', buffEffectTl: 'Mamamatay ang lahat ng nasa hawla pagkalipas ng 1.5s.',
   },
 ];
 
@@ -248,6 +248,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     typeof document !== 'undefined' ? !!document.fullscreenElement : false
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  useGeneralHotkeys();
   const [activeTab, setActiveTab] = useState<'command' | 'status' | 'resources'>('command');
 
   // The tutorial opens the sidebar on the tab its step points at
@@ -866,6 +867,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       {/* Generals command panel / docked music player share one slot (tabs). The player stays
           mounted (hidden) on the Generals tab and while the side menu is collapsed so it keeps playing */}
       <div data-tutorial="dock" className={isSidebarOpen ? 'pl-3 pb-2' : ''} style={isSidebarOpen ? { paddingRight: 12 + scrollGutter } : undefined}>
+        {isSidebarOpen && <GeneralsCarousel />}
         {isSidebarOpen && (
           <div className="flex gap-1 mb-1.5">
             {(['GENERALS', 'MUSIC'] as const).map((tab) => (

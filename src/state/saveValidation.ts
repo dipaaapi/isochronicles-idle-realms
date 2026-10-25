@@ -12,7 +12,7 @@ const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 const TOP_LEVEL_KEYS = new Set([
   'version', 'difficulty', 'skillPoints', 'skillRanks', 'lordName', 'runId', 'runStartedAt',
   'playSeconds', 'layoutSeed', 'coastStyle', 'buildingPositions', 'munitions', 'platformPhase',
-  'realmChoice', 'activeLocation', 'lairOpen', 'lairProgress', 'dragon', 'dragonsSlain', 'volcanicMagma', 'year', 'season', 'exportedAt', 'realmName', 'language', 'hasCompletedIntro',
+  'realmChoice', 'activeLocation', 'lairOpen', 'lairProgress', 'dragon', 'dragonsSlain', 'dragonBestStars', 'dragonStarsTotal', 'volcanicMagma', 'year', 'season', 'exportedAt', 'realmName', 'language', 'hasCompletedIntro',
   'resources', 'workerCount', 'roster', 'upgrades', 'castleBuilt', 'spireBuilt', 'spireTower',
   'resourceBuildings', 'establishmentSkillCooldowns', 'autoBuyBuildingMaterials', 'autoBuySummon',
   'defense', 'invasion', 'achievements', 'autoSettings', 'timeOfDay', 'day', 'ambientDarkness',

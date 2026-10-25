@@ -112,20 +112,23 @@ export const createWorldSlice = (...[set, get]: SliceArgs) => ({
     return hp;
   },
 
-  slayDragon: (fullCredit: boolean) => {
+  slayDragon: (fullCredit: boolean, stars = 1) => {
     const s = get();
     if (s.dragon.slain || s.dragon.maxHp <= 0) return {};
-    const reward = dragonRewards(s.dragon.generation, fullCredit);
+    const reward = dragonRewards(s.dragon.generation, fullCredit, stars);
     s.addResources(reward);
     const rune = s.grantRune(rollRuneKind(), REWARDS.runeTier);
     set((prev) => ({
       dragon: { ...prev.dragon, hp: 0, slain: true },
       dragonsSlain: prev.dragonsSlain + 1,
+      dragonBestStars: Math.max(prev.dragonBestStars, stars),
+      dragonStarsTotal: prev.dragonStarsTotal + stars,
       lairOpen: false,
       lairProgress: freshLairProgress(),
       lastSavedTimestamp: Date.now(),
     }));
     logMessage('dragonSlain', { name: MATRIARCH.name, coins: reward.coins ?? 0, count: get().dragonsSlain });
+    logMessage('dragonStars', { stars: '★'.repeat(stars) + '☆'.repeat(5 - stars) });
     if (!fullCredit) logMessage('dragonHalfCredit');
     if (rune) logMessage('dragonRune', { tier: rune.tier });
     logMessage('magmaStilled');

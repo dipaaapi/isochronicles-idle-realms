@@ -260,8 +260,27 @@ export const matriarchMaxHp = (fighters: LairFighter[], generation: number): num
 };
 
 /** The hoard for slaying this generation (half without recent demon credit). */
-export const dragonRewards = (generation: number, fullCredit: boolean): Record<string, number> => {
-  const k = (1 + REWARDS.generationGrowth * Math.max(0, generation - 1)) * (fullCredit ? 1 : REWARDS.halfShare);
+export const RATING = LAIR.rating;
+export const LOOT = LAIR.loot;
+
+/** 1–5 stars for a kill: the demons' share of all the demon + human damage on Ignara (see rating in dragonsLair.json). */
+export const dragonStars = (demonDamage: number, humanDamage: number): number => {
+  const total = Math.max(0, demonDamage) + Math.max(0, humanDamage);
+  const share = total > 0 ? Math.max(0, demonDamage) / total : 0;
+  return Math.min(5, 1 + RATING.thresholds.filter((t) => share >= t).length);
+};
+
+/** What one kill in the lair drops (BAT / KIN / GOLEM / HUMAN), scaled by the lair wave power. */
+export const lairLootFor = (kind: string, wave: number): Record<string, number> => {
+  const base = (LOOT.drops as Record<string, Record<string, number>>)[kind];
+  if (!base) return {};
+  const k = lairWavePower(wave);
+  return Object.fromEntries(Object.entries(base).map(([key, v]) => [key, Math.max(1, Math.round(v * k))]));
+};
+
+export const dragonRewards = (generation: number, fullCredit: boolean, stars = 1): Record<string, number> => {
+  const k = (1 + REWARDS.generationGrowth * Math.max(0, generation - 1)) * (fullCredit ? 1 : REWARDS.halfShare)
+    * (1 + RATING.rewardPerStar * (Math.min(5, Math.max(1, stars)) - 1));
   return Object.fromEntries(Object.entries(REWARDS.resources).map(([key, v]) => [key, Math.round((v as number) * k)]));
 };
 

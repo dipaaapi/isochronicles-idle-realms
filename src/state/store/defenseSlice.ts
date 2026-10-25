@@ -243,6 +243,8 @@ export const createDefenseSlice = (...[set, get]: SliceArgs) => ({
       startedAt: s.runStartedAt || s.lastSavedTimestamp,
       endedAt: Date.now(),
       dragonsSlain: s.dragonsSlain,
+      dragonBestStars: s.dragonBestStars,
+      dragonStarsTotal: s.dragonStarsTotal,
     };
     logMessage('runFallen', { wave: entry.waveReached });
     void endRunSave().then(() => recordLegacy(entry));

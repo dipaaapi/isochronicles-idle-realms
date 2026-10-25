@@ -13,7 +13,7 @@ import WAVE_POOL from '../../data/wavePool.json';
 import LAIR from '../../data/dragonsLair.json';
 import {
   CHECKPOINTS, COMBAT, CREATURES, HUMANS, LAIR_CONFIG, LAIR_ENCOUNTERS, LAIR_LENGTH, LAIR_OBSTACLES, LAIR_WIDTH, MATRIARCH, PARTY,
-  blockingRow, creatureStats, encounterCount, guardianOf, inRect, isStaticBlocked, lairFighters, lairWavePower,
+  blockingRow, creatureStats, dragonStars, lairLootFor, LOOT, encounterCount, guardianOf, inRect, isStaticBlocked, lairFighters, lairWavePower,
   magmaPhase, matriarchMaxHp, matriarchPhase, partyAverage, rockfallPhase,
   type CreatureKind, type LairEncounter, type LairFighter, type LairObstacle,
 } from '../../state/lairExpedition';
@@ -187,7 +187,7 @@ export class LairExpedition {
     this.fx = scene.add.graphics().setDepth(100000);
     this.glowFx = scene.add.graphics().setDepth(100001).setBlendMode(Phaser.BlendModes.ADD);
     // The HUD store outlives scenes: start each expedition from a clean readout
-    useLairHud.getState().publish({ victory: undefined, battle: false, holdingAt: null, holdProgress: 0, foes: 0, humans: 0 });
+    useLairHud.getState().publish({ victory: undefined, stars: 0, demonDamage: 0, humanDamage: 0, lootLog: [], lootTotals: {}, battle: false, holdingAt: null, holdProgress: 0, foes: 0, humans: 0 });
     const store = useGameStore.getState();
     this.wave = store.invasion.waveNumber;
     this.frontY = CHECKPOINTS[store.lairProgress.checkpoint] ?? 0;
@@ -757,7 +757,23 @@ export class LairExpedition {
       this.scene.tweens.add({ targets: u.container, alpha: 0, duration: 400, onComplete: () => u.container.destroy() });
       // The human expedition keeps sending raiders while the Matriarch lives
       if (u.faction === 'HUMAN' && this.battle) this.humanRespawns.push(this.t + HUMANS.respawnSeconds);
+      if (by?.faction === 'DEMON') this.dropLoot(u);
     }
+  }
+
+  /** A demon's kill drops loot straight into the stores and the side panel's loot log. */
+  private dropLoot(u: Unit): void {
+    const kind = u.faction === 'HUMAN' ? 'HUMAN' : u.kind;
+    const loot = lairLootFor(kind, this.wave);
+    if (!Object.keys(loot).length) return;
+    useGameStore.getState().addResources(loot);
+    const hud = useLairHud.getState();
+    const totals = { ...hud.lootTotals };
+    for (const [k, v] of Object.entries(loot)) totals[k] = (totals[k] ?? 0) + v;
+    hud.publish({
+      lootLog: [{ id: this.nextId++, kind, name: u.name, loot }, ...hud.lootLog].slice(0, LOOT.logSize),
+      lootTotals: totals,
+    });
   }
 
   private respawn(u: Unit): void {
@@ -823,8 +839,10 @@ export class LairExpedition {
     soundFx.playDragonRoar();
     soundFx.playVictory();
     const fullCredit = this.t - this.lastDemonHitAt <= MATRIARCH.creditSeconds;
-    this.victory = useGameStore.getState().slayDragon(fullCredit);
-    useLairHud.getState().publish({ victory: this.victory, battle: false, dragonHp: 0 });
+    const demonDamage = this.dealt['DEMON>DRAGON'] ?? 0, humanDamage = this.dealt['HUMAN>DRAGON'] ?? 0;
+    const stars = dragonStars(demonDamage, humanDamage);
+    this.victory = useGameStore.getState().slayDragon(fullCredit, stars);
+    useLairHud.getState().publish({ victory: this.victory, stars, demonDamage, humanDamage, battle: false, dragonHp: 0 });
     // The brood and the humans scatter
     for (const u of this.units) {
       if (u.faction !== 'DEMON' && !u.isBoss && !u.dead) {

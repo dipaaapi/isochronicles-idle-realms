@@ -1388,12 +1388,16 @@ export class MainScene extends Phaser.Scene {
   }
 
   /** â†’ next (weaker) General, â† previous (stronger); wraps around the list. */
-  private cycleGeneralFocus(step: 1 | -1): void {
+  private cycleGeneralFocus(step: 1 | -1 | 0, id?: string): void {
     const ranked = this.generalsByPower();
-    if (!ranked.length) return;
-    this.generalFocusIndex = (((this.generalFocusIndex + step) % ranked.length) + ranked.length) % ranked.length;
+    if (!ranked.length) { this.setFollow(undefined); return; }
+    const at = id ? ranked.findIndex((w) => w.id === id) : -1;
+    if (id && at < 0) return; // fallen or off the field: never focus a dead General
+    this.generalFocusIndex = at >= 0 ? at : (((this.generalFocusIndex + step) % ranked.length) + ranked.length) % ranked.length;
     const g = ranked[this.generalFocusIndex];
     this.followGeneral = undefined;
+    // Tell the HUD carousel at once, not only when the glide lands
+    useFocusGeneral.getState().setFocus(g.id, String(g.unitClass));
     this.glideTo(() => ({ x: this.islandContainer.x + g.container.x, y: this.islandContainer.y + g.container.y }), Math.max(this.userZoom, 1.6));
     // Once there, keep following it (until a drag, Esc, or it falls)
     this.glideTween?.once(Phaser.Tweens.Events.TWEEN_COMPLETE, () => this.setFollow(g));
@@ -1413,7 +1417,8 @@ export class MainScene extends Phaser.Scene {
   private updateFollow(delta: number): void {
     const g = this.followGeneral;
     if (!g) return;
-    if (g.hp <= 0 || !g.container.active || !g.container.visible) { this.setFollow(undefined); return; }
+    // It fell: skip to the next living General (it now sits at the same rank index)
+    if (g.hp <= 0 || !g.container.active || !g.container.visible) { this.followGeneral = undefined; this.cycleGeneralFocus(0); return; }
     if (!this.glideTween?.isPlaying()) {
       const cam = this.cameras.main;
       const cx = cam.scrollX + cam.width / 2, cy = cam.scrollY + cam.height / 2;
@@ -1524,7 +1529,14 @@ export class MainScene extends Phaser.Scene {
       if (!this.workerManager.manualCast(this.followGeneral.id, now.castSlot)) soundFx.playClick();
       useFocusGeneral.getState().setCooldowns(this.workerManager.skillCooldowns(this.followGeneral.id));
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { unsubCast(); useFocusGeneral.getState().setFocus(null, null); });
+    // The sidebar Generals carousel (◀ / ▶ or a tapped slide) moves the camera too
+    const unsubNav = useFocusGeneral.subscribe((now, prev) => {
+      if (now.navTick === prev.navTick || !this.sys.isActive()) return;
+      if (now.navId) this.cycleGeneralFocus(0, now.navId);
+      else if (now.navStep) this.cycleGeneralFocus(now.navStep);
+    });
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => unsubNav());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { unsubNav(); unsubCast(); useFocusGeneral.getState().setFocus(null, null); });
     this.events.once(Phaser.Scenes.Events.DESTROY, () => unsubCast());
     // Arrow keys: â†/â†’ cycle the camera through the Generals by overall power, â†‘/â†“ zoom
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {

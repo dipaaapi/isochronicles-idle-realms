@@ -346,12 +346,15 @@ export interface GameStoreState {
   dragon: import('../state/lairExpedition').DragonState;
   /** Dragons slain in this run (saved, shown in the Hall of Legacy). */
   dragonsSlain: number;
+  /** Star ratings for slaying Ignara (1–5 each): best kill and the sum of all kills this run (saved, Hall of Legacy). */
+  dragonBestStars: number;
+  dragonStarsTotal: number;
   /** Sizes the dragon the first time her battle starts (no-op once sized). */
   sizeDragon: (maxHp: number) => void;
   /** Damage to the dragon (never heals); returns the HP left. */
   damageDragon: (amount: number) => number;
   /** She falls: hoard, record, the cave closes. Returns the resources granted. */
-  slayDragon: (fullCredit: boolean) => Record<string, number>;
+  slayDragon: (fullCredit: boolean, stars?: number) => Record<string, number>;
   /** Home to the Demon Realm after a victory (the cave is already sealed). */
   returnFromLair: () => void;
   /** Volcanic magma on the island (tile key → stage), from Ignara's volcano while she lives. */

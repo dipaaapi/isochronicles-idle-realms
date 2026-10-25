@@ -105,14 +105,14 @@ const ITEMS: ItemMeta[] = [
   {
     id: 'POISON_SMOKE', icon: '☠️', nameEn: 'Poison Smoke', nameTl: 'Usok na Lason', keyBinding: 't', maxDuration: 0,
     color: '#84cc16', glowColor: 'rgba(132,204,22,0.6)', bgGradient: 'from-lime-700/80 to-emerald-500/80',
-    descEn: 'Poison clouds spread around the Castle and several Establishments.', descTl: 'Kumakalat ang ulap na lason sa paligid ng Kastilyo at ilang gusali.',
-    buffEffectEn: 'Poisons nearby invaders for 8s.', buffEffectTl: 'Nilalason ang mga kalapit na kalaban sa loob ng 8s.',
+    descEn: 'Poison chains from invader to invader, each one wrapped in a burning cloud.', descTl: 'Tumatalon ang lason mula sa isang kalaban papunta sa iba, at bawat isa ay binabalot ng nakasusunog na ulap.',
+    buffEffectEn: 'Chains to up to 8 invaders: a burst, then poison for 8s.', buffEffectTl: 'Tumatalon sa hanggang 8 kalaban: biglang tama, saka lason sa loob ng 8s.',
   },
   {
     id: 'BONE_CAGE', icon: '🦇', nameEn: 'Bone Cage', nameTl: 'Kulungan ng Buto', keyBinding: 'y', maxDuration: 0,
     color: '#c4b5fd', glowColor: 'rgba(196,181,253,0.6)', bgGradient: 'from-violet-700/80 to-purple-500/80',
-    descEn: 'A bone cage traps the nearest invader as a dark pit swallows it.', descTl: 'Kinukulong ng hawla ng buto ang pinakamalapit na kalaban habang nilulunok ito ng madilim na hukay.',
-    buffEffectEn: 'Stuns the nearest invader for 6s.', buffEffectTl: 'Pinatitigil ang pinakamalapit na kalaban sa loob ng 6s.',
+    descEn: 'A bone cage traps the invader nearest the castle and those beside it, then the earth swallows them.', descTl: 'Kinukulong ng hawla ng buto ang kalabang pinakamalapit sa kastilyo at ang mga katabi nito, saka sila nilulunok ng lupa.',
+    buffEffectEn: 'Everyone in the cage dies after 1.5s.', buffEffectTl: 'Mamamatay ang lahat ng nasa hawla pagkalipas ng 1.5s.',
   },
 ];
 const DISPLAY_ITEMS = [...ITEMS].sort((a, b) => 'qwertyu'.indexOf(a.keyBinding) - 'qwertyu'.indexOf(b.keyBinding));

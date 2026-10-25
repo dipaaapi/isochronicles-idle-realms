@@ -368,29 +368,51 @@ export class InvasionManager {
       return;
     }
     if (effect === 'POISON_SMOKE') {
-      const towers = this.structures?.getTowers().filter((t) => t.id !== 'SPIRE') ?? [];
-      const picked = Phaser.Utils.Array.Shuffle([...towers]).slice(0, 3);
-      const centers = [this.castleCenter(), ...picked.map((t) => ({ x: t.x, y: t.y }))];
-      const radius = 112;
+      // Chain poison: starts on the invader nearest the castle and hops foe to foe; each victim
+      // gets a cloud that rides on it and keeps burning (never parked on the castle or establishments)
+      const center = this.castleCenter();
+      const dist = (a: ActiveInvader, p: { x: number; y: number }) => Math.hypot(a.container.x - p.x, a.container.y - p.y);
+      let current = [...foes].sort((a, b) => dist(a, center) - dist(b, center))[0];
+      if (!current) return;
       const dps = Math.round((24 + store.invasion.waveNumber * 0.7) * skillPower(store.invasion.waveNumber));
-      for (const p of centers) {
-        const cloud = this.scene.add.sprite(p.x, p.y - 10, 'battle-poison-smoke')
-          .setOrigin(0.5, 0.55).setAlpha(0.9).setScale(2.8).setDepth(9997);
-        this.parentContainer?.add(cloud);
-        cloud.play('battle-poison-smoke:poof');
-        this.scene.tweens.add({ targets: cloud, alpha: 0, scale: 1.2, duration: 8000, ease: 'Sine.easeInOut', onComplete: () => cloud.destroy() });
-        this.poisonZones.push({ x: p.x, y: p.y, radius, dps, life: 8, tick: 0 });
+      const hit = new Set<string>();
+      const chain: ActiveInvader[] = [];
+      while (current && chain.length < 8) {
+        chain.push(current);
+        hit.add(current.id);
+        const from = current;
+        current = foes.filter((f) => !hit.has(f.id) && dist(f, from.container) <= 160).sort((a, b) => dist(a, from.container) - dist(b, from.container))[0];
       }
+      chain.forEach((foe, i) => this.scene.time.delayedCall(i * 120, () => {
+        if (foe.isDead || !foe.container.active) return;
+        const prev = chain[i - 1];
+        if (prev?.container.active) {
+          const line = this.scene.add.graphics().setDepth(9997);
+          line.lineStyle(3, 0x84cc16, 0.85).lineBetween(prev.container.x, prev.container.y - 14, foe.container.x, foe.container.y - 14);
+          this.parentContainer?.add(line);
+          this.scene.tweens.add({ targets: line, alpha: 0, duration: 400, onComplete: () => line.destroy() });
+        }
+        const cloud = this.scene.add.sprite(0, -10, 'battle-poison-smoke').setOrigin(0.5, 0.55).setAlpha(0.85).setScale(0.9);
+        foe.container.add(cloud);
+        cloud.play('battle-poison-smoke:poof');
+        this.scene.tweens.add({ targets: cloud, alpha: 0, duration: 8000, ease: 'Sine.easeIn', onComplete: () => cloud.destroy() });
+        this.damageInvader(foe, Math.round(dps * 1.5), undefined, true);
+        this.applyBurn(foe, dps, 8);
+      }));
       soundFx.playExplosion();
       return;
     }
     if (effect === 'BONE_CAGE') {
+      // The cage closes on the invader nearest the castle and everyone around it; 1.5 s later the
+      // earth swallows whoever is inside (instant death, bosses too)
       const center = this.castleCenter();
-      const target = foes.sort((a, b) => Math.hypot(a.container.x - center.x, a.container.y - center.y) - Math.hypot(b.container.x - center.x, b.container.y - center.y))[0];
+      const target = [...foes].sort((a, b) => Math.hypot(a.container.x - center.x, a.container.y - center.y) - Math.hypot(b.container.x - center.x, b.container.y - center.y))[0];
       if (!target) return;
-      target.frozenTimer = Math.max(target.frozenTimer ?? 0, 6);
-      const cage = this.scene.add.sprite(target.container.x, target.container.y, 'battle-bone-cage')
-        .setOrigin(0.5, 0.84).setScale(2).setDepth(target.container.depth + 1);
+      const cx = target.container.x, cy = target.container.y;
+      const caught = foes.filter((f) => Math.hypot(f.container.x - cx, f.container.y - cy) <= 72);
+      for (const f of caught) f.frozenTimer = Math.max(f.frozenTimer ?? 0, 3);
+      const cage = this.scene.add.sprite(cx, cy, 'battle-bone-cage')
+        .setOrigin(0.5, 0.84).setScale(2.4).setDepth(target.container.depth + 1);
       this.parentContainer?.add(cage);
       cage.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (animation: Phaser.Animations.Animation) => {
         if (!cage.active) return;
@@ -398,9 +420,19 @@ export class InvasionManager {
         else if (animation.key === 'battle-bone-cage:sink') cage.destroy();
       });
       cage.play('battle-bone-cage:rise');
-      this.scene.time.delayedCall(4700, () => { if (cage.active) cage.play('battle-bone-cage:sink'); });
-      this.applyBurn(target, Math.max(1, Math.round(target.maxHp * 0.175)), 6);
       soundFx.playExplosion();
+      this.scene.time.delayedCall(1500, () => {
+        if (cage.active) cage.play('battle-bone-cage:sink');
+        this.scene.cameras.main.shake(220, 0.004);
+        for (const f of caught) {
+          if (f.isDead || !f.container.active) continue;
+          this.scene.tweens.add({
+            targets: f.container, y: f.container.y + 16, alpha: 0.2, duration: 420, ease: 'Quad.easeIn',
+            onComplete: () => { if (!f.isDead) { f.container.setAlpha(1); this.eliminateInvader(f); } },
+          });
+        }
+        soundFx.playExplosion();
+      });
       return;
     }
     if (effect === 'LASER_STORM') {

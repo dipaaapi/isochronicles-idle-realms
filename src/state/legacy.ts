@@ -31,6 +31,9 @@ export interface LegacyEntry {
   endedAt: number;
   /** Ignaras slain during the run (Dragon's Lair). */
   dragonsSlain?: number;
+  /** Best Ignara kill rating (1–5 stars) and the sum of every kill's stars. */
+  dragonBestStars?: number;
+  dragonStarsTotal?: number;
 }
 
 const KEY = 'isochronicle-hall-of-legacy';
@@ -48,6 +51,8 @@ export async function loadLegacy(): Promise<LegacyEntry[]> {
         ...e,
         lord: String(e.lord ?? '').slice(0, 32),
         avatar: sanitizeAvatar(e.avatar),
+        dragonBestStars: typeof e.dragonBestStars === 'number' && Number.isFinite(e.dragonBestStars) ? Math.min(5, Math.max(0, Math.floor(e.dragonBestStars))) : 0,
+        dragonStarsTotal: typeof e.dragonStarsTotal === 'number' && Number.isFinite(e.dragonStarsTotal) ? Math.max(0, Math.floor(e.dragonStarsTotal)) : 0,
         dragonsSlain: typeof e.dragonsSlain === 'number' && Number.isFinite(e.dragonsSlain) ? Math.max(0, Math.floor(e.dragonsSlain)) : 0,
       }))
       : [];
@@ -60,7 +65,7 @@ export async function loadLegacy(): Promise<LegacyEntry[]> {
 
 /** Ranking: most waves cleared, then most days, then the faster run. */
 export const rankLegacy = (list: LegacyEntry[]): LegacyEntry[] =>
-  [...list].sort((a, b) => b.wavesCleared - a.wavesCleared || b.days - a.days || a.playSeconds - b.playSeconds);
+  [...list].sort((a, b) => b.wavesCleared - a.wavesCleared || (b.dragonStarsTotal ?? 0) - (a.dragonStarsTotal ?? 0) || b.days - a.days || a.playSeconds - b.playSeconds);
 
 export async function recordLegacy(entry: LegacyEntry): Promise<void> {
   fallen.add(entry.runId);

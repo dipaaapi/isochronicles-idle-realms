@@ -574,6 +574,21 @@
       "aetherShards": 250
     }
   },
+  "loot": {
+    "_doc": "Drops when a demon lands the killing blow on a lair creature or human raider (BAT / KIN / GOLEM / HUMAN), × the lair wave power. Shown in the lair side panel's loot log (last logSize drops).",
+    "logSize": 40,
+    "drops": {
+      "BAT": { "coins": 40, "arcaneEssence": 2 },
+      "KIN": { "coins": 90, "obsidianShard": 3, "minerals": 4 },
+      "GOLEM": { "coins": 160, "minerals": 12, "metal": 8 },
+      "HUMAN": { "coins": 60, "metal": 3 }
+    }
+  },
+  "rating": {
+    "_doc": "Stars for slaying Ignara: the demons' share of all the damage dealt to her by demons and humans. 1 star always; each share in thresholds passed adds one (max 5). The hoard is × (1 + rewardPerStar × (stars − 1)). Best and total stars are saved and go to the Hall of Legacy.",
+    "thresholds": [0.35, 0.5, 0.65, 0.8],
+    "rewardPerStar": 0.15
+  },
   "volcanicMagma": {
     "_doc": "While Ignara is awake and alive, the Demon Realm's volcano spills magma: a rumble (rumbleSeconds, the path glows red) then a flow of tilesPerFlow tiles from its mouth over land and flooded shore, never onto protected tiles. ACTIVE magma burns every unit on it (dps, ticked every tickSeconds, game time); it cools to CRUST then BASALT and goes; basalt on flooded shore becomes land again. No new flows once she is slain; what is out cools normally.",
     "everySeconds": [
