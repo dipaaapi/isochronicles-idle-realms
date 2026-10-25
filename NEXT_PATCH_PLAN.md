@@ -46,7 +46,20 @@ Running list of things to update in the next patch. Add items as they come up; t
 - [ ] Keep `data-tutorial` targets working and update the tutorial steps if anything moves.
 - [ ] Check at phone/tablet width and with TL text (longer labels).
 
-## 4. BGM and SFX update
+## 4. Leviathan brings its Sea Folk, with a proper entrance
+
+**Problem:** only the Leviathan (water dragon) surfaces from the Abyssal Vortex; its sea creatures (the Sea Folk minions) don't come with it. And it just appears: unlike the Dragon's Lair opening (earthquake), there is no warning that it has arrived.
+
+**How it works now** (`game/WildFactionManager.ts` `onBattleStart` → `rise`, tuning `data/seaFolk.json`): the group size comes from `wildGroupSize(meter)` (the contamination meter), so a low meter means 0 minions while the boss is still guaranteed every wave; the boss always rises at the vortex centre, the minions at random shore tiles (`spawnTiles`).
+
+**To do:**
+- [ ] Always bring an escort with the Leviathan (`boss.escort` min/max in `seaFolk.json`), rising around the vortex rim, not only random shore tiles; check `spawnTiles` still has shore tiles after the vortex change.
+- [ ] Entrance sequence (game time, before it surfaces): the vortex spins faster and glows, the sea ring darkens, water bubbles / churns, a low roar + camera shake (like the lair-opening quake but watery), then the Leviathan bursts up with a big splash and spray; escorts pop up one by one around it.
+- [ ] Alert: a BattleStatusHud entry / banner "The Leviathan stirs!" a few seconds ahead, an activity-log line (EN/TL in `activityMessages.json`), and a sound cue in `soundFx.ts`.
+- [ ] Matching exit (it dives back into the vortex) when the battle ends.
+- [ ] Do the same check for the Ancient Caterpillar (Sand Brood) so both island gods arrive with their minions and a warning.
+
+## 5. BGM and SFX update
 
 - [ ] New background music and sound effects (with help from a collaborator). SFX are procedural Web Audio in `src/game/audio/soundFx.ts`; music is the YouTube player (`MusicPlayer`).
 
