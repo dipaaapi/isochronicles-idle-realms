@@ -14,7 +14,26 @@ Running list of things to update in the next patch. Add items as they come up; t
 - [ ] Check that `reskin` also runs when the biome is changed in Settings (`realmChoice`), not only through `platformPhase`; re-skin from whichever drives the tile theme.
 - [ ] Preview all four realms (tree + bush, idle / hover / harvest) offline to PNG before shipping.
 
-## 2. BGM and SFX update
+## 2. Volcanic magma spreads across the island
+
+**Problem:** the magma only ever spawns on one side of the volcano (the same few tiles near its mouth) and never really spreads; the flow just appears as a static patch.
+
+**How it works now** (`scene/volcanicMagma.ts`, tuning in `dragonsLair.json` `volcanicMagma`): while Ignara is awake, every `everySeconds` the volcano rumbles (`rumbleSeconds`), then `planFlow` lays a path of `tilesPerFlow` tiles at once. Tiles go ACTIVE (burns units) → CRUST → BASALT → gone; no new flow past `maxTiles`.
+
+**Why it stays on one side:**
+- `planFlow` scans rings around `VOLCANO_SITE.mouth` in a fixed order (dy, then dx from −r), so the start is always the same first open tile.
+- The walk always prefers `+x +y` (`b.x + b.y` sort) with only ±2 random wander, so every flow heads the same direction.
+- Tiles already covered are skipped, so later flows stall against the earlier ones and come out short, piling up in the same spot.
+
+**To do:**
+- [ ] Pick a random start among all open tiles around the mouth (or a random rim direction each eruption) so flows leave on every side.
+- [ ] Downhill walk away from the volcano centre in the start's direction (distance from the volcano, not `x + y`), with real branching (a flow may fork into 2 streams).
+- [ ] Let a new flow run over / extend older crust instead of stalling against it.
+- [ ] Animate the spread: tiles turn to magma one by one along the path (a glowing front creeping out from the mouth, `secondsPerTile`), not all at once; the head glows brightest, with heat shimmer / sparks at the front and a darkening crust behind.
+- [ ] Better surface animation in `scene/magmaArt.ts`: flowing lava texture (scrolling cracks, pulsing glow) and smooth edges joining neighbouring tiles; cooling visibly fades the glow.
+- [ ] Preview offline (several eruptions in a row) to check flows go in every direction before shipping.
+
+## 3. BGM and SFX update
 
 - [ ] New background music and sound effects (with help from a collaborator). SFX are procedural Web Audio in `src/game/audio/soundFx.ts`; music is the YouTube player (`MusicPlayer`).
 
