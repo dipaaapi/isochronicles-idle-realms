@@ -7,7 +7,6 @@ import { CHECKPOINTS, LAIR_CONFIG, LAIR_OBSTACLES, MATRIARCH, regionIndexAt } fr
 
 const SIDES = [
   { id: 'DEMON', label: 'lairSideDemon', text: 'text-purple-300', bar: 'bg-purple-500' },
-  { id: 'DRAGON', label: 'lairSideDragon', text: 'text-orange-300', bar: 'bg-orange-500' },
   { id: 'HUMAN', label: 'lairSideHuman', text: 'text-sky-300', bar: 'bg-sky-500' },
 ] as const;
 
@@ -95,7 +94,8 @@ export function LairHud() {
           <div className="mt-0.5 text-right font-mono text-[10px] text-stone-400">
             {Math.ceil(hud.dragonHp).toLocaleString()} / {hud.dragonMaxHp.toLocaleString()}
           </div>
-          {/* Three sides, no allies: who is left, who Ignara hunts, who is being ganged up on */}
+          {hud.leader === 'DRAGON' && <div className="text-[10px] text-amber-300">⚔️ {t('lairGanged')}</div>}
+          {/* Ignara's own HP is the bar above; the cards are the other two sides. Three sides, no allies: who is left, who Ignara hunts, who is being ganged up on */}
           <div className="mt-1.5 space-y-1.5 text-[10px]">
             {SIDES.map((s) => {
               const share = Math.min(1, Math.max(0, hud.shares[s.id]));
