@@ -108,8 +108,9 @@ export function LairHud() {
                   <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-stone-800">
                     <div className={`h-full ${s.bar}`} style={{ width: `${share * 100}%` }} />
                   </div>
-                  {hud.dragonFocus === s.id && <div className="mt-0.5 text-red-300">🔥 {t('lairHunted')}</div>}
-                  {hud.leader === s.id && <div className="mt-0.5 text-amber-300">⚔️ {t('lairGanged')}</div>}
+                  {/* Both lines always take their space (hidden when off) so the cards never jump in height */}
+                  <div className={`mt-0.5 text-red-300 ${hud.dragonFocus === s.id ? '' : 'invisible'}`}>🔥 {t('lairHunted')}</div>
+                  <div className={`mt-0.5 text-amber-300 ${hud.leader === s.id ? '' : 'invisible'}`}>⚔️ {t('lairGanged')}</div>
                 </div>
               );
             })}
