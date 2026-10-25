@@ -33,7 +33,20 @@ Running list of things to update in the next patch. Add items as they come up; t
 - [ ] Better surface animation in `scene/magmaArt.ts`: flowing lava texture (scrolling cracks, pulsing glow) and smooth edges joining neighbouring tiles; cooling visibly fades the glow.
 - [ ] Preview offline (several eruptions in a row) to check flows go in every direction before shipping.
 
-## 3. BGM and SFX update
+## 3. Right sidebar revamp (less clutter, no scrolling)
+
+**Problem:** the Demon Realm sidebar (`ui/GameHUD.tsx`) is too crowded: the header, the day / battle / weather timeline card, the General carousel, the Generals / Music tabs, the 14-portrait grid with quick-pick filters, battle priorities, Brawl / Fortify all stack in one column, so parts (e.g. the timeline's bottom, the action buttons) fall off-screen and need scrolling.
+
+**To do:**
+- [ ] Fit everything in one screen height at common sizes (768 / 900 / 1080 px tall) with no page scroll; only long lists scroll inside their own box.
+- [ ] Collapsible sections (timeline card, General carousel), remembered per player (localStorage), with a compact one-line summary when collapsed (e.g. "Dusk · W68 in 11s · Clear").
+- [ ] Generals panel (`ui/GeneralsPanel.tsx`): smaller portrait tiles (5–7 per row) or a compact list mode; filters + priorities in one row of icon buttons with hover tooltips (`HoverTooltip`); the hint text only until the first pick; Brawl / Fortify stay pinned at the bottom.
+- [ ] Merge the General carousel into the panel (the selected General's card shows above the grid) instead of a separate block.
+- [ ] Move rarely used info (season / days survived, weather details) into hover cards or the Atlas.
+- [ ] Keep `data-tutorial` targets working and update the tutorial steps if anything moves.
+- [ ] Check at phone/tablet width and with TL text (longer labels).
+
+## 4. BGM and SFX update
 
 - [ ] New background music and sound effects (with help from a collaborator). SFX are procedural Web Audio in `src/game/audio/soundFx.ts`; music is the YouTube player (`MusicPlayer`).
 
