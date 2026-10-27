@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 
 /**
  * Painted wild trees and bushes (Canvas2D, cached in the texture manager),
- * one look per realm: 1 Demon Citadel bloodwood / bramble, 2 Magma Caldera
- * ashwood / fire-fern, 3 Frost Spire snow pine / frost-berry, 4 Astral
+ * one look per realm: 1 Demon Citadel bloodwood / thorn bramble, 2 Magma Caldera
+ * ashwood / ember scrub, 3 Frost Spire snow pine / frost juniper, 4 Astral
  * Sanctum crystal tree / crystal bloom. Trees come as trunk + canopy so the
  * canopy can sway on its own; light falls from the upper left.
  */
@@ -244,94 +244,234 @@ function paintTree(ctx: CanvasRenderingContext2D, realm: Realm, variant: number,
   ctx.shadowBlur = 0;
 }
 
+/** A glowing berry / ember bead with a specular dot. */
+function bead(ctx: CanvasRenderingContext2D, p: Palette, x: number, y: number, r: number, blur: number): void {
+  ctx.shadowColor = p.accent;
+  ctx.shadowBlur = blur;
+  const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.1, x, y, r);
+  g.addColorStop(0, p.accentGlow);
+  g.addColorStop(0.45, p.accent);
+  g.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+/** A tapering cane (stroked twice: dark body, lit upper-left edge) from (x0,y0) curving through (qx,qy) to (x1,y1). */
+function cane(ctx: CanvasRenderingContext2D, dark: string, lit: string, x0: number, y0: number, qx: number, qy: number, x1: number, y1: number, w: number): void {
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.quadraticCurveTo(qx, qy, x1, y1);
+  ctx.stroke();
+  ctx.strokeStyle = lit;
+  ctx.lineWidth = w * 0.35;
+  ctx.beginPath();
+  ctx.moveTo(x0 - w * 0.25, y0 - w * 0.25);
+  ctx.quadraticCurveTo(qx - w * 0.25, qy - w * 0.3, x1, y1);
+  ctx.stroke();
+}
+
 function paintBush(ctx: CanvasRenderingContext2D, realm: Realm, variant: number): void {
   const p = PAL[realm];
   const rand = rng(realm * 211 + variant * 29 + 7);
   const cx = BUSH_W / 2, base = BUSH_BASE;
+  const lean = (variant - 1) * 1.5;
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(cx, base, 18, 4.5, 0, 0, Math.PI * 2);
   ctx.fill();
-  if (realm === 4) {
-    // Crystal bloom: a cluster of glowing prisms
+
+  if (realm === 1) {
+    // Bloodwood bramble: arching thorn canes over a low leaf mound, bloodberry clusters
+    const canes: Array<[number, number, number, number, number, number]> = [];
     for (let i = 0; i < 6; i++) {
-      const x = cx - 13 + i * 5.2 + (rand() - 0.5) * 2, h = 10 + rand() * 12, w = 3 + rand() * 2;
-      const g = ctx.createLinearGradient(x, base - h, x, base);
-      g.addColorStop(0, p.rim);
-      g.addColorStop(1, p.mid);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.moveTo(x - w, base - 2);
-      ctx.lineTo(x - w * 0.6, base - h + 3);
-      ctx.lineTo(x, base - h);
-      ctx.lineTo(x + w * 0.6, base - h + 3);
-      ctx.lineTo(x + w, base - 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-      ctx.lineWidth = 0.6;
-      ctx.stroke();
+      const side = i % 2 ? 1 : -1, reach = 13 + rand() * 7;
+      const x0 = cx + side * (1 + rand() * 4), x1 = cx + side * reach + lean;
+      const y1 = base - 5 - rand() * 6, peak = base - 30 - rand() * 6;
+      canes.push([x0, base - 1, x0 + side * 3, peak, x1, y1]);
     }
-  } else if (realm === 2) {
-    // Fire-fern: curling fronds that glow at the tips
-    for (let i = 0; i < 9; i++) {
-      const a = Math.PI + (i / 8) * Math.PI;
-      const len = 14 + rand() * 6;
-      const tx = cx + Math.cos(a) * len, ty = base - 4 + Math.sin(a) * len * 0.9;
-      const g = ctx.createLinearGradient(cx, base, tx, ty);
-      g.addColorStop(0, p.dark);
-      g.addColorStop(0.6, p.mid);
-      g.addColorStop(1, p.lit);
-      ctx.strokeStyle = g;
-      ctx.lineWidth = 3.2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, base - 2);
-      ctx.quadraticCurveTo((cx + tx) / 2, ty - 4, tx, ty);
-      ctx.stroke();
-      ctx.shadowColor = p.accent;
-      ctx.shadowBlur = 5;
-      ctx.fillStyle = p.accent;
-      ctx.beginPath();
-      ctx.arc(tx, ty, 1.6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-  } else {
-    // Bramble (realm 1) / frost-berry (realm 3): leafy mounds, thorns or frost, berries
-    const spots: Array<[number, number, number]> = [[cx - 10, base - 9, 9], [cx + 10, base - 9, 9], [cx, base - 14, 10], [cx - 4, base - 7, 9], [cx + 5, base - 6, 8]];
-    for (const [x, y, r] of spots) cluster(ctx, p, x + (rand() - 0.5) * 2, y, r * (0.92 + variant * 0.06), rand);
-    if (realm === 1) {
-      ctx.strokeStyle = '#1a0f0a';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 6; i++) {
-        const x = cx - 14 + rand() * 28, y = base - 6 - rand() * 14;
+    // Back canes, then the leaf mound, then front canes (depth)
+    for (const c of canes.slice(0, 3)) cane(ctx, '#1a0d0a', p.barkLit, c[0], c[1], c[2], c[3], c[4], c[5], 2.2);
+    const spots: Array<[number, number, number]> = [[cx - 8, base - 7, 7.5], [cx + 8, base - 7, 7.5], [cx + lean, base - 11, 8.5]];
+    for (const [x, y, r] of spots) cluster(ctx, p, x + (rand() - 0.5) * 2, y, r * (0.92 + variant * 0.05), rand);
+    for (const c of canes.slice(3)) cane(ctx, '#1a0d0a', p.barkLit, c[0], c[1], c[2], c[3], c[4], c[5], 2);
+    // Hooked thorns along every cane
+    ctx.fillStyle = '#e7d3c2';
+    for (const [x0, y0, qx, qy, x1, y1] of canes) {
+      for (let k = 1; k < 5; k++) {
+        const t = k / 5, u = 1 - t;
+        const x = u * u * x0 + 2 * u * t * qx + t * t * x1, y = u * u * y0 + 2 * u * t * qy + t * t * y1;
+        const s = k % 2 ? 1 : -1;
         ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + (rand() - 0.5) * 6, y - 3);
-        ctx.stroke();
-      }
-    } else {
-      ctx.fillStyle = p.rim;
-      ctx.globalAlpha = 0.85;
-      for (const [x, y, r] of spots) {
-        ctx.beginPath();
-        ctx.ellipse(x - r * 0.2, y - r * 0.6, r * 0.6, r * 0.28, -0.2, 0, Math.PI * 2);
+        ctx.moveTo(x - 0.8, y);
+        ctx.lineTo(x + s * 1.6, y - 2.2);
+        ctx.lineTo(x + 0.8, y);
+        ctx.closePath();
         ctx.fill();
       }
-      ctx.globalAlpha = 1;
     }
-    ctx.shadowColor = p.accent;
-    ctx.shadowBlur = 3;
-    for (let i = 0; i < 6; i++) {
-      const x = cx + (rand() - 0.5) * 26, y = base - 6 - rand() * 14;
-      ctx.fillStyle = p.accent;
+    // Bloodberries in little bunches of three
+    for (let i = 0; i < 3; i++) {
+      const x = cx + (rand() - 0.5) * 24, y = base - 8 - rand() * 10;
+      bead(ctx, p, x, y, 1.7, 3);
+      bead(ctx, p, x + 2.2, y + 0.8, 1.5, 3);
+      bead(ctx, p, x + 0.9, y + 2.4, 1.6, 3);
+    }
+    return;
+  }
+
+  if (realm === 2) {
+    // Ember scrub: charred forked stems like the ashwood bark, smouldering ember-leaf tufts at the tips
+    const tips: Array<[number, number]> = [];
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI + 0.45 + (i / 4) * (Math.PI - 0.9) + (rand() - 0.5) * 0.15;
+      const len = 13 + rand() * 6;
+      const mx = cx + Math.cos(a) * len * 0.55 + lean, my = base - 2 + Math.sin(a) * len * 0.55;
+      const tx = cx + Math.cos(a) * len + lean, ty = base - 2 + Math.sin(a) * len;
+      cane(ctx, p.bark, p.barkLit, cx + (rand() - 0.5) * 3, base - 1, mx, my, tx, ty, 2.6);
+      // Each stem forks once near the top
+      const fa = a + (i < 2 ? -0.6 : 0.6);
+      const fx = mx + Math.cos(fa) * 7, fy = my + Math.sin(fa) * 7;
+      cane(ctx, p.bark, p.barkLit, mx, my, (mx + fx) / 2, (my + fy) / 2 - 1, fx, fy, 1.6);
+      tips.push([tx, ty], [fx, fy]);
+      // Glowing crack up the stem
+      ctx.strokeStyle = '#fb923c';
+      ctx.shadowColor = p.lit;
+      ctx.shadowBlur = 3;
+      ctx.lineWidth = 0.6;
       ctx.beginPath();
-      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.moveTo(cx, base - 3);
+      ctx.lineTo((cx + mx) / 2 + 0.6, (base + my) / 2);
+      ctx.lineTo(mx, my);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    // Ember-leaf tufts: small shaded flame-shaped leaves fanned at every tip
+    for (const [tx, ty] of tips) {
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + (k - 1) * 0.7 + (rand() - 0.5) * 0.3, l = 4.5 + rand() * 2.5;
+        const g = ctx.createLinearGradient(tx, ty, tx + Math.cos(a) * l, ty + Math.sin(a) * l);
+        g.addColorStop(0, p.dark);
+        g.addColorStop(1, p.lit);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.quadraticCurveTo(tx + Math.cos(a - 0.6) * l * 0.7, ty + Math.sin(a - 0.6) * l * 0.7, tx + Math.cos(a) * l, ty + Math.sin(a) * l);
+        ctx.quadraticCurveTo(tx + Math.cos(a + 0.6) * l * 0.7, ty + Math.sin(a + 0.6) * l * 0.7, tx, ty);
+        ctx.fill();
+      }
+      bead(ctx, p, tx, ty, 1.2, 6);
+    }
+    return;
+  }
+
+  if (realm === 3) {
+    // Frost juniper: a squat dwarf pine of jagged needle tiers, snow on each, icicles and frost-berries
+    for (let i = 0; i < 3; i++) {
+      const w = 18 - i * 4.5, y = base - 3 - i * 7, h = 11, x0 = cx + lean * (i / 2);
+      const g = ctx.createLinearGradient(x0 - w, 0, x0 + w, 0);
+      g.addColorStop(0, p.lit);
+      g.addColorStop(0.55, p.mid);
+      g.addColorStop(1, p.dark);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x0, y - h);
+      for (let k = 0; k <= 8; k++) ctx.lineTo(x0 - w + (k / 8) * w * 2, y + (k % 2 ? -1.6 : 1.4));
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+      // Needle strokes on the shaded side
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      for (let k = 0; k < 4; k++) {
+        const nx = x0 + rand() * w * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(nx, y - 1);
+        ctx.lineTo(nx - 1.5, y - 4);
+        ctx.stroke();
+      }
+      // Snow cap draped over the lit side
+      ctx.fillStyle = p.rim;
+      ctx.beginPath();
+      ctx.moveTo(x0, y - h);
+      ctx.quadraticCurveTo(x0 - w * 0.5, y - h * 0.45, x0 - w * 0.8, y - 2);
+      ctx.quadraticCurveTo(x0 - w * 0.35, y - h * 0.4, x0, y - h * 0.5);
+      ctx.quadraticCurveTo(x0 + w * 0.3, y - h * 0.45, x0 + w * 0.5, y - h * 0.25);
+      ctx.closePath();
       ctx.fill();
     }
-    ctx.shadowBlur = 0;
+    // Icicles under the lowest tier
+    ctx.fillStyle = p.accentGlow;
+    for (let k = 0; k < 4; k++) {
+      const x = cx - 13 + k * 8 + rand() * 2;
+      ctx.beginPath();
+      ctx.moveTo(x - 1, base - 2);
+      ctx.lineTo(x, base + 1.5 + rand() * 1.5);
+      ctx.lineTo(x + 1, base - 2);
+      ctx.fill();
+    }
+    for (let i = 0; i < 5; i++) bead(ctx, p, cx + (rand() - 0.5) * 22, base - 4 - rand() * 12, 1.3, 4);
+    return;
   }
+
+  // Crystal bloom (realm 4): faceted prisms fanned from one root like the crystal tree, star-leaves between them
+  const n = 6;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.33 + (rand() - 0.5) * 0.12;
+    const len = 11 + rand() * 11 - Math.abs(i - (n - 1) / 2) * 1.5, wid = 2.8 + rand() * 1.6;
+    const bx = cx + lean + (i - (n - 1) / 2) * 1.6, by = base - 1;
+    const tx = bx + Math.cos(a) * len, ty = by + Math.sin(a) * len;
+    const nx = -Math.sin(a) * wid, ny = Math.cos(a) * wid;
+    const sx = bx + Math.cos(a) * len * 0.72, sy = by + Math.sin(a) * len * 0.72;
+    // Lit face (left) and shaded face (right), split on the ridge
+    let g = ctx.createLinearGradient(bx, by, tx, ty);
+    g.addColorStop(0, p.mid);
+    g.addColorStop(1, p.rim);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(sx - nx, sy - ny);
+    ctx.lineTo(tx, ty);
+    ctx.closePath();
+    ctx.fill();
+    g = ctx.createLinearGradient(bx, by, tx, ty);
+    g.addColorStop(0, p.dark);
+    g.addColorStop(1, p.lit);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(sx + nx, sy + ny);
+    ctx.lineTo(tx, ty);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+  }
+  ctx.shadowColor = p.accent;
+  ctx.shadowBlur = 5;
+  for (let i = 0; i < 5; i++) {
+    const x = cx + (rand() - 0.5) * 26, y = base - 6 - rand() * 14;
+    ctx.fillStyle = p.accent;
+    ctx.beginPath();
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, r = k % 2 ? 0.8 : 2.1;
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
 }
 
 function make(scene: Phaser.Scene, key: string, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void): string {
